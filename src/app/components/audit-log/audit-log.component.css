@@ -1,0 +1,214 @@
+.page-wrapper {
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.search-input {
+  flex: 1;
+  min-width: 200px;
+}
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 52px;
+  gap: 12px;
+  color: var(--text-muted, #94a3b8);
+}
+.spin-lg {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--border, #e2e8f0);
+  border-top-color: var(--accent, #6366f1);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable:hover {
+  color: var(--accent, #6366f1);
+}
+.sort-icon {
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+.text-muted {
+  color: var(--text-muted, #94a3b8) !important;
+}
+.small {
+  font-size: 0.76rem;
+}
+.tbl-code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--accent, #6366f1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.act-create {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.act-update {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+.act-delete {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+.act-other {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent, #6366f1);
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 16px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.page-info {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.modal-box {
+  background: var(--card-bg, #fff);
+  border-radius: var(--radius, 12px);
+  border: 1px solid var(--border, #e2e8f0);
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.2s ease;
+}
+.modal-box.wide {
+  max-width: 780px;
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.modal-header h3 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.modal-close:hover {
+  background: var(--bg-tertiary, #eef1f7);
+}
+.modal-body {
+  padding: 20px 24px;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+.detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--bg-tertiary, #eef1f7);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 0.82rem;
+}
+.json-section {
+  margin-bottom: 14px;
+}
+.json-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.json-view {
+  background: var(--bg-tertiary, #eef1f7);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.74rem;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 250px;
+  line-height: 1.6;
+}
+.old-val {
+  border-left: 3px solid #f59e0b;
+}
+.new-val {
+  border-left: 3px solid #10b981;
+}

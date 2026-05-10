@@ -1,1 +1,385 @@
 /* You can add global styles to this file, and also import other style files */
+/* Import fonts */
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* ===================== GLOBAL RESET ===================== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: "DM Sans", system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f4f6fb;
+  color: #1e293b;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode body */
+[data-theme="dark"] body,
+body[data-theme="dark"] {
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+/* ===================== SCROLLBAR ===================== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #30363d;
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* ===================== BASE ELEMENTS ===================== */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+button {
+  font-family: inherit;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* Remove spinner from number inputs */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ===================== UTILITY CLASSES (shared across all pages) ===================== */
+
+/* Layout */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text-primary, #1e293b);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.page-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #64748b);
+}
+
+/* Card */
+.card {
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--radius, 12px);
+  box-shadow: var(
+    --card-shadow,
+    0 1px 3px rgba(0, 0, 0, 0.07),
+    0 4px 16px rgba(0, 0, 0, 0.04)
+  );
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-primary {
+  background: var(--accent, #6366f1);
+  color: white;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover, #4f46e5);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border, #e2e8f0);
+  color: var(--text-primary, #1e293b);
+}
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+}
+
+.btn-danger {
+  background: var(--danger, #ef4444);
+  color: white;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.78rem;
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 6px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-primary, #1e293b);
+  font-size: 0.875rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  line-height: 1.5;
+}
+
+.form-control:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+select.form-control {
+  cursor: pointer;
+}
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Table */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+thead th {
+  background: var(--bg-tertiary, #eef1f7);
+  color: var(--text-secondary, #64748b);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 11px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  transition: background 0.1s;
+}
+
+tbody tr:last-child {
+  border-bottom: none;
+}
+tbody tr:hover {
+  background: var(--bg-tertiary, #eef1f7);
+}
+
+tbody td {
+  padding: 11px 16px;
+  color: var(--text-primary, #1e293b);
+  vertical-align: middle;
+}
+
+/* Badges */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+.badge-inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+.badge-pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 16px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-secondary, #ffffff);
+  color: var(--text-secondary, #64748b);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.page-btn:hover:not(:disabled),
+.page-btn.active {
+  background: var(--accent, #6366f1);
+  color: white;
+  border-color: var(--accent, #6366f1);
+}
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ===================================================
+   SWEETALERT2 - ĐỒNG BỘ DARK THEME
+=================================================== */
+
+/* Áp dụng khi thẻ html có data-theme="dark" */
+html[data-theme="dark"] .swal2-popup {
+  background-color: var(--bg1, #1e293b); /* Nền popup theo hệ thống */
+  color: var(--tx0, #f8fafc); /* Màu chữ tiêu đề */
+  border: 1px solid var(--br, #334155);
+  border-radius: var(--r12, 12px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* Tiêu đề popup */
+html[data-theme="dark"] .swal2-title {
+  color: var(--tx0, #f8fafc);
+}
+
+/* Nội dung popup */
+html[data-theme="dark"] .swal2-html-container {
+  color: var(--tx1, #cbd5e1);
+}
+
+/* ---------------------------------
+ Tùy chỉnh màu sắc Icon cho dịu mắt
+--------------------------------- */
+html[data-theme="dark"] .swal2-icon.swal2-warning {
+  border-color: #fbbf24;
+  color: #fbbf24;
+}
+
+html[data-theme="dark"] .swal2-icon.swal2-question {
+  border-color: var(--acc, #6366f1);
+  color: var(--acc, #6366f1);
+}
+
+html[data-theme="dark"] .swal2-icon.swal2-success {
+  border-color: #10b981;
+  color: #10b981;
+}
+html[data-theme="dark"]
+  .swal2-icon.swal2-success
+  [class^="swal2-success-line"] {
+  background-color: #10b981;
+}
+
+html[data-theme="dark"] .swal2-icon.swal2-error {
+  border-color: var(--red, #ef4444);
+  color: var(--red, #ef4444);
+}
+html[data-theme="dark"] .swal2-icon.swal2-error [class^="swal2-x-mark-line"] {
+  background-color: var(--red, #ef4444);
+}
+
+/* ---------------------------------
+ Đồng bộ cho Toast Message
+--------------------------------- */
+html[data-theme="dark"] .swal2-toast {
+  background-color: var(--bg2, #334155);
+  color: var(--tx0, #f8fafc);
+  border: 1px solid var(--br, #475569);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Nền mờ (backdrop) phía sau popup */
+html[data-theme="dark"] .swal2-container.swal2-backdrop-show {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+}

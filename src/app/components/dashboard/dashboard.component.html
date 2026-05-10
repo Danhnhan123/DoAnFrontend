@@ -1,0 +1,78 @@
+<div class="dashboard">
+    <div class="page-header">
+      <h1 class="page-title">📊 Dashboard</h1>
+      <p class="page-subtitle">Xin chào! Đây là tổng quan hệ thống của bạn.</p>
+    </div>
+  
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      @for (stat of stats(); track stat.title) {
+        <div class="stat-card card">
+          <div class="stat-header">
+            <div class="stat-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
+              {{ stat.icon }}
+            </div>
+            <span class="stat-change" [class.up]="stat.changeType === 'up'" [class.down]="stat.changeType === 'down'">
+              {{ stat.change }}
+            </span>
+          </div>
+          <div class="stat-value">{{ stat.value }}</div>
+          <div class="stat-title">{{ stat.title }}</div>
+        </div>
+      }
+    </div>
+  
+    <!-- Quick actions -->
+    <div class="section-title">Truy cập nhanh</div>
+    <div class="quick-grid">
+      <a class="quick-card card" routerLink="/admin/action">
+        <span class="quick-icon">🛠️</span>
+        <span>Quản lý hành động</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/users">
+        <span class="quick-icon">👥</span>
+        <span>Quản lý người dùng</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/roles">
+        <span class="quick-icon">🛡️</span>
+        <span>Vai trò & quyền hạn</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/menus">
+        <span class="quick-icon">📋</span>
+        <span>Quản lý menu</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/system-config">
+        <span class="quick-icon">⚙️</span>
+        <span>Cấu hình hệ thống</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/audit-log">
+        <span class="quick-icon">📝</span>
+        <span>Audit Log</span>
+      </a>
+      <a class="quick-card card" routerLink="/admin/activity-log">
+        <span class="quick-icon">🗂️</span>
+        <span>Activity Log</span>
+      </a>
+    </div>
+  
+    <!-- System info -->
+    <div class="info-row">
+      <div class="info-card card">
+        <div class="info-title">📡 Thông tin hệ thống</div>
+        <div class="info-list">
+          <div class="info-row-item">
+            <span class="info-key">API Base URL</span>
+            <span class="info-val">backend-do-an-api-v2.onrender.com</span>
+          </div>
+          <div class="info-row-item">
+            <span class="info-key">Phiên bản API</span>
+            <span class="info-val">v1</span>
+          </div>
+          <div class="info-row-item">
+            <span class="info-key">Frontend</span>
+            <span class="info-val">Angular 18+</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>

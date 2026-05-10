@@ -1,59 +1,109 @@
-# DoAnFrontend
+# DoAnFrontend — Angular Admin Panel
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.25.
+Dự án **Admin Panel** xây dựng bằng **Angular 19** (Standalone Components + Signals), giao tiếp với backend qua REST API.
 
-## Development server
+---
 
-To start a local development server, run:
+## Yêu cầu môi trường
+
+| Công cụ     | Phiên bản khuyến nghị |
+| ----------- | --------------------- |
+| Node.js     | ≥ 20.x                |
+| npm         | ≥ 10.x                |
+| Angular CLI | ≥ 19.x                |
+
+---
+
+## Cài đặt & Chạy dự án
 
 ```bash
+# Cài dependencies
+npm install
+
+# Chạy development server
 ng serve
+
+# Build production
+ng build --configuration production
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Ứng dụng chạy tại `http://localhost:4200` theo mặc định.
 
-## Code scaffolding
+---
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Cấu trúc thư mục
 
-```bash
-ng generate component component-name
+```
+DoAnFrontend/
+├── src/
+│   ├── app/                   # Toàn bộ source code Angular
+│   │   ├── components/        # UI Components (xem chi tiết bên dưới)
+│   │   ├── services/          # Business logic + HTTP calls
+│   │   ├── models/            # TypeScript interfaces & DTOs
+│   │   ├── guards/            # Route guards (auth, guest)
+│   │   ├── interceptors/      # HTTP interceptors (auth token, refresh)
+│   │   ├── app.routes.ts      # Khai báo routes
+│   │   └── app.config.ts      # Cấu hình ứng dụng
+│   ├── environments/          # Cấu hình môi trường (dev/prod)
+│   ├── index.html             # HTML gốc
+│   ├── main.ts                # Entry point
+│   └── styles.css             # Global CSS
+├── public/                    # Static assets
+├── angular.json               # Angular workspace config
+├── package.json
+└── tsconfig.json
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+---
 
-```bash
-ng generate --help
+## Luồng code tổng quan
+
+```
+User Action (click/input)
+        │
+        ▼
+  Component (.ts)          ← Chỉ xử lý UI state & gọi Service
+        │
+        ▼
+    Service (.ts)          ← Chứa toàn bộ HTTP calls & business logic
+        │
+        ▼
+  Auth Interceptor         ← Tự động đính Bearer token vào request
+        │
+        ▼
+    Backend API            ← REST API (baseUrl trong environment.ts)
+        │
+        ▼
+  Service (xử lý response)
+        │
+        ▼
+  Component (cập nhật signal → Angular tự re-render)
 ```
 
-## Building
+---
 
-To build the project run:
+## Kiến trúc quan trọng
 
-```bash
-ng build
-```
+### Signals (Angular 19)
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Dự án dùng **Angular Signals** (`signal()`, `computed()`, `effect()`) thay cho `BehaviorSubject` để quản lý state — giúp change detection tối ưu hơn.
 
-## Running unit tests
+### Standalone Components
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+Tất cả components đều là **standalone** (không có `NgModule`), lazy-loaded qua `loadComponent()` trong routes.
 
-```bash
-ng test
-```
+### Authentication Flow
 
-## Running end-to-end tests
+1. Đăng nhập → `AuthService.login()` → lưu `accessToken` + `refreshToken` vào `localStorage`
+2. Mọi request HTTP → `authInterceptor` tự gắn `Authorization: Bearer <token>`
+3. Nếu nhận 401 → interceptor tự gọi `refreshToken`, retry request gốc
+4. Nếu refresh thất bại → `AuthService.clearSession()` → redirect về `/login`
 
-For end-to-end (e2e) testing, run:
+---
 
-```bash
-ng e2e
-```
+## Công nghệ sử dụng
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- **Angular 19** — framework chính
+- **SweetAlert2** — hộp thoại xác nhận/thông báo
+- **TypeScript** — ngôn ngữ chính
+- **CSS thuần** — không dùng thư viện UI component

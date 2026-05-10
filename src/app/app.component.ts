@@ -1,12 +1,18 @@
-import { Component } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [RouterOutlet],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css'
+  template: `<router-outlet />`
 })
-export class AppComponent {
-  title = 'DoAnFrontend';
+export class AppComponent implements OnInit {
+  themeService = inject(ThemeService);
+
+  ngOnInit(): void {
+    // Apply saved theme on app start
+    document.documentElement.setAttribute('data-theme', this.themeService.theme());
+  }
 }

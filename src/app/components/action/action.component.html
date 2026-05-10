@@ -1,0 +1,160 @@
+<div class="page-wrapper">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">🛠️ Quản lý hành động</h1>
+            <p class="page-subtitle">Tổng {{ totalRecords() }} hành động</p>
+        </div>
+        <button class="btn btn-primary" (click)="openCreate()">+ Thêm hành động</button>
+    </div>
+
+    <!-- Search + Filter toolbar -->
+    <div class="toolbar card">
+        <input class="form-control search-input" placeholder="🔍 Tìm tên, mô tả, ngày tạo" [ngModel]="search()"
+            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
+        <button class="btn btn-outline" (click)="toggleFilter()" [class.active]="showFilter()">
+            ⚙️ Bộ lọc {{ (filterName() || filterDesc() || filterDateFrom() || filterDateTo()) ? '(Đang bật)' : '' }}
+        </button>
+        <select class="form-control page-size-select" [ngModel]="pageSize()"
+            (ngModelChange)="pageSize.set(+$event); page.set(1); loadData()">
+            <option [value]="5">5/trang</option>
+            <option [value]="10">10/trang</option>
+            <option [value]="20">20/trang</option>
+            <option [value]="50">50/trang</option>
+        </select>
+    </div>
+
+    @if (showFilter()) {
+    <div class="filter-panel card">
+        <div class="form-row-3">
+            <div class="form-group">
+                <label class="form-label">Tên hành động</label>
+                <input class="form-control" placeholder="Nhập tên..." [ngModel]="filterName()"
+                    (ngModelChange)="filterName.set($event)" (keydown.enter)="applyFilter()" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả</label>
+                <input class="form-control" placeholder="Nhập mô tả..." [ngModel]="filterDesc()"
+                    (ngModelChange)="filterDesc.set($event)" (keydown.enter)="applyFilter()" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Khoảng ngày tạo</label>
+                <div class="date-range-inputs">
+                    <input type="date" class="form-control" [ngModel]="filterDateFrom()"
+                        (ngModelChange)="filterDateFrom.set($event)" />
+                    <span class="date-separator">-</span>
+                    <input type="date" class="form-control" [ngModel]="filterDateTo()"
+                        (ngModelChange)="filterDateTo.set($event)" />
+                </div>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-outline" (click)="clearFilter()">Xóa lọc</button>
+            <button class="btn btn-primary" (click)="applyFilter()">Áp dụng</button>
+        </div>
+    </div>
+    }
+
+    <div class="card">
+        @if (loading()) {
+        <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+        } @else if (rows().length === 0) {
+        <div class="state-box"><span style="font-size:2.5rem">🛠️</span>
+            <p>Không có dữ liệu</p>
+        </div>
+        } @else {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px">STT</th>
+                        <th class="sortable" (click)="sort('name')">
+                            Tên <span class="sort-icon">{{ sortIcon('name') }}</span>
+                        </th>
+                        <th class="sortable" (click)="sort('description')">
+                            Mô tả <span class="sort-icon">{{ sortIcon('description') }}</span>
+                        </th>
+                        <th class="sortable" (click)="sort('createdDate')">
+                            Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span>
+                        </th>
+                        <th style="text-align:right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (row of rows(); track row.id; let idx = $index) {
+                    <tr>
+                        <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
+                        <td>{{ row.name }}</td>
+                        <td>{{ row.description }}</td>
+                        <td class="text-muted small">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+                        <td class="action-cell">
+                            <button class="btn btn-outline btn-sm" (click)="openEdit(row)" title="Sửa">✏️</button>
+                            <button class="btn btn-danger btn-sm" (click)="delete(row.id, row.name)"
+                                title="Xóa">🗑️</button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+        <div class="pagination">
+            <button class="page-btn" (click)="setPage(1)" [disabled]="page()===1">«</button>
+            <button class="page-btn" (click)="setPage(page()-1)" [disabled]="page()===1">‹</button>
+            @if (visiblePages()[0] > 1) { <span class="page-dots">…</span> }
+            @for (p of visiblePages(); track p) {
+            <button class="page-btn" [class.active]="p===page()" (click)="setPage(p)">{{ p }}</button>
+            }
+            @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">…</span> }
+                <button class="page-btn" (click)="setPage(page()+1)" [disabled]="page()===totalPages()">›</button>
+                <button class="page-btn" (click)="setPage(totalPages())" [disabled]="page()===totalPages()">»</button>
+                <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+        </div>
+        }
+        }
+    </div>
+</div>
+
+<!-- ==================== MODAL ==================== -->
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-box wide" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>{{ isEdit() ? '✏️ Cập nhật hành động' : '➕ Thêm hành động mới' }}</h3>
+            <button class="modal-close" (click)="closeModal()">✕</button>
+        </div>
+
+        @if (loadingDetail()) {
+        <div class="state-box" style="padding:40px"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+        } @else {
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Tên hành động *</label>
+                    <input class="form-control" type="name" [ngModel]="form().name"
+                        (ngModelChange)="setField('name',$event)" placeholder="Tên hành động" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Mô tả</label>
+                    <input class="form-control" type="description" [ngModel]="form().description"
+                        (ngModelChange)="setField('description',$event)" placeholder="Mô tả hành động" />
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" (click)="closeModal()">Huỷ</button>
+            <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+                @if (saving()) { <span class="spin-sm"></span> }
+                {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+            </button>
+        </div>
+        }
+    </div>
+</div>
+}

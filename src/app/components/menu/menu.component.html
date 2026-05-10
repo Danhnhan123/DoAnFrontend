@@ -1,0 +1,211 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">📋 Quản lý Menu</h1>
+      <p class="page-subtitle">Cấu hình menu hệ thống — tổng {{ flatMenus().length }} mục</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">+ Thêm menu</button>
+  </div>
+
+  <div class="card">
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+    } @else if (nestedMenus().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">📋</span>
+      <p>Chưa có menu nào</p>
+    </div>
+    } @else {
+    <div class="menu-tree-root">
+      @for (root of getRootMenus(); track root.id) {
+      <!-- Root menu row -->
+      <div class="tree-item root-item">
+        <div class="tree-row">
+          <div class="tree-info">
+            <span class="tree-icon-badge">{{ root.icon || '📁' }}</span>
+            <div class="tree-names">
+              <span class="tree-name">{{ root.name }}</span>
+              <span class="tree-url">{{ root.url || '(Không có URL)' }}</span>
+            </div>
+            <span class="type-pill" [class.is-admin]="root.menuType === 'ADMIN'">{{ root.menuType }}</span>
+            @if (root.child?.length) {
+            <span class="child-count">{{ root.child!.length }} mục con</span>
+            }
+          </div>
+          <div class="tree-actions">
+            <button class="btn btn-outline btn-sm" (click)="openEdit(root)" title="Sửa">✏️ Sửa</button>
+            <button class="btn btn-danger btn-sm" (click)="delete(root.id, root.name)" title="Xóa">🗑️</button>
+          </div>
+        </div>
+
+        <!-- Children -->
+        @if (hasChildren(root)) {
+        <div class="children-wrap">
+          @for (child of getChildren(root); track child.id) {
+          <div class="tree-item child-item">
+            <div class="tree-row">
+              <div class="tree-info">
+                <span class="tree-connector">└─</span>
+                <span class="tree-icon-badge sm">{{ child.icon || '📄' }}</span>
+                <div class="tree-names">
+                  <span class="tree-name">{{ child.name }}</span>
+                  <span class="tree-url">{{ child.url || '(Không có URL)' }}</span>
+                </div>
+                <span class="type-pill sm" [class.is-admin]="child.menuType === 'ADMIN'">{{ child.menuType }}</span>
+                <span class="order-badge">Thứ tự: {{ child.sortOrder }}</span>
+              </div>
+              <div class="tree-actions">
+                <button class="btn btn-outline btn-sm" (click)="openEdit(child)" title="Sửa">✏️</button>
+                <button class="btn btn-danger btn-sm" (click)="delete(child.id, child.name)" title="Xóa">🗑️</button>
+              </div>
+            </div>
+
+            <!-- Grandchildren -->
+            @if (child.child?.length) {
+            <div class="children-wrap">
+              @for (gc of getChildren(child); track gc.id) {
+              <div class="tree-item grandchild-item">
+                <div class="tree-row">
+                  <div class="tree-info">
+                    <span class="tree-connector" style="margin-left:16px">└─</span>
+                    <span class="tree-icon-badge sm">{{ gc.icon || '📄' }}</span>
+                    <div class="tree-names">
+                      <span class="tree-name">{{ gc.name }}</span>
+                      <span class="tree-url">{{ gc.url || '(Không có URL)' }}</span>
+                    </div>
+                  </div>
+                  <div class="tree-actions">
+                    <button class="btn btn-outline btn-sm" (click)="openEdit(gc)">✏️</button>
+                    <button class="btn btn-danger btn-sm" (click)="delete(gc.id, gc.name)">🗑️</button>
+                  </div>
+                </div>
+              </div>
+              }
+            </div>
+            }
+          </div>
+          }
+        </div>
+        }
+      </div>
+      }
+    </div>
+    }
+  </div>
+</div>
+
+<!-- =================== MODAL =================== -->
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>
+        @if (isReadOnly()) { 👁️ Chi tiết Menu }
+        @else if (isEdit()) { ✏️ Cập nhật Menu }
+        @else { ➕ Thêm Menu mới }
+      </h3>
+      <button class="modal-close" (click)="closeModal()">✕</button>
+    </div>
+
+    @if (loadingDetail()) {
+    <div class="state-box" style="padding:36px"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    <div class="modal-body">
+      <fieldset [disabled]="isReadOnly()">
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Tên menu *</label>
+            <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name',$event)"
+              placeholder="Quản lý người dùng" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Menu cha</label>
+            <select class="form-control" [ngModel]="form().parentId"
+              (ngModelChange)="setField('parentId', $event ? +$event : null)">
+              <option [ngValue]="null">— Là menu gốc —</option>
+              @for (opt of renderParentOptions(nestedMenus()); track opt.id) {
+              <option [value]="opt.id" [disabled]="opt.disabled">{{ opt.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Đường dẫn (URL)</label>
+            <input class="form-control" [ngModel]="form().url" (ngModelChange)="setField('url',$event)"
+              placeholder="/admin/users" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Icon (emoji hoặc class)</label>
+            <input class="form-control" [ngModel]="form().icon" (ngModelChange)="setField('icon',$event)"
+              placeholder="👥 hoặc bi bi-people" />
+          </div>
+        </div>
+
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label">Loại menu</label>
+            <select class="form-control" [ngModel]="form().menuType" (ngModelChange)="setField('menuType',$event)">
+              @for (t of menuTypes; track t) { <option [value]="t">{{ t }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Thứ tự hiển thị</label>
+            <input class="form-control" type="number" min="1" [ngModel]="form().sortOrder"
+              (ngModelChange)="setField('sortOrder', +$event)" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">CSS Class</label>
+            <input class="form-control" [ngModel]="form().className" (ngModelChange)="setField('className',$event)"
+              placeholder="active, highlight..." />
+          </div>
+        </div>
+
+        <!-- Admin Only toggle -->
+        <div class="form-group">
+          <label class="toggle-row">
+            <input type="checkbox" [checked]="form().isAdminOnly"
+              (change)="setField('isAdminOnly', $any($event.target).checked)" />
+            <span class="toggle-label">
+              <strong>Chỉ dành cho Admin</strong>
+              <span class="toggle-sub">Menu này sẽ không hiển thị với người dùng thông thường</span>
+            </span>
+          </label>
+        </div>
+
+        <!-- Actions -->
+        <div class="form-group">
+          <label class="form-label">Hành động cho phép (Actions)</label>
+          @if (allActions().length === 0) {
+          <p class="text-muted" style="font-size:.8rem">Đang tải actions...</p>
+          } @else {
+          <div class="actions-grid">
+            @for (action of allActions(); track action.id) {
+            <label class="action-check" [class.selected]="isActionSelected(action.id)">
+              <input type="checkbox" [checked]="isActionSelected(action.id)"
+                (change)="toggleAction(action.id, $any($event.target).checked)" />
+              {{ action.name }}
+            </label>
+            }
+          </div>
+          }
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeModal()">
+        {{ isReadOnly() ? 'Đóng' : 'Huỷ' }}
+      </button>
+      @if (!isReadOnly()) {
+      <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+        @if (saving()) { <span class="spin-sm"></span> }
+        {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+      </button>
+      }
+    </div>
+    }
+  </div>
+</div>
+}

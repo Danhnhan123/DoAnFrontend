@@ -1,0 +1,292 @@
+<div class="page-wrapper">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">👥 Quản lý người dùng</h1>
+            <p class="page-subtitle">Tổng {{ totalRecords() }} người dùng</p>
+        </div>
+        <button class="btn btn-primary" (click)="openCreate()">+ Thêm người dùng</button>
+    </div>
+
+    <!-- Search + Filter toolbar -->
+    <div class="toolbar card">
+        <input class="form-control search-input" placeholder="🔍 Tìm tên, email, SĐT..." [ngModel]="search()"
+            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
+        <button class="btn btn-outline" (click)="toggleFilter()" [class.active]="showFilter()">⚙️ Bộ lọc nâng
+            cao</button>
+        <select class="form-control page-size-select" [ngModel]="pageSize()"
+            (ngModelChange)="pageSize.set(+$event); page.set(1); loadData()">
+            <option [value]="5">5/trang</option>
+            <option [value]="10">10/trang</option>
+            <option [value]="20">20/trang</option>
+            <option [value]="50">50/trang</option>
+        </select>
+    </div>
+    @if (showFilter()) {
+    <div class="filter-panel card">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label>Tên đăng nhập</label>
+                <input class="form-control" [(ngModel)]="filterUsername" (keydown.enter)="applyFilter()">
+            </div>
+            <div class="form-group">
+                <label>Họ tên</label>
+                <input class="form-control" [(ngModel)]="filterFullname" (keydown.enter)="applyFilter()">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input class="form-control" [(ngModel)]="filterEmail" (keydown.enter)="applyFilter()">
+            </div>
+            <div class="form-group">
+                <label>Số điện thoại</label>
+                <input class="form-control" [(ngModel)]="filterPhone" (keydown.enter)="applyFilter()">
+            </div>
+            <div class="form-group">
+                <label>Trạng thái (Chọn nhiều)</label>
+                <select class="form-control" multiple [(ngModel)]="filterStatusIds">
+                    @for (s of statusOptions(); track s.id) {
+                    <option [value]="s.id">{{ s.name }}</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Vai trò (Chọn nhiều)</label>
+                <select class="form-control" multiple [(ngModel)]="filterRoleIds">
+                    @for (r of roleOptions(); track r.id) {
+                    <option [value]="r.id">{{ r.name }}</option>
+                    }
+                </select>
+            </div>
+            <div class="form-group full-width">
+                <label>Khoảng ngày tạo</label>
+                <div class="date-range">
+                    <input type="date" class="form-control" [(ngModel)]="filterDateFrom">
+                    <span>-</span>
+                    <input type="date" class="form-control" [(ngModel)]="filterDateTo">
+                </div>
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-outline" (click)="clearFilter()">Xóa lọc</button>
+            <button class="btn btn-primary" (click)="applyFilter()">Áp dụng lọc</button>
+        </div>
+    </div>
+    }
+
+    <div class="card">
+        @if (loading()) {
+        <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+        } @else if (rows().length === 0) {
+        <div class="state-box"><span style="font-size:2.5rem">👤</span>
+            <p>Không có dữ liệu</p>
+        </div>
+        } @else {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px">STT</th>
+                        <th class="sortable" (click)="sort('firstName')">
+                            Họ tên <span class="sort-icon">{{ sortIcon('firstName') }}</span>
+                        </th>
+                        <th class="sortable" (click)="sort('email')">
+                            Email <span class="sort-icon">{{ sortIcon('email') }}</span>
+                        </th>
+                        <th class="sortable" (click)="sort('phoneNumber')">
+                            SĐT <span class="sort-icon">{{ sortIcon('phoneNumber') }}</span>
+                        </th>
+                        <th class="sortable" (click)="sort('userStatusName')">
+                            Trạng thái <span class="sort-icon">{{ sortIcon('userStatusName') }}</span>
+                        </th>
+                        <th>Vai trò</th>
+                        <th class="sortable" (click)="sort('createdDate')">
+                            Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span>
+                        </th>
+                        <th style="text-align:right">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (row of rows(); track row.id; let idx = $index) {
+                    <tr>
+                        <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
+                        <td>
+                            <div class="user-cell">
+                                <div class="av-sm">{{ getInitial(row.firstName, row.lastName) }}</div>
+                                <div>
+                                    <div class="u-name">{{ row.firstName }} {{ row.lastName }}</div>
+                                    <div class="u-sub">{{ row.username }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ row.email }}</td>
+                        <td>{{ row.phoneNumber || '—' }}</td>
+                        <td>
+                            <span class="status-pill" [style.background]="(row.userStatusColor || '#6366f1') + '22'"
+                                [style.color]="row.userStatusColor || '#6366f1'"
+                                [style.border]="'1px solid ' + (row.userStatusColor || '#6366f1') + '55'">
+                                {{ row.userStatusName || '—' }}
+                            </span>
+                        </td>
+                        <td>
+                            @for (r of (row.roles || []); track r.id) {
+                            <span class="role-pill">{{ r.name }}</span>
+                            }
+                        </td>
+                        <td class="text-muted small">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+                        <td class="action-cell">
+                            <button class="btn btn-outline btn-sm" (click)="openEdit(row)" title="Sửa">✏️</button>
+                            <button class="btn btn-danger btn-sm"
+                                (click)="delete(row.id, row.firstName+' '+row.lastName)" title="Xóa">🗑️</button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+        <div class="pagination">
+            <button class="page-btn" (click)="setPage(1)" [disabled]="page()===1">«</button>
+            <button class="page-btn" (click)="setPage(page()-1)" [disabled]="page()===1">‹</button>
+            @if (visiblePages()[0] > 1) { <span class="page-dots">…</span> }
+            @for (p of visiblePages(); track p) {
+            <button class="page-btn" [class.active]="p===page()" (click)="setPage(p)">{{ p }}</button>
+            }
+            @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">…</span> }
+                <button class="page-btn" (click)="setPage(page()+1)" [disabled]="page()===totalPages()">›</button>
+                <button class="page-btn" (click)="setPage(totalPages())" [disabled]="page()===totalPages()">»</button>
+                <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+        </div>
+        }
+        }
+    </div>
+</div>
+
+<!-- ==================== MODAL ==================== -->
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-box wide" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>{{ isEdit() ? '✏️ Cập nhật người dùng' : '➕ Thêm người dùng mới' }}</h3>
+            <button class="modal-close" (click)="closeModal()">✕</button>
+        </div>
+
+        @if (loadingDetail()) {
+        <div class="state-box" style="padding:40px"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+        } @else {
+        <div class="modal-body">
+            <!-- Note: Khi edit chỉ có thể thay đổi trạng thái và vai trò -->
+            @if (isEdit()) {
+            <div class="edit-note">
+                ℹ️ Chế độ cập nhật: chỉ có thể thay đổi <strong>trạng thái</strong> và <strong>vai trò</strong>
+            </div>
+            }
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Họ *</label>
+                    <input class="form-control" [ngModel]="form().firstName"
+                        (ngModelChange)="setField('firstName',$event)" [disabled]="isEdit()" placeholder="Nguyễn" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tên *</label>
+                    <input class="form-control" [ngModel]="form().lastName"
+                        (ngModelChange)="setField('lastName',$event)" [disabled]="isEdit()" placeholder="Văn A" />
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input class="form-control" type="email" [ngModel]="form().email"
+                        (ngModelChange)="setField('email',$event)" [disabled]="isEdit()" placeholder="user@email.com" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Số điện thoại</label>
+                    <input class="form-control" [ngModel]="form().phoneNumber"
+                        (ngModelChange)="setField('phoneNumber',$event)" [disabled]="isEdit()"
+                        placeholder="0901234567" />
+                </div>
+            </div>
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Giới tính</label>
+                    <select class="form-control" [ngModel]="form().gender" (ngModelChange)="setField('gender',+$event)"
+                        [disabled]="isEdit()">
+                        <option [value]="1">Nam</option>
+                        <option [value]="0">Nữ</option>
+                        <option [value]="2">Khác</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Trạng thái *</label>
+                    <select class="form-control" [ngModel]="form().userStatusId"
+                        (ngModelChange)="setField('userStatusId',+$event)">
+                        <option value="">— Chọn trạng thái —</option>
+                        @for (s of statusOptions(); track s.id) {
+                        <option [value]="s.id">{{ s.name }}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            @if (!isEdit()) {
+            <div class="form-group">
+                <label class="form-label">Mật khẩu *</label>
+                <input class="form-control" type="password" [ngModel]="form().passwordHash"
+                    (ngModelChange)="setField('passwordHash',$event)" placeholder="••••••••" />
+            </div>
+            }
+
+            @if (isEdit()) {
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Trạng thái khóa</label>
+                    <div class="toggle-wrap" style="margin-top: 8px;">
+                        <input type="checkbox" id="lockCk" [checked]="form().lockEnabled"
+                            (change)="toggleLock($any($event.target).checked)" />
+                        <label for="lockCk" class="toggle-label" style="cursor: pointer;">
+                            {{ form().lockEnabled ? 'Đang khóa' : 'Bình thường' }}
+                        </label>
+                    </div>
+                </div>
+
+                @if (form().lockEnabled) {
+                <div class="form-group" style="animation: fadeIn 0.2s ease-in-out;">
+                    <label class="form-label">Ngày giờ hết hạn khóa</label>
+                    <input class="form-control" type="datetime-local" [ngModel]="form().lockEndDate"
+                        (ngModelChange)="setField('lockEndDate', $event)" />
+                </div>
+                }
+            </div>
+            }
+
+            <!-- Roles -->
+            <div class="form-group">
+                <label class="form-label">Vai trò</label>
+                <div class="roles-grid">
+                    @for (r of roleOptions(); track r.id) {
+                    <label class="role-check-item" [class.selected]="isRoleSelected(r.id)">
+                        <input type="checkbox" [checked]="isRoleSelected(r.id)"
+                            (change)="toggleRole(r.id, $any($event.target).checked)" />
+                        {{ r.name }}
+                    </label>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" (click)="closeModal()">Huỷ</button>
+            <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+                @if (saving()) { <span class="spin-sm"></span> }
+                {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+            </button>
+        </div>
+        }
+    </div>
+</div>
+}

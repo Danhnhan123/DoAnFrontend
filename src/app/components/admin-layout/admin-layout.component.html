@@ -1,0 +1,149 @@
+<div class="admin-shell" [class.dark]="isDark()" [class.sidebar-collapsed]="sidebarCollapsed()">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" [class.open]="mobileOpen()">
+    <div class="sidebar-header">
+      <div class="logo-wrap" [class.hide-text]="sidebarCollapsed()">
+        <div class="logo-icon">⚡</div>
+        <span class="logo-text">AdminPanel</span>
+      </div>
+      <button class="sidebar-toggle" (click)="toggleSidebar()" title="Thu gọn">
+        <span class="toggle-icon">{{ sidebarCollapsed() ? '»' : '«' }}</span>
+      </button>
+    </div>
+
+    <!-- User mini -->
+    <div class="sidebar-user" [class.hide-text]="sidebarCollapsed()">
+      <div class="user-avatar">{{ getInitials() }}</div>
+      <div class="user-info">
+        <span class="user-name">{{ user()?.fullName || 'Admin' }}</span>
+        <span class="user-email">{{ user()?.email || '' }}</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <!-- Dashboard always shown -->
+      @if (menus().length === 0) {
+      <a class="nav-item" routerLink="/admin/dashboard" routerLinkActive="active"
+        [title]="sidebarCollapsed() ? 'Dashboard' : ''">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Dashboard</span>
+      </a>
+      <!-- Fallback admin menus when API menus not loaded -->
+      <div class="nav-group-label" [class.hidden]="sidebarCollapsed()">Hệ thống</div>
+      <a class="nav-item" routerLink="/admin/actions" routerLinkActive="active">
+        <span class="nav-icon">🛠️</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Hành động</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/users" routerLinkActive="active">
+        <span class="nav-icon">👥</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Người dùng</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/user-status" routerLinkActive="active">
+        <span class="nav-icon">🔖</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Trạng thái người dùng</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/roles" routerLinkActive="active">
+        <span class="nav-icon">🛡️</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Vai trò</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/menus" routerLinkActive="active">
+        <span class="nav-icon">📋</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Menu</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/system-config" routerLinkActive="active">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Cấu hình</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/audit-log" routerLinkActive="active">
+        <span class="nav-icon">📝</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Audit Log</span>
+      </a>
+      <a class="nav-item" routerLink="/admin/activity-log" routerLinkActive="active">
+        <span class="nav-icon">🗂️</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Activity Log</span>
+      </a>
+      } @else {
+      <!-- Dynamic menus from API -->
+      @for (menu of menus(); track menu.id) {
+      @if (menu.child && menu.child.length > 0) {
+      <!-- Parent menu with children -->
+      <div class="nav-group">
+        <button type="button" class="nav-item nav-parent" [class.expanded]="isExpanded(menu.id)"
+          (click)="toggleExpand(menu.id)" [title]="sidebarCollapsed() ? menu.name : ''">
+          <span class="nav-icon">{{ getMenuIcon(menu.icon) }}</span>
+          <span class="nav-label" [class.hidden]="sidebarCollapsed()">{{ menu.name }}</span>
+          <span class="nav-arrow" [class.hidden]="sidebarCollapsed()">
+            {{ isExpanded(menu.id) ? '▾' : '▸' }}
+          </span>
+        </button>
+        @if (isExpanded(menu.id)) {
+        <div class="nav-children" [class.hidden]="sidebarCollapsed()">
+          @for (child of menu.child; track child.id) {
+          <a class="nav-item nav-child" [routerLink]="child.url || '/admin/dashboard'" routerLinkActive="active">
+            <span class="nav-icon-sm">{{ getMenuIcon(child.icon) }}</span>
+            <span class="nav-label">{{ child.name }}</span>
+          </a>
+          }
+        </div>
+        }
+      </div>
+      } @else {
+      <!-- Leaf menu -->
+      <a class="nav-item" [routerLink]="menu.url || '#'" routerLinkActive="active"
+        [title]="sidebarCollapsed() ? menu.name : ''">
+        <span class="nav-icon">{{ getMenuIcon(menu.icon) }}</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">{{ menu.name }}</span>
+      </a>
+      }
+      }
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="nav-item logout-btn" (click)="logout()" [title]="sidebarCollapsed() ? 'Đăng xuất' : ''">
+        <span class="nav-icon">🚪</span>
+        <span class="nav-label" [class.hidden]="sidebarCollapsed()">Đăng xuất</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile overlay -->
+  @if (mobileOpen()) {
+  <div class="overlay" (click)="toggleMobile()"></div>
+  }
+
+  <!-- Main area -->
+  <div class="main-area">
+    <!-- Top Header -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu-btn" (click)="toggleMobile()">☰</button>
+        <div class="breadcrumb-area">
+          <span class="breadcrumb-home">Trang chủ</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <!-- Theme toggle -->
+        <button class="theme-toggle" (click)="themeService.toggle()" [title]="isDark() ? 'Chế độ sáng' : 'Chế độ tối'">
+          <span class="theme-icon">{{ isDark() ? '☀️' : '🌙' }}</span>
+        </button>
+        <!-- Notifications -->
+        <button class="icon-btn" title="Thông báo">
+          <span>🔔</span>
+          <span class="badge">3</span>
+        </button>
+        <!-- User dropdown -->
+        <div class="user-chip">
+          <div class="chip-avatar">{{ getInitials() }}</div>
+          <span class="chip-name">{{ user()?.fullName || 'Admin' }}</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Page content -->
+    <main class="page-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

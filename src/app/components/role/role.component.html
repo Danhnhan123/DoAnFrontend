@@ -1,0 +1,163 @@
+<div class="page-wrapper">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">🛡️ Quản lý vai trò</h1>
+            <p class="page-subtitle">{{ totalRecords() }} vai trò trong hệ thống</p>
+        </div>
+    </div>
+
+    <div class="toolbar card">
+        <input class="form-control search-input" placeholder="🔍 Tìm vai trò..." [ngModel]="search()"
+            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
+    </div>
+
+    @if (loading()) {
+    <div class="state-box card"><span class="spin-lg"></span><span>Đang tải...</span></div>
+    } @else {
+    <div class="role-grid">
+        <div class="add-card card" (click)="openCreate()">
+            <div class="add-icon">＋</div>
+            <div class="add-label">Thêm vai trò mới</div>
+        </div>
+        @for (role of roles(); track role.id) {
+        <div class="role-card card">
+            <div class="role-card-body">
+                <div class="role-name">{{ role.name }}</div>
+                <div class="role-desc">{{ role.description || '(Không có mô tả)' }}</div>
+                <div class="role-stats">
+                    <span class="stat-item">👤 <strong>{{ role.totalUser||0 }}</strong> người dùng</span>
+                    <span class="stat-item">🔑 <strong>{{ role.permissons.length||0 }}</strong> quyền</span>
+                </div>
+            </div>
+            <div class="role-card-footer">
+                <span class="role-date">{{ role.createdDate | date:'dd/MM/yyyy' }}</span>
+                <div class="role-actions">
+                    <button class="btn btn-outline btn-sm" (click)="openEdit(role)">✏️ Sửa</button>
+                    <button class="btn btn-danger btn-sm" (click)="delete(role.id, role.name)">🗑️</button>
+                </div>
+            </div>
+        </div>
+        }
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination" style="margin-top:16px; justify-content:center">
+        <button class="page-btn" (click)="setPage(1)" [disabled]="page()===1">«</button>
+        <button class="page-btn" (click)="setPage(page()-1)" [disabled]="page()===1">‹</button>
+        @for (p of visiblePages(); track p) {
+        <button class="page-btn" [class.active]="p===page()" (click)="setPage(p)">{{ p }}</button>
+        }
+        <button class="page-btn" (click)="setPage(page()+1)" [disabled]="page()===totalPages()">›</button>
+        <button class="page-btn" (click)="setPage(totalPages())" [disabled]="page()===totalPages()">»</button>
+    </div>
+    }
+    }
+</div>
+
+<!-- =================== MODAL =================== -->
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal-box perm-modal" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>{{ isEdit() ? '✏️ Cập nhật vai trò' : '➕ Thêm vai trò mới' }}</h3>
+            <button class="modal-close" (click)="closeModal()" [disabled]="saving()">✕</button>
+        </div>
+
+        <div class="modal-scroll-body">
+            <!-- Basic fields -->
+            <div class="modal-section">
+                <div class="form-row-2">
+                    <div class="form-group">
+                        <label class="form-label">Tên vai trò *</label>
+                        <input class="form-control" [ngModel]="formName()" (ngModelChange)="formName.set($event)"
+                            placeholder="Admin, Manager..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mô tả</label>
+                        <input class="form-control" [ngModel]="formDesc()" (ngModelChange)="formDesc.set($event)"
+                            placeholder="Mô tả vai trò..." />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Permission matrix -->
+            <div class="modal-section">
+                <div class="perm-title">🔑 Phân quyền</div>
+
+                @if (loadingForm()) {
+                <div class="state-box" style="padding:28px"><span class="spin-lg"></span><span>Đang tải quyền...</span>
+                </div>
+                } @else if (allMenus().length === 0) {
+                <div class="state-box" style="padding:20px; color:var(--text-muted)">
+                    <p>Không có menu nào</p>
+                </div>
+                } @else {
+                <div class="perm-table-wrap">
+                    <table class="perm-table">
+                        <thead>
+                            <tr>
+                                <th class="menu-col">Tên Menu</th>
+                                @for (action of allActions(); track action.id) {
+                                <th class="action-col">{{ action.name }}</th>
+                                }
+                                <th class="action-col">
+                                    <label class="check-label">
+                                        <input type="checkbox" [checked]="isSelectAllChecked()"
+                                            (change)="selectAll($any($event.target).checked)" />
+                                        <span>Tất cả</span>
+                                    </label>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (menu of rootMenus(); track menu.id) {
+                            <ng-container [ngTemplateOutlet]="menuRow"
+                                [ngTemplateOutletContext]="{menu: menu, depth: 0}">
+                            </ng-container>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                }
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-outline" (click)="closeModal()" [disabled]="saving()">Huỷ</button>
+            <button class="btn btn-primary" (click)="save()" [disabled]="saving()||loadingForm()">
+                @if (saving()) { <span class="spin-sm"></span> }
+                {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Recursive menu row template -->
+<ng-template #menuRow let-menu="menu" let-depth="depth">
+    <tr [class.root-perm-row]="!menu.parentId">
+        <td class="menu-name-cell">
+            <span [style.padding-left.px]="depth * 18">
+                @if (depth > 0) { <span class="tree-pre">└ </span> }
+                {{ menu.name }}
+            </span>
+        </td>
+        @for (action of allActions(); track action.id) {
+        <td class="check-cell">
+            <input type="checkbox" class="perm-ck" [checked]="isChecked(menu.id, action.id)"
+                [disabled]="isDisabled(menu, action)"
+                (change)="togglePerm(menu.id, action.id, isDisabled(menu, action))" />
+        </td>
+        }
+        <td class="check-cell">
+            <input type="checkbox" class="perm-ck" [checked]="isRowChecked(menu)"
+                (change)="toggleRow(menu, $any($event.target).checked)" />
+        </td>
+    </tr>
+    @for (child of getChildren(menu.id); track child.id) {
+    <ng-container [ngTemplateOutlet]="menuRow" [ngTemplateOutletContext]="{menu: child, depth: depth+1}">
+    </ng-container>
+    }
+</ng-template>
+}

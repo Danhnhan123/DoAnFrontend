@@ -1,0 +1,108 @@
+<div class="page-wrapper">
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">📝 Audit Log</h1>
+            <p class="page-subtitle">Lịch sử thay đổi dữ liệu — {{ totalRecords() }} bản ghi</p>
+        </div>
+    </div>
+
+    <div class="toolbar card">
+        <input class="form-control search-input" placeholder="🔍 Tìm bảng, hành động, người dùng..."
+            [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        <select class="form-control" style="width:110px" [ngModel]="pageSize()"
+            (ngModelChange)="pageSize.set(+$event); page.set(1); loadData()">
+            <option [value]="10">10/trang</option>
+            <option [value]="20">20/trang</option>
+            <option [value]="50">50/trang</option>
+        </select>
+        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
+    </div>
+
+    <div class="card">
+        @if (loading()) {
+        <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+        } @else if (logs().length === 0) {
+        <div class="state-box"><span style="font-size:2.5rem">📋</span>
+            <p>Chưa có log nào</p>
+        </div>
+        } @else {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px">STT</th>
+                        <th class="sortable" (click)="sort('tableName')">Bảng <span class="sort-icon">{{
+                                sortIcon('tableName') }}</span></th>
+                        <th>Hành động</th>
+                        <th class="sortable" (click)="sort('changedBy')">Người thực hiện <span class="sort-icon">{{
+                                sortIcon('changedBy') }}</span></th>
+                        <th class="sortable" (click)="sort('changedDate')">Thời gian <span class="sort-icon">{{
+                                sortIcon('changedDate') }}</span></th>
+                        <th style="text-align:right">Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (log of logs(); track log.id; let idx=$index) {
+                    <tr>
+                        <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
+                        <td><code class="tbl-code">{{ log.tableName || '—' }}</code></td>
+                        <td><span class="action-badge" [class]="actionClass(log.action)">{{ log.action }}</span></td>
+                        <td class="text-muted small">{{ log.changedBy || '—' }}</td>
+                        <td class="text-muted small">{{ log.changedDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                        <td style="text-align:right">
+                            <button class="btn btn-outline btn-sm" (click)="viewDetail(log)">🔍 Xem</button>
+                        </td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (totalPages() > 1) {
+        <div class="pagination">
+            <button class="page-btn" (click)="setPage(1)" [disabled]="page()===1">«</button>
+            <button class="page-btn" (click)="setPage(page()-1)" [disabled]="page()===1">‹</button>
+            @for (p of pages(); track p) {
+            <button class="page-btn" [class.active]="p===page()" (click)="setPage(p)">{{ p }}</button>
+            }
+            <button class="page-btn" (click)="setPage(page()+1)" [disabled]="page()===totalPages()">›</button>
+            <button class="page-btn" (click)="setPage(totalPages())" [disabled]="page()===totalPages()">»</button>
+            <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+        </div>
+        }
+        }
+    </div>
+</div>
+
+@if (selectedLog()) {
+<div class="modal-backdrop" (click)="closeDetail()">
+    <div class="modal-box wide" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+            <h3>🔍 Chi tiết thay đổi — <code style="font-size:.85rem">{{ selectedLog()!.tableName }}</code></h3>
+            <button class="modal-close" (click)="closeDetail()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-meta">
+                <span><strong>Hành động:</strong> <span class="action-badge"
+                        [class]="actionClass(selectedLog()!.action)">{{ selectedLog()!.action }}</span></span>
+                <span><strong>Người thực hiện:</strong> {{ selectedLog()!.changedBy || '—' }}</span>
+                <span><strong>Thời gian:</strong> {{ selectedLog()!.changedDate | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+            </div>
+            @if (selectedLog()!.oldValues) {
+            <div class="json-section">
+                <div class="json-label">📤 Giá trị cũ (trước khi thay đổi)</div>
+                <pre class="json-view old-val">{{ formatJson(selectedLog()!.oldValues) }}</pre>
+            </div>
+            }
+            @if (selectedLog()!.newValues) {
+            <div class="json-section">
+                <div class="json-label">📥 Giá trị mới (sau khi thay đổi)</div>
+                <pre class="json-view new-val">{{ formatJson(selectedLog()!.newValues) }}</pre>
+            </div>
+            }
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" (click)="closeDetail()">Đóng</button>
+        </div>
+    </div>
+</div>
+}
