@@ -1,6 +1,12 @@
-import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { lastValueFrom } from 'rxjs';
+import {
+  injectQuery,
+  injectMutation,
+  injectQueryClient,
+} from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
 import {
   RoleListDto,
@@ -12,7 +18,6 @@ import {
   MenuAggregate,
   MenuPermissionDto,
   FlatMenu,
-  ApiResponse,
 } from '../../models';
 import { RoleService, flattenMenus } from '../../services/role.service';
 
@@ -32,29 +37,104 @@ const ACTION_PROP_MAP: Record<string, string> = {
   templateUrl: './role.component.html',
   styleUrl: './role.component.css',
 })
-export class RoleComponent implements OnInit {
+export class RoleComponent {
   private roleService = inject(RoleService);
+  private queryClient = injectQueryClient();
 
-  roles = signal<RoleListDto[]>([]);
-  loading = signal(true);
-  totalRecords = signal(0);
   page = signal(1);
   pageSize = signal(9);
   search = signal('');
 
   showModal = signal(false);
-  saving = signal(false);
-  loadingForm = signal(false);
   editItem = signal<RoleListDto | null>(null);
   isEdit = computed(() => !!this.editItem());
 
   formName = signal('');
   formDesc = signal('');
 
-  allMenus = signal<FlatMenu[]>([]);
-  allActions = signal<ActionDto[]>([]);
-  menuPermissions = signal<Map<number, any>>(new Map());
   selectedPerms = signal<Map<number, Set<number>>>(new Map());
+
+  // ── Queries ──────────────────────────────────────────────────────────────
+
+  listQuery = injectQuery(() => ({
+    queryKey: ['roles', this.page(), this.pageSize(), this.search()],
+    queryFn: () =>
+      lastValueFrom(
+        this.roleService.getPagedRoles({
+          pageIndex: this.page(),
+          pageSize: this.pageSize(),
+          keyword: this.search(),
+        })
+      ),
+  }));
+
+  menusQuery = injectQuery(() => ({
+    queryKey: ['all-menus'],
+    queryFn: () => lastValueFrom(this.roleService.getAllMenus()),
+    staleTime: 5 * 60_000,
+  }));
+
+  actionsQuery = injectQuery(() => ({
+    queryKey: ['all-actions'],
+    queryFn: () => lastValueFrom(this.roleService.getAllActions()),
+    staleTime: 5 * 60_000,
+  }));
+
+  menuPermissionsQuery = injectQuery(() => ({
+    queryKey: ['menu-permissions'],
+    queryFn: () => lastValueFrom(this.roleService.getMenuPermissions()),
+    staleTime: 5 * 60_000,
+  }));
+
+  rolePermissionsQuery = injectQuery(() => ({
+    queryKey: ['role-permissions', this.editItem()?.id],
+    enabled: !!this.editItem()?.id && this.showModal(),
+    queryFn: () =>
+      lastValueFrom(this.roleService.getRolePermissions(this.editItem()!.id)),
+  }));
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+
+  roles = computed<RoleListDto[]>(() => {
+    const d = (this.listQuery.data() as any)?.data;
+    if (d?.items) return d.items;
+    const res = this.listQuery.data() as any;
+    if (Array.isArray(res?.resources)) return res.resources;
+    return [];
+  });
+  totalRecords = computed<number>(() => {
+    const d = (this.listQuery.data() as any)?.data;
+    if (d?.totalCount != null) return d.totalCount;
+    const res = this.listQuery.data() as any;
+    if (Array.isArray(res?.resources)) return res.resources.length;
+    return 0;
+  });
+  loading = computed(() => this.listQuery.isPending());
+  loadingForm = computed(
+    () =>
+      this.menusQuery.isFetching() ||
+      this.actionsQuery.isFetching() ||
+      this.menuPermissionsQuery.isFetching() ||
+      this.rolePermissionsQuery.isFetching()
+  );
+
+  allMenus = computed<FlatMenu[]>(() => {
+    const r = this.menusQuery.data() as any;
+    return flattenMenus(r?.resources || r?.data || []);
+  });
+
+  allActions = computed<ActionDto[]>(() => {
+    const r = this.actionsQuery.data() as any;
+    return r?.resources || r?.data || [];
+  });
+
+  menuPermissions = computed<Map<number, any>>(() => {
+    const r = this.menuPermissionsQuery.data() as any;
+    const list: any[] = r?.resources || r?.data || [];
+    const map = new Map<number, any>();
+    list.forEach((p: any) => map.set(p.id, p));
+    return map;
+  });
 
   rootMenus = computed(() =>
     this.allMenus()
@@ -62,129 +142,107 @@ export class RoleComponent implements OnInit {
       .sort((a, b) => a.order - b.order)
   );
 
-  ngOnInit(): void {
-    this.loadData();
+  // Sync selectedPerms when rolePermissions query resolves
+  private _prevRolePermsData: any = null;
+  get _rolePermsSynced(): boolean {
+    const d = this.rolePermissionsQuery.data();
+    if (d && d !== this._prevRolePermsData) {
+      this._prevRolePermsData = d;
+      const perms: RolePermissonDto[] =
+        (d as any)?.resources?.permissions ??
+        (d as any)?.resources ??
+        (d as any)?.data?.permissions ??
+        (d as any)?.data ??
+        [];
+      const map = new Map<number, Set<number>>();
+      for (const p of perms) {
+        if (!map.has(p.menuId)) map.set(p.menuId, new Set());
+        map.get(p.menuId)!.add(p.actionId);
+      }
+      this.selectedPerms.set(map);
+    }
+    return true;
   }
 
-  loadData(): void {
-    this.loading.set(true);
-    this.roleService
-      .getPagedRoles({
-        pageIndex: this.page(),
-        pageSize: this.pageSize(),
-        keyword: this.search(),
-      })
-      .subscribe({
-        next: (res) => {
-          this.loading.set(false);
-          const d = (res as any)?.data;
-          if (d?.items) {
-            this.roles.set(d.items);
-            this.totalRecords.set(d.totalCount || 0);
-          } else if (Array.isArray(res?.resources)) {
-            this.roles.set(res.resources as any);
-            this.totalRecords.set((res.resources as any).length);
-          } else {
-            this.roles.set([]);
-            this.totalRecords.set(0);
-          }
-        },
-        error: () => this.loading.set(false),
-      });
-  }
+  // ── Mutations ─────────────────────────────────────────────────────────────
 
-  onSearch(): void {
-    this.page.set(1);
-    this.loadData();
-  }
+  createMutation = injectMutation(() => ({
+    mutationFn: (payload: CreateRoleDto) =>
+      lastValueFrom(this.roleService.create(payload)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        this.showAlert('Thêm thành công!');
+      } else this.showAlert(r.message || 'Thêm mới thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  updateMutation = injectMutation(() => ({
+    mutationFn: (payload: UpdateRoleDto) =>
+      lastValueFrom(this.roleService.update(payload)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        this.showAlert('Cập nhật thành công!');
+      } else this.showAlert(r.message || 'Cập nhật thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  deleteMutation = injectMutation(() => ({
+    mutationFn: (id: number) =>
+      lastValueFrom(this.roleService.delete(id)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        this.showAlert('Đã xóa thành công!');
+      } else this.showAlert(r.message || 'Xóa thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  saving = computed(
+    () => this.createMutation.isPending() || this.updateMutation.isPending()
+  );
+
+  // ── UI Helpers ────────────────────────────────────────────────────────────
+
+  onSearch(): void { this.page.set(1); }
   totalPages(): number {
     return Math.ceil(this.totalRecords() / this.pageSize());
   }
   visiblePages(): number[] {
-    const t = this.totalPages(),
-      c = this.page(),
-      d = 2,
-      p: number[] = [];
+    const t = this.totalPages(), c = this.page(), d = 2, p: number[] = [];
     for (let i = Math.max(1, c - d); i <= Math.min(t, c + d); i++) p.push(i);
     return p;
   }
   setPage(p: number): void {
     if (p < 1 || p > this.totalPages()) return;
     this.page.set(p);
-    this.loadData();
   }
 
   openCreate(): void {
+    this._prevRolePermsData = null;
     this.editItem.set(null);
     this.formName.set('');
     this.formDesc.set('');
     this.selectedPerms.set(new Map());
-    this.loadFormDeps(null);
     this.showModal.set(true);
   }
-
   openEdit(role: RoleListDto): void {
+    this._prevRolePermsData = null;
     this.editItem.set(role);
     this.formName.set(role.name);
     this.formDesc.set(role.description || '');
     this.selectedPerms.set(new Map());
-    this.loadFormDeps(role.id);
     this.showModal.set(true);
   }
-
-  private loadFormDeps(roleId: number | null): void {
-    this.loadingForm.set(true);
-    let done = 0;
-    const total = roleId ? 4 : 3;
-    const check = () => {
-      if (++done >= total) this.loadingForm.set(false);
-    };
-
-    this.roleService.getAllMenus().subscribe({
-      next: (r) => {
-        this.allMenus.set(flattenMenus(r?.resources || (r as any)?.data || []));
-        check();
-      },
-      error: check,
-    });
-    this.roleService.getAllActions().subscribe({
-      next: (r) => {
-        this.allActions.set(r?.resources || (r as any)?.data || []);
-        check();
-      },
-      error: check,
-    });
-    this.roleService.getMenuPermissions().subscribe({
-      next: (r) => {
-        const list = r?.resources || (r as any)?.data || [];
-        const map = new Map<number, any>();
-        (list as any[]).forEach((p: any) => map.set(p.id, p));
-        this.menuPermissions.set(map);
-        check();
-      },
-      error: check,
-    });
-
-    if (roleId) {
-      this.roleService.getRolePermissions(roleId).subscribe({
-        next: (r) => {
-          const perms: RolePermissonDto[] =
-            r?.resources?.permissions ??
-            r?.resources ??
-            (r as any)?.data?.permissions ??
-            (r as any)?.data ??
-            [];
-          const map = new Map<number, Set<number>>();
-          for (const p of perms) {
-            if (!map.has(p.menuId)) map.set(p.menuId, new Set());
-            map.get(p.menuId)!.add(p.actionId);
-          }
-          this.selectedPerms.set(map);
-          check();
-        },
-        error: check,
-      });
-    }
+  closeModal(): void {
+    this.showModal.set(false);
+    this.editItem.set(null);
   }
 
   getChildren(parentId: number): FlatMenu[] {
@@ -222,9 +280,7 @@ export class RoleComponent implements OnInit {
     const map = new Map(this.selectedPerms());
     if (checked) {
       const set = new Set<number>();
-      this.allActions().forEach((a) => {
-        if (!this.isDisabled(menu, a)) set.add(a.id);
-      });
+      this.allActions().forEach((a) => { if (!this.isDisabled(menu, a)) set.add(a.id); });
       set.size > 0 ? map.set(menu.id, set) : map.delete(menu.id);
     } else {
       map.delete(menu.id);
@@ -232,8 +288,7 @@ export class RoleComponent implements OnInit {
     this.selectedPerms.set(map);
   }
   isSelectAllChecked(): boolean {
-    const menus = this.allMenus(),
-      actions = this.allActions();
+    const menus = this.allMenus(), actions = this.allActions();
     if (!menus.length || !actions.length) return false;
     return menus.every((m) => {
       const enabled = actions.filter((a) => !this.isDisabled(m, a));
@@ -246,9 +301,7 @@ export class RoleComponent implements OnInit {
       const map = new Map<number, Set<number>>();
       this.allMenus().forEach((m) => {
         const set = new Set<number>();
-        this.allActions().forEach((a) => {
-          if (!this.isDisabled(m, a)) set.add(a.id);
-        });
+        this.allActions().forEach((a) => { if (!this.isDisabled(m, a)) set.add(a.id); });
         if (set.size > 0) map.set(m.id, set);
       });
       this.selectedPerms.set(map);
@@ -258,10 +311,7 @@ export class RoleComponent implements OnInit {
   }
 
   save(): void {
-    if (!this.formName()) {
-      this.showAlert('Vui lòng nhập tên vai trò', false);
-      return;
-    }
+    if (!this.formName()) { this.showAlert('Vui lòng nhập tên vai trò', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
       title: `Xác nhận ${actionText}`,
@@ -274,55 +324,26 @@ export class RoleComponent implements OnInit {
       cancelButtonText: 'Hủy',
     }).then((result) => {
       if (!result.isConfirmed) return;
-      this.saving.set(true);
       const permissions: RoleMenuActionDto[] = [];
       for (const [menuId, actionSet] of this.selectedPerms().entries())
         for (const actionId of actionSet)
           permissions.push({ menuId, actionId });
 
       if (this.isEdit()) {
-        const p: UpdateRoleDto = {
+        this.updateMutation.mutate({
           id: this.editItem()!.id,
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),
           permissions,
-        };
-        this.roleService.update(p).subscribe({
-          next: (r) => {
-            this.saving.set(false);
-            if (r.isSucceeded) {
-              this.closeModal();
-              this.loadData();
-              this.showAlert('Cập nhật thành công!');
-            } else this.showAlert(r.message || 'Cập nhật thất bại', false);
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.showAlert(err?.error?.message || 'Lỗi hệ thống', false);
-          },
-        });
+        } as UpdateRoleDto);
       } else {
-        const p: CreateRoleDto = {
+        this.createMutation.mutate({
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),
           permissions,
-        };
-        this.roleService.create(p).subscribe({
-          next: (r) => {
-            this.saving.set(false);
-            if (r.isSucceeded) {
-              this.closeModal();
-              this.loadData();
-              this.showAlert('Thêm thành công!');
-            } else this.showAlert(r.message || 'Thêm mới thất bại', false);
-          },
-          error: (err) => {
-            this.saving.set(false);
-            this.showAlert(err?.error?.message || 'Lỗi hệ thống', false);
-          },
-        });
+        } as CreateRoleDto);
       }
     });
   }
@@ -338,26 +359,10 @@ export class RoleComponent implements OnInit {
       confirmButtonText: 'Có, Xóa!',
       cancelButtonText: 'Hủy',
     }).then((result) => {
-      if (result.isConfirmed) {
-        this.roleService.delete(id).subscribe({
-          next: (r) => {
-            if (r.isSucceeded) {
-              this.loadData();
-              this.showAlert('Đã xóa thành công!');
-            } else this.showAlert(r.message || 'Xóa thất bại', false);
-          },
-          error: (err) => {
-            this.showAlert(err?.error?.message || 'Lỗi hệ thống', false);
-          },
-        });
-      }
+      if (result.isConfirmed) this.deleteMutation.mutate(id);
     });
   }
 
-  closeModal(): void {
-    this.showModal.set(false);
-    this.editItem.set(null);
-  }
   private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
@@ -365,12 +370,8 @@ export class RoleComponent implements OnInit {
       icon: ok ? 'success' : 'error',
       confirmButtonColor: '#4f46e5',
       confirmButtonText: 'Đóng',
-      showClass: {
-        popup: 'animate__animated animate__fadeInDown animate__faster',
-      },
-      hideClass: {
-        popup: 'animate__animated animate__fadeOutUp animate__faster',
-      },
+      showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
+      hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },
     });
   }
 }

@@ -1,6 +1,8 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { lastValueFrom } from 'rxjs';
+import { injectQuery } from '@tanstack/angular-query-experimental';
 import { AuditLogDetailDto } from '../../models';
 import { AuditLogService } from '../../services/audit-log.service';
 
@@ -11,54 +13,54 @@ import { AuditLogService } from '../../services/audit-log.service';
   templateUrl: './audit-log.component.html',
   styleUrl: './audit-log.component.css',
 })
-export class AuditLogComponent implements OnInit {
+export class AuditLogComponent {
   private auditLogService = inject(AuditLogService);
 
-  logs = signal<AuditLogDetailDto[]>([]);
-  loading = signal(true);
-  totalRecords = signal(0);
   page = signal(1);
   pageSize = signal(20);
   search = signal('');
-  totalPages = signal(0);
   sortField = signal('changedDate');
   sortDir = signal<'asc' | 'desc'>('desc');
   selectedLog = signal<AuditLogDetailDto | null>(null);
 
-  ngOnInit(): void {
-    this.loadData();
-  }
+  query = injectQuery(() => ({
+    queryKey: [
+      'audit-log',
+      this.page(),
+      this.pageSize(),
+      this.search(),
+      this.sortField(),
+      this.sortDir(),
+    ],
+    queryFn: () =>
+      lastValueFrom(
+        this.auditLogService.getPaged({
+          pageIndex: this.page(),
+          pageSize: this.pageSize(),
+          keyword: this.search(),
+          sortType: this.sortDir().toUpperCase(),
+          orderBy: this.sortField(),
+        })
+      ),
+  }));
 
-  loadData(): void {
-    this.loading.set(true);
-    this.auditLogService
-      .getPaged({
-        pageIndex: this.page(),
-        pageSize: this.pageSize(),
-        keyword: this.search(),
-        sortType: this.sortDir().toUpperCase(),
-        orderBy: this.sortField(),
-      })
-      .subscribe({
-        next: (res) => {
-          this.loading.set(false);
-          const d = (res as any)?.data;
-          if (d?.items) {
-            this.logs.set(d.items);
-            this.totalRecords.set(d.totalCount || 0);
-            this.totalPages.set(d.totalPages || 0);
-          } else {
-            this.logs.set([]);
-            this.totalRecords.set(0);
-          }
-        },
-        error: () => this.loading.set(false),
-      });
-  }
+  logs = computed<AuditLogDetailDto[]>(() => {
+    const d = (this.query.data() as any)?.data;
+    return d?.items ?? [];
+  });
+  totalRecords = computed<number>(() => {
+    const d = (this.query.data() as any)?.data;
+    return d?.totalCount ?? 0;
+  });
+  totalPages = computed<number>(() => {
+    const d = (this.query.data() as any)?.data;
+    return d?.totalPages ?? 0;
+  });
+
+  loading = computed(() => this.query.isPending());
 
   onSearch(): void {
     this.page.set(1);
-    this.loadData();
   }
   sort(f: string): void {
     if (this.sortField() === f)
@@ -68,7 +70,6 @@ export class AuditLogComponent implements OnInit {
       this.sortDir.set('desc');
     }
     this.page.set(1);
-    this.loadData();
   }
   sortIcon(f: string): string {
     if (this.sortField() !== f) return '⇅';
@@ -77,7 +78,6 @@ export class AuditLogComponent implements OnInit {
   setPage(p: number): void {
     if (p < 1 || p > this.totalPages()) return;
     this.page.set(p);
-    this.loadData();
   }
   pages(): number[] {
     const t = this.totalPages(),

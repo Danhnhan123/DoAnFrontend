@@ -1,8 +1,18 @@
-import { Component, OnInit, signal, inject } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ApiResponse, SearchQuery, SystemConfigDetailDto } from '../../models';
-import { SystemConfigService } from '../../services/system-config.service';
+import { lastValueFrom } from 'rxjs';
+import {
+  injectQuery,
+  injectMutation,
+  injectQueryClient,
+} from '@tanstack/angular-query-experimental';
+import { SystemConfigDetailDto } from '../../models';
+import {
+  SystemConfigService,
+  CreateSystemConfigDto,
+  UpdateSystemConfigDto,
+} from '../../services/system-config.service';
 
 @Component({
   selector: 'app-system-config',
@@ -11,17 +21,13 @@ import { SystemConfigService } from '../../services/system-config.service';
   templateUrl: './system-config.component.html',
   styleUrl: './system-config.component.css',
 })
-export class SystemConfigComponent implements OnInit {
+export class SystemConfigComponent {
   private systemConfigService = inject(SystemConfigService);
+  private queryClient = injectQueryClient();
 
-  configs = signal<SystemConfigDetailDto[]>([]);
-  loading = signal(true);
-  saving = signal(false);
-  totalRecords = signal(0);
   page = signal(1);
   pageSize = signal(15);
   search = signal('');
-  totalPages = signal(0);
 
   showModal = signal(false);
   isEdit = signal(false);
@@ -29,67 +35,86 @@ export class SystemConfigComponent implements OnInit {
   editId = signal<number | null>(null);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
 
-  ngOnInit(): void {
-    this.loadData();
-  }
+  // ── Queries ──────────────────────────────────────────────────────────────
 
-  loadData(): void {
-    this.loading.set(true);
-    this.systemConfigService
-      .getPaged({
-        pageIndex: this.page(),
-        pageSize: this.pageSize(),
-        keyword: this.search(),
-      })
-      .subscribe({
-        next: (res) => {
-          this.loading.set(false);
-          const d = (res as any)?.data || res;
-          if (d?.items) {
-            this.configs.set(d.items);
-            this.totalRecords.set(d.totalCount || 0);
-            this.totalPages.set(d.totalPages || 0);
-          } else {
-            // Fallback: tải toàn bộ config
-            this.systemConfigService.getAll().subscribe({
-              next: (r) => {
-                this.loading.set(false);
-                const list = r?.resources || (r as any)?.data || [];
-                this.configs.set(list);
-                this.totalRecords.set(list.length);
-              },
-              error: () => this.loading.set(false),
-            });
-          }
-        },
-        error: () => {
-          this.systemConfigService.getAll().subscribe({
-            next: (r) => {
-              this.loading.set(false);
-              const list = r?.resources || (r as any)?.data || [];
-              this.configs.set(list);
-              this.totalRecords.set(list.length);
-            },
-            error: () => this.loading.set(false),
-          });
-        },
-      });
-  }
+  listQuery = injectQuery(() => ({
+    queryKey: ['system-configs', this.page(), this.pageSize(), this.search()],
+    queryFn: () =>
+      lastValueFrom(
+        this.systemConfigService.getPaged({
+          pageIndex: this.page(),
+          pageSize: this.pageSize(),
+          keyword: this.search(),
+        })
+      ),
+  }));
 
-  onSearch(): void {
-    this.page.set(1);
-    this.loadData();
-  }
+  configs = computed<SystemConfigDetailDto[]>(() => {
+    const d = (this.listQuery.data() as any)?.data;
+    return d?.items ?? [];
+  });
+  totalRecords = computed<number>(() => {
+    const d = (this.listQuery.data() as any)?.data;
+    return d?.totalCount ?? 0;
+  });
+  totalPages = computed<number>(() => {
+    const d = (this.listQuery.data() as any)?.data;
+    return d?.totalPages ?? 0;
+  });
+  loading = computed(() => this.listQuery.isPending());
+
+  // ── Mutations ─────────────────────────────────────────────────────────────
+
+  createMutation = injectMutation(() => ({
+    mutationFn: (payload: CreateSystemConfigDto) =>
+      lastValueFrom(this.systemConfigService.create(payload)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
+        this.showToast('Thêm thành công!');
+      } else this.showToast(r.message || 'Lỗi', false);
+    },
+    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+  }));
+
+  updateMutation = injectMutation(() => ({
+    mutationFn: (payload: UpdateSystemConfigDto) =>
+      lastValueFrom(this.systemConfigService.update(payload)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
+        this.showToast('Cập nhật thành công!');
+      } else this.showToast(r.message || 'Lỗi', false);
+    },
+    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+  }));
+
+  deleteMutation = injectMutation(() => ({
+    mutationFn: (id: number) =>
+      lastValueFrom(this.systemConfigService.delete(id)),
+    onSuccess: (r: any) => {
+      if (r.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
+        this.showToast('Đã xóa!');
+      } else this.showToast(r.message || 'Lỗi', false);
+    },
+  }));
+
+  saving = computed(
+    () => this.createMutation.isPending() || this.updateMutation.isPending()
+  );
+
+  // ── UI Helpers ────────────────────────────────────────────────────────────
+
+  onSearch(): void { this.page.set(1); }
   setPage(p: number): void {
     if (p < 1 || p > this.totalPages()) return;
     this.page.set(p);
-    this.loadData();
   }
   pages(): number[] {
-    const t = this.totalPages(),
-      c = this.page(),
-      d = 2,
-      ps: number[] = [];
+    const t = this.totalPages(), c = this.page(), d = 2, ps: number[] = [];
     for (let i = Math.max(1, c - d); i <= Math.min(t, c + d); i++) ps.push(i);
     return ps;
   }
@@ -103,58 +128,27 @@ export class SystemConfigComponent implements OnInit {
   openEdit(c: SystemConfigDetailDto): void {
     this.isEdit.set(true);
     this.editId.set(c.id);
-    this.form.set({
-      key: c.key,
-      value: c.value,
-      description: c.description || '',
-    });
+    this.form.set({ key: c.key, value: c.value, description: c.description || '' });
     this.showModal.set(true);
   }
-  closeModal(): void {
-    this.showModal.set(false);
-  }
+  closeModal(): void { this.showModal.set(false); }
   setField(f: string, v: any): void {
     this.form.update((x) => ({ ...x, [f]: v }));
   }
 
   save(): void {
     const f = this.form();
-    if (!f.key || !f.value) {
-      this.showToast('Key và Value là bắt buộc', false);
-      return;
+    if (!f.key || !f.value) { this.showToast('Key và Value là bắt buộc', false); return; }
+    if (this.isEdit()) {
+      this.updateMutation.mutate({ ...f, id: this.editId()! } as UpdateSystemConfigDto);
+    } else {
+      this.createMutation.mutate(f as CreateSystemConfigDto);
     }
-    this.saving.set(true);
-    const obs = this.isEdit()
-      ? this.systemConfigService.update({ ...f, id: this.editId()! })
-      : this.systemConfigService.create(f);
-    obs.subscribe({
-      next: (r) => {
-        this.saving.set(false);
-        if (r.isSucceeded) {
-          this.closeModal();
-          this.loadData();
-          this.showToast(
-            this.isEdit() ? 'Cập nhật thành công!' : 'Thêm thành công!'
-          );
-        } else this.showToast(r.message || 'Lỗi', false);
-      },
-      error: (err) => {
-        this.saving.set(false);
-        this.showToast(err?.error?.message || 'Lỗi', false);
-      },
-    });
   }
 
   delete(id: number, key: string): void {
     if (!confirm(`Xóa cấu hình "${key}"?`)) return;
-    this.systemConfigService.delete(id).subscribe({
-      next: (r) => {
-        if (r.isSucceeded) {
-          this.loadData();
-          this.showToast('Đã xóa!');
-        } else this.showToast(r.message || 'Lỗi', false);
-      },
-    });
+    this.deleteMutation.mutate(id);
   }
 
   private showToast(msg: string, ok = true): void {

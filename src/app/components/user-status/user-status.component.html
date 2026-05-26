@@ -17,7 +17,7 @@
             ⚙️ Bộ lọc {{ (filterName() || filterDesc() || filterDateFrom() || filterDateTo()) ? '(Đang bật)' : '' }}
         </button>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
-            (ngModelChange)="pageSize.set(+$event); page.set(1); loadData()">
+            (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="5">5/trang</option>
             <option [value]="10">10/trang</option>
             <option [value]="20">20/trang</option>

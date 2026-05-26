@@ -1,6 +1,12 @@
-import { Component, OnInit, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { lastValueFrom } from 'rxjs';
+import {
+  injectQuery,
+  injectMutation,
+  injectQueryClient,
+} from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
 import {
   MenuAggregate,
@@ -8,7 +14,6 @@ import {
   CreateMenuDto,
   UpdateMenuDto,
   ActionDto,
-  ApiResponse,
 } from '../../models';
 import { MenuService } from '../../services/menu.service';
 import { ActionService } from '../../services/action.service';
@@ -20,19 +25,12 @@ import { ActionService } from '../../services/action.service';
   templateUrl: './menu.component.html',
   styleUrl: './menu.component.css',
 })
-export class MenuComponent implements OnInit {
+export class MenuComponent {
   private menuService = inject(MenuService);
   private actionService = inject(ActionService);
-
-  nestedMenus = signal<MenuAggregate[]>([]);
-  flatMenus = signal<MenuAggregate[]>([]);
-  loading = signal(true);
-  totalRecords = signal(0);
-  allActions = signal<ActionDto[]>([]);
+  private queryClient = injectQueryClient();
 
   showModal = signal(false);
-  saving = signal(false);
-  loadingDetail = signal(false);
   editItem = signal<MenuAggregate | null>(null);
   isEdit = computed(() => !!this.editItem());
   isReadOnly = signal(false);
@@ -62,32 +60,109 @@ export class MenuComponent implements OnInit {
   menuTypes = ['ADMIN', 'CLIENT', 'BOTH'];
   toast = signal<{ msg: string; ok: boolean } | null>(null);
 
-  ngOnInit(): void {
-    this.loadMenus();
-    this.loadActions();
+  // ── Queries ──────────────────────────────────────────────────────────────
+
+  menusQuery = injectQuery(() => ({
+    queryKey: ['menus'],
+    queryFn: () => lastValueFrom(this.menuService.getAll()),
+  }));
+
+  actionsQuery = injectQuery(() => ({
+    queryKey: ['menu-action-options'],
+    queryFn: () => lastValueFrom(this.actionService.getAll()),
+    staleTime: 5 * 60_000,
+  }));
+
+  detailQuery = injectQuery(() => ({
+    queryKey: ['menu-detail', this.editItem()?.id],
+    enabled: !!this.editItem()?.id && this.showModal(),
+    queryFn: () =>
+      lastValueFrom(this.menuService.getById(this.editItem()!.id)),
+  }));
+
+  flatMenus = computed<MenuAggregate[]>(() => {
+    const res = this.menusQuery.data() as any;
+    return res?.resources || res?.data || [];
+  });
+  nestedMenus = computed<MenuAggregate[]>(() =>
+    this.menuService.buildMenuTree(this.flatMenus())
+  );
+  totalRecords = computed(() => this.flatMenus().length);
+  loading = computed(() => this.menusQuery.isPending());
+  loadingDetail = computed(() => this.detailQuery.isFetching());
+
+  allActions = computed<ActionDto[]>(() => {
+    const res = this.actionsQuery.data() as any;
+    return res?.resources || res?.data || [];
+  });
+
+  private _prevDetailData: any = null;
+  get _detailSynced(): boolean {
+    const d = this.detailQuery.data();
+    if (d && d !== this._prevDetailData) {
+      this._prevDetailData = d;
+      const detail: MenuDetailDto = (d as any)?.resources ?? (d as any)?.data;
+      if (detail)
+        this.form.set({
+          name: detail.name,
+          url: detail.url || '',
+          icon: detail.icon || '',
+          className: detail.className || '',
+          sortOrder: detail.sortOrder,
+          parentId: detail.parentId ?? null,
+          menuType: detail.menuType,
+          isAdminOnly: detail.isAdminOnly,
+          actionIds: detail.actionIds || [],
+        });
+    }
+    return true;
   }
 
-  loadMenus(): void {
-    this.loading.set(true);
-    this.menuService.getAll().subscribe({
-      next: (res) => {
-        this.loading.set(false);
-        const rawData: MenuAggregate[] =
-          res?.resources || (res as any)?.data || [];
-        this.flatMenus.set(rawData);
-        this.totalRecords.set(rawData.length);
-        this.nestedMenus.set(this.menuService.buildMenuTree(rawData));
-      },
-      error: () => this.loading.set(false),
-    });
-  }
+  // ── Mutations ─────────────────────────────────────────────────────────────
 
-  loadActions(): void {
-    this.actionService.getAll().subscribe({
-      next: (res) =>
-        this.allActions.set(res?.resources || (res as any)?.data || []),
-    });
-  }
+  createMutation = injectMutation(() => ({
+    mutationFn: (payload: CreateMenuDto) =>
+      lastValueFrom(this.menuService.create(payload)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        this.showAlert('Thêm menu thành công!');
+      } else this.showAlert(res.message || 'Thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  updateMutation = injectMutation(() => ({
+    mutationFn: (payload: UpdateMenuDto) =>
+      lastValueFrom(this.menuService.update(payload)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.closeModal();
+        this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        this.showAlert('Cập nhật menu thành công!');
+      } else this.showAlert(res.message || 'Thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  deleteMutation = injectMutation(() => ({
+    mutationFn: (id: number) =>
+      lastValueFrom(this.menuService.delete(id)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        this.showAlert('Đã xóa menu thành công!');
+      } else this.showAlert(res.message || 'Xóa thất bại', false);
+    },
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
+  saving = computed(
+    () => this.createMutation.isPending() || this.updateMutation.isPending()
+  );
+
+  // ── UI Helpers ────────────────────────────────────────────────────────────
 
   getRootMenus(): MenuAggregate[] {
     return (this.nestedMenus() || [])
@@ -109,11 +184,7 @@ export class MenuComponent implements OnInit {
     const self = this.editItem();
     for (const m of items.sort((a, b) => a.sortOrder - b.sortOrder)) {
       if (self && m.id === self.id) continue;
-      result.push({
-        id: m.id,
-        label: '— '.repeat(depth) + m.name,
-        disabled: false,
-      });
+      result.push({ id: m.id, label: '— '.repeat(depth) + m.name, disabled: false });
       if (m.child?.length)
         result.push(...this.renderParentOptions(m.child, depth + 1));
     }
@@ -121,59 +192,26 @@ export class MenuComponent implements OnInit {
   }
 
   openCreate(): void {
+    this._prevDetailData = null;
     this.editItem.set(null);
     this.isReadOnly.set(false);
     this.form.set({
-      name: '',
-      url: '',
-      icon: '',
-      className: '',
-      sortOrder: 1,
-      parentId: null,
-      menuType: 'ADMIN',
-      isAdminOnly: false,
-      actionIds: [],
+      name: '', url: '', icon: '', className: '', sortOrder: 1,
+      parentId: null, menuType: 'ADMIN', isAdminOnly: false, actionIds: [],
     });
     this.showModal.set(true);
   }
-
   openEdit(menu: MenuAggregate, readOnly = false): void {
+    this._prevDetailData = null;
     this.editItem.set(menu);
     this.isReadOnly.set(readOnly);
-    this.loadingDetail.set(true);
-    this.showModal.set(true);
-    this.menuService.getById(menu.id).subscribe({
-      next: (res) => {
-        this.loadingDetail.set(false);
-        const d: MenuDetailDto = res?.resources ?? (res as any)?.data;
-        if (d)
-          this.form.set({
-            name: d.name,
-            url: d.url || '',
-            icon: d.icon || '',
-            className: d.className || '',
-            sortOrder: d.sortOrder,
-            parentId: d.parentId ?? null,
-            menuType: d.menuType,
-            isAdminOnly: d.isAdminOnly,
-            actionIds: d.actionIds || [],
-          });
-      },
-      error: () => {
-        this.loadingDetail.set(false);
-        this.form.update((f) => ({
-          ...f,
-          name: menu.name,
-          url: menu.url || '',
-          icon: menu.icon || '',
-          sortOrder: menu.sortOrder,
-          parentId: menu.parentId ?? null,
-          menuType: menu.menuType,
-        }));
-      },
+    this.form.set({
+      name: menu.name, url: menu.url || '', icon: menu.icon || '',
+      className: '', sortOrder: menu.sortOrder, parentId: menu.parentId ?? null,
+      menuType: menu.menuType, isAdminOnly: false, actionIds: [],
     });
+    this.showModal.set(true);
   }
-
   closeModal(): void {
     this.showModal.set(false);
     this.editItem.set(null);
@@ -184,9 +222,7 @@ export class MenuComponent implements OnInit {
   toggleAction(id: number, checked: boolean): void {
     this.form.update((x) => ({
       ...x,
-      actionIds: checked
-        ? [...x.actionIds, id]
-        : x.actionIds.filter((a) => a !== id),
+      actionIds: checked ? [...x.actionIds, id] : x.actionIds.filter((a) => a !== id),
     }));
   }
   isActionSelected(id: number): boolean {
@@ -195,12 +231,8 @@ export class MenuComponent implements OnInit {
 
   save(): void {
     const f = this.form();
-    if (!f.name) {
-      this.showAlert('Vui lòng nhập tên menu', false);
-      return;
-    }
+    if (!f.name) { this.showAlert('Vui lòng nhập tên menu', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
-
     Swal.fire({
       title: `Xác nhận ${actionText}`,
       text: `Bạn có chắc chắn muốn ${actionText} menu này?`,
@@ -211,62 +243,32 @@ export class MenuComponent implements OnInit {
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
     }).then((result) => {
-      if (result.isConfirmed) {
-        this.saving.set(true);
-        if (this.isEdit()) {
-          const payload: UpdateMenuDto = {
-            id: this.editItem()!.id,
-            name: f.name,
-            url: f.url || '',
-            icon: f.icon || '',
-            className: f.className || null,
-            sortOrder: Number(f.sortOrder) || 1,
-            parentId: f.parentId || null,
-            menuType: f.menuType,
-            isAdminOnly: f.isAdminOnly,
-            actionIds: f.actionIds,
-          };
-          this.menuService.update(payload).subscribe({
-            next: (res) => {
-              this.saving.set(false);
-              if (res.isSucceeded) {
-                this.closeModal();
-                this.loadMenus();
-                this.showAlert('Cập nhật menu thành công!');
-              } else this.showAlert(res.message || 'Thất bại', false);
-            },
-            error: (err) => {
-              this.saving.set(false);
-              this.showAlert(err?.error?.message || 'Lỗi hệ thống', false);
-            },
-          });
-        } else {
-          const payload: CreateMenuDto = {
-            name: f.name,
-            url: f.url || '',
-            icon: f.icon || '',
-            className: f.className || null,
-            sortOrder: Number(f.sortOrder) || 1,
-            parentId: f.parentId || null,
-            menuType: f.menuType,
-            isAdminOnly: f.isAdminOnly,
-            actionIds: f.actionIds,
-          };
-          this.menuService.create(payload).subscribe({
-            next: (res) => {
-              this.saving.set(false);
-              if (res.isSucceeded) {
-                this.closeModal();
-                this.loadMenus();
-                this.showAlert('Thêm menu thành công!');
-              } else this.showAlert(res.message || 'Thất bại', false);
-            },
-            error: (err) => {
-              this.saving.set(false);
-              this.showAlert(err?.error?.message || 'Lỗi hệ thống', false);
-            },
-          });
-        }
+      if (!result.isConfirmed) return;
+      if (this.isEdit()) {
+        this.updateMutation.mutate({
+          id: this.editItem()!.id,
+          name: f.name,
+          url: f.url || '',
+          icon: f.icon || '',
+          className: f.className || null,
+          sortOrder: Number(f.sortOrder) || 1,
+          parentId: f.parentId || null,
+          menuType: f.menuType,
+          isAdminOnly: f.isAdminOnly,
+          actionIds: f.actionIds,
+        } as UpdateMenuDto);
+      } else {
+        this.createMutation.mutate({
+          name: f.name,
+          url: f.url || '',
+          icon: f.icon || '',
+          className: f.className || null,
+          sortOrder: Number(f.sortOrder) || 1,
+          parentId: f.parentId || null,
+          menuType: f.menuType,
+          isAdminOnly: f.isAdminOnly,
+          actionIds: f.actionIds,
+        } as CreateMenuDto);
       }
     });
   }
@@ -282,18 +284,7 @@ export class MenuComponent implements OnInit {
       confirmButtonText: 'Có, Xóa!',
       cancelButtonText: 'Hủy',
     }).then((result) => {
-      if (result.isConfirmed) {
-        this.menuService.delete(id).subscribe({
-          next: (res) => {
-            if (res.isSucceeded) {
-              this.loadMenus();
-              this.showAlert('Đã xóa menu thành công!');
-            } else this.showAlert(res.message || 'Xóa thất bại', false);
-          },
-          error: (err) =>
-            this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
-        });
-      }
+      if (result.isConfirmed) this.deleteMutation.mutate(id);
     });
   }
 
@@ -304,12 +295,8 @@ export class MenuComponent implements OnInit {
       icon: ok ? 'success' : 'error',
       confirmButtonColor: '#4f46e5',
       confirmButtonText: 'Đóng',
-      showClass: {
-        popup: 'animate__animated animate__fadeInDown animate__faster',
-      },
-      hideClass: {
-        popup: 'animate__animated animate__fadeOutUp animate__faster',
-      },
+      showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
+      hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },
     });
   }
 }

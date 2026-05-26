@@ -10,7 +10,7 @@
         <input class="form-control search-input" placeholder="🔍 Tìm người dùng, hành động..." [ngModel]="search()"
             (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         <select class="form-control" style="width:110px" [ngModel]="pageSize()"
-            (ngModelChange)="pageSize.set(+$event); page.set(1); loadData()">
+            (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
             <option [value]="20">20/trang</option>
             <option [value]="50">50/trang</option>
