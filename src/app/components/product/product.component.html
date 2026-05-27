@@ -1,0 +1,110 @@
+<div class="page-wrapper">
+  <div class="toolbar card">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="search-input" placeholder="Tim theo SKU hoac ten san pham..." [ngModel]="search()"
+        (ngModelChange)="search.set($event); onSearch()" (keydown.enter)="onSearch()" />
+    </div>
+
+    <button class="icon-btn add-btn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Them san pham
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Ten san pham</th>
+            <th>Danh muc</th>
+            <th>Don vi</th>
+            <th>Ton kho</th>
+            <th>Trang thai</th>
+            <th style="text-align:right">Hanh dong</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (product of rows(); track product.sku) {
+          <tr>
+            <td><span class="sku-link">{{ product.sku }}</span></td>
+            <td class="product-name">{{ product.name }}</td>
+            <td><span class="category-pill">{{ product.category }}</span></td>
+            <td class="text-muted">{{ product.unit }}</td>
+            <td class="stock-value">{{ product.stock }}</td>
+            <td>
+              <span class="status-pill" [class.low]="statusFor(product.stock) === 'low'"
+                [class.normal]="statusFor(product.stock) === 'normal'">
+                {{ statusFor(product.stock) === 'low' ? 'Sap het' : 'Binh thuong' }}
+              </span>
+            </td>
+            <td class="action-cell">
+              <button class="icon-btn view-btn" type="button" title="Xem">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button class="icon-btn edit-btn" type="button" title="Sua">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button class="icon-btn delete-btn" type="button" title="Xoa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </td>
+          </tr>
+          } @empty {
+          <tr>
+            <td colspan="7">
+              <div class="state-box">Khong co san pham phu hop</div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-footer">
+      <span>Hien thi {{ rows().length }} / {{ totalRecords() }} san pham</span>
+      <div class="pagination">
+        <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+        @for (p of visiblePages(); track p) {
+        <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+        }
+        <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -108,6 +108,14 @@ export class AdminLayoutComponent implements OnInit {
   }
 
   private loadSidebarMenus(): void {
+    const cachedMenus = this.menuService.getCachedSidebarMenus();
+    if (cachedMenus?.length) {
+      this.sidebarMenus.set(cachedMenus);
+      this.menuLoading.set(false);
+      this.expandActiveParents();
+      return;
+    }
+
     this.menuLoading.set(true);
     this.menuLoadError.set(false);
 
@@ -117,17 +125,19 @@ export class AdminLayoutComponent implements OnInit {
       .subscribe({
         next: (res: any) => {
           const menus: MenuAggregate[] = res?.resources || res?.data || [];
-          this.sidebarMenus.set(this.menuService.buildMenuTree(menus));
+          const tree = this.menuService.buildMenuTree(menus);
+          this.menuService.setCachedSidebarMenus(tree);
+          this.sidebarMenus.set(tree);
           this.menuLoading.set(false);
           this.expandActiveParents();
         },
         error: () => {
           const userMenus = this.authService.getMenus();
-          this.sidebarMenus.set(
-            userMenus.some((m) => m.child?.length)
-              ? this.sortedMenus(userMenus)
-              : this.menuService.buildMenuTree(userMenus)
-          );
+          const tree = userMenus.some((m) => m.child?.length)
+            ? this.sortedMenus(userMenus)
+            : this.menuService.buildMenuTree(userMenus);
+          this.menuService.setCachedSidebarMenus(tree);
+          this.sidebarMenus.set(tree);
           this.menuLoading.set(false);
           this.menuLoadError.set(true);
           this.expandActiveParents();

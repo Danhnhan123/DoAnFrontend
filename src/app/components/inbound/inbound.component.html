@@ -1,0 +1,89 @@
+<div class="page-wrapper">
+  <div class="page-actions">
+    <button class="icon-btn add-btn" type="button">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Tao phieu nhap
+    </button>
+  </div>
+
+  <section class="card section-card">
+    <h3>Danh sach phieu nhap kho</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ma phieu</th>
+            <th>Nha cung cap</th>
+            <th>Ngay nhap</th>
+            <th>Kho</th>
+            <th>Trang thai</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (receipt of receipts; track receipt.code) {
+          <tr>
+            <td><span class="code-link">{{ receipt.code }}</span></td>
+            <td>{{ receipt.supplier }}</td>
+            <td class="text-muted">{{ receipt.date }}</td>
+            <td class="text-muted">{{ receipt.warehouse }}</td>
+            <td><span class="status-pill" [class]="receipt.tone">{{ receipt.status }}</span></td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card section-card">
+    <h3>Chi tiet phieu nhap - PN-2025-004</h3>
+    <div class="form-grid">
+      <label>Ma phieu<input value="PN-2025-004" readonly /></label>
+      <label>Nha cung cap<input value="Cong ty TNHH ABC" readonly /></label>
+      <label>Ngay nhap<input value="2025-07-15" readonly /></label>
+      <label>Kho<input value="Kho A" readonly /></label>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Ten san pham</th>
+            <th>So luong</th>
+            <th>Don gia (d)</th>
+            <th>Thanh tien (d)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of lines; track line.sku) {
+          <tr>
+            <td><span class="code-link">{{ line.sku }}</span></td>
+            <td>{{ line.name }}</td>
+            <td><input class="qty-input" [value]="line.qty" /></td>
+            <td>{{ line.price | number:'1.0-0' }}</td>
+            <td class="money">{{ line.qty * line.price | number:'1.0-0' }}</td>
+            <td class="action-cell"><button class="icon-btn delete-btn" type="button">×</button></td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="detail-footer">
+      <button class="link-btn" type="button">+ Them san pham</button>
+      <div class="total-box">
+        <span>Tong cong</span>
+        <strong>{{ total() | number:'1.0-0' }} d</strong>
+      </div>
+    </div>
+    <div class="footer-actions">
+      <button class="btn btn-outline" type="button">Huy</button>
+      <button class="btn btn-primary" type="button">Luu phieu nhap</button>
+    </div>
+  </section>
+</div>
