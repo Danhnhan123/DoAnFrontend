@@ -148,6 +148,29 @@ export class UserComponent {
     () => (this.rolesQuery.data() as any)?.resources ?? []
   );
 
+  activeCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.userStatusName || '').toLowerCase().includes('hoạt động') ||
+      (r.userStatusName || '').toLowerCase().includes('active')
+    ).length
+  );
+  managerCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.roles || []).some((role: any) =>
+        (role.name || '').toLowerCase().includes('quản lý') ||
+        (role.name || '').toLowerCase().includes('manager')
+      )
+    ).length
+  );
+  staffCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.roles || []).some((role: any) =>
+        (role.name || '').toLowerCase().includes('nhân viên') ||
+        (role.name || '').toLowerCase().includes('staff')
+      )
+    ).length
+  );
+
   private _prevDetailData: any = null;
   get _detailSynced(): boolean {
     const d = this.detailQuery.data();
@@ -250,6 +273,10 @@ export class UserComponent {
     const total = this.totalPages(), cur = this.page(), d = 2, pages: number[] = [];
     for (let i = Math.max(1, cur - d); i <= Math.min(total, cur + d); i++) pages.push(i);
     return pages;
+  }
+
+  openView(row: UserAdvancedRow): void {
+    this.openEdit(row);
   }
 
   openCreate(): void {

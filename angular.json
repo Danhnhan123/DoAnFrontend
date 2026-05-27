@@ -71,7 +71,8 @@
               "buildTarget": "DoAnFrontend:build:production"
             },
             "development": {
-              "buildTarget": "DoAnFrontend:build:development"
+              "buildTarget": "DoAnFrontend:build:development",
+              "hmr": true
             }
           },
           "defaultConfiguration": "development"
