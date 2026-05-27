@@ -1,14 +1,16 @@
 <div class="page-wrapper">
-
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">📋 Quản lý Menu</h1>
-      <p class="page-subtitle">Cấu hình menu hệ thống — tổng {{ flatMenus().length }} mục</p>
-    </div>
-    <button class="btn btn-primary" (click)="openCreate()">+ Thêm menu</button>
+      <div class="toolbar card">
+    <div class="toolbar-spacer"></div>
+    <button class="icon-btn add-btn" (click)="openCreate()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Thêm menu
+    </button>
   </div>
-
-  <div class="card">
+<div class="card">
     @if (loading()) {
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
     } @else if (nestedMenus().length === 0) {
@@ -33,8 +35,21 @@
             }
           </div>
           <div class="tree-actions">
-            <button class="btn btn-outline btn-sm" (click)="openEdit(root)" title="Sửa">✏️ Sửa</button>
-            <button class="btn btn-danger btn-sm" (click)="delete(root.id, root.name)" title="Xóa">🗑️</button>
+            <button class="icon-btn edit-btn" (click)="openEdit(root)" title="Sửa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+</button>
+            <button class="icon-btn delete-btn" (click)="delete(root.id, root.name)" title="Xóa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+</button>
           </div>
         </div>
 
@@ -55,8 +70,21 @@
                 <span class="order-badge">Thứ tự: {{ child.sortOrder }}</span>
               </div>
               <div class="tree-actions">
-                <button class="btn btn-outline btn-sm" (click)="openEdit(child)" title="Sửa">✏️</button>
-                <button class="btn btn-danger btn-sm" (click)="delete(child.id, child.name)" title="Xóa">🗑️</button>
+                <button class="icon-btn edit-btn" (click)="openEdit(child)" title="Sửa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+</button>
+                <button class="icon-btn delete-btn" (click)="delete(child.id, child.name)" title="Xóa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+</button>
               </div>
             </div>
 
@@ -75,8 +103,21 @@
                     </div>
                   </div>
                   <div class="tree-actions">
-                    <button class="btn btn-outline btn-sm" (click)="openEdit(gc)">✏️</button>
-                    <button class="btn btn-danger btn-sm" (click)="delete(gc.id, gc.name)">🗑️</button>
+                    <button class="icon-btn edit-btn" (click)="openEdit(gc)" title="Sửa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+</button>
+                    <button class="icon-btn delete-btn" (click)="delete(gc.id, gc.name)" title="Xóa">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M10 11v6" />
+    <path d="M14 11v6" />
+    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+  </svg>
+</button>
                   </div>
                 </div>
               </div>

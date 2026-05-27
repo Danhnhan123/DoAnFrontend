@@ -431,3 +431,119 @@
   border: none;
   border-radius: 6px;
 }
+
+/* User page style controls */
+.toolbar {
+  flex-wrap: nowrap;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  color: var(--text-primary, #1e2d4d);
+  background: var(--card-bg, #fff);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.icon-btn {
+  border: none;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.2s, color 0.2s;
+}
+
+.icon-btn:not(.filter-btn):not(.add-btn) {
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+}
+
+.icon-btn:not(.filter-btn):not(.add-btn):hover {
+  transform: scale(1.12);
+}
+
+.filter-btn {
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: var(--text-secondary, #5a6a8a);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.filter-btn:hover,
+.filter-btn.filter-active {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.add-btn {
+  gap: 7px;
+  padding: 8px 16px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+.add-btn:hover {
+  background: #4f46e5;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+}
+
+.edit-btn {
+  color: #f59e0b;
+}
+
+.edit-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
