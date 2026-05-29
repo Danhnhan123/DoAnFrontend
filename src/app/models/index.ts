@@ -361,3 +361,4 @@ export interface UpdateActionDto {
   createdBy?: number;
   uodatedBy?: number;
 }
+

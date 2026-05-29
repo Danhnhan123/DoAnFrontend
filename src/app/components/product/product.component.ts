@@ -1,14 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
-interface ProductRow {
-  sku: string;
-  name: string;
-  category: string;
-  unit: string;
-  stock: number;
-}
+import { lastValueFrom } from 'rxjs';
+import {
+  injectMutation,
+  injectQuery,
+  injectQueryClient,
+} from '@tanstack/angular-query-experimental';
+import Swal from 'sweetalert2';
+import {
+  CreateProductDto,
+  ProductAdvancedRow,
+  ProductCategoryOption,
+  ProductDetailDto,
+  UpdateProductDto,
+} from '../../models/product';
+import { ProductService } from '../../services/product.service';
 
 @Component({
   selector: 'app-product',
@@ -18,54 +25,367 @@ interface ProductRow {
   styleUrl: './product.component.css',
 })
 export class ProductComponent {
-  search = signal('');
+  private productService = inject(ProductService);
+  private queryClient = injectQueryClient();
+
   page = signal(1);
   pageSize = signal(10);
+  search = signal('');
+  sortField = signal('createdDate');
+  sortDir = signal<'asc' | 'desc'>('desc');
 
-  products = signal<ProductRow[]>([
-    { sku: 'SKU-0001', name: 'Bong den LED 9W', category: 'Dien tu', unit: 'Cai', stock: 8 },
-    { sku: 'SKU-0002', name: 'Cap sac Type-C 1m', category: 'Dien tu', unit: 'Cai', stock: 245 },
-    { sku: 'SKU-0003', name: 'Ao thun nam size L', category: 'Det may', unit: 'Cai', stock: 5 },
-    { sku: 'SKU-0004', name: 'Sua tuoi Vinamilk 1L', category: 'Thuc pham', unit: 'Hop', stock: 180 },
-    { sku: 'SKU-0005', name: 'Tai nghe bluetooth TWS', category: 'Dien tu', unit: 'Chiec', stock: 62 },
-    { sku: 'SKU-0006', name: 'Quan jean nam size 32', category: 'Det may', unit: 'Cai', stock: 33 },
-    { sku: 'SKU-0007', name: 'Banh quy hop 500g', category: 'Thuc pham', unit: 'Hop', stock: 97 },
-    { sku: 'SKU-0008', name: 'Man hinh LCD 24 inch', category: 'Dien tu', unit: 'Cai', stock: 14 },
-    { sku: 'SKU-0009', name: 'Kem duong da mat 50ml', category: 'My pham', unit: 'Tuyp', stock: 210 },
-    { sku: 'SKU-0010', name: 'Dau goi dau 400ml', category: 'FMCG', unit: 'Chai', stock: 340 },
-  ]);
+  showFilter = signal(false);
+  filterName = signal('');
+  filterDescription = signal('');
+  filterCategory = signal('');
+  filterActive = signal<'' | 'true' | 'false'>('');
+  filterDateFrom = signal('');
+  filterDateTo = signal('');
 
-  filteredProducts = computed(() => {
-    const keyword = this.search().trim().toLowerCase();
-    if (!keyword) return this.products();
-    return this.products().filter((product) =>
-      [product.sku, product.name, product.category, product.unit]
-        .some((value) => value.toLowerCase().includes(keyword))
-    );
+  showDetail = signal(false);
+  selectedItem = signal<ProductAdvancedRow | null>(null);
+
+  showForm = signal(false);
+  editItem = signal<ProductAdvancedRow | null>(null);
+  isEdit = computed(() => !!this.editItem());
+  form = signal<CreateProductDto>({
+    name: '',
+    description: '',
+    productCategoryId: 0,
+    isActive: true,
   });
 
-  totalRecords = computed(() => this.filteredProducts().length);
-  totalPages = computed(() => Math.max(1, Math.ceil(this.totalRecords() / this.pageSize())));
+  private readonly colMap: Record<string, number> = {
+    name: 1,
+    description: 2,
+    productCategoryName: 3,
+    isActive: 4,
+    createdDate: 5,
+  };
 
-  rows = computed(() => {
-    const start = (this.page() - 1) * this.pageSize();
-    return this.filteredProducts().slice(start, start + this.pageSize());
+  listQuery = injectQuery(() => ({
+    // Logic cache: mọi tham số lọc/phân trang/sắp xếp nằm trong queryKey để TanStack Query tự refetch đúng lúc.
+    queryKey: [
+      'products',
+      this.page(),
+      this.pageSize(),
+      this.search(),
+      this.sortField(),
+      this.sortDir(),
+      this.filterName(),
+      this.filterDescription(),
+      this.filterCategory(),
+      this.filterActive(),
+      this.filterDateFrom(),
+      this.filterDateTo(),
+    ],
+    queryFn: () => {
+      // Logic API: build body đúng format DataTables mà backend paged-advanced đang nhận.
+      const body = this.productService.buildPagedBody({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        search: this.search(),
+        sortField: this.sortField(),
+        sortDir: this.sortDir(),
+        colMap: this.colMap,
+        filterName: this.filterName(),
+        filterDescription: this.filterDescription(),
+        filterCategory: this.filterCategory(),
+        filterActive: this.filterActive(),
+        filterDateFrom: this.filterDateFrom(),
+        filterDateTo: this.filterDateTo(),
+      });
+      return lastValueFrom(this.productService.getPagedAdvanced(body));
+    },
+  }));
+
+  categoriesQuery = injectQuery(() => ({
+    queryKey: ['product-category-options'],
+    queryFn: () => lastValueFrom(this.productService.getProductCategories()),
+  }));
+
+  detailQuery = injectQuery(() => ({
+    queryKey: ['product-detail', this.selectedItem()?.id],
+    enabled: !!this.selectedItem()?.id && this.showDetail(),
+    queryFn: () =>
+      lastValueFrom(this.productService.getById(this.selectedItem()!.id)),
+  }));
+
+  editDetailQuery = injectQuery(() => ({
+    queryKey: ['product-edit-detail', this.editItem()?.id],
+    enabled: !!this.editItem()?.id && this.showForm(),
+    queryFn: () => lastValueFrom(this.productService.getById(this.editItem()!.id)),
+  }));
+
+  private syncEditDetail = effect(() => {
+    const data = this.editDetailQuery.data();
+    if (!data || !this.showForm()) return;
+    const detail: ProductDetailDto | null = this.getPayload(data);
+    if (detail) this.patchFormFromProduct(detail);
   });
 
-  visiblePages(): number[] {
-    return Array.from({ length: this.totalPages() }, (_, index) => index + 1);
+  createMutation = injectMutation(() => ({
+    mutationFn: (payload: CreateProductDto) =>
+      lastValueFrom(this.productService.create(payload)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.closeForm();
+        this.queryClient.invalidateQueries({ queryKey: ['products'] });
+        this.showToast('Thêm sản phẩm thành công.');
+      } else {
+        this.showToast(res.message || 'Thêm sản phẩm thất bại.', false);
+      }
+    },
+    onError: (err: any) =>
+      this.showToast(err?.error?.message || 'Lỗi thêm sản phẩm.', false),
+  }));
+
+  updateMutation = injectMutation(() => ({
+    mutationFn: (payload: UpdateProductDto) =>
+      lastValueFrom(this.productService.update(payload)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.closeForm();
+        this.queryClient.invalidateQueries({ queryKey: ['products'] });
+        this.showToast('Cập nhật sản phẩm thành công.');
+      } else {
+        this.showToast(res.message || 'Cập nhật sản phẩm thất bại.', false);
+      }
+    },
+    onError: (err: any) =>
+      this.showToast(err?.error?.message || 'Lỗi cập nhật sản phẩm.', false),
+  }));
+
+  deleteMutation = injectMutation(() => ({
+    mutationFn: (id: number) => lastValueFrom(this.productService.delete(id)),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['products'] });
+        this.showToast('Đã xóa sản phẩm thành công.');
+      } else {
+        this.showToast(res.message || 'Xóa sản phẩm thất bại.', false);
+      }
+    },
+    onError: (err: any) =>
+      this.showToast(err?.error?.message || 'Lỗi xóa sản phẩm.', false),
+  }));
+
+  rows = computed<ProductAdvancedRow[]>(() => {
+    const data = this.getPayload(this.listQuery.data());
+
+    // Logic normalize: backend paged-advanced trả DataTables, vẫn giữ fallback PagingData để UI không vỡ nếu wrapper đổi.
+    return data?.data ?? data?.dataSource ?? data?.items ?? [];
+  });
+
+  totalRecords = computed<number>(() => {
+    const data = this.getPayload(this.listQuery.data());
+    return data?.recordsFiltered ?? data?.totalFiltered ?? data?.total ?? 0;
+  });
+
+  totalPages = computed<number>(() =>
+    Math.max(1, Math.ceil(this.totalRecords() / this.pageSize()))
+  );
+
+  loading = computed(() => this.listQuery.isPending());
+  loadingDetail = computed(() => this.detailQuery.isFetching());
+  loadingEditDetail = computed(() => this.editDetailQuery.isFetching());
+  deleting = computed(() => this.deleteMutation.isPending());
+  saving = computed(
+    () => this.createMutation.isPending() || this.updateMutation.isPending()
+  );
+
+  detail = computed<ProductDetailDto | null>(() => {
+    return this.getPayload(this.detailQuery.data()) ?? this.selectedItem();
+  });
+
+  categoryOptions = computed<ProductCategoryOption[]>(() => {
+    return this.getPayload(this.categoriesQuery.data()) ?? [];
+  });
+
+  activeCount = computed(() => this.rows().filter((row) => row.isActive).length);
+  inactiveCount = computed(() => this.rows().filter((row) => !row.isActive).length);
+  categoryCount = computed(() => {
+    const ids = this.rows()
+      .map((row) => row.productCategoryId)
+      .filter((id) => !!id);
+    return new Set(ids).size;
+  });
+
+  private getPayload(response: any): any {
+    return response?.resources ?? response?.data ?? null;
   }
 
-  setPage(page: number): void {
-    const next = Math.min(Math.max(page, 1), this.totalPages());
-    this.page.set(next);
+  private patchFormFromProduct(product: ProductAdvancedRow): void {
+    this.form.set({
+      name: product.name || '',
+      description: product.description || '',
+      productCategoryId: product.productCategoryId || 0,
+      isActive: product.isActive,
+    });
+  }
+
+  toggleFilter(): void {
+    this.showFilter.set(!this.showFilter());
+  }
+
+  applyFilter(): void {
+    this.page.set(1);
+  }
+
+  clearFilter(): void {
+    this.filterName.set('');
+    this.filterDescription.set('');
+    this.filterCategory.set('');
+    this.filterActive.set('');
+    this.filterDateFrom.set('');
+    this.filterDateTo.set('');
+    this.applyFilter();
   }
 
   onSearch(): void {
     this.page.set(1);
   }
 
-  statusFor(stock: number): 'low' | 'normal' {
-    return stock <= 15 ? 'low' : 'normal';
+  setPage(page: number): void {
+    // Logic chặn biên: không cho frontend gọi page ngoài khoảng backend có thể trả.
+    if (page < 1 || page > this.totalPages()) return;
+    this.page.set(page);
+  }
+
+  visiblePages(): number[] {
+    const total = this.totalPages();
+    const current = this.page();
+    const radius = 2;
+    const pages: number[] = [];
+    for (
+      let page = Math.max(1, current - radius);
+      page <= Math.min(total, current + radius);
+      page++
+    ) {
+      pages.push(page);
+    }
+    return pages;
+  }
+
+  sort(field: string): void {
+    if (this.sortField() === field) {
+      this.sortDir.update((dir) => (dir === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.sortField.set(field);
+      this.sortDir.set('asc');
+    }
+    this.page.set(1);
+  }
+
+  openView(row: ProductAdvancedRow): void {
+    this.selectedItem.set(row);
+    this.showDetail.set(true);
+  }
+
+  closeDetail(): void {
+    this.showDetail.set(false);
+    this.selectedItem.set(null);
+  }
+
+  openCreate(): void {
+    this.editItem.set(null);
+    this.form.set({
+      name: '',
+      description: '',
+      productCategoryId: this.categoryOptions()[0]?.id || 0,
+      isActive: true,
+    });
+    this.showForm.set(true);
+  }
+
+  openEdit(row: ProductAdvancedRow): void {
+    this.editItem.set(row);
+    this.patchFormFromProduct(row);
+    this.showForm.set(true);
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editItem.set(null);
+  }
+
+  setField(field: keyof CreateProductDto, value: any): void {
+    this.form.update((current) => ({ ...current, [field]: value }));
+  }
+
+  save(): void {
+    const form = this.form();
+    if (!form.name.trim() || !form.productCategoryId) {
+      this.showToast('Vui lòng nhập tên sản phẩm và chọn danh mục.', false);
+      return;
+    }
+
+    if (form.name.trim().length > 200) {
+      this.showToast('Tên sản phẩm không được vượt quá 200 ký tự.', false);
+      return;
+    }
+
+    const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
+    Swal.fire({
+      title: `Xác nhận ${actionText}`,
+      text: `Bạn có muốn ${actionText} sản phẩm này không?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#4f46e5',
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+
+      // Logic payload: backend update yêu cầu thêm id, còn create chỉ gửi các field nhập từ form.
+      const payload: CreateProductDto = {
+        name: form.name.trim(),
+        description: form.description?.trim() || '',
+        productCategoryId: Number(form.productCategoryId),
+        isActive: form.isActive,
+      };
+
+      if (this.isEdit()) {
+        this.updateMutation.mutate({
+          ...payload,
+          id: this.editItem()!.id,
+        });
+      } else {
+        this.createMutation.mutate(payload);
+      }
+    });
+  }
+
+  delete(id: number, name: string): void {
+    Swal.fire({
+      title: 'Xóa sản phẩm?',
+      text: `Bạn có chắc muốn xóa "${name}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xóa',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#ef4444',
+    }).then((result) => {
+      if (result.isConfirmed) this.deleteMutation.mutate(id);
+    });
+  }
+
+  sortIcon(field: string): string {
+    if (this.sortField() !== field) return '-';
+    return this.sortDir() === 'asc' ? '^' : 'v';
+  }
+
+  statusLabel(isActive: boolean): string {
+    return isActive ? 'Đang bán' : 'Ngừng bán';
+  }
+
+  private showToast(message: string, ok = true): void {
+    Swal.fire({
+      title: ok ? 'Thành công' : 'Thất bại',
+      text: message,
+      icon: ok ? 'success' : 'error',
+      confirmButtonText: 'Đóng',
+      confirmButtonColor: '#4f46e5',
+    });
   }
 }

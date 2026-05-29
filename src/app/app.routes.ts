@@ -108,11 +108,6 @@ export const routes: Routes = [
         children: adminChildren,
       },
       {
-        path: 'products',
-        loadComponent: () =>
-          import('./components/product/product.component').then(m => m.ProductComponent),
-      },
-      {
         path: 'inbound',
         loadComponent: () =>
           import('./components/inbound/inbound.component').then(m => m.InboundComponent),

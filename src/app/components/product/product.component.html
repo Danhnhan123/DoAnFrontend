@@ -1,4 +1,70 @@
 <div class="page-wrapper">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon-wrap blue">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <path d="M3.27 6.96 12 12.01l8.73-5.05" />
+          <path d="M12 22.08V12" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Tổng sản phẩm</span>
+        <span class="stat-value">{{ totalRecords() }}</span>
+        <span class="stat-sub">{{ rows().length }} đang hiển thị</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon-wrap green">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Đang bán</span>
+        <span class="stat-value">{{ activeCount() }}</span>
+        <span class="stat-sub">Trong trang hiện tại</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon-wrap purple">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Danh mục</span>
+        <span class="stat-value">{{ categoryCount() }}</span>
+        <span class="stat-sub">Trong trang hiện tại</span>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon-wrap orange">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Ngừng bán</span>
+        <span class="stat-value">{{ inactiveCount() }}</span>
+        <span class="stat-sub">Trong trang hiện tại</span>
+      </div>
+    </div>
+  </div>
+
   <div class="toolbar card">
     <div class="search-wrap">
       <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -6,64 +72,133 @@
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
-      <input class="search-input" placeholder="Tim theo SKU hoac ten san pham..." [ngModel]="search()"
-        (ngModelChange)="search.set($event); onSearch()" (keydown.enter)="onSearch()" />
+      <input class="search-input" placeholder="Tìm tên, mô tả, danh mục..." [ngModel]="search()"
+        (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
     </div>
 
-    <button class="icon-btn add-btn" type="button">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+      title="Bộ lọc nâng cao">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+        <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+      </svg>
+      Bộ lọc nâng cao
+    </button>
+
+    <select class="form-control page-size-select" [ngModel]="pageSize()"
+      (ngModelChange)="pageSize.set(+$event); page.set(1)">
+      <option [value]="5">5/trang</option>
+      <option [value]="10">10/trang</option>
+      <option [value]="20">20/trang</option>
+      <option [value]="50">50/trang</option>
+    </select>
+
+    <button class="icon-btn add-btn" type="button" (click)="openCreate()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19" />
         <line x1="5" y1="12" x2="19" y2="12" />
       </svg>
-      Them san pham
+      Thêm sản phẩm
     </button>
   </div>
 
+  @if (showFilter()) {
+  <div class="filter-panel card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Tên sản phẩm</label>
+        <input class="form-control" placeholder="Nhập tên..." [ngModel]="filterName()"
+          (ngModelChange)="filterName.set($event)" (keydown.enter)="applyFilter()" />
+      </div>
+      <div class="form-group">
+        <label>Mô tả</label>
+        <input class="form-control" placeholder="Nhập mô tả..." [ngModel]="filterDescription()"
+          (ngModelChange)="filterDescription.set($event)" (keydown.enter)="applyFilter()" />
+      </div>
+      <div class="form-group">
+        <label>Danh mục</label>
+        <input class="form-control" placeholder="Nhập danh mục..." [ngModel]="filterCategory()"
+          (ngModelChange)="filterCategory.set($event)" (keydown.enter)="applyFilter()" />
+      </div>
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <select class="form-control" [ngModel]="filterActive()" (ngModelChange)="filterActive.set($event)">
+          <option value="">Tất cả</option>
+          <option value="true">Đang bán</option>
+          <option value="false">Ngừng bán</option>
+        </select>
+      </div>
+      <div class="form-group full-width">
+        <label>Khoảng ngày tạo</label>
+        <div class="date-range">
+          <input class="form-control" type="date" [ngModel]="filterDateFrom()"
+            (ngModelChange)="filterDateFrom.set($event)" />
+          <span>-</span>
+          <input class="form-control" type="date" [ngModel]="filterDateTo()"
+            (ngModelChange)="filterDateTo.set($event)" />
+        </div>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+    </div>
+  </div>
+  }
+
   <div class="card">
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+    } @else if (rows().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có dữ liệu</p></div>
+    } @else {
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>SKU</th>
-            <th>Ten san pham</th>
-            <th>Danh muc</th>
-            <th>Don vi</th>
-            <th>Ton kho</th>
-            <th>Trang thai</th>
-            <th style="text-align:right">Hanh dong</th>
+            <th style="width:40px">STT</th>
+            <th class="sortable" (click)="sort('name')">Sản phẩm <span class="sort-icon">{{ sortIcon('name') }}</span></th>
+            <th class="sortable" (click)="sort('description')">Mô tả <span class="sort-icon">{{ sortIcon('description') }}</span></th>
+            <th class="sortable" (click)="sort('productCategoryName')">Danh mục <span class="sort-icon">{{ sortIcon('productCategoryName') }}</span></th>
+            <th class="sortable" (click)="sort('isActive')">Trạng thái <span class="sort-icon">{{ sortIcon('isActive') }}</span></th>
+            <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+            <th style="text-align:right">Thao tác</th>
           </tr>
         </thead>
         <tbody>
-          @for (product of rows(); track product.sku) {
+          @for (product of rows(); track product.id; let idx = $index) {
           <tr>
-            <td><span class="sku-link">{{ product.sku }}</span></td>
-            <td class="product-name">{{ product.name }}</td>
-            <td><span class="category-pill">{{ product.category }}</span></td>
-            <td class="text-muted">{{ product.unit }}</td>
-            <td class="stock-value">{{ product.stock }}</td>
+            <td class="text-muted">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
             <td>
-              <span class="status-pill" [class.low]="statusFor(product.stock) === 'low'"
-                [class.normal]="statusFor(product.stock) === 'normal'">
-                {{ statusFor(product.stock) === 'low' ? 'Sap het' : 'Binh thuong' }}
+              <div class="product-cell">
+                <div class="av-sm">{{ product.name.slice(0, 2).toUpperCase() }}</div>
+                <div>
+                  <button class="u-name link-btn" type="button" (click)="openView(product)">{{ product.name }}</button>
+                  <div class="u-sub">#{{ product.id }}</div>
+                </div>
+              </div>
+            </td>
+            <td class="description-cell">{{ product.description || '-' }}</td>
+            <td><span class="role-pill">{{ product.productCategoryName || 'Chưa có' }}</span></td>
+            <td>
+              <span class="status-pill" [class.active]="product.isActive" [class.inactive]="!product.isActive">
+                {{ statusLabel(product.isActive) }}
               </span>
             </td>
+            <td class="text-muted small">{{ product.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
             <td class="action-cell">
-              <button class="icon-btn view-btn" type="button" title="Xem">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-              <button class="icon-btn edit-btn" type="button" title="Sua">
+              <button class="icon-btn edit-btn" type="button" title="Sửa" (click)="openEdit(product)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-              <button class="icon-btn delete-btn" type="button" title="Xoa">
+              <button class="icon-btn delete-btn" type="button" title="Xóa" [disabled]="deleting()"
+                (click)="delete(product.id, product.name)">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6" />
@@ -75,36 +210,128 @@
               </button>
             </td>
           </tr>
-          } @empty {
-          <tr>
-            <td colspan="7">
-              <div class="state-box">Khong co san pham phu hop</div>
-            </td>
-          </tr>
           }
         </tbody>
       </table>
     </div>
 
-    <div class="table-footer">
-      <span>Hien thi {{ rows().length }} / {{ totalRecords() }} san pham</span>
-      <div class="pagination">
-        <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        @for (p of visiblePages(); track p) {
-        <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
-        }
-        <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of visiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
     </div>
+    }
+    }
   </div>
 </div>
+
+@if (showDetail()) {
+<div class="modal-backdrop" (click)="closeDetail()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Chi tiết sản phẩm</h3>
+      <button class="modal-close" type="button" (click)="closeDetail()">×</button>
+    </div>
+
+    @if (loadingDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    @if (detail(); as item) {
+    <div class="modal-body">
+      <div class="detail-title">
+        <div>
+          <span class="detail-id">#{{ item.id }}</span>
+          <h4>{{ item.name }}</h4>
+        </div>
+        <span class="status-pill" [class.active]="item.isActive" [class.inactive]="!item.isActive">
+          {{ statusLabel(item.isActive) }}
+        </span>
+      </div>
+
+      <div class="detail-grid">
+        <div>
+          <span>Danh mục</span>
+          <strong>{{ item.productCategoryName || 'Chưa có' }}</strong>
+        </div>
+        <div>
+          <span>Mã danh mục</span>
+          <strong>{{ item.productCategoryId }}</strong>
+        </div>
+        <div>
+          <span>Ngày tạo</span>
+          <strong>{{ item.createdDate | date:'dd/MM/yyyy HH:mm' }}</strong>
+        </div>
+      </div>
+
+      <div class="detail-description">
+        <span>Mô tả</span>
+        <p>{{ item.description || 'Sản phẩm chưa có mô tả.' }}</p>
+      </div>
+    </div>
+    }
+    }
+  </div>
+</div>
+}
+
+@if (showForm()) {
+<div class="modal-backdrop" (click)="closeForm()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ isEdit() ? 'Cập nhật sản phẩm' : 'Thêm sản phẩm mới' }}</h3>
+      <button class="modal-close" type="button" (click)="closeForm()">×</button>
+    </div>
+
+    @if (loadingEditDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Tên sản phẩm *</label>
+          <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name', $event)"
+            placeholder="Nhập tên sản phẩm" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Danh mục *</label>
+          <select class="form-control" [ngModel]="form().productCategoryId"
+            (ngModelChange)="setField('productCategoryId', +$event)">
+            <option [value]="0">Chọn danh mục</option>
+            @for (category of categoryOptions(); track category.id) {
+            <option [value]="category.id">{{ category.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mô tả</label>
+        <textarea class="form-control" rows="4" [ngModel]="form().description"
+          (ngModelChange)="setField('description', $event)" placeholder="Nhập mô tả sản phẩm"></textarea>
+      </div>
+
+      <label class="toggle-wrap">
+        <input type="checkbox" [ngModel]="form().isActive" (ngModelChange)="setField('isActive', $event)" />
+        <span class="toggle-label">Đang bán</span>
+      </label>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" type="button" (click)="closeForm()">Hủy</button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+        @if (saving()) { <span class="spin-sm"></span> }
+        {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+      </button>
+    </div>
+    }
+  </div>
+</div>
+}
