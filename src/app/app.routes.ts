@@ -18,36 +18,6 @@ const adminChildren: Routes = [
       import('./components/product/product.component').then(m => m.ProductComponent),
   },
   {
-    path: 'inbound',
-    loadComponent: () =>
-      import('./components/inbound/inbound.component').then(m => m.InboundComponent),
-  },
-  {
-    path: 'outbound',
-    loadComponent: () =>
-      import('./components/outbound/outbound.component').then(m => m.OutboundComponent),
-  },
-  {
-    path: 'stocktake',
-    loadComponent: () =>
-      import('./components/stocktake/stocktake.component').then(m => m.StocktakeComponent),
-  },
-  {
-    path: 'warehouse',
-    loadComponent: () =>
-      import('./components/warehouse/warehouse.component').then(m => m.WarehouseComponent),
-  },
-  {
-    path: 'reports',
-    loadComponent: () =>
-      import('./components/reports/reports.component').then(m => m.ReportsComponent),
-  },
-  {
-    path: 'alert',
-    loadComponent: () =>
-      import('./components/alert/alert.component').then(m => m.AlertComponent),
-  },
-  {
     path: 'users',
     loadComponent: () =>
       import('./components/user/user.component').then(m => m.UserComponent),
@@ -106,36 +76,6 @@ export const routes: Routes = [
       {
         path: 'admin',
         children: adminChildren,
-      },
-      {
-        path: 'inbound',
-        loadComponent: () =>
-          import('./components/inbound/inbound.component').then(m => m.InboundComponent),
-      },
-      {
-        path: 'outbound',
-        loadComponent: () =>
-          import('./components/outbound/outbound.component').then(m => m.OutboundComponent),
-      },
-      {
-        path: 'stocktake',
-        loadComponent: () =>
-          import('./components/stocktake/stocktake.component').then(m => m.StocktakeComponent),
-      },
-      {
-        path: 'warehouse',
-        loadComponent: () =>
-          import('./components/warehouse/warehouse.component').then(m => m.WarehouseComponent),
-      },
-      {
-        path: 'reports',
-        loadComponent: () =>
-          import('./components/reports/reports.component').then(m => m.ReportsComponent),
-      },
-      {
-        path: 'alert',
-        loadComponent: () =>
-          import('./components/alert/alert.component').then(m => m.AlertComponent),
       },
     ],
   },
