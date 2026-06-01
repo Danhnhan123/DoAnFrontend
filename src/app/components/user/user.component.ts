@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -171,29 +171,26 @@ export class UserComponent {
     ).length
   );
 
-  private _prevDetailData: any = null;
-  get _detailSynced(): boolean {
-    const d = this.detailQuery.data();
-    if (d && d !== this._prevDetailData) {
-      this._prevDetailData = d;
-      const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) {
-        this.form.set({
-          email: detail.email,
-          passwordHash: '',
-          phoneNumber: detail.phoneNumber || '',
-          gender: detail.gender ?? 1,
-          firstName: detail.firstName,
-          lastName: detail.lastName,
-          userStatusId: detail.userStatus?.id || 0,
-          lockEnabled: detail.lockEnabled || false,
-          lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
-          roles: detail.roles?.map((r: any) => r.id) || [],
-        });
-      }
-    }
-    return true;
-  }
+ private syncDetail = effect(() => {
+  const d = this.detailQuery.data();
+  if (!d || !this.showModal() || !this.isEdit()) return;
+
+  const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
+  if (!detail) return;
+
+  this.form.set({
+    email: detail.email,
+    passwordHash: '',
+    phoneNumber: detail.phoneNumber || '',
+    gender: detail.gender ?? 1,
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    userStatusId: detail.userStatus?.id || 0,
+    lockEnabled: detail.lockEnabled || false,
+    lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
+    roles: detail.roles?.map((r: any) => r.id) || [],
+  });
+});
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -281,7 +278,6 @@ export class UserComponent {
 
   openCreate(): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(null);
     this.form.set({
       email: '',
@@ -308,7 +304,6 @@ export class UserComponent {
 
   openEdit(row: UserAdvancedRow): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(row);
     this.form.set({
       email: row.email,
@@ -397,7 +392,7 @@ export class UserComponent {
           email: f.email,
           gender: f.gender,
           phoneNumber: f.phoneNumber,
-          passwordHash: f.password,
+          passwordHash: f.passwordHash,
           roles: f.roles,
         };
         this.createMutation.mutate(payload);
