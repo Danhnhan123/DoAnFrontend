@@ -10,3 +10,5 @@ export * from './system-config';
 export * from './audit-log';
 export * from './activity-log';
 export * from './action';
+export * from './product';
+export * from './product-variant';

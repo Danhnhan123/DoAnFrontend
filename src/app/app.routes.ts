@@ -57,6 +57,12 @@ const adminChildren: Routes = [
     loadComponent: () =>
       import('./components/user-status/user-status.component').then(m => m.UserStatusComponent),
   },
+  {
+  path: 'product-variants',
+  loadComponent: () =>
+    import('./components/product-variant/product-variant.component')
+      .then(m => m.ProductVariantComponent),
+  },
 ];
 
 export const routes: Routes = [
