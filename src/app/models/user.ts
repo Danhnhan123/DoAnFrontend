@@ -23,7 +23,6 @@ export interface UserAdvancedRow {
 }
 
 export interface UserAdvancedDto extends DTParameters {
-  username?: string;
   fullname?: string;
   email?: string;
   phoneNumber?: string;

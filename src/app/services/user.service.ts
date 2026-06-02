@@ -72,7 +72,6 @@ export class UserService {
     sortField: string;
     sortDir: 'asc' | 'desc';
     colMap: Record<string, number>;
-    filterUsername: string;
     filterFullname: string;
     filterEmail: string;
     filterPhone: string;
@@ -144,7 +143,6 @@ export class UserService {
       start: (params.page - 1) * params.pageSize,
       length: params.pageSize,
       search: { value: params.search, regex: false, fixed: [] },
-      username: params.filterUsername,
       fullname: params.filterFullname,
       email: params.filterEmail,
       phoneNumber: params.filterPhone,

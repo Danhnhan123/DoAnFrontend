@@ -36,7 +36,6 @@ export class UserComponent {
   sortDir = signal<'asc' | 'desc'>('desc');
 
   showFilter = signal(false);
-  filterUsername = signal('');
   filterFullname = signal('');
   filterEmail = signal('');
   filterPhone = signal('');
@@ -81,7 +80,6 @@ export class UserComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
-      this.filterUsername(),
       this.filterFullname(),
       this.filterEmail(),
       this.filterPhone(),
@@ -98,7 +96,6 @@ export class UserComponent {
         sortField: this.sortField(),
         sortDir: this.sortDir(),
         colMap: this.colMap,
-        filterUsername: this.filterUsername(),
         filterFullname: this.filterFullname(),
         filterEmail: this.filterEmail(),
         filterPhone: this.filterPhone(),
@@ -241,7 +238,6 @@ export class UserComponent {
   toggleFilter(): void { this.showFilter.set(!this.showFilter()); }
   applyFilter(): void { this.page.set(1); }
   clearFilter(): void {
-    this.filterUsername.set('');
     this.filterFullname.set('');
     this.filterEmail.set('');
     this.filterPhone.set('');
