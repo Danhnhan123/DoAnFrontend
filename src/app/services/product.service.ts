@@ -9,6 +9,7 @@ import {
   ProductCategoryOption,
   ProductDetailDto,
   UpdateProductDto,
+  ProductPagedAdvancedRequest
 } from '../models/product';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -61,84 +62,112 @@ export class ProductService {
     );
   }
 
-  buildPagedBody(params: {
-    page: number;
-    pageSize: number;
-    search: string;
-    sortField: string;
-    sortDir: 'asc' | 'desc';
-    colMap: Record<string, number>;
-    filterName: string;
-    filterDescription: string;
-    filterCategory: string;
-    filterActive: '' | 'true' | 'false';
-    filterDateFrom: string;
-    filterDateTo: string;
-  }): DTParameters {
-    const colIndex = params.colMap[params.sortField] ?? 5;
-    const dateRange = buildDateRange(
-      params.filterDateFrom,
-      params.filterDateTo
-    );
+buildPagedBody(params: {
+  page: number;
+  pageSize: number;
+  search: string;
+  sortField: string;
+  sortDir: 'asc' | 'desc';
+  colMap: Record<string, number>;
+  filterName: string;
+  filterDescription: string;
+  filterCategoryId: number | null;
+  filterActive: '' | 'true' | 'false';
+  filterDateFrom: string;
+  filterDateTo: string;
+}): ProductPagedAdvancedRequest {
+  const colIndex = params.colMap[params.sortField] ?? 5;
 
-    // Logic phân trang backend: DataTables dùng start/length thay vì cắt mảng ở frontend.
+  const dateRange = buildDateRange(
+    params.filterDateFrom,
+    params.filterDateTo
+  );
     return {
       draw: params.page,
       columns: [
         {
           data: 'id',
-          name: '',
+          name: 'id',
           searchable: true,
           orderable: true,
           search: { value: '', regex: false, fixed: [] },
         },
         {
           data: 'name',
-          name: '',
+          name: 'name',
           searchable: true,
           orderable: true,
-          search: { value: params.filterName, regex: false, fixed: [] },
+          search: {
+            value: params.filterName.trim(),
+            regex: false,
+            fixed: [],
+          },
         },
         {
           data: 'description',
-          name: '',
+          name: 'description',
           searchable: true,
           orderable: true,
-          search: { value: params.filterDescription, regex: false, fixed: [] },
+          search: {
+            value: params.filterDescription.trim(),
+            regex: false,
+            fixed: [],
+          },
         },
         {
           data: 'productCategoryName',
-          name: '',
+          name: 'productCategoryName',
           searchable: true,
           orderable: true,
-          search: { value: params.filterCategory, regex: false, fixed: [] },
+          search: { value: '', regex: false, fixed: [] },
         },
         {
           data: 'isActive',
-          name: '',
+          name: 'isActive',
           searchable: true,
           orderable: true,
-          search: { value: params.filterActive, regex: false, fixed: [] },
+          search: {
+            value: params.filterActive,
+            regex: false,
+            fixed: [],
+          },
         },
         {
           data: 'createdDate',
-          name: '',
+          name: 'createdDate',
           searchable: true,
           orderable: true,
-          search: { value: dateRange, regex: false, fixed: [] },
-        },
-        {
-          data: 'id',
-          name: '',
-          searchable: false,
-          orderable: false,
-          search: { value: '', regex: false, fixed: [] },
+          search: {
+            value: dateRange,
+            regex: false,
+            fixed: [],
+          },
         },
       ],
-      order: [{ column: colIndex, dir: params.sortDir, name: '' }],
+      order: [
+        {
+          column: colIndex,
+          dir: params.sortDir,
+          name: params.sortField,
+        },
+      ],
       start: (params.page - 1) * params.pageSize,
       length: params.pageSize,
-      search: { value: params.search, regex: false, fixed: [] },
+      search: {
+        value: params.search.trim(),
+        regex: false,
+        fixed: [],
+      },
+
+      categoryIds: params.filterCategoryId ? [params.filterCategoryId] : [],
+
+      additionalValues: [
+        params.filterName.trim(),
+        params.filterDescription.trim(),
+        params.filterActive,
+        params.filterDateFrom,
+        params.filterDateTo,
+      ],
     };
   }
 }

@@ -1,4 +1,4 @@
-<div class="page-wrapper">
+filterVersion <div class="page-wrapper">
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-icon-wrap blue">
@@ -120,8 +120,16 @@
       </div>
       <div class="form-group">
         <label>Danh mục</label>
-        <input class="form-control" placeholder="Nhập danh mục..." [ngModel]="filterCategory()"
-          (ngModelChange)="filterCategory.set($event)" (keydown.enter)="applyFilter()" />
+        <select
+          class="form-control"
+          [ngModel]="filterCategoryId()"
+          (ngModelChange)="filterCategoryId.set($event ? +$event : null)">
+          <option [ngValue]="null">Tất cả danh mục</option>
+
+          @for (category of categoryOptions(); track category.id) {
+          <option [ngValue]="category.id">{{ category.name }}</option> 
+        }
+        </select>
       </div>
       <div class="form-group">
         <label>Trạng thái</label>
@@ -134,11 +142,18 @@
       <div class="form-group full-width">
         <label>Khoảng ngày tạo</label>
         <div class="date-range">
-          <input class="form-control" type="date" [ngModel]="filterDateFrom()"
-            (ngModelChange)="filterDateFrom.set($event)" />
+          <input
+            type="date"
+            class="form-control"
+            [ngModel]="filterDateFrom()"
+            (ngModelChange)="filterDateFrom.set($event)"
+          />
           <span>-</span>
-          <input class="form-control" type="date" [ngModel]="filterDateTo()"
-            (ngModelChange)="filterDateTo.set($event)" />
+          <input  type="date"
+            class="form-control"
+            [ngModel]="filterDateTo()"
+            (ngModelChange)="filterDateTo.set($event)"
+          />
         </div>
       </div>
     </div>

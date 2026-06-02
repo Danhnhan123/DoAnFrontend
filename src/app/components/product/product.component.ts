@@ -28,6 +28,7 @@ export class ProductComponent {
   private productService = inject(ProductService);
   private queryClient = injectQueryClient();
 
+  filterVersion = signal(0);
   page = signal(1);
   pageSize = signal(10);
   search = signal('');
@@ -37,7 +38,7 @@ export class ProductComponent {
   showFilter = signal(false);
   filterName = signal('');
   filterDescription = signal('');
-  filterCategory = signal('');
+  filterCategoryId = signal<number | null>(null); 
   filterActive = signal<'' | 'true' | 'false'>('');
   filterDateFrom = signal('');
   filterDateTo = signal('');
@@ -55,7 +56,8 @@ export class ProductComponent {
     isActive: true,
   });
 
-  private readonly colMap: Record<string, number> = {
+  readonly colMap: Record<string, number> = {
+    id: 0,
     name: 1,
     description: 2,
     productCategoryName: 3,
@@ -74,7 +76,7 @@ export class ProductComponent {
       this.sortDir(),
       this.filterName(),
       this.filterDescription(),
-      this.filterCategory(),
+      this.filterCategoryId(),
       this.filterActive(),
       this.filterDateFrom(),
       this.filterDateTo(),
@@ -90,7 +92,7 @@ export class ProductComponent {
         colMap: this.colMap,
         filterName: this.filterName(),
         filterDescription: this.filterDescription(),
-        filterCategory: this.filterCategory(),
+        filterCategoryId: this.filterCategoryId(),
         filterActive: this.filterActive(),
         filterDateFrom: this.filterDateFrom(),
         filterDateTo: this.filterDateTo(),
@@ -178,9 +180,15 @@ export class ProductComponent {
   });
 
   totalRecords = computed<number>(() => {
-    const data = this.getPayload(this.listQuery.data());
-    return data?.recordsFiltered ?? data?.totalFiltered ?? data?.total ?? 0;
-  });
+  const data = this.getPayload(this.listQuery.data());
+  return (
+    data?.recordsFiltered ??
+    data?.recordsTotal ??
+    data?.totalFiltered ??
+    data?.total ??
+    0
+  );
+});
 
   totalPages = computed<number>(() =>
     Math.max(1, Math.ceil(this.totalRecords() / this.pageSize()))
@@ -198,9 +206,13 @@ export class ProductComponent {
     return this.getPayload(this.detailQuery.data()) ?? this.selectedItem();
   });
 
-  categoryOptions = computed<ProductCategoryOption[]>(() => {
-    return this.getPayload(this.categoriesQuery.data()) ?? [];
-  });
+categoryOptions = computed<ProductCategoryOption[]>(() => {
+  const data = this.getPayload(this.categoriesQuery.data());
+
+  if (Array.isArray(data)) return data;
+
+  return data?.data ?? data?.items ?? data?.dataSource ?? [];
+});
 
   activeCount = computed(() => this.rows().filter((row) => row.isActive).length);
   inactiveCount = computed(() => this.rows().filter((row) => !row.isActive).length);
@@ -228,14 +240,17 @@ export class ProductComponent {
     this.showFilter.set(!this.showFilter());
   }
 
-  applyFilter(): void {
-    this.page.set(1);
-  }
+ applyFilter(): void {
+  this.page.set(1);
+
+  // Ép queryKey thay đổi để refetch kể cả khi page đang là 1.
+  this.filterVersion.update((value) => value + 1);
+}
 
   clearFilter(): void {
     this.filterName.set('');
     this.filterDescription.set('');
-    this.filterCategory.set('');
+    this.filterCategoryId.set(null);
     this.filterActive.set('');
     this.filterDateFrom.set('');
     this.filterDateTo.set('');

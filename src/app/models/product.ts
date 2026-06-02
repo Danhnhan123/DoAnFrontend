@@ -1,3 +1,5 @@
+import { DTParameters } from './search';
+
 export interface ProductAdvancedRow {
   id: number;
   name: string;
@@ -26,4 +28,9 @@ export interface CreateProductDto {
 
 export interface UpdateProductDto extends CreateProductDto {
   id: number;
+}
+
+export interface ProductPagedAdvancedRequest extends DTParameters {
+  additionalValues: string[];
+  categoryIds: number[];
 }
