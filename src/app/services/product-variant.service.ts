@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
@@ -8,6 +8,7 @@ import {
   ProductVariantPagedAdvancedRequest,
   CreateProductVariantDto,
   UpdateProductVariantDto,
+  ProductVariantSearchParams,
   ProductOption,
 } from '../models';
 
@@ -26,6 +27,42 @@ export class ProductVariantService {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/product-variant/paged-advanced`,
       body
+    );
+  }
+
+    /**
+   * API search mới của backend.
+   * Dùng khi muốn lọc thêm IsActive.
+   * Response dạng PagingData, không phải DataTables.
+   */
+  search(params: ProductVariantSearchParams): Observable<ApiResponse<any>> {
+    let httpParams = new HttpParams()
+      .set('pageIndex', params.pageIndex)
+      .set('pageSize', params.pageSize);
+
+    if (params.keyword) {
+      httpParams = httpParams.set('keyword', params.keyword);
+    }
+
+    if (params.orderBy) {
+      httpParams = httpParams.set('orderBy', params.orderBy);
+    }
+
+    if (params.sortType) {
+      httpParams = httpParams.set('sortType', params.sortType);
+    }
+
+    if (params.productId !== null && params.productId !== undefined) {
+      httpParams = httpParams.set('productId', params.productId);
+    }
+
+    if (params.isActive !== null && params.isActive !== undefined) {
+      httpParams = httpParams.set('isActive', params.isActive);
+    }
+
+    return this.http.get<ApiResponse<any>>(
+      `${this.base}/product-variant/search`,
+      { params: httpParams }
     );
   }
 
@@ -92,9 +129,6 @@ export class ProductVariantService {
     return `${this.base}/product-variant/${id}/qr-label`;
   }
 
-  /**
-   * Build body DataTables giống màn User.
-   */
   buildPagedBody(params: {
     page: number;
     pageSize: number;

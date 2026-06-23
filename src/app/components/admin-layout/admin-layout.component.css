@@ -307,6 +307,7 @@
   flex: 1;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -575,6 +576,7 @@
 /* ===================== PAGE CONTENT ===================== */
 .page-content {
   flex: 1;
+  min-width: 0;
   padding: 24px;
   overflow-x: hidden;
 }

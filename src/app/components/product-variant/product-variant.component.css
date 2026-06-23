@@ -103,7 +103,6 @@
 
 .search-wrap {
   flex: 1;
-  min-width: 0;
   position: relative;
 }
 
@@ -166,7 +165,7 @@
   width: 110px;
 }
 
-.add-btn {
+.icon-btn.add-btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -179,11 +178,10 @@
   font-size: 0.84rem;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
   transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
 }
 
-.add-btn:hover {
+.icon-btn.add-btn:hover {
   background: #4f46e5;
   transform: translateY(-1px);
   box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
@@ -561,19 +559,28 @@
 
 @media (max-width: 900px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 600px) {
   .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
     gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px;
   }
 
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+    padding: 12px;
+  }
+
+  .search-wrap {
+    min-width: 0;
   }
 
   .filter-btn,
@@ -591,6 +598,10 @@
   .form-row-2,
   .form-row-3 {
     grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    justify-content: center;
   }
 
   .modal-box {

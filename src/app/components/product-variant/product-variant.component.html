@@ -75,7 +75,7 @@
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
-      <input class="search-input" placeholder="Tìm tên biến thể, SKU, barcode, sản phẩm..." [ngModel]="search()"
+      <input class="search-input" placeholder="Tìm tên biến thể, SKU, sản phẩm..." [ngModel]="search()"
         (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
     </div>
 
@@ -144,7 +144,6 @@
             <th class="sortable" (click)="sort('name')">Biến thể <span class="sort-icon">{{ sortIcon('name') }}</span></th>
             <th class="sortable" (click)="sort('productName')">Sản phẩm <span class="sort-icon">{{ sortIcon('productName') }}</span></th>
             <th class="sortable" (click)="sort('sku')">SKU <span class="sort-icon">{{ sortIcon('sku') }}</span></th>
-            <th>Barcode</th>
             <th>Đơn vị</th>
             <th class="sortable text-right" (click)="sort('salePrice')">Giá bán <span class="sort-icon">{{ sortIcon('salePrice') }}</span></th>
             <th class="text-right">Giá vốn</th>
@@ -157,8 +156,8 @@
         <tbody>
           @for (row of rows(); track row.id; let idx = $index) {
           <tr>
-            <td class="text-muted">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
-            <td>
+            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
+            <td data-label="Biến thể">
               <div class="variant-cell">
                 <div class="av-sm">{{ row.name.slice(0, 2).toUpperCase() }}</div>
                 <div>
@@ -167,19 +166,18 @@
                 </div>
               </div>
             </td>
-            <td>{{ row.productName || 'Chưa có' }}</td>
-            <td><span class="role-pill">{{ row.sku }}</span></td>
-            <td class="text-muted">{{ row.barcode || '-' }}</td>
-            <td>{{ row.unitOfMeasureName || row.unitOfMeasureId }}</td>
-            <td class="price-cell">{{ row.salePrice | number:'1.0-0' }} đ</td>
-            <td class="price-cell muted-price">{{ row.costPrice | number:'1.0-0' }} đ</td>
-            <td>
+            <td data-label="Sản phẩm">{{ row.productName || 'Chưa có' }}</td>
+            <td data-label="SKU"><span class="role-pill">{{ row.sku }}</span></td>
+            <td data-label="Đơn vị">{{ row.unitOfMeasureName || row.unitOfMeasureId }}</td>
+            <td class="price-cell" data-label="Giá bán">{{ row.salePrice | number:'1.0-0' }} đ</td>
+            <td class="price-cell muted-price" data-label="Giá vốn">{{ row.costPrice | number:'1.0-0' }} đ</td>
+            <td data-label="Trạng thái">
               <span class="status-pill" [class.active]="row.isActive" [class.inactive]="!row.isActive">
                 {{ row.isActive ? 'Đang bán' : 'Ngừng bán' }}
               </span>
             </td>
-            <td class="text-muted small">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
-            <td class="action-cell">
+            <td class="text-muted small" data-label="Ngày tạo">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="action-cell" data-label="Thao tác">
               <button class="icon-btn qr-btn" type="button" (click)="openQrCode(row)" title="QR code">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -295,10 +293,6 @@
       </div>
 
       <div class="form-row-2">
-        <div class="form-group">
-          <label class="form-label">Barcode</label>
-          <input class="form-control" [ngModel]="form().barcode" (ngModelChange)="setField('barcode', $event)" />
-        </div>
 
         <div class="form-group">
           <label class="form-label">QR Code</label>

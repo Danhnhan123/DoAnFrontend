@@ -3,23 +3,22 @@ import { DTParameters } from './search';
 export interface ProductVariantRow {
   id: number;
   name: string;
-  description?: string;
+  description?: string | null;
 
   productId: number;
-  productName?: string;
+  productName?: string | null;
 
   unitOfMeasureId: number;
-  unitOfMeasureName?: string;
+  unitOfMeasureName?: string | null;
 
   sku: string;
-  barcode?: string;
-  qrCode?: string;
+  qrCode?: string | null;
 
   costPrice: number;
   salePrice: number;
   weight: number;
 
-  attributeValues?: string;
+  attributeValues?: string | null;
 
   imageId?: number | null;
   imageUrl?: string | null;
@@ -34,20 +33,19 @@ export interface ProductVariantDetailDto extends ProductVariantRow {}
 
 export interface CreateProductVariantDto {
   name: string;
-  description?: string;
+  description?: string | null;
 
   productId: number;
   unitOfMeasureId: number;
 
   sku: string;
-  barcode?: string;
-  qrCode?: string;
+  qrCode?: string | null;
 
   costPrice: number;
   salePrice: number;
   weight: number;
 
-  attributeValues?: string;
+  attributeValues?: string | null;
   imageId?: number | null;
 
   isActive: boolean;
@@ -60,6 +58,16 @@ export interface UpdateProductVariantDto extends CreateProductVariantDto {
 
 export interface ProductVariantPagedAdvancedRequest extends DTParameters {
   productId?: number | null;
+}
+
+export interface ProductVariantSearchParams {
+  pageIndex: number;
+  pageSize: number;
+  keyword?: string;
+  orderBy?: string;
+  sortType?: 'asc' | 'desc';
+  productId?: number | null;
+  isActive?: boolean | null;
 }
 
 export interface ProductOption {

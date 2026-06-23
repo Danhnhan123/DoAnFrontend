@@ -386,8 +386,8 @@ categoryOptions = computed<ProductCategoryOption[]>(() => {
   }
 
   sortIcon(field: string): string {
-    if (this.sortField() !== field) return '-';
-    return this.sortDir() === 'asc' ? '^' : 'v';
+    if (this.sortField() !== field) return '⇅';
+    return this.sortDir() === 'asc' ? '▲' : '▼';
   }
 
   statusLabel(isActive: boolean): string {
