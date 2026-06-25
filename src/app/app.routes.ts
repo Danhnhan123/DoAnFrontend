@@ -10,58 +10,74 @@ const adminChildren: Routes = [
   {
     path: 'dashboard',
     loadComponent: () =>
-      import('./components/dashboard/dashboard.component').then(m => m.DashboardComponent),
+      import('./components/dashboard/dashboard.component')
+    .then(m => m.DashboardComponent),
   },
   {
     path: 'products',
     loadComponent: () =>
-      import('./components/product/product.component').then(m => m.ProductComponent),
+      import('./components/product/product.component')
+    .then(m => m.ProductComponent),
   },
   {
     path: 'users',
     loadComponent: () =>
-      import('./components/user/user.component').then(m => m.UserComponent),
+      import('./components/user/user.component')
+    .then(m => m.UserComponent),
   },
   {
     path: 'roles',
     loadComponent: () =>
-      import('./components/role/role.component').then(m => m.RoleComponent),
+      import('./components/role/role.component')
+    .then(m => m.RoleComponent),
   },
   {
     path: 'menus',
     loadComponent: () =>
-      import('./components/menu/menu.component').then(m => m.MenuComponent),
+      import('./components/menu/menu.component')
+    .then(m => m.MenuComponent),
   },
   {
     path: 'system-config',
     loadComponent: () =>
-      import('./components/system-config/system-config.component').then(m => m.SystemConfigComponent),
+      import('./components/system-config/system-config.component')
+    .then(m => m.SystemConfigComponent),
   },
   {
     path: 'audit-log',
     loadComponent: () =>
-      import('./components/audit-log/audit-log.component').then(m => m.AuditLogComponent),
+      import('./components/audit-log/audit-log.component')
+    .then(m => m.AuditLogComponent),
   },
   {
     path: 'activity-log',
     loadComponent: () =>
-      import('./components/activity-log/activity-log.component').then(m => m.ActivityLogComponent),
+      import('./components/activity-log/activity-log.component')
+    .then(m => m.ActivityLogComponent),
   },
   {
     path: 'actions',
     loadComponent: () =>
-      import('./components/action/action.component').then(m => m.ActionComponent),
+      import('./components/action/action.component')
+    .then(m => m.ActionComponent),
   },
   {
     path: 'user-status',
     loadComponent: () =>
-      import('./components/user-status/user-status.component').then(m => m.UserStatusComponent),
+      import('./components/user-status/user-status.component')
+    .then(m => m.UserStatusComponent),
   },
   {
   path: 'product-variants',
   loadComponent: () =>
     import('./components/product-variant/product-variant.component')
       .then(m => m.ProductVariantComponent),
+  },
+  {
+    path: 'inbound-orders',
+    loadComponent: () =>
+      import('./components/inbound-order/inbound-order.component')
+        .then(m => m.InboundOrderComponent),
   },
 ];
 
