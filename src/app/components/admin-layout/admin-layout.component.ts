@@ -13,6 +13,7 @@ import { injectQuery } from '@tanstack/angular-query-experimental';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
 import { MenuService } from '../../services/menu.service';
+import { RealtimeService } from '../../services/realtime.service';
 import { MenuAggregate } from '../../models';
 
 @Component({
@@ -26,6 +27,7 @@ export class AdminLayoutComponent implements OnInit {
   authService = inject(AuthService);
   themeService = inject(ThemeService);
   menuService = inject(MenuService);
+  realtimeService = inject(RealtimeService);
   router = inject(Router);
   destroyRef = inject(DestroyRef);
 
@@ -72,6 +74,9 @@ export class AdminLayoutComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // Mở kết nối realtime: khi DB đổi, server báo -> các màn đang mở tự refetch.
+    this.realtimeService.start();
+
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -166,6 +171,7 @@ export class AdminLayoutComponent implements OnInit {
 
   logout(): void {
     this.closeUserMenu();
+    this.realtimeService.stop();
     this.authService.logout().subscribe({
       next: () => {},
       error: () => {},
