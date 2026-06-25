@@ -6,7 +6,7 @@
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <input class="search-input" placeholder="Tìm người dùng, hành động..." [ngModel]="search()"
+            <input class="search-input" placeholder="Tìm người dùng, hành động, mô tả, IP..." [ngModel]="search()"
                 (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
@@ -30,12 +30,13 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
-                        <th class="sortable" (click)="sort('userName')">Người dùng <span class="sort-icon">{{
-                                sortIcon('userName') }}</span></th>
+                        <th class="sortable" (click)="sort('createdUserName')">Người dùng <span class="sort-icon">{{
+                                sortIcon('createdUserName') }}</span></th>
                         <th class="sortable" (click)="sort('action')">Hành động <span class="sort-icon">{{
                                 sortIcon('action') }}</span></th>
                         <th>Mô tả</th>
-                        <th>IP</th>
+                        <th class="sortable" (click)="sort('ipAddress')">IP <span class="sort-icon">{{
+                                sortIcon('ipAddress') }}</span></th>
                         <th class="sortable" (click)="sort('createdDate')">Thời gian <span class="sort-icon">{{
                                 sortIcon('createdDate') }}</span></th>
                     </tr>
@@ -46,8 +47,8 @@
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
                         <td>
                             <div class="user-cell">
-                                <div class="av-sm">{{ getInitial(log.userName) }}</div>
-                                <span class="u-name">{{ log.userName || '—' }}</span>
+                                <div class="av-sm">{{ getInitial(log.createdUserName) }}</div>
+                                <span class="u-name">{{ log.createdUserName || '—' }}</span>
                             </div>
                         </td>
                         <td><span class="action-tag">{{ log.action }}</span></td>
