@@ -14,3 +14,5 @@ export * from './product';
 export * from './product-variant';
 export * from './inbound-order';
 export * from './iot-device';
+export * from './supplier';
+export * from './unit-of-measure';

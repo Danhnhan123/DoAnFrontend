@@ -141,10 +141,10 @@
         </div>
 
         <div class="modal-footer">
-            <button class="btn btn-outline" (click)="closeModal()" [disabled]="saving()">Huỷ</button>
-            <button class="btn btn-primary" (click)="save()" [disabled]="saving()||loadingForm()">
+            <button class="btn btn-outline cancel-btn" (click)="closeModal()" [disabled]="saving()">Huỷ</button>
+            <button class="btn btn-primary save-btn" (click)="save()" [disabled]="saving()||loadingForm()">
                 @if (saving()) { <span class="spin-sm"></span> }
-                {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
+                <span class="btn-label">{{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}</span>
             </button>
         </div>
     </div>

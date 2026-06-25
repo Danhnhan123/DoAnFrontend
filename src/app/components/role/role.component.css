@@ -54,6 +54,7 @@
   border-top-color: var(--accent, #6366f1);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  will-change: transform;
 }
 .spin-sm {
   display: inline-block;
@@ -63,6 +64,7 @@
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  will-change: transform;
 }
 @keyframes spin {
   to {
@@ -183,8 +185,10 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
+  /* Không dùng backdrop-filter: blur() ở đây vì khi spinner trong nút quay,
+     Chrome không vẽ lại sạch vùng dưới spinner -> để lại "bóng ma" của nút ở
+     trạng thái cũ (hiện 2 lớp button chồng nhau). Dùng nền tối đặc thay thế. */
+  background: rgba(15, 23, 42, 0.62);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -198,6 +202,10 @@
   max-width: 460px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.2s ease;
+  /* Đưa modal lên layer hợp thành riêng để việc quay của spinner không gây
+     lỗi vẽ chồng (ghosting) lên các phần khác. */
+  transform: translateZ(0);
+  isolation: isolate;
 }
 .modal-box.perm-modal {
   max-width: min(1100px, 95vw);
@@ -267,10 +275,33 @@
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 14px 24px;
   border-top: 1px solid var(--border, #e2e8f0);
   flex-shrink: 0;
+}
+
+/* Nút trong footer: giữ kích thước ổn định để không bị co/giãn khi đổi
+   trạng thái (text <-> spinner + "Đang lưu..."), tránh chữ và spinner bị chen/cắt. */
+.modal-footer .btn {
+  flex: 0 0 auto;
+  gap: 8px;
+  white-space: nowrap;
+}
+.modal-footer .cancel-btn {
+  min-width: 80px;
+}
+.modal-footer .save-btn {
+  min-width: 124px;
+}
+.modal-footer .btn-label {
+  display: inline-block;
+  line-height: 1;
+}
+.modal-footer .spin-sm {
+  flex: 0 0 auto;
+  box-sizing: border-box;
 }
 
 .form-row-2 {

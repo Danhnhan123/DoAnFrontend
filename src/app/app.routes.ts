@@ -85,6 +85,18 @@ const adminChildren: Routes = [
       import('./components/iot-device/iot-device.component')
         .then(m => m.IotDeviceComponent),
   },
+  {
+    path: 'suppliers',
+    loadComponent: () =>
+      import('./components/supplier/supplier.component')
+        .then(m => m.SupplierComponent),
+  },
+  {
+    path: 'unit-of-measures',
+    loadComponent: () =>
+      import('./components/unit-of-measure/unit-of-measure.component')
+        .then(m => m.UnitOfMeasureComponent),
+  },
 ];
 
 export const routes: Routes = [
