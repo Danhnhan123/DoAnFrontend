@@ -35,6 +35,15 @@ export class MenuService {
     return this.http.get<ApiResponse<MenuDetailDto>>(`${this.base}/menu/${id}`);
   }
 
+  /**
+   * Lấy menu theo phân quyền của user đang đăng nhập (dùng render sidebar).
+   * Backend dựng đúng theo role/permission hiện tại trong DB nên khi cập nhật
+   * vai trò, chỉ cần refetch là sidebar tự cập nhật, không cần đăng nhập lại.
+   */
+  getMyMenus(): Observable<ApiResponse<MenuAggregate[]>> {
+    return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/auth/me/menus`);
+  }
+
   /** Tạo menu mới */
   create(payload: CreateMenuDto): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.base}/menu`, payload);

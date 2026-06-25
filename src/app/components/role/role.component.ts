@@ -178,6 +178,8 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Thêm thành công!');
       } else this.showAlert(r.message || 'Thêm mới thất bại', false);
     },
@@ -191,6 +193,8 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(r.message || 'Cập nhật thất bại', false);
     },
@@ -203,6 +207,8 @@ export class RoleComponent {
     onSuccess: (r: any) => {
       if (r.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(r.message || 'Xóa thất bại', false);
     },

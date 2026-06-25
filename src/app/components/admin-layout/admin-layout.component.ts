@@ -1,4 +1,4 @@
-import { Component, signal, computed, OnInit, inject, HostListener, DestroyRef } from '@angular/core';
+import { Component, signal, computed, effect, OnInit, inject, HostListener, DestroyRef } from '@angular/core';
 import {
   RouterOutlet,
   RouterLink,
@@ -7,8 +7,9 @@ import {
   NavigationEnd,
 } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { filter } from 'rxjs';
+import { filter, lastValueFrom } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { injectQuery } from '@tanstack/angular-query-experimental';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
 import { MenuService } from '../../services/menu.service';
@@ -31,15 +32,46 @@ export class AdminLayoutComponent implements OnInit {
   mobileOpen = signal(false);
   userMenuOpen = signal(false);
   expandedMenus = signal<Set<string>>(new Set());
-  sidebarMenus = signal<MenuAggregate[]>([]);
-  menuLoading = signal(false);
-  menuLoadError = signal(false);
 
   user = computed(() => this.authService.currentUser());
   isDark = computed(() => this.themeService.theme() === 'dark');
 
+  /**
+   * Sidebar lấy menu theo phân quyền của user đang đăng nhập (API /auth/me/menus).
+   * Dùng TanStack Query với key ['sidebar-menus', userId] để khi cập nhật vai trò
+   * ở trang Vai trò người dùng, ta chỉ cần invalidate key này -> sidebar tự refetch
+   * và render lại, không cần reload trang hay đăng nhập lại.
+   */
+  sidebarQuery = injectQuery(() => ({
+    queryKey: ['sidebar-menus', this.authService.currentUser()?.id ?? 0],
+    queryFn: () => lastValueFrom(this.menuService.getMyMenus()),
+  }));
+
+  /**
+   * Menu hiển thị: ưu tiên dữ liệu mới nhất từ API; trong lúc chờ tải lần đầu thì
+   * dùng tạm menu theo quyền đã lưu khi đăng nhập để hiển thị tức thì (UX mượt).
+   */
+  sidebarMenus = computed<MenuAggregate[]>(() => {
+    const res = this.sidebarQuery.data() as any;
+    const raw: MenuAggregate[] =
+      res?.resources ?? res?.data ?? this.authService.getMenus() ?? [];
+    if (!raw?.length) return [];
+    return raw.some((m) => m.child?.length)
+      ? this.sortedMenus(raw)
+      : this.menuService.buildMenuTree(raw);
+  });
+
+  menuLoading = computed(
+    () => this.sidebarQuery.isPending() && this.sidebarMenus().length === 0
+  );
+
+  /** Tự mở rộng nhánh đang active mỗi khi danh sách menu thay đổi (lần đầu hoặc sau refetch). */
+  private _expandOnMenuChange = effect(() => {
+    this.sidebarMenus();
+    this.expandActiveParents();
+  });
+
   ngOnInit(): void {
-    this.loadSidebarMenus();
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
@@ -105,44 +137,6 @@ export class AdminLayoutComponent implements OnInit {
     const icon = (menu.icon || '').trim();
     if (!icon || icon.includes(' ')) return '';
     return icon;
-  }
-
-  private loadSidebarMenus(): void {
-    const cachedMenus = this.menuService.getCachedSidebarMenus();
-    if (cachedMenus?.length) {
-      this.sidebarMenus.set(cachedMenus);
-      this.menuLoading.set(false);
-      this.expandActiveParents();
-      return;
-    }
-
-    this.menuLoading.set(true);
-    this.menuLoadError.set(false);
-
-    this.menuService
-      .getAll()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (res: any) => {
-          const menus: MenuAggregate[] = res?.resources || res?.data || [];
-          const tree = this.menuService.buildMenuTree(menus);
-          this.menuService.setCachedSidebarMenus(tree);
-          this.sidebarMenus.set(tree);
-          this.menuLoading.set(false);
-          this.expandActiveParents();
-        },
-        error: () => {
-          const userMenus = this.authService.getMenus();
-          const tree = userMenus.some((m) => m.child?.length)
-            ? this.sortedMenus(userMenus)
-            : this.menuService.buildMenuTree(userMenus);
-          this.menuService.setCachedSidebarMenus(tree);
-          this.sidebarMenus.set(tree);
-          this.menuLoading.set(false);
-          this.menuLoadError.set(true);
-          this.expandActiveParents();
-        },
-      });
   }
 
   private expandActiveParents(): void {

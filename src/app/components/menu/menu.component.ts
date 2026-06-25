@@ -132,6 +132,8 @@ export class MenuComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Thêm menu thành công!');
       } else this.showAlert(res.message || 'Thất bại', false);
     },
@@ -145,6 +147,8 @@ export class MenuComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Cập nhật menu thành công!');
       } else this.showAlert(res.message || 'Thất bại', false);
     },
@@ -157,6 +161,8 @@ export class MenuComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Đã xóa menu thành công!');
       } else this.showAlert(res.message || 'Xóa thất bại', false);
     },
