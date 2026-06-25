@@ -79,6 +79,12 @@ const adminChildren: Routes = [
       import('./components/inbound-order/inbound-order.component')
         .then(m => m.InboundOrderComponent),
   },
+  {
+    path: 'iot-devices',
+    loadComponent: () =>
+      import('./components/iot-device/iot-device.component')
+        .then(m => m.IotDeviceComponent),
+  },
 ];
 
 export const routes: Routes = [
