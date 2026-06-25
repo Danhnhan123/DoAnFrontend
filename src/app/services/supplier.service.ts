@@ -9,6 +9,7 @@ import {
   CreateSupplierDto,
   UpdateSupplierDto,
 } from '../models';
+import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
 export class SupplierService {
@@ -60,7 +61,11 @@ export class SupplierService {
     sortField: string;
     sortDir: 'asc' | 'desc';
     colMap: Record<string, number>;
+    filterName?: string | null;
+    filterCode?: string | null;
     filterIsActive: boolean | null;
+    dateFrom?: string | null;
+    dateTo?: string | null;
   }): SupplierPagedAdvancedRequest {
     const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
 
@@ -74,19 +79,20 @@ export class SupplierService {
 
     const activeValue =
       params.filterIsActive != null ? String(params.filterIsActive) : '';
+    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
 
     return {
       draw: params.page,
       columns: [
         col('id'),
-        col('name'),
-        col('code'),
+        col('name', params.filterName?.trim() || ''),
+        col('code', params.filterCode?.trim() || ''),
         col('contactPerson'),
         col('phone'),
         col('email'),
         col('taxCode'),
         col('isActive', activeValue),
-        col('createdDate'),
+        col('createdDate', dateSearch),
       ],
       order: [
         {

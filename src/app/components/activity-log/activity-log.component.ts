@@ -22,6 +22,13 @@ export class ActivityLogComponent {
   sortField = signal('createdDate');
   sortDir = signal<'asc' | 'desc'>('desc');
 
+  // Bộ lọc nâng cao
+  showFilter = signal(false);
+  filterAction = signal<string | null>(null);
+  filterIp = signal<string | null>(null);
+  dateFrom = signal<string | null>(null);
+  dateTo = signal<string | null>(null);
+
   private readonly colMap: Record<string, number> = {
     id: 0,
     action: 1,
@@ -40,6 +47,10 @@ export class ActivityLogComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
+      this.filterAction(),
+      this.filterIp(),
+      this.dateFrom(),
+      this.dateTo(),
     ],
     queryFn: () =>
       lastValueFrom(
@@ -51,6 +62,10 @@ export class ActivityLogComponent {
             sortField: this.sortField(),
             sortDir: this.sortDir(),
             colMap: this.colMap,
+            filterAction: this.filterAction(),
+            filterIp: this.filterIp(),
+            dateFrom: this.dateFrom(),
+            dateTo: this.dateTo(),
           })
         )
       ),
@@ -70,6 +85,13 @@ export class ActivityLogComponent {
     Math.ceil(this.totalRecords() / this.pageSize())
   );
   loading = computed(() => this.query.isPending());
+  activeFilterCount = computed(
+    () =>
+      (this.filterAction() ? 1 : 0) +
+      (this.filterIp() ? 1 : 0) +
+      (this.dateFrom() ? 1 : 0) +
+      (this.dateTo() ? 1 : 0)
+  );
 
   onSearch(): void {
     this.page.set(1);
@@ -99,6 +121,22 @@ export class ActivityLogComponent {
     for (let i = Math.max(1, c - d); i <= Math.min(t, c + d); i++) ps.push(i);
     return ps;
   }
+
+  // ── Filter helpers ─────────────────────────────────────────────
+  toggleFilter(): void {
+    this.showFilter.update((v) => !v);
+  }
+  applyFilter(): void {
+    this.page.set(1);
+  }
+  clearFilter(): void {
+    this.filterAction.set(null);
+    this.filterIp.set(null);
+    this.dateFrom.set(null);
+    this.dateTo.set(null);
+    this.page.set(1);
+  }
+
   getInitial(name?: string | null): string {
     return (name || 'U')[0].toUpperCase();
   }

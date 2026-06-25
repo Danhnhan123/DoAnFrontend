@@ -9,6 +9,15 @@
             <input class="search-input" placeholder="Tìm hành động, đối tượng, người thực hiện, IP..." [ngModel]="search()"
                 (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
+        <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+            title="Bộ lọc nâng cao">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Bộ lọc nâng cao
+            @if (activeFilterCount() > 0) { <span class="filter-count">{{ activeFilterCount() }}</span> }
+        </button>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
@@ -16,6 +25,83 @@
             <option [value]="50">50/trang</option>
         </select>
     </div>
+
+    @if (showFilter()) {
+    <div class="filter-panel card">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label>Hành động</label>
+                <div class="ms-dropdown" (click)="$event.stopPropagation()">
+                    <button type="button" class="form-control ms-toggle"
+                        [class.has-value]="filterActions().length > 0" (click)="toggleActionDropdown($event)">
+                        <span>{{ actionsLabel() }}</span>
+                        <svg class="ms-caret" [class.open]="actionDropdownOpen()" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </button>
+                    @if (actionDropdownOpen()) {
+                    <div class="ms-menu">
+                        @for (a of actionOptions(); track a.id) {
+                        <label class="ms-item">
+                            <input type="checkbox" [checked]="isActionChecked(a.id)"
+                                (change)="toggleAction(a.id, $any($event.target).checked)" />
+                            <span>{{ a.name }}</span>
+                        </label>
+                        }
+                        @if (actionOptions().length === 0) { <div class="ms-empty">Không có dữ liệu</div> }
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Đối tượng</label>
+                <div class="ms-dropdown" (click)="$event.stopPropagation()">
+                    <button type="button" class="form-control ms-toggle"
+                        [class.has-value]="filterTargetTypes().length > 0" (click)="toggleEntityDropdown($event)">
+                        <span>{{ entitiesLabel() }}</span>
+                        <svg class="ms-caret" [class.open]="entityDropdownOpen()" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </button>
+                    @if (entityDropdownOpen()) {
+                    <div class="ms-menu">
+                        @for (e of entityOptions(); track e.id) {
+                        <label class="ms-item">
+                            <input type="checkbox" [checked]="isEntityChecked(e.id)"
+                                (change)="toggleEntity(e.id, $any($event.target).checked)" />
+                            <span>{{ e.name }}</span>
+                        </label>
+                        }
+                        @if (entityOptions().length === 0) { <div class="ms-empty">Không có dữ liệu</div> }
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Từ ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateFrom()"
+                    (ngModelChange)="dateFrom.set($event || null)" />
+            </div>
+
+            <div class="form-group">
+                <label>Đến ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateTo()"
+                    (ngModelChange)="dateTo.set($event || null)" />
+            </div>
+        </div>
+
+        <div class="filter-actions">
+            <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+            <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+        </div>
+    </div>
+    }
 
     <div class="card">
         @if (loading()) {

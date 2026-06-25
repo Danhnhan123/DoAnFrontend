@@ -36,7 +36,11 @@ export class SupplierComponent {
   sortDir = signal<'asc' | 'desc'>('desc');
 
   showFilter = signal(false);
+  filterName = signal<string | null>(null);
+  filterCode = signal<string | null>(null);
   filterIsActive = signal<boolean | null>(null);
+  dateFrom = signal<string | null>(null);
+  dateTo = signal<string | null>(null);
 
   // 2. State modal
   showModal = signal(false);
@@ -75,7 +79,11 @@ export class SupplierComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
+      this.filterName(),
+      this.filterCode(),
       this.filterIsActive(),
+      this.dateFrom(),
+      this.dateTo(),
     ],
     queryFn: () => {
       const body = this.supplierService.buildPagedBody({
@@ -85,7 +93,11 @@ export class SupplierComponent {
         sortField: this.sortField(),
         sortDir: this.sortDir(),
         colMap: this.colMap,
+        filterName: this.filterName(),
+        filterCode: this.filterCode(),
         filterIsActive: this.filterIsActive(),
+        dateFrom: this.dateFrom(),
+        dateTo: this.dateTo(),
       });
       return lastValueFrom(this.supplierService.getPagedAdvanced(body));
     },
@@ -204,7 +216,11 @@ export class SupplierComponent {
   }
 
   clearFilter(): void {
+    this.filterName.set(null);
+    this.filterCode.set(null);
     this.filterIsActive.set(null);
+    this.dateFrom.set(null);
+    this.dateTo.set(null);
     this.applyFilter();
   }
 

@@ -310,3 +310,155 @@
   white-space: nowrap;
   color: var(--text-secondary, #64748b);
 }
+
+/* ===== Bộ lọc nâng cao ===== */
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  /* override .icon-btn 30px square để nút có kích thước đầy đủ */
+  width: auto;
+  height: auto;
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: var(--text-secondary, #5a6a8a);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.filter-btn:hover { transform: none; }
+.filter-btn:hover,
+.filter-btn.filter-active {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+}
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.filter-panel {
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  border-top: 3px solid var(--accent, #6366f1);
+}
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+.filter-grid .form-group { margin-bottom: 0; }
+.filter-grid label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 6px;
+}
+.chk-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chk-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  user-select: none;
+}
+.chk-item.selected {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+}
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--border, #e2e8f0);
+}
+
+/* ===== Multi-select dropdown (chọn nhiều) ===== */
+.ms-dropdown {
+  position: relative;
+  width: 100%;
+}
+.ms-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: var(--card-bg, #fff);
+}
+.ms-toggle.has-value {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+}
+.ms-caret {
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+  opacity: 0.7;
+}
+.ms-caret.open {
+  transform: rotate(180deg);
+}
+.ms-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+.ms-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-primary, #1e293b);
+  cursor: pointer;
+}
+.ms-item:hover {
+  background: var(--bg-tertiary, #eef1f7);
+}
+.ms-item input {
+  flex-shrink: 0;
+}
+.ms-empty {
+  padding: 10px 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+}

@@ -35,6 +35,13 @@ export class UnitOfMeasureComponent {
   sortField = signal('createdDate');
   sortDir = signal<'asc' | 'desc'>('desc');
 
+  // Bộ lọc nâng cao
+  showFilter = signal(false);
+  filterName = signal<string | null>(null);
+  filterSymbol = signal<string | null>(null);
+  dateFrom = signal<string | null>(null);
+  dateTo = signal<string | null>(null);
+
   // 2. State modal
   showModal = signal(false);
   editItem = signal<UnitOfMeasureRow | null>(null);
@@ -58,6 +65,10 @@ export class UnitOfMeasureComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
+      this.filterName(),
+      this.filterSymbol(),
+      this.dateFrom(),
+      this.dateTo(),
     ],
     queryFn: () => {
       const body = this.uomService.buildPagedBody({
@@ -67,6 +78,10 @@ export class UnitOfMeasureComponent {
         sortField: this.sortField(),
         sortDir: this.sortDir(),
         colMap: this.colMap,
+        filterName: this.filterName(),
+        filterSymbol: this.filterSymbol(),
+        dateFrom: this.dateFrom(),
+        dateTo: this.dateTo(),
       });
       return lastValueFrom(this.uomService.getPagedAdvanced(body));
     },
@@ -165,8 +180,30 @@ export class UnitOfMeasureComponent {
     () => this.createMutation.isPending() || this.updateMutation.isPending()
   );
 
+  activeFilterCount = computed(
+    () =>
+      (this.filterName() ? 1 : 0) +
+      (this.filterSymbol() ? 1 : 0) +
+      (this.dateFrom() ? 1 : 0) +
+      (this.dateTo() ? 1 : 0)
+  );
+
   // 6. Table helpers
   onSearch(): void {
+    this.page.set(1);
+  }
+
+  toggleFilter(): void {
+    this.showFilter.update((v) => !v);
+  }
+  applyFilter(): void {
+    this.page.set(1);
+  }
+  clearFilter(): void {
+    this.filterName.set(null);
+    this.filterSymbol.set(null);
+    this.dateFrom.set(null);
+    this.dateTo.set(null);
     this.page.set(1);
   }
 

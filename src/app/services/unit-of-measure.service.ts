@@ -9,6 +9,7 @@ import {
   CreateUnitOfMeasureDto,
   UpdateUnitOfMeasureDto,
 } from '../models';
+import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
 export class UnitOfMeasureService {
@@ -66,20 +67,30 @@ export class UnitOfMeasureService {
     sortField: string;
     sortDir: 'asc' | 'desc';
     colMap: Record<string, number>;
+    filterName?: string | null;
+    filterSymbol?: string | null;
+    dateFrom?: string | null;
+    dateTo?: string | null;
   }): UnitOfMeasurePagedAdvancedRequest {
     const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
+    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
 
-    const col = (data: string) => ({
+    const col = (data: string, value = '') => ({
       data,
       name: data,
       searchable: true,
       orderable: true,
-      search: { value: '', regex: false, fixed: [] as any[] },
+      search: { value, regex: false, fixed: [] as any[] },
     });
 
     return {
       draw: params.page,
-      columns: [col('id'), col('name'), col('symbol'), col('createdDate')],
+      columns: [
+        col('id'),
+        col('name', params.filterName?.trim() || ''),
+        col('symbol', params.filterSymbol?.trim() || ''),
+        col('createdDate', dateSearch),
+      ],
       order: [
         {
           column: colIndex,

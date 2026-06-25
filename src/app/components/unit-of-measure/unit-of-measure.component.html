@@ -41,6 +41,16 @@
         (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
     </div>
 
+    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+      title="Bộ lọc nâng cao">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      Bộ lọc nâng cao
+      @if (activeFilterCount() > 0) { <span class="role-pill">{{ activeFilterCount() }}</span> }
+    </button>
+
     <select class="form-control page-size-select" [ngModel]="pageSize()"
       (ngModelChange)="pageSize.set(+$event); page.set(1)">
       <option [value]="5">5/trang</option>
@@ -58,6 +68,41 @@
       Thêm đơn vị tính
     </button>
   </div>
+
+  @if (showFilter()) {
+  <div class="filter-panel card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Tên đơn vị tính</label>
+        <input class="form-control" placeholder="Lọc theo tên..." [ngModel]="filterName()"
+          (ngModelChange)="filterName.set($event || null)" (keydown.enter)="applyFilter()" />
+      </div>
+
+      <div class="form-group">
+        <label>Ký hiệu</label>
+        <input class="form-control" placeholder="Lọc theo ký hiệu..." [ngModel]="filterSymbol()"
+          (ngModelChange)="filterSymbol.set($event || null)" (keydown.enter)="applyFilter()" />
+      </div>
+
+      <div class="form-group">
+        <label>Từ ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateFrom()"
+          (ngModelChange)="dateFrom.set($event || null)" />
+      </div>
+
+      <div class="form-group">
+        <label>Đến ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateTo()"
+          (ngModelChange)="dateTo.set($event || null)" />
+      </div>
+    </div>
+
+    <div class="filter-actions">
+      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+    </div>
+  </div>
+  }
 
   <div class="card">
     @if (loading()) {
