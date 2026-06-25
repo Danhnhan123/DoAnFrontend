@@ -121,12 +121,8 @@
 
       <div class="form-group">
         <label>Trạng thái</label>
-        <select class="form-control" [ngModel]="filterIsActive()"
-          (ngModelChange)="filterIsActive.set($event === '' || $event === null ? null : $event === 'true')">
-          <option [ngValue]="null">Tất cả</option>
-          <option value="true">Đang hoạt động</option>
-          <option value="false">Ngừng hoạt động</option>
-        </select>
+        <app-filter-select [options]="statusOptions" allLabel="Tất cả"
+          [value]="filterIsActive()" (valueChange)="filterIsActive.set($event)"></app-filter-select>
       </div>
 
       <div class="form-group">

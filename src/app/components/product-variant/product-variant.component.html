@@ -113,13 +113,8 @@
     <div class="filter-grid">
       <div class="form-group">
         <label>Sản phẩm gốc</label>
-        <select class="form-control" [ngModel]="filterProductId()"
-          (ngModelChange)="filterProductId.set($event ? +$event : null)">
-          <option [ngValue]="null">Tất cả sản phẩm</option>
-          @for (p of productOptions(); track p.id) {
-          <option [value]="p.id">{{ p.name }}</option>
-          }
-        </select>
+        <app-filter-select [options]="productOptions()" allLabel="Tất cả sản phẩm"
+          [value]="filterProductId()" (valueChange)="filterProductId.set($event)"></app-filter-select>
       </div>
     </div>
 

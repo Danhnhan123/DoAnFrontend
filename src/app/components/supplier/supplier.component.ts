@@ -16,11 +16,12 @@ import {
   UpdateSupplierDto,
 } from '../../models';
 import { SupplierService } from '../../services/supplier.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-supplier',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './supplier.component.html',
   styleUrl: './supplier.component.css',
 })
@@ -41,6 +42,11 @@ export class SupplierComponent {
   filterIsActive = signal<boolean | null>(null);
   dateFrom = signal<string | null>(null);
   dateTo = signal<string | null>(null);
+
+  readonly statusOptions = [
+    { id: true, name: 'Đang hoạt động' },
+    { id: false, name: 'Ngừng hoạt động' },
+  ];
 
   // 2. State modal
   showModal = signal(false);

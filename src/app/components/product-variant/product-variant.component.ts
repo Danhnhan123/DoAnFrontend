@@ -17,11 +17,12 @@ import {
   ProductOption,
 } from '../../models';
 import { ProductVariantService } from '../../services/product-variant.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-product-variant',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './product-variant.component.html',
   styleUrl: './product-variant.component.css',
 })

@@ -17,11 +17,12 @@ import {
   WarehouseOption,
 } from '../../models';
 import { IotDeviceService } from '../../services/iot-device.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-iot-device',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './iot-device.component.html',
   styleUrl: './iot-device.component.css',
 })
@@ -47,6 +48,17 @@ export class IotDeviceComponent {
   filterIsActive = signal<boolean | null>(null);
 
   readonly deviceTypes = ['SCALE', 'SENSOR', 'GATEWAY', 'CONTROLLER', 'OTHER'];
+
+  // Option cho các dropdown lọc dùng chung (app-filter-select)
+  readonly deviceTypeOptions = this.deviceTypes.map((t) => ({ id: t, name: t }));
+  readonly onlineOptions = [
+    { id: true, name: 'Online' },
+    { id: false, name: 'Offline' },
+  ];
+  readonly activeStatusOptions = [
+    { id: true, name: 'Đang kích hoạt' },
+    { id: false, name: 'Tạm ngưng' },
+  ];
 
   // =========================
   // 2. State cho modal form
@@ -154,6 +166,13 @@ export class IotDeviceComponent {
   warehouseOptions = computed<WarehouseOption[]>(() => {
     return (this.warehousesQuery.data() as any)?.resources ?? [];
   });
+
+  warehouseFilterOptions = computed(() =>
+    this.warehouseOptions().map((w) => ({
+      id: w.id,
+      name: `${w.name} (${w.code})`,
+    }))
+  );
 
   onlineCount = computed(() => this.rows().filter((x) => x.isOnline).length);
   offlineCount = computed(() => this.rows().filter((x) => !x.isOnline).length);
