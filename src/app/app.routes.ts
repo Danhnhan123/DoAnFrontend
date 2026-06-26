@@ -98,6 +98,18 @@ const adminChildren: Routes = [
         .then(m => m.UnitOfMeasureComponent),
   },
   {
+    path: 'warehouses',
+    loadComponent: () =>
+      import('./components/warehouse/warehouse.component')
+        .then(m => m.WarehouseComponent),
+  },
+  {
+    path: 'locations',
+    loadComponent: () =>
+      import('./components/location/location.component')
+        .then(m => m.LocationComponent),
+  },
+  {
     path: 'notifications',
     loadComponent: () =>
       import('./components/notification/notification.component')
