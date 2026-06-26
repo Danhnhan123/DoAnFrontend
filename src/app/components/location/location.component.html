@@ -306,8 +306,8 @@
       <div class="form-row-2">
         <div class="form-group">
           <label class="form-label">Danh mục cho phép (ID)</label>
-          <input class="form-control" type="number" min="1" [ngModel]="form().allowedCategoryId"
-            (ngModelChange)="setField('allowedCategoryId', $event)" placeholder="Để trống nếu không giới hạn" />
+          <app-filter-select [options]="categoryOptions()" allLabel="Không giới hạn"
+            [value]="form().allowedCategoryId" (valueChange)="setField('allowedCategoryId', $event)"></app-filter-select>
         </div>
 
         <div class="form-group">

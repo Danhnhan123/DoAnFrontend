@@ -17,6 +17,7 @@ import {
 } from '../../models';
 import { LocationService } from '../../services/location.service';
 import { WarehouseService } from '../../services/warehouse.service';
+import { ProductCategoryService } from '../../services/product-category.service';
 import {
   FilterSelectComponent,
   FilterSelectOption,
@@ -32,6 +33,7 @@ import {
 export class LocationComponent {
   private locationService = inject(LocationService);
   private warehouseService = inject(WarehouseService);
+  private categoryService = inject(ProductCategoryService);
   private queryClient = injectQueryClient();
 
   // 1. State bảng
@@ -135,6 +137,12 @@ export class LocationComponent {
     queryFn: () => lastValueFrom(this.warehouseService.getAll()),
   }));
 
+  /** Danh sách danh mục sản phẩm cho dropdown "danh mục được phép" trong form. */
+  categoryQuery = injectQuery(() => ({
+    queryKey: ['product-categories-all'],
+    queryFn: () => lastValueFrom(this.categoryService.getAll()),
+  }));
+
   // 4. Computed
   rows = computed<LocationRow[]>(() => {
     const res = this.listQuery.data();
@@ -157,6 +165,16 @@ export class LocationComponent {
   warehouseOptions = computed<FilterSelectOption[]>(() =>
     this.warehouses().map((w) => ({ id: w.id, name: w.name }))
   );
+
+  /** Options danh mục sản phẩm (lấy từ API getAll product category). */
+  categoryOptions = computed<FilterSelectOption[]>(() => {
+    const res = this.categoryQuery.data();
+    const r = (res as any)?.resources ?? (res as any)?.data ?? [];
+    return (Array.isArray(r) ? r : []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  });
 
   loading = computed(() => this.listQuery.isPending());
   loadingDetail = computed(() => this.detailQuery.isFetching());

@@ -516,3 +516,27 @@ app-admin-layout .skeleton-item:nth-child(3n) .skeleton-line {
     white-space: normal;
   }
 }
+
+/* ============================================================
+   Đồng bộ chiều cao các phần tử trên thanh toolbar danh sách
+   (ô tìm kiếm, nút Bộ lọc, dropdown chọn số dòng/trang, nút Thêm mới)
+   Selector đủ đặc thù (.toolbar.card ...) để ghi đè style scoped của từng màn.
+   ============================================================ */
+.toolbar.card {
+  align-items: center;
+}
+.toolbar.card .search-input,
+.toolbar.card .filter-btn,
+.toolbar.card .icon-btn.add-btn,
+.toolbar.card .page-size-select .ms-toggle {
+  height: 38px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.toolbar.card .page-size-select {
+  flex: 0 0 auto;
+}
+.toolbar.card .page-size-select .ms-toggle {
+  font-size: 0.84rem;
+}
