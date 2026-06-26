@@ -10,7 +10,7 @@ import {
   UpdateActionDto,
   DTParameters,
 } from '../models';
-import { buildDateRange } from './user.service';
+import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
 export class ActionService {

@@ -1,0 +1,305 @@
+<div class="page-wrapper">
+  <div class="toolbar card">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="search-input" placeholder="Tìm mã phiếu, nhà cung cấp, ghi chú..." [ngModel]="searchInput()"
+        (ngModelChange)="searchInput.set($event)" (keydown.enter)="applySearch()" />
+    </div>
+
+    @if (keyword()) {
+    <button class="icon-btn filter-btn" type="button" (click)="clearSearch()" title="Xóa tìm kiếm">
+      Xóa tìm kiếm
+    </button>
+    }
+
+    <select class="form-control page-size-select" [ngModel]="pageSize()" (ngModelChange)="setPageSize($event)">
+      <option [ngValue]="5">5/trang</option>
+      <option [ngValue]="10">10/trang</option>
+      <option [ngValue]="20">20/trang</option>
+      <option [ngValue]="50">50/trang</option>
+    </select>
+
+    <button class="icon-btn add-btn" type="button" [disabled]="loadingLookups()" (click)="openCreate()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Tạo phiếu nhập
+    </button>
+  </div>
+
+  <section class="card list-card">
+    <div class="card-title">Danh sách phiếu nhập kho</div>
+
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải danh sách...</span></div>
+    } @else if (listQuery.isError()) {
+    <div class="state-box error-state">
+      <span>Không thể tải dữ liệu</span>
+      <button class="btn btn-primary" type="button" (click)="refresh()">Thử lại</button>
+    </div>
+    } @else if (rows().length === 0) {
+    <div class="state-box">
+      <span style="font-size:2.5rem">□</span>
+      <p>Không có phiếu nhập phù hợp</p>
+    </div>
+    } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã phiếu</th>
+            <th>Nhà cung cấp</th>
+            <th>Ngày nhập</th>
+            <th>Kho</th>
+            <th>Trạng thái</th>
+            <th class="right">Tổng giá trị</th>
+            <th class="right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of rows(); track order.id) {
+          <tr class="clickable-row" [class.selected]="selectedOrderId() === order.id" (click)="openDetail(order)">
+            <td>
+              <button type="button" class="code-button" (click)="openDetail(order); $event.stopPropagation()">
+                {{ order.poCode }}
+              </button>
+            </td>
+            <td>{{ order.supplierName || 'Chưa chọn nhà cung cấp' }}</td>
+            <td>{{ formatDate(order.expectedDate || order.createdDate) }}</td>
+            <td>{{ order.warehouseName }}</td>
+            <td>
+              <span class="status-pill" [class]="'status-pill ' + statusClass(order.inboundOrderStatusName)">
+                {{ order.inboundOrderStatusName }}
+              </span>
+            </td>
+            <td class="right currency">{{ formatCurrency(order.totalAssetValue) }}</td>
+            <td class="right action-cell">
+              <button class="action-btn danger" type="button" [disabled]="actionPending() || !canCancel(order)"
+                (click)="cancel(order); $event.stopPropagation()">
+                Hủy
+              </button>
+              <button class="action-btn approve" type="button" [disabled]="actionPending() || !canApproveOrReject(order)"
+                (click)="approve(order); $event.stopPropagation()">
+                Chấp thuận
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <span class="page-info">{{ totalRecords() }} phiếu nhập</span>
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @for (pageNumber of visiblePages(); track pageNumber) {
+      <button class="page-btn" type="button" [class.active]="page() === pageNumber" (click)="setPage(pageNumber)">
+        {{ pageNumber }}
+      </button>
+      }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
+    }
+  </section>
+
+  @if (showDetail()) {
+  <section class="card detail-panel">
+    @if (loadingDetail()) {
+    <div class="state-box compact"><span class="spin-lg"></span><span>Đang tải chi tiết...</span></div>
+    } @else {
+    @if (detail(); as order) {
+    <div class="panel-header">
+      <h2>Chi tiết phiếu nhập - {{ order.poCode }}</h2>
+      <span class="status-pill" [class]="'status-pill ' + statusClass(order.inboundOrderStatusName)">
+        {{ order.inboundOrderStatusName }}
+      </span>
+      <button class="icon-btn" type="button" style="margin-left:auto" title="Đóng" (click)="closeDetail()">✕</button>
+    </div>
+
+    <div class="form-grid detail-fields">
+      <label class="form-group">
+        <span class="form-label">Mã phiếu</span>
+        <input class="form-control" [value]="order.poCode" readonly />
+      </label>
+      <label class="form-group">
+        <span class="form-label">Nhà cung cấp</span>
+        <input class="form-control" [value]="order.supplierName || 'Chưa chọn'" readonly />
+      </label>
+      <label class="form-group">
+        <span class="form-label">Ngày nhập</span>
+        <input class="form-control" [value]="formatDate(order.expectedDate || order.createdDate)" readonly />
+      </label>
+      <label class="form-group">
+        <span class="form-label">Kho</span>
+        <input class="form-control" [value]="order.warehouseName" readonly />
+      </label>
+    </div>
+
+    <div class="line-table-wrap">
+      <table class="line-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Tên sản phẩm</th>
+            <th class="right">Số lượng</th>
+            <th class="right">Đã nhận</th>
+            <th class="right">Đơn giá</th>
+            <th class="right">Thành tiền</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of order.items; track item.id) {
+          <tr>
+            <td class="sku">{{ item.sku || '—' }}</td>
+            <td>{{ item.productVariantName || '—' }}</td>
+            <td class="right">{{ item.quantityOrdered }}</td>
+            <td class="right">{{ item.quantityReceived }}</td>
+            <td class="right">{{ formatCurrency(item.unitCostPrice) }}</td>
+            <td class="right strong">{{ formatCurrency(item.quantityOrdered * item.unitCostPrice) }}</td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="panel-footer">
+      <div class="total-box">
+        <span>Tổng cộng</span>
+        <strong>{{ formatCurrency(order.totalAssetValue) }}</strong>
+      </div>
+      <button class="btn btn-outline danger-outline" type="button" [disabled]="actionPending() || !canCancel(order)"
+        (click)="cancel(order)">
+        Hủy
+      </button>
+      <button class="btn btn-primary" type="button" [disabled]="actionPending() || !canApproveOrReject(order)"
+        (click)="approve(order)">
+        Chấp thuận
+      </button>
+    </footer>
+    } @else {
+    <div class="state-box compact">Không tìm thấy chi tiết phiếu nhập.</div>
+    }
+    }
+  </section>
+  }
+
+  @if (showCreate()) {
+  <section class="card detail-panel">
+    <div class="panel-header">
+      <h2>{{ isEditMode() ? 'Chỉnh sửa phiếu nhập' : 'Tạo phiếu nhập mới' }}</h2>
+    </div>
+
+    @if (loadingLookups()) {
+    <div class="state-box compact"><span class="spin-lg"></span><span>Đang tải kho và SKU...</span></div>
+    } @else {
+    <div class="form-grid">
+      <label class="form-group">
+        <span class="form-label">Kho nhận <em>*</em></span>
+        <select class="form-control" [ngModel]="createForm().warehouseId"
+          (ngModelChange)="setCreateField('warehouseId', $event ? +$event : null)">
+          <option [ngValue]="null">Chọn kho nhận</option>
+          @for (warehouse of warehouses(); track warehouse.id) {
+          <option [ngValue]="warehouse.id">{{ warehouse.code }} - {{ warehouse.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="form-group">
+        <span class="form-label">Mã nhà cung cấp</span>
+        <input class="form-control" type="text" min="1" placeholder="Không bắt buộc"
+          [ngModel]="createForm().supplierId" (ngModelChange)="setCreateField('supplierId', $event ? +$event : null)" />
+      </label>
+
+      <label class="form-group">
+        <span class="form-label">Ngày nhận dự kiến</span>
+        <input class="form-control" type="date" [ngModel]="createForm().expectedDate"
+          (ngModelChange)="setCreateField('expectedDate', $event)" />
+      </label>
+
+      <label class="form-group">
+        <span class="form-label">Ghi chú</span>
+        <input class="form-control" type="text" maxlength="500" placeholder="Ghi chú cho phiếu nhập"
+          [ngModel]="createForm().note" (ngModelChange)="setCreateField('note', $event)" />
+      </label>
+    </div>
+
+    <div class="line-table-wrap editable">
+      <table class="line-table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Tên sản phẩm</th>
+            <th class="right">Số lượng</th>
+            <th class="right">Đơn giá</th>
+            <th class="right">Thành tiền</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (line of createForm().items; track $index; let index = $index) {
+          <tr>
+            <td class="sku-select">
+              <select class="form-control" [ngModel]="line.productVariantId"
+                (ngModelChange)="setLineVariant(index, $event)">
+                <option [ngValue]="null">Chọn SKU</option>
+                @for (variant of productVariants(); track variant.id) {
+                <option [ngValue]="variant.id">{{ variant.sku }} - {{ variant.name }}</option>
+                }
+              </select>
+            </td>
+            <td>{{ selectedVariantName(line.productVariantId) }}</td>
+            <td class="right">
+              <input class="form-control number-input" type="number" min="1" [ngModel]="line.quantityOrdered"
+                (ngModelChange)="setLineField(index, 'quantityOrdered', +$event)" />
+            </td>
+            <td class="right">
+              <input class="form-control price-input" type="number" min="0" [ngModel]="line.unitCostPrice"
+                (ngModelChange)="setLineField(index, 'unitCostPrice', +$event)" />
+            </td>
+            <td class="right strong">{{ formatCurrency(line.quantityOrdered * line.unitCostPrice) }}</td>
+            <td class="right">
+              <button class="remove-line" type="button" title="Xóa dòng" [disabled]="createForm().items.length === 1"
+                (click)="removeLine(index)">
+                ×
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <button class="add-line-btn" type="button" (click)="addLine()">
+      <span>+</span> Thêm sản phẩm
+    </button>
+
+    <footer class="panel-footer">
+      <div class="total-box">
+        <span>Tổng cộng</span>
+        <strong>{{ formatCurrency(createTotal()) }}</strong>
+      </div>
+      <button class="btn btn-outline" type="button" [disabled]="saving()" (click)="closeCreate()">Hủy</button>
+      <button class="btn btn-primary" type="button" [disabled]="saving() || loadingLookups()" (click)="saveForm()">
+        @if (saving()) {
+        <span class="spin-sm"></span>
+        Đang lưu
+        } @else {
+        {{ isEditMode() ? 'Lưu bản nháp' : 'Lưu phiếu nhập' }}
+        }
+      </button>
+    </footer>
+    }
+  </section>
+  }
+</div>

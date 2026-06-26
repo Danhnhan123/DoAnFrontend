@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -36,7 +36,6 @@ export class UserComponent {
   sortDir = signal<'asc' | 'desc'>('desc');
 
   showFilter = signal(false);
-  filterUsername = signal('');
   filterFullname = signal('');
   filterEmail = signal('');
   filterPhone = signal('');
@@ -81,7 +80,6 @@ export class UserComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
-      this.filterUsername(),
       this.filterFullname(),
       this.filterEmail(),
       this.filterPhone(),
@@ -98,7 +96,6 @@ export class UserComponent {
         sortField: this.sortField(),
         sortDir: this.sortDir(),
         colMap: this.colMap,
-        filterUsername: this.filterUsername(),
         filterFullname: this.filterFullname(),
         filterEmail: this.filterEmail(),
         filterPhone: this.filterPhone(),
@@ -148,29 +145,49 @@ export class UserComponent {
     () => (this.rolesQuery.data() as any)?.resources ?? []
   );
 
-  private _prevDetailData: any = null;
-  get _detailSynced(): boolean {
-    const d = this.detailQuery.data();
-    if (d && d !== this._prevDetailData) {
-      this._prevDetailData = d;
-      const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) {
-        this.form.set({
-          email: detail.email,
-          passwordHash: '',
-          phoneNumber: detail.phoneNumber || '',
-          gender: detail.gender ?? 1,
-          firstName: detail.firstName,
-          lastName: detail.lastName,
-          userStatusId: detail.userStatus?.id || 0,
-          lockEnabled: detail.lockEnabled || false,
-          lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
-          roles: detail.roles?.map((r: any) => r.id) || [],
-        });
-      }
-    }
-    return true;
-  }
+  activeCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.userStatusName || '').toLowerCase().includes('hoạt động') ||
+      (r.userStatusName || '').toLowerCase().includes('active')
+    ).length
+  );
+  managerCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.roles || []).some((role: any) =>
+        (role.name || '').toLowerCase().includes('quản lý') ||
+        (role.name || '').toLowerCase().includes('manager')
+      )
+    ).length
+  );
+  staffCount = computed<number>(() =>
+    this.rows().filter(r =>
+      (r.roles || []).some((role: any) =>
+        (role.name || '').toLowerCase().includes('nhân viên') ||
+        (role.name || '').toLowerCase().includes('staff')
+      )
+    ).length
+  );
+
+ private syncDetail = effect(() => {
+  const d = this.detailQuery.data();
+  if (!d || !this.showModal() || !this.isEdit()) return;
+
+  const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
+  if (!detail) return;
+
+  this.form.set({
+    email: detail.email,
+    passwordHash: '',
+    phoneNumber: detail.phoneNumber || '',
+    gender: detail.gender ?? 1,
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    userStatusId: detail.userStatus?.id || 0,
+    lockEnabled: detail.lockEnabled || false,
+    lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
+    roles: detail.roles?.map((r: any) => r.id) || [],
+  });
+});
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -221,7 +238,6 @@ export class UserComponent {
   toggleFilter(): void { this.showFilter.set(!this.showFilter()); }
   applyFilter(): void { this.page.set(1); }
   clearFilter(): void {
-    this.filterUsername.set('');
     this.filterFullname.set('');
     this.filterEmail.set('');
     this.filterPhone.set('');
@@ -252,9 +268,12 @@ export class UserComponent {
     return pages;
   }
 
+  openView(row: UserAdvancedRow): void {
+    this.openEdit(row);
+  }
+
   openCreate(): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(null);
     this.form.set({
       email: '',
@@ -281,7 +300,6 @@ export class UserComponent {
 
   openEdit(row: UserAdvancedRow): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(row);
     this.form.set({
       email: row.email,
@@ -370,7 +388,7 @@ export class UserComponent {
           email: f.email,
           gender: f.gender,
           phoneNumber: f.phoneNumber,
-          passwordHash: f.password,
+          passwordHash: f.passwordHash,
           roles: f.roles,
         };
         this.createMutation.mutate(payload);

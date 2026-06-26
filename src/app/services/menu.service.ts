@@ -15,10 +15,19 @@ import {
 export class MenuService {
   private http = inject(HttpClient);
   private readonly base = environment.baseUrl;
+  private sidebarMenuCache: MenuAggregate[] | null = null;
 
   /** Lấy tất cả menus (dạng phẳng, API trả về) */
   getAll(): Observable<ApiResponse<MenuAggregate[]>> {
     return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/menu`);
+  }
+
+  getCachedSidebarMenus(): MenuAggregate[] | null {
+    return this.sidebarMenuCache;
+  }
+
+  setCachedSidebarMenus(menus: MenuAggregate[]): void {
+    this.sidebarMenuCache = menus;
   }
 
   /** Lấy chi tiết menu theo ID */

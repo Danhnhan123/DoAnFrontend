@@ -1,21 +1,20 @@
 <div class="page-wrapper">
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">🗂️ Activity Log</h1>
-            <p class="page-subtitle">Lịch sử hoạt động người dùng — {{ totalRecords() }} bản ghi</p>
+<div class="toolbar card">
+        <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input class="search-input" placeholder="Tìm người dùng, hành động..." [ngModel]="search()"
+                (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
-    </div>
-
-    <div class="toolbar card">
-        <input class="form-control search-input" placeholder="🔍 Tìm người dùng, hành động..." [ngModel]="search()"
-            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
-        <select class="form-control" style="width:110px" [ngModel]="pageSize()"
+        <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
             <option [value]="20">20/trang</option>
             <option [value]="50">50/trang</option>
         </select>
-        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
     </div>
 
     <div class="card">

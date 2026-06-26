@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -96,27 +96,32 @@ export class MenuComponent {
     return res?.resources || res?.data || [];
   });
 
-  private _prevDetailData: any = null;
-  get _detailSynced(): boolean {
+  /**
+   * Đổ dữ liệu chi tiết (từ API get-by-id) vào form khi mở modal sửa/xem.
+   * Dùng effect để tự chạy lại mỗi khi detailQuery có dữ liệu mới.
+   * (Trước đây dùng getter _detailSynced nhưng không được template gọi nên
+   *  isAdminOnly và actionIds không bao giờ được map.)
+   */
+  private syncDetail = effect(() => {
     const d = this.detailQuery.data();
-    if (d && d !== this._prevDetailData) {
-      this._prevDetailData = d;
-      const detail: MenuDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail)
-        this.form.set({
-          name: detail.name,
-          url: detail.url || '',
-          icon: detail.icon || '',
-          className: detail.className || '',
-          sortOrder: detail.sortOrder,
-          parentId: detail.parentId ?? null,
-          menuType: detail.menuType,
-          isAdminOnly: detail.isAdminOnly,
-          actionIds: detail.actionIds || [],
-        });
-    }
-    return true;
-  }
+
+    if (!d || !this.showModal() || !this.isEdit()) return;
+
+    const detail: MenuDetailDto = (d as any)?.resources ?? (d as any)?.data;
+    if (!detail) return;
+
+    this.form.set({
+      name: detail.name,
+      url: detail.url || '',
+      icon: detail.icon || '',
+      className: detail.className || '',
+      sortOrder: detail.sortOrder,
+      parentId: detail.parentId ?? null,
+      menuType: detail.menuType,
+      isAdminOnly: detail.isAdminOnly,
+      actionIds: detail.actionIds || [],
+    });
+  });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -192,7 +197,6 @@ export class MenuComponent {
   }
 
   openCreate(): void {
-    this._prevDetailData = null;
     this.editItem.set(null);
     this.isReadOnly.set(false);
     this.form.set({
@@ -202,7 +206,6 @@ export class MenuComponent {
     this.showModal.set(true);
   }
   openEdit(menu: MenuAggregate, readOnly = false): void {
-    this._prevDetailData = null;
     this.editItem.set(menu);
     this.isReadOnly.set(readOnly);
     this.form.set({

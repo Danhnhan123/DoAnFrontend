@@ -1,21 +1,20 @@
 <div class="page-wrapper">
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">📝 Audit Log</h1>
-            <p class="page-subtitle">Lịch sử thay đổi dữ liệu — {{ totalRecords() }} bản ghi</p>
+<div class="toolbar card">
+        <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input class="search-input" placeholder="Tìm bảng, hành động, người dùng..." [ngModel]="search()"
+                (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
-    </div>
-
-    <div class="toolbar card">
-        <input class="form-control search-input" placeholder="🔍 Tìm bảng, hành động, người dùng..."
-            [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
-        <select class="form-control" style="width:110px" [ngModel]="pageSize()"
+        <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
             <option [value]="20">20/trang</option>
             <option [value]="50">50/trang</option>
         </select>
-        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
     </div>
 
     <div class="card">
@@ -50,7 +49,13 @@
                         <td class="text-muted small">{{ log.changedBy || '—' }}</td>
                         <td class="text-muted small">{{ log.changedDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
                         <td style="text-align:right">
-                            <button class="btn btn-outline btn-sm" (click)="viewDetail(log)">🔍 Xem</button>
+                                                        <button class="icon-btn view-btn" (click)="viewDetail(log)" title="Xem chi tiết">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
                         </td>
                     </tr>
                     }
