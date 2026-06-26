@@ -7,10 +7,12 @@ import { AuditLogRow, AuditLogDetailDto, DataItem } from '../../models';
 import { AuditLogService } from '../../services/audit-log.service';
 import { AuthService } from '../../services/auth.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-audit-log',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './audit-log.component.html',
   styleUrl: './audit-log.component.css',
 })

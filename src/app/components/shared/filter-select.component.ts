@@ -34,6 +34,7 @@ export interface FilterSelectOption {
         type="button"
         class="form-control ms-toggle"
         [class.has-value]="hasValue()"
+        [disabled]="disabled"
         (click)="toggle($event)"
       >
         <span class="ms-label">{{ label() }}</span>
@@ -55,7 +56,7 @@ export interface FilterSelectOption {
 
       @if (open()) {
       <div class="ms-menu">
-        @if (!multiple) {
+        @if (!multiple && clearable) {
         <label class="ms-item" (click)="selectSingle(null)">
           <span class="ms-radio" [class.on]="!hasValue()"></span>
           <span>{{ allLabel }}</span>
@@ -179,6 +180,10 @@ export class FilterSelectComponent {
   @Input() multiple = false;
   @Input() placeholder = 'Tất cả';
   @Input() allLabel = 'Tất cả';
+  /** Cho phép bỏ chọn (hiện mục "Tất cả"). Tắt cho select bắt buộc / chọn số dòng/trang. */
+  @Input() clearable = true;
+  /** Vô hiệu hóa dropdown (không cho mở). */
+  @Input() disabled = false;
   @Input() value: any = null;
   @Output() valueChange = new EventEmitter<any>();
 
@@ -191,6 +196,7 @@ export class FilterSelectComponent {
 
   toggle(event: Event): void {
     event.stopPropagation();
+    if (this.disabled) return;
     this.open.update((v) => !v);
   }
 
@@ -224,7 +230,7 @@ export class FilterSelectComponent {
       const n = this.asArray().length;
       return n === 0 ? this.placeholder : `Đã chọn ${n}`;
     }
-    if (!this.hasValue()) return this.allLabel;
+    if (!this.hasValue()) return this.clearable ? this.allLabel : this.placeholder;
     const opt = this.options.find((o) => o.id === this.value);
     return opt ? opt.name : this.placeholder;
   }

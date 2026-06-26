@@ -16,10 +16,12 @@ import {
 } from '../../models';
 import { UserStatusService } from '../../services/user-status.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-user-status',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './user-status.component.html',
   styleUrl: './user-status.component.css',
 })

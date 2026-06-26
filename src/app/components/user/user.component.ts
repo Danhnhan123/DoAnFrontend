@@ -139,6 +139,12 @@ export class UserComponent {
   loading = computed(() => this.listQuery.isPending());
   loadingDetail = computed(() => this.detailQuery.isFetching());
 
+  readonly genderOptions = [
+    { id: 1, name: 'Nam' },
+    { id: 0, name: 'Nữ' },
+    { id: 2, name: 'Khác' },
+  ];
+
   statusOptions = computed<UserStatusDetailDto[]>(
     () => (this.statusesQuery.data() as any)?.resources ?? []
   );

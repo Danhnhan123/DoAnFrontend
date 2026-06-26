@@ -17,10 +17,12 @@ import {
 } from '../../models';
 import { NotificationTypeService } from '../../services/notification-type.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-notification-type',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './notification-type.component.html',
   styleUrl: './notification-type.component.css',
 })

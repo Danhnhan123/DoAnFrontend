@@ -71,13 +71,10 @@
             </svg>
             Bộ lọc nâng cao
         </button>
-        <select class="form-control page-size-select" [ngModel]="pageSize()"
-            (ngModelChange)="pageSize.set(+$event); page.set(1)">
-            <option [value]="5">5/trang</option>
-            <option [value]="10">10/trang</option>
-            <option [value]="20">20/trang</option>
-            <option [value]="50">50/trang</option>
-        </select>
+        <app-filter-select class="page-size-select" [clearable]="false"
+          style="width:132px;flex:0 0 auto"
+          [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+          (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
         <button class="icon-btn add-btn" (click)="openCreate()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -276,22 +273,13 @@
             <div class="form-row-2">
                 <div class="form-group">
                     <label class="form-label">Giới tính</label>
-                    <select class="form-control" [ngModel]="form().gender" (ngModelChange)="setField('gender',+$event)"
-                        [disabled]="isEdit()">
-                        <option [value]="1">Nam</option>
-                        <option [value]="0">Nữ</option>
-                        <option [value]="2">Khác</option>
-                    </select>
+                    <app-filter-select [options]="genderOptions" [clearable]="false" [disabled]="isEdit()"
+                      [value]="form().gender" (valueChange)="setField('gender', +$event)"></app-filter-select>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Trạng thái *</label>
-                    <select class="form-control" [ngModel]="form().userStatusId"
-                        (ngModelChange)="setField('userStatusId',+$event)">
-                        <option value="">— Chọn trạng thái —</option>
-                        @for (s of statusOptions(); track s.id) {
-                        <option [value]="s.id">{{ s.name }}</option>
-                        }
-                    </select>
+                    <app-filter-select [options]="statusOptions()" allLabel="— Chọn trạng thái —"
+                      [value]="form().userStatusId" (valueChange)="setField('userStatusId', +$event)"></app-filter-select>
                 </div>
             </div>
 

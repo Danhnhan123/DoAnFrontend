@@ -1,0 +1,71 @@
+❯ Building...
+✖ Building... [FAILED: 
+You installed esbuild for another platform than the one you're currently using.
+This won't work because esbuild is written with native code and needs to
+install a platform-specific binary executable.
+
+Specifically the "@esbuild/darwin-arm64" package is present but this platform
+needs the "@esbuild/linux-arm64" package instead. People often get into this
+situation by installing esbuild on Windows or macOS and copying "node_modules"
+into a Docker image that runs Linux, or by copying "node_modules" between
+Windows and WSL environments.
+
+If you are installing with npm, you can try not copying the "node_modules"
+directory when you copy the files over, and running "npm ci" or "npm install"
+on the destination platform after the copy. Or you could consider using yarn
+instead of npm which has built-in support for installing a package on multiple
+platforms simultaneously.
+
+If you are installing with yarn, you can try listing both this platform and the
+other platform in your ".yarnrc.yml" file using the "supportedArchitectures"
+feature: https://yarnpkg.com/configuration/yarnrc/#supportedArchitectures
+Keep in mind that this means multiple copies of esbuild will be present.
+
+Another alternative is to use the "esbuild-wasm" package instead, which works
+the same way on all platforms. But it comes with a heavy performance cost and
+can sometimes be 10x slower than the "esbuild" package, so you may also not
+want to do that.
+]
+/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular-devkit/architect/node_modules/rxjs/dist/cjs/internal/util/reportUnhandledError.js:13
+            throw err;
+            ^
+
+Error: 
+You installed esbuild for another platform than the one you're currently using.
+This won't work because esbuild is written with native code and needs to
+install a platform-specific binary executable.
+
+Specifically the "@esbuild/darwin-arm64" package is present but this platform
+needs the "@esbuild/linux-arm64" package instead. People often get into this
+situation by installing esbuild on Windows or macOS and copying "node_modules"
+into a Docker image that runs Linux, or by copying "node_modules" between
+Windows and WSL environments.
+
+If you are installing with npm, you can try not copying the "node_modules"
+directory when you copy the files over, and running "npm ci" or "npm install"
+on the destination platform after the copy. Or you could consider using yarn
+instead of npm which has built-in support for installing a package on multiple
+platforms simultaneously.
+
+If you are installing with yarn, you can try listing both this platform and the
+other platform in your ".yarnrc.yml" file using the "supportedArchitectures"
+feature: https://yarnpkg.com/configuration/yarnrc/#supportedArchitectures
+Keep in mind that this means multiple copies of esbuild will be present.
+
+Another alternative is to use the "esbuild-wasm" package instead, which works
+the same way on all platforms. But it comes with a heavy performance cost and
+can sometimes be 10x slower than the "esbuild" package, so you may also not
+want to do that.
+
+    at generateBinPath (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/esbuild/lib/main.js:2029:17)
+    at esbuildCommandAndArgs (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/esbuild/lib/main.js:2110:33)
+    at ensureServiceIsRunning (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/esbuild/lib/main.js:2267:25)
+    at build (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/esbuild/lib/main.js:2166:26)
+    at #performBundle (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular/build/src/tools/esbuild/bundler-context.js:170:52)
+    at BundlerContext.bundle (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular/build/src/tools/esbuild/bundler-context.js:138:49)
+    at /sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular/build/src/tools/esbuild/bundler-context.js:67:28
+    at Array.map (<anonymous>)
+    at BundlerContext.bundleAll (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular/build/src/tools/esbuild/bundler-context.js:63:67)
+    at executeBuild (/sessions/wizardly-sleepy-planck/mnt/DoAnFrontend/node_modules/@angular/build/src/builders/application/execute-build.js:110:65)
+
+Node.js v22.22.3

@@ -17,10 +17,12 @@ import {
 } from '../../models';
 import { UnitOfMeasureService } from '../../services/unit-of-measure.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-unit-of-measure',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './unit-of-measure.component.html',
   styleUrl: './unit-of-measure.component.css',
 })

@@ -18,12 +18,10 @@
             Bộ lọc nâng cao
             @if (activeFilterCount() > 0) { <span class="filter-count">{{ activeFilterCount() }}</span> }
         </button>
-        <select class="form-control page-size-select" [ngModel]="pageSize()"
-            (ngModelChange)="pageSize.set(+$event); page.set(1)">
-            <option [value]="10">10/trang</option>
-            <option [value]="20">20/trang</option>
-            <option [value]="50">50/trang</option>
-        </select>
+        <app-filter-select class="page-size-select" [clearable]="false"
+          style="width:132px;flex:0 0 auto"
+          [options]="[{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+          (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
     </div>
 
     @if (showFilter()) {

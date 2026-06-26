@@ -85,13 +85,10 @@
       Bộ lọc nâng cao
     </button>
 
-    <select class="form-control page-size-select" [ngModel]="pageSize()"
-      (ngModelChange)="pageSize.set(+$event); page.set(1)">
-      <option [value]="5">5/trang</option>
-      <option [value]="10">10/trang</option>
-      <option [value]="20">20/trang</option>
-      <option [value]="50">50/trang</option>
-    </select>
+    <app-filter-select class="page-size-select" [clearable]="false"
+      style="width:132px;flex:0 0 auto"
+      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+      (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
 
     <button class="icon-btn add-btn" type="button" (click)="openCreate()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -304,13 +301,8 @@
         </div>
         <div class="form-group">
           <label class="form-label">Danh mục *</label>
-          <select class="form-control" [ngModel]="form().productCategoryId"
-            (ngModelChange)="setField('productCategoryId', +$event)">
-            <option [value]="0">Chọn danh mục</option>
-            @for (category of categoryOptions(); track category.id) {
-            <option [value]="category.id">{{ category.name }}</option>
-            }
-          </select>
+          <app-filter-select [options]="categoryOptions()" allLabel="Chọn danh mục"
+            [value]="form().productCategoryId" (valueChange)="setField('productCategoryId', +$event)"></app-filter-select>
         </div>
       </div>
 

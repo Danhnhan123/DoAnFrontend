@@ -161,13 +161,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">Menu cha</label>
-            <select class="form-control" [ngModel]="form().parentId"
-              (ngModelChange)="setField('parentId', $event ? +$event : null)">
-              <option [ngValue]="null">— Là menu gốc —</option>
-              @for (opt of renderParentOptions(nestedMenus()); track opt.id) {
-              <option [value]="opt.id" [disabled]="opt.disabled">{{ opt.label }}</option>
-              }
-            </select>
+            <app-filter-select [options]="parentSelectOptions()" allLabel="— Là menu gốc —"
+              [value]="form().parentId" (valueChange)="setField('parentId', $event ? +$event : null)"></app-filter-select>
           </div>
         </div>
 
@@ -187,9 +182,8 @@
         <div class="form-row-3">
           <div class="form-group">
             <label class="form-label">Loại menu</label>
-            <select class="form-control" [ngModel]="form().menuType" (ngModelChange)="setField('menuType',$event)">
-              @for (t of menuTypes; track t) { <option [value]="t">{{ t }}</option> }
-            </select>
+            <app-filter-select [options]="menuTypeOptions" [clearable]="false"
+              [value]="form().menuType" (valueChange)="setField('menuType', $event)"></app-filter-select>
           </div>
           <div class="form-group">
             <label class="form-label">Thứ tự hiển thị</label>

@@ -19,12 +19,10 @@
       Bộ lọc nâng cao
     </button>
 
-    <select class="form-control page-size-select" [ngModel]="pageSize()" (ngModelChange)="setPageSize($event)">
-      <option [ngValue]="5">5/trang</option>
-      <option [ngValue]="10">10/trang</option>
-      <option [ngValue]="20">20/trang</option>
-      <option [ngValue]="50">50/trang</option>
-    </select>
+    <app-filter-select class="page-size-select" [clearable]="false"
+      style="width:132px;flex:0 0 auto"
+      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+      (valueChange)="setPageSize($event)"></app-filter-select>
   </div>
 
   @if (showFilter()) {

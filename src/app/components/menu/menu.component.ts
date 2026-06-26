@@ -18,10 +18,12 @@ import {
 import { MenuService } from '../../services/menu.service';
 import { ActionService } from '../../services/action.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-menu',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './menu.component.html',
   styleUrl: './menu.component.css',
 })
@@ -200,6 +202,18 @@ export class MenuComponent {
         result.push(...this.renderParentOptions(m.child, depth + 1));
     }
     return result;
+  }
+
+  /** Options danh mục cha cho dropdown chung (bỏ mục bị khóa). */
+  parentSelectOptions = computed(() =>
+    this.renderParentOptions(this.nestedMenus())
+      .filter((o) => !o.disabled)
+      .map((o) => ({ id: o.id, name: o.label }))
+  );
+
+  /** Options loại menu cho dropdown chung. */
+  get menuTypeOptions() {
+    return this.menuTypes.map((t) => ({ id: t, name: t }));
   }
 
   openCreate(): void {

@@ -16,10 +16,12 @@ import {
 } from '../../models';
 import { ActionService } from '../../services/action.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-action',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './action.component.html',
   styleUrl: './action.component.css',
 })

@@ -6,10 +6,12 @@ import { injectQuery } from '@tanstack/angular-query-experimental';
 import { ActivityLogRow } from '../../models';
 import { ActivityLogService } from '../../services/activity-log.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+
 @Component({
   selector: 'app-activity-log',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './activity-log.component.html',
   styleUrl: './activity-log.component.css',
 })
