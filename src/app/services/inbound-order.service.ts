@@ -46,6 +46,13 @@ export class InboundOrderService {
     );
   }
 
+  update(id: number, payload: any): Observable<ApiResponse<number>> {
+    return this.http.put<ApiResponse<number>>(
+      `${this.base}/inbound-orders/${id}`,
+      payload
+    );
+  }
+
   submit(id: number): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(
       `${this.base}/inbound-orders/${id}/submit`,
