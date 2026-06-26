@@ -17,11 +17,12 @@ import {
   DataItem,
 } from '../../models';
 import { UserService } from '../../services/user.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-user',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './user.component.html',
   styleUrl: './user.component.css',
 })

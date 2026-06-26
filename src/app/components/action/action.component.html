@@ -13,11 +13,9 @@
         <button class="icon-btn filter-btn" (click)="toggleFilter()" [class.filter-active]="showFilter()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
             </svg>
-            Bộ lọc {{ (filterName() || filterDesc() || filterDateFrom() || filterDateTo()) ? '(Đang bật)' : '' }}
+            Bộ lọc nâng cao {{ (filterName() || filterDesc() || filterDateFrom() || filterDateTo()) ? '(Đang bật)' : '' }}
         </button>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">

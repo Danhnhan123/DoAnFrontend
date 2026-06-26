@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -142,27 +142,32 @@ export class RoleComponent {
       .sort((a, b) => a.order - b.order)
   );
 
-  // Sync selectedPerms when rolePermissions query resolves
-  private _prevRolePermsData: any = null;
-  get _rolePermsSynced(): boolean {
+  /**
+   * Đổ quyền hạn của vai trò (API GET /role/{id}/permissons) vào selectedPerms khi
+   * mở modal sửa. Dùng effect để tự chạy lại mỗi khi query có dữ liệu mới.
+   * (Trước đây dùng getter _rolePermsSynced nhưng không được template gọi nên
+   *  selectedPerms không bao giờ được nạp -> popup không tích sẵn quyền theo menu.)
+   */
+  private syncRolePerms = effect(() => {
     const d = this.rolePermissionsQuery.data();
-    if (d && d !== this._prevRolePermsData) {
-      this._prevRolePermsData = d;
-      const perms: RolePermissonDto[] =
-        (d as any)?.resources?.permissions ??
-        (d as any)?.resources ??
-        (d as any)?.data?.permissions ??
-        (d as any)?.data ??
-        [];
-      const map = new Map<number, Set<number>>();
-      for (const p of perms) {
-        if (!map.has(p.menuId)) map.set(p.menuId, new Set());
-        map.get(p.menuId)!.add(p.actionId);
-      }
-      this.selectedPerms.set(map);
+    if (!d || !this.showModal() || !this.isEdit()) return;
+
+    const raw =
+      (d as any)?.resources?.permissions ??
+      (d as any)?.data?.permissions ??
+      (d as any)?.resources ??
+      (d as any)?.data ??
+      [];
+    const perms: RolePermissonDto[] = Array.isArray(raw) ? raw : [];
+
+    const map = new Map<number, Set<number>>();
+    for (const p of perms) {
+      if (p == null || p.menuId == null || p.actionId == null) continue;
+      if (!map.has(p.menuId)) map.set(p.menuId, new Set());
+      map.get(p.menuId)!.add(p.actionId);
     }
-    return true;
-  }
+    this.selectedPerms.set(map);
+  });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -173,6 +178,8 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Thêm thành công!');
       } else this.showAlert(r.message || 'Thêm mới thất bại', false);
     },
@@ -186,6 +193,8 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(r.message || 'Cập nhật thất bại', false);
     },
@@ -198,6 +207,8 @@ export class RoleComponent {
     onSuccess: (r: any) => {
       if (r.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(r.message || 'Xóa thất bại', false);
     },
@@ -225,7 +236,6 @@ export class RoleComponent {
   }
 
   openCreate(): void {
-    this._prevRolePermsData = null;
     this.editItem.set(null);
     this.formName.set('');
     this.formDesc.set('');
@@ -233,7 +243,6 @@ export class RoleComponent {
     this.showModal.set(true);
   }
   openEdit(role: RoleListDto): void {
-    this._prevRolePermsData = null;
     this.editItem.set(role);
     this.formName.set(role.name);
     this.formDesc.set(role.description || '');

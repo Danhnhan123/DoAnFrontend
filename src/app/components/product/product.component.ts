@@ -16,11 +16,12 @@ import {
   UpdateProductDto,
 } from '../../models/product';
 import { ProductService } from '../../services/product.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-product',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './product.component.html',
   styleUrl: './product.component.css',
 })
@@ -42,6 +43,11 @@ export class ProductComponent {
   filterActive = signal<'' | 'true' | 'false'>('');
   filterDateFrom = signal('');
   filterDateTo = signal('');
+
+  readonly activeOptions = [
+    { id: 'true', name: 'Đang bán' },
+    { id: 'false', name: 'Ngừng bán' },
+  ];
 
   showDetail = signal(false);
   selectedItem = signal<ProductAdvancedRow | null>(null);

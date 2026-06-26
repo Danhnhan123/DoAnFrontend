@@ -6,9 +6,18 @@
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <input class="search-input" placeholder="Tìm người dùng, hành động..." [ngModel]="search()"
+            <input class="search-input" placeholder="Tìm người dùng, hành động, mô tả, IP..." [ngModel]="search()"
                 (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
+        <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+            title="Bộ lọc nâng cao">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Bộ lọc nâng cao
+            @if (activeFilterCount() > 0) { <span class="filter-count">{{ activeFilterCount() }}</span> }
+        </button>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
@@ -16,6 +25,37 @@
             <option [value]="50">50/trang</option>
         </select>
     </div>
+
+    @if (showFilter()) {
+    <div class="filter-panel card">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label>Hành động</label>
+                <input class="form-control" placeholder="VD: POST /api/v1/auth/login" [ngModel]="filterAction()"
+                    (ngModelChange)="filterAction.set($event || null)" (keydown.enter)="applyFilter()" />
+            </div>
+            <div class="form-group">
+                <label>Địa chỉ IP</label>
+                <input class="form-control" placeholder="VD: 192.168" [ngModel]="filterIp()"
+                    (ngModelChange)="filterIp.set($event || null)" (keydown.enter)="applyFilter()" />
+            </div>
+            <div class="form-group">
+                <label>Từ ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateFrom()"
+                    (ngModelChange)="dateFrom.set($event || null)" />
+            </div>
+            <div class="form-group">
+                <label>Đến ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateTo()"
+                    (ngModelChange)="dateTo.set($event || null)" />
+            </div>
+        </div>
+        <div class="filter-actions">
+            <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+            <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+        </div>
+    </div>
+    }
 
     <div class="card">
         @if (loading()) {
@@ -30,12 +70,13 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
-                        <th class="sortable" (click)="sort('userName')">Người dùng <span class="sort-icon">{{
-                                sortIcon('userName') }}</span></th>
+                        <th class="sortable" (click)="sort('createdUserName')">Người dùng <span class="sort-icon">{{
+                                sortIcon('createdUserName') }}</span></th>
                         <th class="sortable" (click)="sort('action')">Hành động <span class="sort-icon">{{
                                 sortIcon('action') }}</span></th>
                         <th>Mô tả</th>
-                        <th>IP</th>
+                        <th class="sortable" (click)="sort('ipAddress')">IP <span class="sort-icon">{{
+                                sortIcon('ipAddress') }}</span></th>
                         <th class="sortable" (click)="sort('createdDate')">Thời gian <span class="sort-icon">{{
                                 sortIcon('createdDate') }}</span></th>
                     </tr>
@@ -46,8 +87,8 @@
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
                         <td>
                             <div class="user-cell">
-                                <div class="av-sm">{{ getInitial(log.userName) }}</div>
-                                <span class="u-name">{{ log.userName || '—' }}</span>
+                                <div class="av-sm">{{ getInitial(log.createdUserName) }}</div>
+                                <span class="u-name">{{ log.createdUserName || '—' }}</span>
                             </div>
                         </td>
                         <td><span class="action-tag">{{ log.action }}</span></td>

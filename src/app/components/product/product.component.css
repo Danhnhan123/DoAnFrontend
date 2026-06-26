@@ -26,3 +26,44 @@
 .toggle-wrap{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-primary,#1e293b)}.toggle-label{font-size:.84rem}.detail-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}.detail-id,.detail-grid span,.detail-description span{display:block;color:var(--text-muted,#94a3b8);font-size:.76rem;font-weight:600}.detail-title h4{font-size:1.2rem;line-height:1.3;margin-top:3px;color:var(--text-primary,#1e293b)}.detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:18px}.detail-grid div,.detail-description{border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:12px}.detail-grid strong{display:block;font-size:.9rem;margin-top:4px;color:var(--text-primary,#1e293b)}.detail-description p{margin-top:6px;color:var(--text-primary,#1e293b)}
 @media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);gap:10px}.toolbar{align-items:stretch;flex-direction:column}.filter-btn,.page-size-select,.add-btn{justify-content:center;width:100%}.form-row-2,.detail-grid{grid-template-columns:1fr}.modal-box{margin:16px}.date-range{align-items:stretch;flex-direction:column}}
+/* === Đồng nhất nút "Bộ lọc nâng cao" theo audit/activity log ===
+   Dùng .icon-btn.filter-btn (specificity cao hơn .icon-btn) để viền + màu
+   không bị rule .icon-btn{border:0} đứng sau ghi đè. */
+.icon-btn.filter-btn {
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, #fff);
+  color: var(--text-secondary, #5a6a8a);
+  font-size: 0.84rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.icon-btn.filter-btn:hover,
+.icon-btn.filter-btn.filter-active {
+  border-color: var(--accent, #6366f1);
+  color: var(--accent, #6366f1);
+  background: rgba(99, 102, 241, 0.08);
+  transform: none;
+}
+/* === Popup: header + footer cố định, chỉ phần thân (.modal-body) cuộn ===
+   Dùng .modal-backdrop .modal-box (specificity cao) để thắng các rule
+   .modal-box{overflow-y:auto} đặt header/footer cuộn theo nội dung. */
+.modal-backdrop .modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.modal-backdrop .modal-header,
+.modal-backdrop .modal-footer {
+  flex-shrink: 0;
+}
+.modal-backdrop .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}

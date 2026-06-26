@@ -6,9 +6,18 @@
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
-            <input class="search-input" placeholder="Tìm bảng, hành động, người dùng..." [ngModel]="search()"
+            <input class="search-input" placeholder="Tìm hành động, đối tượng, người thực hiện, IP..." [ngModel]="search()"
                 (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
+        <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+            title="Bộ lọc nâng cao">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Bộ lọc nâng cao
+            @if (activeFilterCount() > 0) { <span class="filter-count">{{ activeFilterCount() }}</span> }
+        </button>
         <select class="form-control page-size-select" [ngModel]="pageSize()"
             (ngModelChange)="pageSize.set(+$event); page.set(1)">
             <option [value]="10">10/trang</option>
@@ -16,6 +25,83 @@
             <option [value]="50">50/trang</option>
         </select>
     </div>
+
+    @if (showFilter()) {
+    <div class="filter-panel card">
+        <div class="filter-grid">
+            <div class="form-group">
+                <label>Hành động</label>
+                <div class="ms-dropdown" (click)="$event.stopPropagation()">
+                    <button type="button" class="form-control ms-toggle"
+                        [class.has-value]="filterActions().length > 0" (click)="toggleActionDropdown($event)">
+                        <span>{{ actionsLabel() }}</span>
+                        <svg class="ms-caret" [class.open]="actionDropdownOpen()" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </button>
+                    @if (actionDropdownOpen()) {
+                    <div class="ms-menu">
+                        @for (a of actionOptions(); track a.id) {
+                        <label class="ms-item">
+                            <input type="checkbox" [checked]="isActionChecked(a.id)"
+                                (change)="toggleAction(a.id, $any($event.target).checked)" />
+                            <span>{{ a.name }}</span>
+                        </label>
+                        }
+                        @if (actionOptions().length === 0) { <div class="ms-empty">Không có dữ liệu</div> }
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Đối tượng</label>
+                <div class="ms-dropdown" (click)="$event.stopPropagation()">
+                    <button type="button" class="form-control ms-toggle"
+                        [class.has-value]="filterTargetTypes().length > 0" (click)="toggleEntityDropdown($event)">
+                        <span>{{ entitiesLabel() }}</span>
+                        <svg class="ms-caret" [class.open]="entityDropdownOpen()" width="14" height="14"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9" />
+                        </svg>
+                    </button>
+                    @if (entityDropdownOpen()) {
+                    <div class="ms-menu">
+                        @for (e of entityOptions(); track e.id) {
+                        <label class="ms-item">
+                            <input type="checkbox" [checked]="isEntityChecked(e.id)"
+                                (change)="toggleEntity(e.id, $any($event.target).checked)" />
+                            <span>{{ e.name }}</span>
+                        </label>
+                        }
+                        @if (entityOptions().length === 0) { <div class="ms-empty">Không có dữ liệu</div> }
+                    </div>
+                    }
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Từ ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateFrom()"
+                    (ngModelChange)="dateFrom.set($event || null)" />
+            </div>
+
+            <div class="form-group">
+                <label>Đến ngày</label>
+                <input class="form-control" type="date" [ngModel]="dateTo()"
+                    (ngModelChange)="dateTo.set($event || null)" />
+            </div>
+        </div>
+
+        <div class="filter-actions">
+            <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+            <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+        </div>
+    </div>
+    }
 
     <div class="card">
         @if (loading()) {
@@ -30,13 +116,12 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
-                        <th class="sortable" (click)="sort('tableName')">Bảng <span class="sort-icon">{{
-                                sortIcon('tableName') }}</span></th>
-                        <th>Hành động</th>
-                        <th class="sortable" (click)="sort('changedBy')">Người thực hiện <span class="sort-icon">{{
-                                sortIcon('changedBy') }}</span></th>
-                        <th class="sortable" (click)="sort('changedDate')">Thời gian <span class="sort-icon">{{
-                                sortIcon('changedDate') }}</span></th>
+                        <th class="sortable" (click)="sort('action')">Hành động <span class="sort-icon">{{ sortIcon('action') }}</span></th>
+                        <th class="sortable" (click)="sort('targetType')">Đối tượng <span class="sort-icon">{{ sortIcon('targetType') }}</span></th>
+                        <th>Mô tả</th>
+                        <th>IP</th>
+                        <th class="sortable" (click)="sort('createdUserName')">Người thực hiện <span class="sort-icon">{{ sortIcon('createdUserName') }}</span></th>
+                        <th class="sortable" (click)="sort('createdDate')">Thời gian <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
                         <th style="text-align:right">Chi tiết</th>
                     </tr>
                 </thead>
@@ -44,12 +129,17 @@
                     @for (log of logs(); track log.id; let idx=$index) {
                     <tr>
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
-                        <td><code class="tbl-code">{{ log.tableName || '—' }}</code></td>
-                        <td><span class="action-badge" [class]="actionClass(log.action)">{{ log.action }}</span></td>
-                        <td class="text-muted small">{{ log.changedBy || '—' }}</td>
-                        <td class="text-muted small">{{ log.changedDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                        <td><span class="action-badge" [class]="actionClass(log.action)">{{ log.actionName || log.action }}</span></td>
+                        <td>
+                            <div class="u-name">{{ log.targetTypeName || log.targetType }}</div>
+                            @if (log.targetId) { <div class="u-sub">#{{ log.targetId }}</div> }
+                        </td>
+                        <td class="desc-cell small">{{ log.description || '—' }}</td>
+                        <td><code class="ip-code">{{ log.ipAddress || '—' }}</code></td>
+                        <td class="text-muted small">{{ log.createdUserName || '—' }}</td>
+                        <td class="text-muted small">{{ log.createdDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
                         <td style="text-align:right">
-                                                        <button class="icon-btn view-btn" (click)="viewDetail(log)" title="Xem chi tiết">
+                            <button class="icon-btn view-btn" (click)="viewDetail(log)" title="Xem chi tiết">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -78,31 +168,48 @@
     </div>
 </div>
 
-@if (selectedLog()) {
+@if (selectedId()) {
 <div class="modal-backdrop" (click)="closeDetail()">
     <div class="modal-box wide" (click)="$event.stopPropagation()">
         <div class="modal-header">
-            <h3>🔍 Chi tiết thay đổi — <code style="font-size:.85rem">{{ selectedLog()!.tableName }}</code></h3>
+            <h3>🔍 Chi tiết thay đổi dữ liệu</h3>
             <button class="modal-close" (click)="closeDetail()">✕</button>
         </div>
         <div class="modal-body">
+            @if (loadingDetail()) {
+            <div class="state-box"><span class="spin-lg"></span><span>Đang tải chi tiết...</span></div>
+            } @else {
+            @if (selectedLog(); as log) {
             <div class="detail-meta">
                 <span><strong>Hành động:</strong> <span class="action-badge"
-                        [class]="actionClass(selectedLog()!.action)">{{ selectedLog()!.action }}</span></span>
-                <span><strong>Người thực hiện:</strong> {{ selectedLog()!.changedBy || '—' }}</span>
-                <span><strong>Thời gian:</strong> {{ selectedLog()!.changedDate | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+                        [class]="actionClass(log.action)">{{ log.actionName || log.action }}</span></span>
+                <span><strong>Đối tượng:</strong> {{ log.targetTypeName || log.targetType }}{{ log.targetId ? ' #' + log.targetId : '' }}</span>
+                <span><strong>Người thực hiện:</strong> {{ log.createdUser?.name || '—' }}</span>
+                <span><strong>Thời gian:</strong> {{ log.createdDate | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+                @if (log.ipAddress) { <span><strong>IP:</strong> {{ log.ipAddress }}</span> }
             </div>
-            @if (selectedLog()!.oldValues) {
+            @if (log.description) {
             <div class="json-section">
-                <div class="json-label">📤 Giá trị cũ (trước khi thay đổi)</div>
-                <pre class="json-view old-val">{{ formatJson(selectedLog()!.oldValues) }}</pre>
+                <div class="json-label">📝 Mô tả</div>
+                <pre class="json-view">{{ log.description }}</pre>
             </div>
             }
-            @if (selectedLog()!.newValues) {
+            @if (log.dataBefore) {
             <div class="json-section">
-                <div class="json-label">📥 Giá trị mới (sau khi thay đổi)</div>
-                <pre class="json-view new-val">{{ formatJson(selectedLog()!.newValues) }}</pre>
+                <div class="json-label">📤 Dữ liệu trước khi thay đổi</div>
+                <pre class="json-view old-val">{{ formatJson(log.dataBefore) }}</pre>
             </div>
+            }
+            @if (log.dataAfter) {
+            <div class="json-section">
+                <div class="json-label">📥 Dữ liệu sau khi thay đổi</div>
+                <pre class="json-view new-val">{{ formatJson(log.dataAfter) }}</pre>
+            </div>
+            }
+            @if (!log.dataBefore && !log.dataAfter) {
+            <div class="state-box" style="padding:24px"><p class="text-muted">Bản ghi này không lưu dữ liệu trước/sau.</p></div>
+            }
+            }
             }
         </div>
         <div class="modal-footer">

@@ -68,6 +68,12 @@ const adminChildren: Routes = [
     .then(m => m.UserStatusComponent),
   },
   {
+    path: 'product-categories',
+    loadComponent: () =>
+      import('./components/product-category/product-category.component')
+        .then(m => m.ProductCategoryComponent),
+  },
+  {
   path: 'product-variants',
   loadComponent: () =>
     import('./components/product-variant/product-variant.component')
@@ -84,6 +90,48 @@ const adminChildren: Routes = [
     loadComponent: () =>
       import('./components/iot-device/iot-device.component')
         .then(m => m.IotDeviceComponent),
+  },
+  {
+    path: 'suppliers',
+    loadComponent: () =>
+      import('./components/supplier/supplier.component')
+        .then(m => m.SupplierComponent),
+  },
+  {
+    path: 'unit-of-measures',
+    loadComponent: () =>
+      import('./components/unit-of-measure/unit-of-measure.component')
+        .then(m => m.UnitOfMeasureComponent),
+  },
+  {
+    path: 'warehouses',
+    loadComponent: () =>
+      import('./components/warehouse/warehouse.component')
+        .then(m => m.WarehouseComponent),
+  },
+  {
+    path: 'locations',
+    loadComponent: () =>
+      import('./components/location/location.component')
+        .then(m => m.LocationComponent),
+  },
+  {
+    path: 'notifications',
+    loadComponent: () =>
+      import('./components/notification/notification.component')
+        .then(m => m.NotificationComponent),
+  },
+  {
+    path: 'notification-categories',
+    loadComponent: () =>
+      import('./components/notification-category/notification-category.component')
+        .then(m => m.NotificationCategoryComponent),
+  },
+  {
+    path: 'notification-types',
+    loadComponent: () =>
+      import('./components/notification-type/notification-type.component')
+        .then(m => m.NotificationTypeComponent),
   },
 ];
 

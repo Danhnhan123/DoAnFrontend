@@ -112,44 +112,26 @@
     <div class="filter-grid">
       <div class="form-group">
         <label>Kho</label>
-        <select class="form-control" [ngModel]="filterWarehouseId()"
-          (ngModelChange)="filterWarehouseId.set($event ? +$event : null)">
-          <option [ngValue]="null">Tất cả kho</option>
-          @for (w of warehouseOptions(); track w.id) {
-          <option [value]="w.id">{{ w.name }} ({{ w.code }})</option>
-          }
-        </select>
+        <app-filter-select [options]="warehouseFilterOptions()" allLabel="Tất cả kho"
+          [value]="filterWarehouseId()" (valueChange)="filterWarehouseId.set($event)"></app-filter-select>
       </div>
 
       <div class="form-group">
         <label>Loại thiết bị</label>
-        <select class="form-control" [ngModel]="filterDeviceType()"
-          (ngModelChange)="filterDeviceType.set($event || null)">
-          <option [ngValue]="null">Tất cả loại</option>
-          @for (t of deviceTypes; track t) {
-          <option [value]="t">{{ t }}</option>
-          }
-        </select>
+        <app-filter-select [options]="deviceTypeOptions" allLabel="Tất cả loại"
+          [value]="filterDeviceType()" (valueChange)="filterDeviceType.set($event)"></app-filter-select>
       </div>
 
       <div class="form-group">
         <label>Kết nối</label>
-        <select class="form-control" [ngModel]="filterIsOnline()"
-          (ngModelChange)="filterIsOnline.set($event === '' || $event === null ? null : $event === 'true')">
-          <option [ngValue]="null">Tất cả</option>
-          <option value="true">Online</option>
-          <option value="false">Offline</option>
-        </select>
+        <app-filter-select [options]="onlineOptions" allLabel="Tất cả"
+          [value]="filterIsOnline()" (valueChange)="filterIsOnline.set($event)"></app-filter-select>
       </div>
 
       <div class="form-group">
         <label>Trạng thái</label>
-        <select class="form-control" [ngModel]="filterIsActive()"
-          (ngModelChange)="filterIsActive.set($event === '' || $event === null ? null : $event === 'true')">
-          <option [ngValue]="null">Tất cả</option>
-          <option value="true">Đang kích hoạt</option>
-          <option value="false">Tạm ngưng</option>
-        </select>
+        <app-filter-select [options]="activeStatusOptions" allLabel="Tất cả"
+          [value]="filterIsActive()" (valueChange)="filterIsActive.set($event)"></app-filter-select>
       </div>
     </div>
 

@@ -83,9 +83,7 @@
       title="Bộ lọc nâng cao">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-        <path d="M4.93 4.93a10 10 0 0 0 0 14.14" />
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
       </svg>
       Bộ lọc nâng cao
     </button>
@@ -113,13 +111,8 @@
     <div class="filter-grid">
       <div class="form-group">
         <label>Sản phẩm gốc</label>
-        <select class="form-control" [ngModel]="filterProductId()"
-          (ngModelChange)="filterProductId.set($event ? +$event : null)">
-          <option [ngValue]="null">Tất cả sản phẩm</option>
-          @for (p of productOptions(); track p.id) {
-          <option [value]="p.id">{{ p.name }}</option>
-          }
-        </select>
+        <app-filter-select [options]="productOptions()" allLabel="Tất cả sản phẩm"
+          [value]="filterProductId()" (valueChange)="filterProductId.set($event)"></app-filter-select>
       </div>
     </div>
 

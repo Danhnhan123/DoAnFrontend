@@ -1,10 +1,11 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
 import { injectQuery } from '@tanstack/angular-query-experimental';
-import { AuditLogDetailDto } from '../../models';
+import { AuditLogRow, AuditLogDetailDto, DataItem } from '../../models';
 import { AuditLogService } from '../../services/audit-log.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-audit-log',
@@ -15,13 +16,36 @@ import { AuditLogService } from '../../services/audit-log.service';
 })
 export class AuditLogComponent {
   private auditLogService = inject(AuditLogService);
+  private authService = inject(AuthService);
 
   page = signal(1);
   pageSize = signal(20);
   search = signal('');
-  sortField = signal('changedDate');
+  sortField = signal('createdDate');
   sortDir = signal<'asc' | 'desc'>('desc');
-  selectedLog = signal<AuditLogDetailDto | null>(null);
+  selectedId = signal<number | null>(null);
+
+  // Bộ lọc nâng cao
+  showFilter = signal(false);
+  filterActions = signal<string[]>([]);
+  filterTargetTypes = signal<string[]>([]);
+  dateFrom = signal<string | null>(null);
+  dateTo = signal<string | null>(null);
+
+  // Trạng thái mở của 2 dropdown chọn nhiều
+  actionDropdownOpen = signal(false);
+  entityDropdownOpen = signal(false);
+
+  private readonly colMap: Record<string, number> = {
+    id: 0,
+    action: 1,
+    targetType: 2,
+    targetId: 3,
+    description: 4,
+    ipAddress: 5,
+    createdUserName: 6,
+    createdDate: 7,
+  };
 
   query = injectQuery(() => ({
     queryKey: [
@@ -31,33 +55,86 @@ export class AuditLogComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
+      this.filterActions(),
+      this.filterTargetTypes(),
+      this.dateFrom(),
+      this.dateTo(),
     ],
     queryFn: () =>
       lastValueFrom(
-        this.auditLogService.getPaged({
-          pageIndex: this.page(),
-          pageSize: this.pageSize(),
-          keyword: this.search(),
-          sortType: this.sortDir().toUpperCase(),
-          orderBy: this.sortField(),
-        })
+        this.auditLogService.getPagedAdvanced(
+          this.auditLogService.buildPagedBody({
+            page: this.page(),
+            pageSize: this.pageSize(),
+            search: this.search(),
+            sortField: this.sortField(),
+            sortDir: this.sortDir(),
+            colMap: this.colMap,
+            userId: this.authService.currentUser()?.id ?? 0,
+            filterActions: this.filterActions(),
+            filterTargetTypes: this.filterTargetTypes(),
+            dateFrom: this.dateFrom(),
+            dateTo: this.dateTo(),
+          })
+        )
       ),
   }));
 
-  logs = computed<AuditLogDetailDto[]>(() => {
-    const d = (this.query.data() as any)?.data;
-    return d?.items ?? [];
-  });
-  totalRecords = computed<number>(() => {
-    const d = (this.query.data() as any)?.data;
-    return d?.totalCount ?? 0;
-  });
-  totalPages = computed<number>(() => {
-    const d = (this.query.data() as any)?.data;
-    return d?.totalPages ?? 0;
-  });
+  detailQuery = injectQuery(() => ({
+    queryKey: ['audit-log-detail', this.selectedId()],
+    enabled: !!this.selectedId(),
+    queryFn: () =>
+      lastValueFrom(this.auditLogService.getById(this.selectedId()!)),
+  }));
 
+  actionsQuery = injectQuery(() => ({
+    queryKey: ['audit-log-actions'],
+    queryFn: () => lastValueFrom(this.auditLogService.getActions()),
+    staleTime: 5 * 60_000,
+  }));
+
+  entitiesQuery = injectQuery(() => ({
+    queryKey: ['audit-log-entities'],
+    queryFn: () => lastValueFrom(this.auditLogService.getAuditEntities()),
+    staleTime: 5 * 60_000,
+  }));
+
+  logs = computed<AuditLogRow[]>(() => this.dtResult()?.data ?? []);
+  totalRecords = computed<number>(() => {
+    const r = this.dtResult();
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
+  totalPages = computed<number>(() =>
+    Math.ceil(this.totalRecords() / this.pageSize())
+  );
   loading = computed(() => this.query.isPending());
+
+  actionOptions = computed<DataItem<string>[]>(() => {
+    const r = this.actionsQuery.data() as any;
+    return r?.resources ?? r?.data ?? [];
+  });
+  entityOptions = computed<DataItem<string>[]>(() => {
+    const r = this.entitiesQuery.data() as any;
+    return r?.resources ?? r?.data ?? [];
+  });
+  activeFilterCount = computed(
+    () =>
+      this.filterActions().length +
+      this.filterTargetTypes().length +
+      (this.dateFrom() ? 1 : 0) +
+      (this.dateTo() ? 1 : 0)
+  );
+
+  selectedLog = computed<AuditLogDetailDto | null>(() => {
+    const d = this.detailQuery.data() as any;
+    return d?.resources ?? d?.data ?? null;
+  });
+  loadingDetail = computed(() => this.detailQuery.isFetching());
+
+  private dtResult(): any {
+    const res = this.query.data() as any;
+    return res?.resources ?? res?.data;
+  }
 
   onSearch(): void {
     this.page.set(1);
@@ -87,15 +164,77 @@ export class AuditLogComponent {
     for (let i = Math.max(1, c - d); i <= Math.min(t, c + d); i++) ps.push(i);
     return ps;
   }
-  viewDetail(log: AuditLogDetailDto): void {
-    this.selectedLog.set(log);
-  }
-  closeDetail(): void {
-    this.selectedLog.set(null);
+
+  // ── Filter helpers ─────────────────────────────────────────────
+  toggleFilter(): void {
+    this.showFilter.update((v) => !v);
   }
 
-  // Ủy thác các hàm tiện ích sang service
-  formatJson(val?: string): string {
+  // Đóng dropdown khi click ra ngoài.
+  @HostListener('document:click')
+  onDocClick(): void {
+    this.actionDropdownOpen.set(false);
+    this.entityDropdownOpen.set(false);
+  }
+
+  toggleActionDropdown(event: Event): void {
+    event.stopPropagation();
+    this.entityDropdownOpen.set(false);
+    this.actionDropdownOpen.update((v) => !v);
+  }
+  toggleEntityDropdown(event: Event): void {
+    event.stopPropagation();
+    this.actionDropdownOpen.set(false);
+    this.entityDropdownOpen.update((v) => !v);
+  }
+
+  isActionChecked(id: string): boolean {
+    return this.filterActions().includes(id);
+  }
+  toggleAction(id: string, checked: boolean): void {
+    this.filterActions.update((arr) =>
+      checked ? [...arr, id] : arr.filter((x) => x !== id)
+    );
+    this.page.set(1);
+  }
+  actionsLabel(): string {
+    const n = this.filterActions().length;
+    return n === 0 ? 'Tất cả hành động' : `Đã chọn ${n} hành động`;
+  }
+
+  isEntityChecked(id: string): boolean {
+    return this.filterTargetTypes().includes(id);
+  }
+  toggleEntity(id: string, checked: boolean): void {
+    this.filterTargetTypes.update((arr) =>
+      checked ? [...arr, id] : arr.filter((x) => x !== id)
+    );
+    this.page.set(1);
+  }
+  entitiesLabel(): string {
+    const n = this.filterTargetTypes().length;
+    return n === 0 ? 'Tất cả đối tượng' : `Đã chọn ${n} đối tượng`;
+  }
+
+  applyFilter(): void {
+    this.page.set(1);
+  }
+  clearFilter(): void {
+    this.filterActions.set([]);
+    this.filterTargetTypes.set([]);
+    this.dateFrom.set(null);
+    this.dateTo.set(null);
+    this.page.set(1);
+  }
+
+  viewDetail(log: AuditLogRow): void {
+    this.selectedId.set(log.id);
+  }
+  closeDetail(): void {
+    this.selectedId.set(null);
+  }
+
+  formatJson(val?: string | null): string {
     return this.auditLogService.formatJson(val);
   }
   actionClass(action: string): string {
