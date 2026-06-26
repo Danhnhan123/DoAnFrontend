@@ -68,6 +68,12 @@ const adminChildren: Routes = [
     .then(m => m.UserStatusComponent),
   },
   {
+    path: 'product-categories',
+    loadComponent: () =>
+      import('./components/product-category/product-category.component')
+        .then(m => m.ProductCategoryComponent),
+  },
+  {
   path: 'product-variants',
   loadComponent: () =>
     import('./components/product-variant/product-variant.component')

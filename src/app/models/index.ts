@@ -11,6 +11,7 @@ export * from './audit-log';
 export * from './activity-log';
 export * from './action';
 export * from './product';
+export * from './product-category';
 export * from './product-variant';
 export * from './inbound-order';
 export * from './iot-device';

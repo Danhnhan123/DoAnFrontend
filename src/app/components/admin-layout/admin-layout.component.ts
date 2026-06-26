@@ -43,6 +43,7 @@ export class AdminLayoutComponent implements OnInit {
   private readonly titleMap: Record<string, string> = {
     dashboard: 'Tổng quan',
     products: 'Quản lý sản phẩm',
+    'product-categories': 'Danh mục sản phẩm',
     'product-variants': 'Biến thể sản phẩm',
     users: 'Quản lý người dùng',
     roles: 'Vai trò người dùng',
