@@ -1,65 +1,42 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ApiResponse } from '../models';
 import {
-  CreateInboundOrderDto,
   InboundOrderDetailDto,
-  InboundOrderListQuery,
-  InboundOrderPagingData,
-  ProductVariantOption,
-  WarehouseOption,
+  InboundOrderPagedAdvancedRequest,
 } from '../models/inbound-order';
+import { buildDateRange } from '../utils/date.utils';
 
+/**
+ * Dịch vụ phiếu nhập kho cho màn web admin (SCR-05).
+ * Web admin chỉ quản lý vòng đời chứng từ: xem danh sách/chi tiết, duyệt/từ chối/hủy phiếu Submitted.
+ * Việc tạo phiếu và nhận hàng (QR/cân/put-away) thuộc luồng khác (mobile/staff), không nằm ở đây.
+ */
 @Injectable({ providedIn: 'root' })
 export class InboundOrderService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.baseUrl;
 
-  getPaged(
-    query: InboundOrderListQuery
-  ): Observable<ApiResponse<InboundOrderPagingData>> {
-    const params = new HttpParams()
-      .set('pageIndex', String(query.pageIndex))
-      .set('pageSize', String(query.pageSize))
-      .set('keyword', query.keyword.trim())
-      .set('sortType', query.sortType ?? 'desc')
-      .set('orderBy', query.orderBy ?? 'createdDate');
-
-    return this.http.get<ApiResponse<InboundOrderPagingData>>(
-      `${this.base}/inbound-orders`,
-      { params }
+  /** Danh sách phiếu nhập dạng DataTables (phân trang/tìm/lọc/sắp xếp). */
+  getPagedAdvanced(
+    body: InboundOrderPagedAdvancedRequest
+  ): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/inbound-orders/paged-advanced`,
+      body
     );
   }
 
+  /** Chi tiết phiếu nhập (header + dòng hàng + chứng từ). */
   getById(id: number): Observable<ApiResponse<InboundOrderDetailDto>> {
     return this.http.get<ApiResponse<InboundOrderDetailDto>>(
       `${this.base}/inbound-orders/${id}`
     );
   }
 
-  create(payload: CreateInboundOrderDto): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(
-      `${this.base}/inbound-orders`,
-      payload
-    );
-  }
-
-  update(id: number, payload: any): Observable<ApiResponse<number>> {
-    return this.http.put<ApiResponse<number>>(
-      `${this.base}/inbound-orders/${id}`,
-      payload
-    );
-  }
-
-  submit(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
-      `${this.base}/inbound-orders/${id}/submit`,
-      {}
-    );
-  }
-
+  /** Phê duyệt phiếu nhập (Submitted -> Approved). */
   approve(id: number): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(
       `${this.base}/inbound-orders/${id}/approve`,
@@ -67,18 +44,16 @@ export class InboundOrderService {
     );
   }
 
+  /** Từ chối phiếu nhập (Submitted -> Rejected) kèm lý do. */
   reject(id: number, reason: string): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(
       `${this.base}/inbound-orders/${id}/reject`,
       JSON.stringify(reason.trim()),
-      {
-        headers: new HttpHeaders({
-          'Content-Type': 'application/json',
-        }),
-      }
+      { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
     );
   }
 
+  /** Hủy phiếu nhập. */
   cancel(id: number): Observable<ApiResponse<unknown>> {
     return this.http.post<ApiResponse<unknown>>(
       `${this.base}/inbound-orders/${id}/cancel`,
@@ -86,15 +61,54 @@ export class InboundOrderService {
     );
   }
 
-  getWarehouses(): Observable<ApiResponse<WarehouseOption[]>> {
-    return this.http.get<ApiResponse<WarehouseOption[]>>(
-      `${this.base}/warehouse`
-    );
-  }
+  /**
+   * Dựng body DataTables gửi lên API paged-advanced.
+   * - search.value: từ khóa chung (POCode / nhà cung cấp / ghi chú)
+   * - columns[].search.value: lọc theo cột (trạng thái, khoảng ngày dự kiến)
+   */
+  buildPagedBody(params: {
+    page: number;
+    pageSize: number;
+    search: string;
+    sortField: string;
+    sortDir: 'asc' | 'desc';
+    colMap: Record<string, number>;
+    filterStatus?: string | null;
+    expectedFrom?: string | null;
+    expectedTo?: string | null;
+  }): InboundOrderPagedAdvancedRequest {
+    const colIndex =
+      params.colMap[params.sortField] ?? params.colMap['createdDate'];
 
-  getProductVariants(): Observable<ApiResponse<ProductVariantOption[]>> {
-    return this.http.get<ApiResponse<ProductVariantOption[]>>(
-      `${this.base}/product-variant`
+    const col = (data: string, value = '') => ({
+      data,
+      name: data,
+      searchable: true,
+      orderable: true,
+      search: { value, regex: false, fixed: [] as any[] },
+    });
+
+    const statusValue = params.filterStatus?.trim() || '';
+    const expectedRange = buildDateRange(
+      params.expectedFrom ?? '',
+      params.expectedTo ?? ''
     );
+
+    return {
+      draw: params.page,
+      columns: [
+        col('poCode'),
+        col('supplierName'),
+        col('warehouseName'),
+        col('inboundOrderStatusName', statusValue),
+        col('expectedDate', expectedRange),
+        col('totalAssetValue'),
+        col('createdDate'),
+      ],
+      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
+      start: (params.page - 1) * params.pageSize,
+      length: params.pageSize,
+      search: { value: params.search.trim(), regex: false, fixed: [] },
+    };
   }
 }

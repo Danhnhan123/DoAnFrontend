@@ -9,40 +9,19 @@ import {
 } from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
 
+import { ApiResponse } from '../../models';
 import {
-  ApiResponse,
-  CreateInboundOrderDto,
   InboundOrderDetailDto,
-  InboundOrderItemDto,
   InboundOrderListDto,
-  InboundOrderPagingData,
-  ProductVariantOption,
-  WarehouseOption,
-} from '../../models';
-
+} from '../../models/inbound-order';
 import { InboundOrderService } from '../../services/inbound-order.service';
-
 import { AuthService } from '../../services/auth.service';
-
-interface CreateInboundLineForm {
-  productVariantId: number | null;
-  quantityOrdered: number;
-  unitCostPrice: number;
-  note: string;
-}
-
-interface CreateInboundOrderForm {
-  warehouseId: number | null;
-  supplierId: number | null;
-  expectedDate: string;
-  note: string;
-  items: CreateInboundLineForm[];
-}
+import { FilterSelectComponent } from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-inbound-order',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './inbound-order.component.html',
   styleUrl: './inbound-order.component.css',
 })
@@ -51,437 +30,230 @@ export class InboundOrderComponent {
   private readonly queryClient = injectQueryClient();
   private readonly authService = inject(AuthService);
 
-  // Role helpers.
+  // Quyền: chỉ Manager/Admin mới được duyệt/từ chối/hủy.
   private userRoles = computed(() =>
-    (this.authService.currentUser()?.roles ?? []).map(r => r.name.toLowerCase())
-  );
-
-  isManagerOrAdmin = computed(() =>
-    this.userRoles().some(r =>
-      r.includes('admin') || r.includes('manager')
+    (this.authService.currentUser()?.roles ?? []).map((r) =>
+      r.name.toLowerCase()
     )
   );
+  isManagerOrAdmin = computed(() =>
+    this.userRoles().some((r) => r.includes('admin') || r.includes('manager'))
+  );
 
-  // UI state local.
+  // 1. State bảng
   page = signal(1);
   pageSize = signal(10);
-  keyword = signal('');
-  searchInput = signal('');
+  search = signal('');
+  sortField = signal('createdDate');
+  sortDir = signal<'asc' | 'desc'>('desc');
 
-  selectedOrderId = signal<number | null>(
-    Number(sessionStorage.getItem('inbound_selectedOrderId') || '0') || null
-  );
+  showFilter = signal(false);
+  filterStatus = signal<string | null>(null);
+  expectedFrom = signal<string | null>(null);
+  expectedTo = signal<string | null>(null);
 
-  showDetail = signal(
-    sessionStorage.getItem('inbound_showDetail') === 'true'
-  );
-  showCreate = signal(false);
+  readonly statusOptions = [
+    { id: 'Draft', name: 'Nháp' },
+    { id: 'Submitted', name: 'Chờ duyệt' },
+    { id: 'Approved', name: 'Đã duyệt' },
+    { id: 'Rejected', name: 'Đã từ chối' },
+    { id: 'Receiving', name: 'Đang nhận' },
+    { id: 'Partially Received', name: 'Nhận một phần' },
+    { id: 'Confirmed', name: 'Hoàn tất' },
+    { id: 'Cancelled', name: 'Đã hủy' },
+  ];
 
-  createForm = signal<CreateInboundOrderForm>(this.emptyCreateForm());
+  private readonly statusLabels: Record<string, string> = {
+    draft: 'Nháp',
+    submitted: 'Chờ duyệt',
+    approved: 'Đã duyệt',
+    rejected: 'Đã từ chối',
+    receiving: 'Đang nhận',
+    'partially received': 'Nhận một phần',
+    confirmed: 'Hoàn tất',
+    cancelled: 'Đã hủy',
+  };
 
-  isEditMode = signal(false);
+  private readonly colMap: Record<string, number> = {
+    poCode: 0,
+    supplierName: 1,
+    warehouseName: 2,
+    inboundOrderStatusName: 3,
+    expectedDate: 4,
+    totalAssetValue: 5,
+    createdDate: 6,
+  };
 
-  // Query danh sách phiếu inbound.
+  // 2. State modal chi tiết
+  showDetail = signal(false);
+  selectedOrderId = signal<number | null>(null);
+
+  // 3. Queries
   listQuery = injectQuery(() => ({
     queryKey: [
       'inbound-orders',
       this.page(),
       this.pageSize(),
-      this.keyword(),
+      this.search(),
+      this.sortField(),
+      this.sortDir(),
+      this.filterStatus(),
+      this.expectedFrom(),
+      this.expectedTo(),
     ],
-    queryFn: () =>
-      lastValueFrom(
-        this.inboundOrderService.getPaged({
-          pageIndex: this.page(),
-          pageSize: this.pageSize(),
-          keyword: this.keyword(),
-          sortType: 'desc',
-          orderBy: 'createdDate',
-        })
-      ),
+    queryFn: () => {
+      const body = this.inboundOrderService.buildPagedBody({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        search: this.search(),
+        sortField: this.sortField(),
+        sortDir: this.sortDir(),
+        colMap: this.colMap,
+        filterStatus: this.filterStatus(),
+        expectedFrom: this.expectedFrom(),
+        expectedTo: this.expectedTo(),
+      });
+      return lastValueFrom(this.inboundOrderService.getPagedAdvanced(body));
+    },
   }));
 
-  // Query chi tiết chỉ chạy khi mở modal detail.
   detailQuery = injectQuery(() => ({
     queryKey: ['inbound-order-detail', this.selectedOrderId()],
-    enabled: this.selectedOrderId() !== null,
-    staleTime: 2 * 60 * 1000,
+    enabled: this.selectedOrderId() !== null && this.showDetail(),
     queryFn: () =>
-      lastValueFrom(
-        this.inboundOrderService.getById(this.selectedOrderId()!)
-      ),
+      lastValueFrom(this.inboundOrderService.getById(this.selectedOrderId()!)),
   }));
 
-  // Lookup data cho modal tạo phiếu.
-  warehousesQuery = injectQuery(() => ({
-    queryKey: ['inbound-warehouse-options'],
-    queryFn: () =>
-      lastValueFrom(this.inboundOrderService.getWarehouses()),
-    staleTime: 5 * 60 * 1000,
-  }));
+  // 4. Computed
+  rows = computed<InboundOrderListDto[]>(() => {
+    const res = this.listQuery.data();
+    const r = (res as any)?.resources ?? (res as any)?.data;
+    return r?.data ?? [];
+  });
 
-  productVariantsQuery = injectQuery(() => ({
-    queryKey: ['inbound-product-variant-options'],
-    queryFn: () =>
-      lastValueFrom(this.inboundOrderService.getProductVariants()),
-    staleTime: 5 * 60 * 1000,
-  }));
+  totalRecords = computed<number>(() => {
+    const res = this.listQuery.data();
+    const r = (res as any)?.resources ?? (res as any)?.data;
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
 
-  createMutation = injectMutation(() => ({
-    mutationFn: (payload: CreateInboundOrderDto) =>
-      lastValueFrom(this.inboundOrderService.create(payload)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(response, 'Đã tạo phiếu nhập.'),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể tạo phiếu nhập.'),
-  }));
+  detail = computed<InboundOrderDetailDto | null>(() => {
+    const res = this.detailQuery.data();
+    return (res as any)?.resources ?? (res as any)?.data ?? null;
+  });
 
-  updateMutation = injectMutation(() => ({
-    mutationFn: (payload: any) =>
-      lastValueFrom(this.inboundOrderService.update(this.selectedOrderId()!, payload)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(response, 'Đã cập nhật phiếu nhập.'),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể cập nhật phiếu nhập.'),
-  }));
+  loading = computed(() => this.listQuery.isPending());
+  loadingDetail = computed(
+    () => this.detailQuery.isPending() || this.detailQuery.isFetching()
+  );
 
-  submitMutation = injectMutation(() => ({
-    mutationFn: (id: number) =>
-      lastValueFrom(this.inboundOrderService.submit(id)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(
-        response,
-        'Đã gửi phiếu nhập để phê duyệt.'
-      ),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể gửi phiếu nhập.'),
-  }));
+  submittedCount = computed(
+    () => this.rows().filter((x) => this.normalizedStatus(x) === 'submitted').length
+  );
 
+  // 5. Mutations
   approveMutation = injectMutation(() => ({
     mutationFn: (id: number) =>
       lastValueFrom(this.inboundOrderService.approve(id)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(response, 'Đã phê duyệt phiếu nhập.'),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể phê duyệt phiếu nhập.'),
+    onSuccess: (res: any) =>
+      this.handleAction(res, 'Đã phê duyệt phiếu nhập.'),
+    onError: (err: any) => this.showApiError(err, 'Không thể phê duyệt phiếu.'),
   }));
 
   rejectMutation = injectMutation(() => ({
     mutationFn: ({ id, reason }: { id: number; reason: string }) =>
       lastValueFrom(this.inboundOrderService.reject(id, reason)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(response, 'Đã từ chối phiếu nhập.'),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể từ chối phiếu nhập.'),
+    onSuccess: (res: any) => this.handleAction(res, 'Đã từ chối phiếu nhập.'),
+    onError: (err: any) => this.showApiError(err, 'Không thể từ chối phiếu.'),
   }));
 
   cancelMutation = injectMutation(() => ({
     mutationFn: (id: number) =>
       lastValueFrom(this.inboundOrderService.cancel(id)),
-    onSuccess: (response) =>
-      this.handleMutationResponse(response, 'Đã hủy phiếu nhập.'),
-    onError: (error) =>
-      this.showApiError(error, 'Không thể hủy phiếu nhập.'),
+    onSuccess: (res: any) => this.handleAction(res, 'Đã hủy phiếu nhập.'),
+    onError: (err: any) => this.showApiError(err, 'Không thể hủy phiếu.'),
   }));
-
-  rows = computed<InboundOrderListDto[]>(() => {
-    const payload = this.getPayload<InboundOrderPagingData>(
-      this.listQuery.data()
-    );
-
-    return payload?.dataSource ?? [];
-  });
-
-  totalRecords = computed(() => {
-    const payload = this.getPayload<InboundOrderPagingData>(
-      this.listQuery.data()
-    );
-
-    return payload?.totalFiltered ?? payload?.total ?? 0;
-  });
-
-  totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.totalRecords() / this.pageSize()))
-  );
-
-  detail = computed<InboundOrderDetailDto | null>(() =>
-    this.getPayload<InboundOrderDetailDto>(this.detailQuery.data()) ?? null
-  );
-
-  warehouses = computed<WarehouseOption[]>(() => {
-    const data =
-      this.getPayload<WarehouseOption[]>(this.warehousesQuery.data()) ?? [];
-
-    return data.filter((warehouse) => warehouse.isActive);
-  });
-
-  productVariants = computed<ProductVariantOption[]>(() => {
-    const data =
-      this.getPayload<ProductVariantOption[]>(
-        this.productVariantsQuery.data()
-      ) ?? [];
-
-    return data.filter((variant) => variant.isActive);
-  });
-
-  loading = computed(() => this.listQuery.isPending());
-
-  loadingDetail = computed(
-    () => this.detailQuery.isPending() || this.detailQuery.isFetching()
-  );
-
-  loadingLookups = computed(
-    () =>
-      this.warehousesQuery.isPending() ||
-      this.productVariantsQuery.isPending()
-  );
-
-  saving = computed(() => this.createMutation.isPending() || this.updateMutation.isPending());
 
   actionPending = computed(
     () =>
-      this.submitMutation.isPending() ||
       this.approveMutation.isPending() ||
       this.rejectMutation.isPending() ||
       this.cancelMutation.isPending()
   );
 
-  applySearch(): void {
-    this.page.set(1);
-    this.keyword.set(this.searchInput().trim());
+  // 6. Table helpers
+  toggleFilter(): void {
+    this.showFilter.set(!this.showFilter());
   }
-
-  clearSearch(): void {
-    this.searchInput.set('');
-    this.keyword.set('');
+  applyFilter(): void {
     this.page.set(1);
   }
-
-  setPage(page: number): void {
-    if (page < 1 || page > this.totalPages()) return;
-
-    this.page.set(page);
+  clearFilter(): void {
+    this.filterStatus.set(null);
+    this.expectedFrom.set(null);
+    this.expectedTo.set(null);
+    this.applyFilter();
+  }
+  onSearch(): void {
+    this.page.set(1);
   }
 
+  sort(field: string): void {
+    if (this.sortField() === field) {
+      this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.sortField.set(field);
+      this.sortDir.set('asc');
+    }
+    this.page.set(1);
+  }
+  sortIcon(field: string): string {
+    if (this.sortField() !== field) return '⇅';
+    return this.sortDir() === 'asc' ? '▲' : '▼';
+  }
+
+  setPage(p: number): void {
+    if (p < 1 || p > this.totalPages()) return;
+    this.page.set(p);
+  }
   setPageSize(value: string | number): void {
     this.pageSize.set(Number(value));
     this.page.set(1);
   }
-
+  totalPages(): number {
+    return Math.max(1, Math.ceil(this.totalRecords() / this.pageSize()));
+  }
   visiblePages(): number[] {
     const total = this.totalPages();
-    const current = this.page();
-    const radius = 2;
+    const cur = this.page();
+    const d = 2;
     const pages: number[] = [];
-
-    for (
-      let value = Math.max(1, current - radius);
-      value <= Math.min(total, current + radius);
-      value++
-    ) {
-      pages.push(value);
+    for (let i = Math.max(1, cur - d); i <= Math.min(total, cur + d); i++) {
+      pages.push(i);
     }
-
     return pages;
   }
 
-  refresh(): void {
-    this.listQuery.refetch();
+  // 7. Modal chi tiết
+  openDetail(order: InboundOrderListDto): void {
+    this.selectedOrderId.set(order.id);
+    this.showDetail.set(true);
   }
-
   closeDetail(): void {
     this.showDetail.set(false);
     this.selectedOrderId.set(null);
-    sessionStorage.removeItem('inbound_showDetail');
-    sessionStorage.removeItem('inbound_selectedOrderId');
   }
 
-  openDetail(order: InboundOrderListDto): void {
-    if (this.normalizedStatus(order) === 'draft') {
-      this.openEdit(order);
-    } else {
-      this.selectedOrderId.set(order.id);
-      sessionStorage.setItem('inbound_selectedOrderId', String(order.id));
-      sessionStorage.setItem('inbound_showDetail', 'true');
-      this.showCreate.set(false);
-      this.showDetail.set(true);
-    }
+  openImage(url: string | null | undefined): void {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
   }
 
-  openCreate(): void {
-    this.createForm.set({
-      ...this.emptyCreateForm(),
-      warehouseId: this.warehouses()[0]?.id ?? null,
-    });
-
-    this.selectedOrderId.set(null);
-    this.showDetail.set(false);
-    this.showCreate.set(true);
-    sessionStorage.removeItem('inbound_showDetail');
-    sessionStorage.removeItem('inbound_selectedOrderId');
-  }
-
-  openEdit(order: InboundOrderListDto): void {
-    this.selectedOrderId.set(order.id);
-    this.isEditMode.set(true);
-    this.inboundOrderService.getById(order.id).subscribe(res => {
-        if(res.resources) {
-            const data = res.resources;
-            this.createForm.set({
-                warehouseId: data.warehouseId ?? null,
-                supplierId: data.supplierId ?? null,
-                expectedDate: data.expectedDate ? new Date(data.expectedDate).toISOString().substring(0,10) : '',
-                note: data.note ?? '',
-                items: data.items.map(i => ({
-                    productVariantId: i.productVariantId ?? null,
-                    quantityOrdered: i.quantityOrdered,
-                    unitCostPrice: i.unitCostPrice,
-                    note: i.note ?? ''
-                }))
-            });
-            this.showDetail.set(false);
-            this.showCreate.set(true); // Tái sử dụng popup tạo mới làm form edit
-        }
-    });
-  }
-
-  closeCreate(): void {
-    if (this.saving()) return;
-
-    this.showCreate.set(false);
-    this.isEditMode.set(false);
-    sessionStorage.removeItem('inbound_showDetail');
-    sessionStorage.removeItem('inbound_selectedOrderId');
-  }
-
-  setCreateField<K extends keyof Omit<CreateInboundOrderForm, 'items'>>(
-    field: K,
-    value: CreateInboundOrderForm[K]
-  ): void {
-    this.createForm.update((form) => ({
-      ...form,
-      [field]: value,
-    }));
-  }
-
-  addLine(): void {
-    this.createForm.update((form) => ({
-      ...form,
-      items: [...form.items, this.emptyLine()],
-    }));
-  }
-
-  removeLine(index: number): void {
-    this.createForm.update((form) => ({
-      ...form,
-      items: form.items.filter((_, itemIndex) => itemIndex !== index),
-    }));
-  }
-
-  setLineField<K extends keyof CreateInboundLineForm>(
-    index: number,
-    field: K,
-    value: CreateInboundLineForm[K]
-  ): void {
-    this.createForm.update((form) => ({
-      ...form,
-      items: form.items.map((line, itemIndex) =>
-        itemIndex === index ? { ...line, [field]: value } : line
-      ),
-    }));
-  }
-
-  setLineVariant(index: number, rawVariantId: string | number): void {
-    const productVariantId = Number(rawVariantId) || null;
-
-    const variant = this.productVariants().find(
-      (item) => item.id === productVariantId
-    );
-
-    this.createForm.update((form) => ({
-      ...form,
-      items: form.items.map((line, itemIndex) =>
-        itemIndex === index
-          ? {
-              ...line,
-              productVariantId,
-              unitCostPrice: variant?.costPrice ?? line.unitCostPrice,
-            }
-          : line
-      ),
-    }));
-  }
-
-  saveForm(): void {
-    const form = this.createForm();
-
-    const invalidLine = form.items.some(
-      (line) =>
-        !line.productVariantId ||
-        Number(line.quantityOrdered) <= 0 ||
-        Number(line.unitCostPrice) < 0
-    );
-
-    if (!form.warehouseId) {
-      this.showMessage(
-        'Thiếu thông tin',
-        'Vui lòng chọn kho nhận hàng.',
-        'warning'
-      );
-      return;
-    }
-
-    if (form.items.length === 0 || invalidLine) {
-      this.showMessage(
-        'Dữ liệu chưa hợp lệ',
-        'Mỗi dòng phải có SKU, số lượng lớn hơn 0 và giá nhập không âm.',
-        'warning'
-      );
-      return;
-    }
-
-    const variantIds = form.items.map((line) => line.productVariantId!);
-
-    if (new Set(variantIds).size !== variantIds.length) {
-      this.showMessage(
-        'SKU bị trùng',
-        'Một SKU chỉ được xuất hiện một lần trong cùng phiếu nhập.',
-        'warning'
-      );
-      return;
-    }
-
-    const payload: CreateInboundOrderDto = {
-      warehouseId: Number(form.warehouseId),
-      supplierId: form.supplierId ? Number(form.supplierId) : null,
-      expectedDate: form.expectedDate || null,
-      note: form.note.trim() || null,
-      items: form.items.map((line) => ({
-        productVariantId: Number(line.productVariantId),
-        quantityOrdered: Number(line.quantityOrdered),
-        unitCostPrice: Number(line.unitCostPrice),
-        note: line.note.trim() || null,
-      })),
-    };
-    if (this.isEditMode()) {
-      this.updateMutation.mutate(payload);
-    } else {
-      this.createMutation.mutate(payload);
-    }
-  }
-
-  submit(order: InboundOrderListDto | InboundOrderDetailDto): void {
-    this.confirmThen(
-      'Gửi duyệt phiếu nhập?',
-      `${order.poCode} sẽ được chuyển sang trạng thái Submitted.`,
-      () => this.submitMutation.mutate(order.id)
-    );
-  }
-
+  // 8. Actions
   approve(order: InboundOrderListDto | InboundOrderDetailDto): void {
     this.confirmThen(
       'Phê duyệt phiếu nhập?',
-      `${order.poCode} sẽ sẵn sàng cho quy trình nhận hàng.`,
+      `${order.poCode} sẽ chuyển sang trạng thái Đã duyệt.`,
       () => this.approveMutation.mutate(order.id)
     );
   }
@@ -492,29 +264,21 @@ export class InboundOrderComponent {
       text: `Nhập lý do từ chối ${order.poCode}.`,
       input: 'textarea',
       inputPlaceholder: 'Ví dụ: Thiếu thông tin nhà cung cấp hoặc SKU...',
-      inputAttributes: {
-        'aria-label': 'Lý do từ chối',
-      },
+      inputAttributes: { 'aria-label': 'Lý do từ chối' },
       showCancelButton: true,
       confirmButtonText: 'Từ chối phiếu',
       cancelButtonText: 'Hủy',
       confirmButtonColor: '#ef4444',
       preConfirm: (value) => {
         if (!String(value ?? '').trim()) {
-          Swal.showValidationMessage(
-            'Vui lòng nhập lý do từ chối.'
-          );
+          Swal.showValidationMessage('Vui lòng nhập lý do từ chối.');
           return false;
         }
-
         return String(value).trim();
       },
     }).then((result) => {
       if (result.isConfirmed && result.value) {
-        this.rejectMutation.mutate({
-          id: order.id,
-          reason: result.value,
-        });
+        this.rejectMutation.mutate({ id: order.id, reason: result.value });
       }
     });
   }
@@ -528,28 +292,20 @@ export class InboundOrderComponent {
     );
   }
 
-  canSubmit(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
-    return this.normalizedStatus(order) === 'draft';
-  }
-  canEdit(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
-    return this.normalizedStatus(order) === 'draft';
-  }
-
-  canApproveOrReject(
-    order: InboundOrderListDto | InboundOrderDetailDto
-  ): boolean {
-    return this.normalizedStatus(order) === 'submitted' && this.isManagerOrAdmin();
-  }
-
-  canCancel(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
-    return this.isManagerOrAdmin() && ['draft', 'submitted', 'approved', 'receiving'].includes(
-      this.normalizedStatus(order)
+  /** Web admin chỉ thao tác trên phiếu ở trạng thái Submitted (theo tài liệu). */
+  canAct(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
+    return (
+      this.isManagerOrAdmin() && this.normalizedStatus(order) === 'submitted'
     );
   }
 
-  statusClass(status: string): string {
-    const normalized = status.trim().toLowerCase().replaceAll(' ', '-');
+  // 9. Hiển thị
+  statusLabel(name: string): string {
+    return this.statusLabels[(name || '').trim().toLowerCase()] ?? name;
+  }
 
+  statusClass(status: string): string {
+    const normalized = (status || '').trim().toLowerCase().replaceAll(' ', '-');
     const classMap: Record<string, string> = {
       draft: 'status-draft',
       submitted: 'status-submitted',
@@ -561,42 +317,15 @@ export class InboundOrderComponent {
       rejected: 'status-rejected',
       cancelled: 'status-cancelled',
     };
-
     return classMap[normalized] ?? 'status-neutral';
-  }
-
-  receiptStatusClass(status: string): string {
-    const normalized = status.trim().toLowerCase().replaceAll(' ', '-');
-
-    if (normalized === 'confirmed') return 'receipt-confirmed';
-    if (normalized === 'pendingmanagerreview') return 'receipt-warning';
-    if (normalized === 'cancelled') return 'receipt-cancelled';
-    if (normalized === 'putawayselected') return 'receipt-putaway';
-
-    return 'receipt-neutral';
-  }
-
-  receiptProgress(item: InboundOrderItemDto): number {
-    if (!item.quantityOrdered) return 0;
-
-    return Math.min(
-      100,
-      Math.round(
-        (item.quantityReceived / item.quantityOrdered) * 100
-      )
-    );
   }
 
   formatDate(value?: string | null): string {
     if (!value) return '—';
-
     const date = new Date(value);
-
     return Number.isNaN(date.getTime())
       ? '—'
-      : new Intl.DateTimeFormat('vi-VN', {
-          dateStyle: 'medium',
-        }).format(date);
+      : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium' }).format(date);
   }
 
   formatCurrency(value: number | null | undefined): string {
@@ -607,93 +336,25 @@ export class InboundOrderComponent {
     }).format(Number(value ?? 0));
   }
 
-  selectedVariantSku(productVariantId: number | null | undefined): string {
-    if (!productVariantId) return '-';
-
-    return (
-      this.productVariants().find((variant) => variant.id === productVariantId)
-        ?.sku ?? '-'
-    );
-  }
-
-  selectedVariantName(productVariantId: number | null | undefined): string {
-    if (!productVariantId) return '-';
-
-    return (
-      this.productVariants().find((variant) => variant.id === productVariantId)
-        ?.name ?? '-'
-    );
-  }
-
-  createTotal(): number {
-    return this.createForm().items.reduce(
-      (total, line) =>
-        total + Number(line.quantityOrdered || 0) * Number(line.unitCostPrice || 0),
-      0
-    );
-  }
-
-  private emptyCreateForm(): CreateInboundOrderForm {
-    return {
-      warehouseId: null,
-      supplierId: null,
-      expectedDate: '',
-      note: '',
-      items: [this.emptyLine()],
-    };
-  }
-
-  private emptyLine(): CreateInboundLineForm {
-    return {
-      productVariantId: null,
-      quantityOrdered: 1,
-      unitCostPrice: 0,
-      note: '',
-    };
-  }
-
   private normalizedStatus(
     order: InboundOrderListDto | InboundOrderDetailDto
   ): string {
-    return (order.inboundOrderStatusName || '')
-      .trim()
-      .toLowerCase();
+    return (order.inboundOrderStatusName || '').trim().toLowerCase();
   }
 
-  private getPayload<T>(
-    response: ApiResponse<T> | undefined
-  ): T | null {
-    return response?.resources ?? (response as any)?.data ?? null;
-  }
-
-  private handleMutationResponse(
-    response: ApiResponse<unknown>,
-    successMessage: string
-  ): void {
-    if (response?.isSucceeded === false) {
+  private handleAction(res: ApiResponse<unknown>, successMessage: string): void {
+    if (res?.isSucceeded === false) {
       this.showMessage(
         'Thao tác thất bại',
-        response.message || 'Máy chủ không thể xử lý yêu cầu.',
+        res.message || 'Máy chủ không thể xử lý yêu cầu.',
         'error'
       );
       return;
     }
-
-    this.showCreate.set(false);
-    this.isEditMode.set(false);
-    this.invalidateInboundQueries();
-
+    this.closeDetail();
+    this.queryClient.invalidateQueries({ queryKey: ['inbound-orders'] });
+    this.queryClient.invalidateQueries({ queryKey: ['inbound-order-detail'] });
     this.showMessage('Thành công', successMessage, 'success');
-  }
-
-  private invalidateInboundQueries(): void {
-    this.queryClient.invalidateQueries({
-      queryKey: ['inbound-orders'],
-    });
-
-    this.queryClient.invalidateQueries({
-      queryKey: ['inbound-order-detail'],
-    });
   }
 
   private confirmThen(
@@ -709,12 +370,9 @@ export class InboundOrderComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor:
-        icon === 'warning' ? '#ef4444' : '#4f46e5',
+      confirmButtonColor: icon === 'warning' ? '#ef4444' : '#4f46e5',
     }).then((result) => {
-      if (result.isConfirmed) {
-        onConfirm();
-      }
+      if (result.isConfirmed) onConfirm();
     });
   }
 
@@ -723,7 +381,6 @@ export class InboundOrderComponent {
       error?: { message?: string };
       message?: string;
     };
-
     this.showMessage(
       'Thao tác thất bại',
       apiError?.error?.message || apiError?.message || fallback,
@@ -741,8 +398,7 @@ export class InboundOrderComponent {
       text,
       icon,
       confirmButtonText: 'Đóng',
-      confirmButtonColor:
-        icon === 'error' ? '#ef4444' : '#4f46e5',
+      confirmButtonColor: icon === 'error' ? '#ef4444' : '#4f46e5',
     });
   }
 }

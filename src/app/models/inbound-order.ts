@@ -1,3 +1,5 @@
+import { DTParameters } from './search';
+
 export interface InboundOrderListDto {
   id: number;
   poCode: string;
@@ -39,8 +41,32 @@ export interface InboundOrderItemDto {
   quantityEntered?: number | null;
 }
 
+/** Chứng từ giao hàng (ảnh + thông tin OCR) gắn với phiếu nhập. */
+export interface DeliveryNoteDto {
+  id: number;
+  inboundOrderId: number;
+  trackingCode?: string | null;
+  carrierName?: string | null;
+  senderName?: string | null;
+  senderPhone?: string | null;
+  senderAddress?: string | null;
+  receiverName?: string | null;
+  receiverPhone?: string | null;
+  receiverAddress?: string | null;
+  declaredWeight?: number | null;
+  codAmount?: number | null;
+  rawOcrText?: string | null;
+  originalImageFileId?: number | null;
+  /** URL ảnh chứng từ để hiển thị/xem lại. */
+  imageUrl?: string | null;
+  isConfirmed: boolean;
+  createdDate: string;
+}
+
 export interface InboundOrderDetailDto extends InboundOrderListDto {
   items: InboundOrderItemDto[];
+  /** Chứng từ giao hàng, null nếu phiếu chưa có. */
+  deliveryNote?: DeliveryNoteDto | null;
 }
 
 export interface InboundOrderPagingData {
@@ -50,6 +76,9 @@ export interface InboundOrderPagingData {
   total: number;
   totalFiltered: number;
 }
+
+/** Body DataTables gửi lên API paged-advanced. */
+export interface InboundOrderPagedAdvancedRequest extends DTParameters {}
 
 export interface InboundOrderListQuery {
   pageIndex: number;
