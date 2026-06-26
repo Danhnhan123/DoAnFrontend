@@ -22,6 +22,8 @@ import {
 
 import { InboundOrderService } from '../../services/inbound-order.service';
 
+import { AuthService } from '../../services/auth.service';
+
 interface CreateInboundLineForm {
   productVariantId: number | null;
   quantityOrdered: number;
@@ -47,6 +49,18 @@ interface CreateInboundOrderForm {
 export class InboundOrderComponent {
   private readonly inboundOrderService = inject(InboundOrderService);
   private readonly queryClient = injectQueryClient();
+  private readonly authService = inject(AuthService);
+
+  // Role helpers.
+  private userRoles = computed(() =>
+    (this.authService.currentUser()?.roles ?? []).map(r => r.name.toLowerCase())
+  );
+
+  isManagerOrAdmin = computed(() =>
+    this.userRoles().some(r =>
+      r.includes('admin') || r.includes('manager')
+    )
+  );
 
   // UI state local.
   page = signal(1);
@@ -54,12 +68,18 @@ export class InboundOrderComponent {
   keyword = signal('');
   searchInput = signal('');
 
-  selectedOrderId = signal<number | null>(null);
+  selectedOrderId = signal<number | null>(
+    Number(sessionStorage.getItem('inbound_selectedOrderId') || '0') || null
+  );
 
-  showDetail = signal(false);
+  showDetail = signal(
+    sessionStorage.getItem('inbound_showDetail') === 'true'
+  );
   showCreate = signal(false);
 
   createForm = signal<CreateInboundOrderForm>(this.emptyCreateForm());
+
+  isEditMode = signal(false);
 
   // Query danh sách phiếu inbound.
   listQuery = injectQuery(() => ({
@@ -84,7 +104,8 @@ export class InboundOrderComponent {
   // Query chi tiết chỉ chạy khi mở modal detail.
   detailQuery = injectQuery(() => ({
     queryKey: ['inbound-order-detail', this.selectedOrderId()],
-    enabled: this.showDetail() && this.selectedOrderId() !== null,
+    enabled: this.selectedOrderId() !== null,
+    staleTime: 2 * 60 * 1000,
     queryFn: () =>
       lastValueFrom(
         this.inboundOrderService.getById(this.selectedOrderId()!)
@@ -113,6 +134,15 @@ export class InboundOrderComponent {
       this.handleMutationResponse(response, 'Đã tạo phiếu nhập.'),
     onError: (error) =>
       this.showApiError(error, 'Không thể tạo phiếu nhập.'),
+  }));
+
+  updateMutation = injectMutation(() => ({
+    mutationFn: (payload: any) =>
+      lastValueFrom(this.inboundOrderService.update(this.selectedOrderId()!, payload)),
+    onSuccess: (response) =>
+      this.handleMutationResponse(response, 'Đã cập nhật phiếu nhập.'),
+    onError: (error) =>
+      this.showApiError(error, 'Không thể cập nhật phiếu nhập.'),
   }));
 
   submitMutation = injectMutation(() => ({
@@ -206,7 +236,7 @@ export class InboundOrderComponent {
       this.productVariantsQuery.isPending()
   );
 
-  saving = computed(() => this.createMutation.isPending());
+  saving = computed(() => this.createMutation.isPending() || this.updateMutation.isPending());
 
   actionPending = computed(
     () =>
@@ -259,14 +289,23 @@ export class InboundOrderComponent {
     this.listQuery.refetch();
   }
 
-  openDetail(order: InboundOrderListDto): void {
-    this.selectedOrderId.set(order.id);
-    this.showDetail.set(true);
-  }
-
   closeDetail(): void {
     this.showDetail.set(false);
     this.selectedOrderId.set(null);
+    sessionStorage.removeItem('inbound_showDetail');
+    sessionStorage.removeItem('inbound_selectedOrderId');
+  }
+
+  openDetail(order: InboundOrderListDto): void {
+    if (this.normalizedStatus(order) === 'draft') {
+      this.openEdit(order);
+    } else {
+      this.selectedOrderId.set(order.id);
+      sessionStorage.setItem('inbound_selectedOrderId', String(order.id));
+      sessionStorage.setItem('inbound_showDetail', 'true');
+      this.showCreate.set(false);
+      this.showDetail.set(true);
+    }
   }
 
   openCreate(): void {
@@ -275,13 +314,44 @@ export class InboundOrderComponent {
       warehouseId: this.warehouses()[0]?.id ?? null,
     });
 
+    this.selectedOrderId.set(null);
+    this.showDetail.set(false);
     this.showCreate.set(true);
+    sessionStorage.removeItem('inbound_showDetail');
+    sessionStorage.removeItem('inbound_selectedOrderId');
+  }
+
+  openEdit(order: InboundOrderListDto): void {
+    this.selectedOrderId.set(order.id);
+    this.isEditMode.set(true);
+    this.inboundOrderService.getById(order.id).subscribe(res => {
+        if(res.resources) {
+            const data = res.resources;
+            this.createForm.set({
+                warehouseId: data.warehouseId ?? null,
+                supplierId: data.supplierId ?? null,
+                expectedDate: data.expectedDate ? new Date(data.expectedDate).toISOString().substring(0,10) : '',
+                note: data.note ?? '',
+                items: data.items.map(i => ({
+                    productVariantId: i.productVariantId ?? null,
+                    quantityOrdered: i.quantityOrdered,
+                    unitCostPrice: i.unitCostPrice,
+                    note: i.note ?? ''
+                }))
+            });
+            this.showDetail.set(false);
+            this.showCreate.set(true); // Tái sử dụng popup tạo mới làm form edit
+        }
+    });
   }
 
   closeCreate(): void {
     if (this.saving()) return;
 
     this.showCreate.set(false);
+    this.isEditMode.set(false);
+    sessionStorage.removeItem('inbound_showDetail');
+    sessionStorage.removeItem('inbound_selectedOrderId');
   }
 
   setCreateField<K extends keyof Omit<CreateInboundOrderForm, 'items'>>(
@@ -342,7 +412,7 @@ export class InboundOrderComponent {
     }));
   }
 
-  saveCreate(): void {
+  saveForm(): void {
     const form = this.createForm();
 
     const invalidLine = form.items.some(
@@ -393,8 +463,11 @@ export class InboundOrderComponent {
         note: line.note.trim() || null,
       })),
     };
-
-    this.createMutation.mutate(payload);
+    if (this.isEditMode()) {
+      this.updateMutation.mutate(payload);
+    } else {
+      this.createMutation.mutate(payload);
+    }
   }
 
   submit(order: InboundOrderListDto | InboundOrderDetailDto): void {
@@ -458,15 +531,18 @@ export class InboundOrderComponent {
   canSubmit(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
     return this.normalizedStatus(order) === 'draft';
   }
+  canEdit(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
+    return this.normalizedStatus(order) === 'draft';
+  }
 
   canApproveOrReject(
     order: InboundOrderListDto | InboundOrderDetailDto
   ): boolean {
-    return this.normalizedStatus(order) === 'submitted';
+    return this.normalizedStatus(order) === 'submitted' && this.isManagerOrAdmin();
   }
 
   canCancel(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
-    return ['draft', 'submitted', 'approved', 'receiving'].includes(
+    return this.isManagerOrAdmin() && ['draft', 'submitted', 'approved', 'receiving'].includes(
       this.normalizedStatus(order)
     );
   }
@@ -531,6 +607,32 @@ export class InboundOrderComponent {
     }).format(Number(value ?? 0));
   }
 
+  selectedVariantSku(productVariantId: number | null | undefined): string {
+    if (!productVariantId) return '-';
+
+    return (
+      this.productVariants().find((variant) => variant.id === productVariantId)
+        ?.sku ?? '-'
+    );
+  }
+
+  selectedVariantName(productVariantId: number | null | undefined): string {
+    if (!productVariantId) return '-';
+
+    return (
+      this.productVariants().find((variant) => variant.id === productVariantId)
+        ?.name ?? '-'
+    );
+  }
+
+  createTotal(): number {
+    return this.createForm().items.reduce(
+      (total, line) =>
+        total + Number(line.quantityOrdered || 0) * Number(line.unitCostPrice || 0),
+      0
+    );
+  }
+
   private emptyCreateForm(): CreateInboundOrderForm {
     return {
       warehouseId: null,
@@ -578,6 +680,7 @@ export class InboundOrderComponent {
     }
 
     this.showCreate.set(false);
+    this.isEditMode.set(false);
     this.invalidateInboundQueries();
 
     this.showMessage('Thành công', successMessage, 'success');
