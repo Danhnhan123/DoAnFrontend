@@ -859,3 +859,15 @@ tbody td {
     transform: translateY(0);
   }
 }
+
+/* Tiêu đề màn hiện tại (góc trái vùng nội dung) */
+.page-title-bar {
+  margin-bottom: 16px;
+}
+.page-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary, #1e2d4d);
+}

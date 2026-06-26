@@ -629,3 +629,21 @@
   background: rgba(99, 102, 241, 0.08);
   transform: none;
 }
+/* === Popup: header + footer cố định, chỉ phần thân (.modal-body) cuộn ===
+   Dùng .modal-backdrop .modal-box (specificity cao) để thắng các rule
+   .modal-box{overflow-y:auto} đặt header/footer cuộn theo nội dung. */
+.modal-backdrop .modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.modal-backdrop .modal-header,
+.modal-backdrop .modal-footer {
+  flex-shrink: 0;
+}
+.modal-backdrop .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}

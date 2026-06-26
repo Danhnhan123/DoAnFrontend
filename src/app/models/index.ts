@@ -16,3 +16,6 @@ export * from './inbound-order';
 export * from './iot-device';
 export * from './supplier';
 export * from './unit-of-measure';
+export * from './notification-type';
+export * from './notification-category';
+export * from './notification';

@@ -26,6 +26,9 @@ const REALTIME_MAP: Record<string, string[]> = {
   Warehouse: ['warehouse-options', 'inbound-warehouse-options'],
   InboundOrder: ['inbound-orders'],
   SystemConfig: ['system-configs'],
+  Notification: ['notifications'],
+  NotificationCategory: ['notification-categories', 'notification-category-options'],
+  NotificationType: ['notification-types'],
   AuditLog: ['audit-log'],
   ActivityLog: ['activity-log'],
 };

@@ -34,9 +34,32 @@ export class AdminLayoutComponent implements OnInit {
   mobileOpen = signal(false);
   userMenuOpen = signal(false);
   expandedMenus = signal<Set<string>>(new Set());
+  pageTitle = signal('');
 
   user = computed(() => this.authService.currentUser());
   isDark = computed(() => this.themeService.theme() === 'dark');
+
+  /** Tiêu đề từng màn theo segment route (góc trái vùng nội dung). */
+  private readonly titleMap: Record<string, string> = {
+    dashboard: 'Tổng quan',
+    products: 'Quản lý sản phẩm',
+    'product-variants': 'Biến thể sản phẩm',
+    users: 'Quản lý người dùng',
+    roles: 'Vai trò người dùng',
+    menus: 'Quản lý menu',
+    'system-config': 'Cấu hình hệ thống',
+    'audit-log': 'Lịch sử thay đổi dữ liệu',
+    'activity-log': 'Lịch sử hoạt động',
+    actions: 'Quản lý hành động',
+    'user-status': 'Trạng thái người dùng',
+    'inbound-orders': 'Đơn nhập kho',
+    'iot-devices': 'Thiết bị IoT',
+    suppliers: 'Nhà cung cấp',
+    'unit-of-measures': 'Đơn vị tính',
+    notifications: 'Quản lý thông báo',
+    'notification-categories': 'Danh mục thông báo',
+    'notification-types': 'Loại thông báo',
+  };
 
   /**
    * Sidebar lấy menu theo phân quyền của user đang đăng nhập (API /auth/me/menus).
@@ -77,12 +100,40 @@ export class AdminLayoutComponent implements OnInit {
     // Mở kết nối realtime: khi DB đổi, server báo -> các màn đang mở tự refetch.
     this.realtimeService.start();
 
+    this.updatePageTitle();
     this.router.events
       .pipe(
         filter((event): event is NavigationEnd => event instanceof NavigationEnd),
         takeUntilDestroyed(this.destroyRef)
       )
-      .subscribe(() => this.expandActiveParents());
+      .subscribe(() => {
+        this.expandActiveParents();
+        this.updatePageTitle();
+      });
+  }
+
+  /** Cập nhật tiêu đề màn theo URL hiện tại (ưu tiên map tĩnh, fallback tên menu). */
+  private updatePageTitle(): void {
+    const path = this.router.url.split('?')[0].split('#')[0];
+    const segment = path.replace(/^\/admin\//, '').split('/')[0] || 'dashboard';
+    this.pageTitle.set(
+      this.titleMap[segment] || this.menuTitleForPath(path) || ''
+    );
+  }
+
+  private menuTitleForPath(activePath: string): string {
+    let found = '';
+    const walk = (items: MenuAggregate[]): void => {
+      for (const item of items) {
+        const url = this.routerLinkFor(item);
+        if (url && activePath.startsWith(url) && !item.child?.length) {
+          found = item.name;
+        }
+        if (item.child?.length) walk(item.child);
+      }
+    };
+    walk(this.sidebarMenus());
+    return found;
   }
 
   toggleMobile(): void {

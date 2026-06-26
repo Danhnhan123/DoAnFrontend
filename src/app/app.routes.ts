@@ -97,6 +97,24 @@ const adminChildren: Routes = [
       import('./components/unit-of-measure/unit-of-measure.component')
         .then(m => m.UnitOfMeasureComponent),
   },
+  {
+    path: 'notifications',
+    loadComponent: () =>
+      import('./components/notification/notification.component')
+        .then(m => m.NotificationComponent),
+  },
+  {
+    path: 'notification-categories',
+    loadComponent: () =>
+      import('./components/notification-category/notification-category.component')
+        .then(m => m.NotificationCategoryComponent),
+  },
+  {
+    path: 'notification-types',
+    loadComponent: () =>
+      import('./components/notification-type/notification-type.component')
+        .then(m => m.NotificationTypeComponent),
+  },
 ];
 
 export const routes: Routes = [

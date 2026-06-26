@@ -205,6 +205,11 @@
     </header>
 
     <main class="page-content">
+      @if (pageTitle()) {
+      <div class="page-title-bar">
+        <h1 class="page-title">{{ pageTitle() }}</h1>
+      </div>
+      }
       <router-outlet />
     </main>
   </div>
