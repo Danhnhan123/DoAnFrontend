@@ -59,7 +59,6 @@ export class AdminLayoutComponent implements OnInit {
     suppliers: 'Nhà cung cấp',
     'unit-of-measures': 'Đơn vị tính',
     warehouses: 'Quản lý kho hàng',
-    locations: 'Vị trí lưu trữ',
     notifications: 'Quản lý thông báo',
     'notification-categories': 'Danh mục thông báo',
     'notification-types': 'Loại thông báo',
