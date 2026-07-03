@@ -14,12 +14,14 @@ import {
   CreateWarehouseDto,
   UpdateWarehouseDto,
   LocationRow,
+  LocationDetailDto,
   CreateLocationDto,
   UpdateLocationDto,
   WarehouseLocationLine,
 } from '../../models';
 import { WarehouseService } from '../../services/warehouse.service';
 import { LocationService } from '../../services/location.service';
+import { ProductCategoryService } from '../../services/product-category.service';
 import {
   FilterSelectComponent,
   FilterSelectOption,
@@ -35,8 +37,10 @@ interface WhStat {
  * Màn hình "Kho hàng" (gộp Kho + Vị trí lưu trữ).
  *  - Phần trên: danh sách kho dạng thẻ (card) kèm số khu vực, sức chứa sử dụng.
  *  - Phần dưới: bảng "Danh sách khu vực kho" (vị trí lưu trữ) — lọc theo kho đang chọn.
- *  - Popup thêm/sửa: thông tin 1 kho ở trên + danh sách vị trí lưu trữ bên dưới.
- *    Lưu kho => tạo kho rồi gọi createList vị trí (hoặc reconcile khi sửa).
+ *    Thêm/sửa MỘT vị trí bằng popup riêng (đầy đủ các trường API, trừ currentOccupancy
+ *    do hệ thống tự cập nhật theo độ lấp đầy). Sửa chỉ tác động đúng vị trí đó.
+ *  - Popup thêm kho: thông tin 1 kho + danh sách vị trí seed nhanh -> tạo kho rồi
+ *    createList vị trí. Popup sửa kho: chỉ sửa thông tin kho.
  */
 @Component({
   selector: 'app-warehouse',
@@ -48,6 +52,7 @@ interface WhStat {
 export class WarehouseComponent {
   private warehouseService = inject(WarehouseService);
   private locationService = inject(LocationService);
+  private categoryService = inject(ProductCategoryService);
   private queryClient = injectQueryClient();
 
   // ===== 1. State bảng KHO (cards) =====
@@ -202,16 +207,22 @@ export class WarehouseComponent {
     },
   }));
 
-  /** Toàn bộ kho (cho dropdown lọc theo kho). */
+  /** Toàn bộ kho (cho dropdown lọc + chọn kho khi thêm vị trí). */
   warehouseAllQuery = injectQuery(() => ({
     queryKey: ['warehouses-all'],
     queryFn: () => lastValueFrom(this.warehouseService.getAll()),
   }));
 
-  /** Toàn bộ vị trí (để tính số khu vực + sức chứa cho từng thẻ kho, và nạp popup sửa). */
+  /** Toàn bộ vị trí (để tính số khu vực + sức chứa cho từng thẻ kho). */
   allLocationsQuery = injectQuery(() => ({
     queryKey: ['locations-all'],
     queryFn: () => lastValueFrom(this.locationService.getAll()),
+  }));
+
+  /** Danh mục sản phẩm (cho dropdown "Danh mục cho phép" trong popup vị trí). */
+  categoryQuery = injectQuery(() => ({
+    queryKey: ['product-categories-all'],
+    queryFn: () => lastValueFrom(this.categoryService.getAll()),
   }));
 
   // ===== 4. Computed =====
@@ -247,6 +258,14 @@ export class WarehouseComponent {
   warehouseOptions = computed<FilterSelectOption[]>(() =>
     this.warehousesAll().map((w) => ({ id: w.id, name: w.name }))
   );
+
+  categoryOptions = computed<FilterSelectOption[]>(() => {
+    const r = this.unwrap(this.categoryQuery.data()) ?? [];
+    return (Array.isArray(r) ? r : []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+    }));
+  });
 
   allLocations = computed<any[]>(() => {
     const r = this.unwrap(this.allLocationsQuery.data()) ?? [];
@@ -329,15 +348,12 @@ export class WarehouseComponent {
   onWhSearch(): void {
     this.whPage.set(1);
   }
-
   toggleWhFilter(): void {
     this.whShowFilter.update((v) => !v);
   }
-
   applyWhFilter(): void {
     this.whPage.set(1);
   }
-
   clearWhFilter(): void {
     this.whFilterName.set(null);
     this.whFilterCode.set(null);
@@ -346,15 +362,12 @@ export class WarehouseComponent {
     this.whDateTo.set(null);
     this.whPage.set(1);
   }
-
   whTotalPages(): number {
     return Math.ceil(this.totalWarehouses() / this.whPageSize());
   }
-
   whVisiblePages(): number[] {
     return this.buildPages(this.whPage(), this.whTotalPages());
   }
-
   setWhPage(p: number): void {
     if (p < 1 || p > this.whTotalPages()) return;
     this.whPage.set(p);
@@ -365,7 +378,6 @@ export class WarehouseComponent {
     this.selectedWarehouseId.update((cur) => (cur === id ? null : id));
     this.locPage.set(1);
   }
-
   clearSelectedWarehouse(): void {
     this.selectedWarehouseId.set(null);
     this.locPage.set(1);
@@ -375,15 +387,12 @@ export class WarehouseComponent {
   onLocSearch(): void {
     this.locPage.set(1);
   }
-
   toggleLocFilter(): void {
     this.locShowFilter.update((v) => !v);
   }
-
   applyLocFilter(): void {
     this.locPage.set(1);
   }
-
   clearLocFilter(): void {
     this.locFilterWarehouseId.set(null);
     this.locFilterZoneName.set(null);
@@ -393,7 +402,6 @@ export class WarehouseComponent {
     this.locDateTo.set(null);
     this.locPage.set(1);
   }
-
   locSort(field: string): void {
     if (this.locSortField() === field) {
       this.locSortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -403,20 +411,16 @@ export class WarehouseComponent {
     }
     this.locPage.set(1);
   }
-
   locSortIcon(field: string): string {
     if (this.locSortField() !== field) return '⇅';
     return this.locSortDir() === 'asc' ? '▲' : '▼';
   }
-
   locTotalPages(): number {
     return Math.ceil(this.totalLocations() / this.locPageSize());
   }
-
   locVisiblePages(): number[] {
     return this.buildPages(this.locPage(), this.locTotalPages());
   }
-
   setLocPage(p: number): void {
     if (p < 1 || p > this.locTotalPages()) return;
     this.locPage.set(p);
@@ -431,13 +435,11 @@ export class WarehouseComponent {
     return pages;
   }
 
-  // ===== 9. Modal (thêm/sửa kho + danh sách vị trí) =====
+  // ===== 9. Popup KHO (thêm kho + danh sách vị trí seed / sửa thông tin kho) =====
   showModal = signal(false);
   editItem = signal<WarehouseRow | null>(null);
   isEdit = computed(() => !!this.editItem());
   saving = signal(false);
-  private locsHydrated = signal(false);
-  private originalLocationIds = signal<number[]>([]);
 
   form = signal<{
     code: string;
@@ -462,11 +464,9 @@ export class WarehouseComponent {
       lastValueFrom(this.warehouseService.getById(this.editItem()!.id)),
   }));
 
-  loadingDetail = computed(
-    () => this.isEdit() && this.detailQuery.isFetching() && !this.locsHydrated()
-  );
+  loadingDetail = computed(() => this.isEdit() && this.detailQuery.isFetching());
 
-  /** Khi mở popup sửa: đổ thông tin kho từ chi tiết (giữ nguyên danh sách vị trí đã nạp). */
+  /** Khi mở popup sửa kho: đổ thông tin kho từ chi tiết. */
   private syncDetail = effect(() => {
     if (!this.showModal() || !this.isEdit()) return;
     const d = this.unwrap(this.detailQuery.data()) as WarehouseDetailDto;
@@ -481,42 +481,8 @@ export class WarehouseComponent {
     }));
   });
 
-  /** Nạp danh sách vị trí hiện có của kho khi sửa (một lần, khi allLocations sẵn sàng). */
-  private syncEditLocations = effect(() => {
-    if (!this.showModal() || !this.isEdit() || this.locsHydrated()) return;
-    const all = this.allLocations();
-    if (!all.length && this.allLocationsQuery.isFetching()) return;
-    const whId = this.editItem()!.id;
-    const mine = all.filter((l) => l.warehouseId === whId);
-    this.form.update((f) => ({
-      ...f,
-      locations: mine.map((l) => this.toLine(l)),
-    }));
-    this.originalLocationIds.set(mine.map((l) => l.id));
-    this.locsHydrated.set(true);
-  });
-
-  private toLine(l: any): WarehouseLocationLine {
-    return {
-      id: l.id,
-      zoneName: l.zoneName || '',
-      shelfRow: l.shelfRow || '',
-      shelfLevel: l.shelfLevel || '',
-      slotCode: l.slotCode || '',
-      maxCapacity: l.maxCapacity ?? null,
-      currentOccupancy: l.currentOccupancy ?? 0,
-      allowedCategoryId: l.allowedCategoryId ?? null,
-      priority: l.priority ?? 0,
-      isQuarantine: l.isQuarantine ?? false,
-      description: l.description || '',
-      isActive: l.isActive ?? true,
-    };
-  }
-
   openCreate(): void {
     this.editItem.set(null);
-    this.locsHydrated.set(false);
-    this.originalLocationIds.set([]);
     this.form.set({
       code: '',
       name: '',
@@ -530,8 +496,6 @@ export class WarehouseComponent {
 
   openEditWarehouse(row: WarehouseRow): void {
     this.editItem.set(row);
-    this.locsHydrated.set(false);
-    this.originalLocationIds.set([]);
     this.form.set({
       code: row.code || '',
       name: row.name || '',
@@ -543,35 +507,16 @@ export class WarehouseComponent {
     this.showModal.set(true);
   }
 
-  /** Sửa 1 vị trí từ bảng => mở popup của kho tương ứng. */
-  editLocationRow(row: LocationRow): void {
-    const wh =
-      this.warehousesAll().find((w) => w.id === row.warehouseId) ??
-      this.warehouses().find((w) => w.id === row.warehouseId);
-    if (wh) {
-      this.openEditWarehouse(wh);
-    } else {
-      this.openEditWarehouse({
-        id: row.warehouseId,
-        code: '',
-        name: row.warehouseName,
-        isActive: true,
-        createdDate: '',
-      } as WarehouseRow);
-    }
-  }
-
   closeModal(): void {
     this.showModal.set(false);
     this.editItem.set(null);
-    this.locsHydrated.set(false);
   }
 
   setField(field: string, value: any): void {
     this.form.update((x) => ({ ...x, [field]: value }));
   }
 
-  // ===== 10. Thao tác danh sách vị trí trong popup =====
+  // ----- Danh sách vị trí seed nhanh trong popup thêm kho -----
   addLine(): void {
     this.form.update((f) => ({
       ...f,
@@ -593,14 +538,12 @@ export class WarehouseComponent {
       ],
     }));
   }
-
   removeLine(index: number): void {
     this.form.update((f) => ({
       ...f,
       locations: f.locations.filter((_, i) => i !== index),
     }));
   }
-
   setLineField(index: number, field: keyof WarehouseLocationLine, value: any): void {
     this.form.update((f) => ({
       ...f,
@@ -643,14 +586,8 @@ export class WarehouseComponent {
     };
   }
 
-  private lineToUpdate(l: WarehouseLocationLine, warehouseId: number): UpdateLocationDto {
-    return { ...this.lineToCreate(l, warehouseId), id: l.id! };
-  }
-
-  // ===== 11. Lưu / xóa =====
   save(): void {
     const f = this.form();
-
     if (!f.code?.trim() || !f.name?.trim()) {
       this.showAlert('Vui lòng nhập Mã kho và Tên kho', false);
       return;
@@ -665,9 +602,8 @@ export class WarehouseComponent {
     }
 
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
-    const locNote = lines.length
-      ? ` kèm ${lines.length} vị trí lưu trữ`
-      : '';
+    const locNote =
+      !this.isEdit() && lines.length ? ` kèm ${lines.length} vị trí lưu trữ` : '';
 
     Swal.fire({
       title: `Xác nhận ${actionText}`,
@@ -680,7 +616,7 @@ export class WarehouseComponent {
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
-        this.doUpdate(f, lines);
+        this.doUpdate(f);
       } else {
         this.doCreate(f, lines);
       }
@@ -712,8 +648,7 @@ export class WarehouseComponent {
         );
         if (!r2?.isSucceeded) {
           this.showAlert(
-            'Đã tạo kho nhưng thêm vị trí lưu trữ lỗi: ' +
-              (r2?.message || ''),
+            'Đã tạo kho nhưng thêm vị trí lưu trữ lỗi: ' + (r2?.message || ''),
             false
           );
           this.invalidateAll();
@@ -735,13 +670,11 @@ export class WarehouseComponent {
     }
   }
 
-  private async doUpdate(f: any, lines: WarehouseLocationLine[]): Promise<void> {
+  private async doUpdate(f: any): Promise<void> {
     this.saving.set(true);
     try {
-      const whId = this.editItem()!.id;
-
       const base: UpdateWarehouseDto = {
-        id: whId,
+        id: this.editItem()!.id,
         code: f.code.trim(),
         name: f.name.trim(),
         address: f.address?.trim() || null,
@@ -754,37 +687,6 @@ export class WarehouseComponent {
         this.showAlert(res?.message || 'Cập nhật kho thất bại', false);
         return;
       }
-
-      const existing = lines.filter((l) => l.id);
-      const created = lines.filter((l) => !l.id);
-      const currentIds = existing.map((l) => l.id!);
-      const removedIds = this.originalLocationIds().filter(
-        (id) => !currentIds.includes(id)
-      );
-
-      const ops: Promise<any>[] = [];
-      if (created.length) {
-        ops.push(
-          lastValueFrom(
-            this.locationService.createList(
-              created.map((l) => this.lineToCreate(l, whId))
-            )
-          )
-        );
-      }
-      if (existing.length) {
-        ops.push(
-          lastValueFrom(
-            this.locationService.updateList(
-              existing.map((l) => this.lineToUpdate(l, whId))
-            )
-          )
-        );
-      }
-      for (const id of removedIds) {
-        ops.push(lastValueFrom(this.locationService.delete(id)));
-      }
-      await Promise.all(ops);
 
       this.closeModal();
       this.invalidateAll();
@@ -827,6 +729,179 @@ export class WarehouseComponent {
         this.showAlert(err?.error?.message || 'Lỗi xóa', false);
       }
     });
+  }
+
+  // ===== 10. Popup VỊ TRÍ (thêm/sửa MỘT vị trí — đầy đủ các trường) =====
+  showLocModal = signal(false);
+  editLoc = signal<LocationRow | null>(null);
+  isLocEdit = computed(() => !!this.editLoc());
+  savingLoc = signal(false);
+  private locHydrated = signal(false);
+
+  locForm = signal<{
+    warehouseId: number | null;
+    zoneName: string;
+    shelfRow: string;
+    shelfLevel: string;
+    slotCode: string;
+    maxCapacity: number | null;
+    allowedCategoryId: number | null;
+    priority: number | null;
+    isQuarantine: boolean;
+    description: string;
+    isActive: boolean;
+    currentOccupancy: number; // ẩn — hệ thống quản lý theo độ lấp đầy
+  }>({
+    warehouseId: null,
+    zoneName: '',
+    shelfRow: '',
+    shelfLevel: '',
+    slotCode: '',
+    maxCapacity: null,
+    allowedCategoryId: null,
+    priority: 0,
+    isQuarantine: false,
+    description: '',
+    isActive: true,
+    currentOccupancy: 0,
+  });
+
+  locDetailQuery = injectQuery(() => ({
+    queryKey: ['location-detail', this.editLoc()?.id],
+    enabled: !!this.editLoc()?.id && this.showLocModal(),
+    queryFn: () =>
+      lastValueFrom(this.locationService.getById(this.editLoc()!.id)),
+  }));
+
+  loadingLocDetail = computed(
+    () => this.isLocEdit() && !this.locHydrated()
+  );
+
+  /** Nạp đầy đủ các trường của vị trí đang sửa (gồm cả trường nâng cao không có ở bảng). */
+  private syncLocDetail = effect(() => {
+    if (!this.showLocModal() || !this.isLocEdit() || this.locHydrated()) return;
+    const d = this.unwrap(this.locDetailQuery.data()) as LocationDetailDto;
+    if (!d) return;
+    this.locForm.set({
+      warehouseId: d.warehouseId ?? null,
+      zoneName: d.zoneName || '',
+      shelfRow: d.shelfRow || '',
+      shelfLevel: d.shelfLevel || '',
+      slotCode: d.slotCode || '',
+      maxCapacity: d.maxCapacity ?? null,
+      allowedCategoryId: d.allowedCategoryId ?? null,
+      priority: d.priority ?? 0,
+      isQuarantine: d.isQuarantine ?? false,
+      description: d.description || '',
+      isActive: d.isActive ?? true,
+      currentOccupancy: d.currentOccupancy ?? 0,
+    });
+    this.locHydrated.set(true);
+  });
+
+  openLocEdit(row: LocationRow): void {
+    this.editLoc.set(row);
+    this.locHydrated.set(false);
+    // Prefill nhanh từ dòng bảng; effect sẽ đổ đầy đủ khi có chi tiết.
+    this.locForm.set({
+      warehouseId: row.warehouseId ?? null,
+      zoneName: row.zoneName || '',
+      shelfRow: row.shelfRow || '',
+      shelfLevel: row.shelfLevel || '',
+      slotCode: row.slotCode || '',
+      maxCapacity: row.maxCapacity ?? null,
+      allowedCategoryId: null,
+      priority: 0,
+      isQuarantine: false,
+      description: row.description || '',
+      isActive: row.isActive ?? true,
+      currentOccupancy: row.currentOccupancy ?? 0,
+    });
+    this.showLocModal.set(true);
+  }
+
+  closeLocModal(): void {
+    this.showLocModal.set(false);
+    this.editLoc.set(null);
+    this.locHydrated.set(false);
+  }
+
+  setLocField(field: string, value: any): void {
+    this.locForm.update((x) => ({ ...x, [field]: value }));
+  }
+
+  saveLoc(): void {
+    const f = this.locForm();
+    if (!f.warehouseId) {
+      this.showAlert('Vui lòng chọn Kho hàng', false);
+      return;
+    }
+    if (!f.zoneName?.trim()) {
+      this.showAlert('Vui lòng nhập Tên khu vực', false);
+      return;
+    }
+
+    const actionText = this.isLocEdit() ? 'cập nhật' : 'thêm mới';
+    Swal.fire({
+      title: `Xác nhận ${actionText}`,
+      text: `Bạn có muốn ${actionText} vị trí lưu trữ này không?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#4f46e5',
+    }).then((result) => {
+      if (result.isConfirmed) this.doSaveLoc(f);
+    });
+  }
+
+  private async doSaveLoc(f: any): Promise<void> {
+    this.savingLoc.set(true);
+    try {
+      const base: CreateLocationDto = {
+        warehouseId: Number(f.warehouseId),
+        zoneName: f.zoneName.trim(),
+        shelfRow: f.shelfRow?.trim() || null,
+        shelfLevel: f.shelfLevel?.trim() || null,
+        slotCode: f.slotCode?.trim() || null,
+        maxCapacity: this.toNum(f.maxCapacity),
+        description: f.description?.trim() || null,
+        isActive: !!f.isActive,
+        // currentOccupancy do hệ thống quản lý: tạo mới = 0, sửa = giữ nguyên.
+        currentOccupancy: this.isLocEdit() ? this.toNum(f.currentOccupancy) ?? 0 : 0,
+        allowedCategoryId: this.toNum(f.allowedCategoryId),
+        priority: this.toNum(f.priority) ?? 0,
+        isQuarantine: !!f.isQuarantine,
+      };
+
+      let res: any;
+      if (this.isLocEdit()) {
+        const payload: UpdateLocationDto = { ...base, id: this.editLoc()!.id };
+        res = await lastValueFrom(this.locationService.update(payload));
+      } else {
+        res = await lastValueFrom(this.locationService.create(base));
+      }
+
+      if (!res?.isSucceeded) {
+        this.showAlert(res?.message || `${this.isLocEdit() ? 'Cập nhật' : 'Thêm'} thất bại`, false);
+        return;
+      }
+
+      this.closeLocModal();
+      this.invalidateAll();
+      this.showAlert(
+        this.isLocEdit()
+          ? 'Cập nhật vị trí lưu trữ thành công!'
+          : 'Thêm vị trí lưu trữ thành công!'
+      );
+    } catch (err: any) {
+      this.showAlert(
+        err?.error?.message || err?.errors?.message || 'Lỗi hệ thống',
+        false
+      );
+    } finally {
+      this.savingLoc.set(false);
+    }
   }
 
   deleteLocation(row: LocationRow): void {
