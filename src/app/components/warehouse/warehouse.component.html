@@ -302,7 +302,7 @@
               </span>
             </td>
             <td class="action-cell" data-label="Thao tác">
-              <button class="icon-btn edit-btn" type="button" (click)="editLocationRow(row)" title="Sửa (trong popup kho)">
+              <button class="icon-btn edit-btn" type="button" (click)="openLocEdit(row)" title="Cập nhật vị trí này">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -390,7 +390,8 @@
         </label>
       </div>
 
-      <!-- Danh sách vị trí lưu trữ -->
+      <!-- Danh sách vị trí lưu trữ khởi tạo (chỉ khi thêm kho mới) -->
+      @if (!isEdit()) {
       <div class="section-label with-action">
         <span>Vị trí lưu trữ <span class="text-muted small">(tùy chọn — {{ form().locations.length }} vị trí)</span></span>
         <button class="btn btn-outline btn-sm" type="button" (click)="addLine()">
@@ -405,38 +406,95 @@
       @if (form().locations.length === 0) {
       <div class="loc-empty">Chưa có vị trí nào. Bấm "Thêm vị trí" để tạo khu vực/ô lưu trữ cho kho này.</div>
       } @else {
-      <div class="loc-lines">
-        <div class="loc-line loc-line-head">
-          <span>Tên khu vực *</span>
-          <span>Hàng kệ</span>
-          <span>Tầng kệ</span>
-          <span>Mã ô</span>
-          <span>Sức chứa</span>
-          <span></span>
-        </div>
+      <div class="loc-cards">
         @for (line of form().locations; track $index) {
-        <div class="loc-line">
-          <input class="form-control" [ngModel]="line.zoneName" (ngModelChange)="setLineField($index, 'zoneName', $event)"
-            placeholder="Khu A" maxlength="100" />
-          <input class="form-control" [ngModel]="line.shelfRow" (ngModelChange)="setLineField($index, 'shelfRow', $event)"
-            placeholder="R01" maxlength="50" />
-          <input class="form-control" [ngModel]="line.shelfLevel" (ngModelChange)="setLineField($index, 'shelfLevel', $event)"
-            placeholder="L02" maxlength="50" />
-          <input class="form-control" [ngModel]="line.slotCode" (ngModelChange)="setLineField($index, 'slotCode', $event)"
-            placeholder="A-R01-L02" maxlength="50" />
-          <input class="form-control" type="number" min="0" [ngModel]="line.maxCapacity"
-            (ngModelChange)="setLineField($index, 'maxCapacity', $event)" placeholder="100" />
-          <button class="icon-btn delete-btn line-del" type="button" (click)="removeLine($index)" title="Xóa dòng">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6" /><path d="M14 11v6" />
-            </svg>
-          </button>
+        <div class="loc-card">
+          <div class="loc-card-head">
+            <span class="loc-card-title">Vị trí {{ $index + 1 }}</span>
+            <button class="icon-btn delete-btn line-del" type="button" (click)="removeLine($index)" title="Xóa vị trí">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" /><path d="M14 11v6" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Tên khu vực *</label>
+              <input class="form-control" [ngModel]="line.zoneName"
+                (ngModelChange)="setLineField($index, 'zoneName', $event)" placeholder="Khu A" maxlength="100" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mã ô</label>
+              <input class="form-control" [ngModel]="line.slotCode"
+                (ngModelChange)="setLineField($index, 'slotCode', $event)" placeholder="A-R01-L02-03" maxlength="50" />
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label">Hàng kệ</label>
+              <input class="form-control" [ngModel]="line.shelfRow"
+                (ngModelChange)="setLineField($index, 'shelfRow', $event)" placeholder="R01" maxlength="50" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tầng kệ</label>
+              <input class="form-control" [ngModel]="line.shelfLevel"
+                (ngModelChange)="setLineField($index, 'shelfLevel', $event)" placeholder="L02" maxlength="50" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sức chứa tối đa</label>
+              <input class="form-control" type="number" min="0" [ngModel]="line.maxCapacity"
+                (ngModelChange)="setLineField($index, 'maxCapacity', $event)" placeholder="100" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Danh mục cho phép</label>
+              <app-filter-select [options]="categoryOptions()" allLabel="Không giới hạn"
+                [value]="line.allowedCategoryId"
+                (valueChange)="setLineField($index, 'allowedCategoryId', $event)"></app-filter-select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Độ ưu tiên</label>
+              <input class="form-control" type="number" min="0" [ngModel]="line.priority"
+                (ngModelChange)="setLineField($index, 'priority', $event)" placeholder="0" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mô tả</label>
+            <textarea class="form-control" rows="2" [ngModel]="line.description"
+              (ngModelChange)="setLineField($index, 'description', $event)" placeholder="Mô tả thêm về vị trí"
+              maxlength="500"></textarea>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Khu cách ly</label>
+              <label class="toggle-wrap">
+                <input type="checkbox" [ngModel]="line.isQuarantine"
+                  (ngModelChange)="setLineField($index, 'isQuarantine', $event)" />
+                <span class="toggle-label">Là khu vực cách ly</span>
+              </label>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Trạng thái</label>
+              <label class="toggle-wrap">
+                <input type="checkbox" [ngModel]="line.isActive"
+                  (ngModelChange)="setLineField($index, 'isActive', $event)" />
+                <span class="toggle-label">Đang hoạt động</span>
+              </label>
+            </div>
+          </div>
         </div>
         }
       </div>
+      }
       }
     </div>
 
@@ -445,6 +503,111 @@
       <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> }
         {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Lưu kho + vị trí' }}
+      </button>
+    </div>
+    }
+  </div>
+</div>
+}
+
+<!-- ===== POPUP THÊM/SỬA MỘT VỊ TRÍ LƯU TRỮ (đầy đủ các trường) ===== -->
+@if (showLocModal()) {
+<div class="modal-backdrop" (click)="closeLocModal()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ isLocEdit() ? 'Cập nhật vị trí lưu trữ' : 'Thêm vị trí lưu trữ mới' }}</h3>
+      <button class="modal-close" type="button" (click)="closeLocModal()">×</button>
+    </div>
+
+    @if (loadingLocDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Kho hàng *</label>
+          <app-filter-select [options]="warehouseOptions()" allLabel="-- Chọn kho --"
+            [value]="locForm().warehouseId"
+            (valueChange)="setLocField('warehouseId', $event ? +$event : null)"></app-filter-select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên khu vực *</label>
+          <input class="form-control" [ngModel]="locForm().zoneName"
+            (ngModelChange)="setLocField('zoneName', $event)" placeholder="Ví dụ: Khu A" maxlength="100" />
+        </div>
+      </div>
+
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Hàng kệ</label>
+          <input class="form-control" [ngModel]="locForm().shelfRow"
+            (ngModelChange)="setLocField('shelfRow', $event)" placeholder="R01" maxlength="50" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tầng kệ</label>
+          <input class="form-control" [ngModel]="locForm().shelfLevel"
+            (ngModelChange)="setLocField('shelfLevel', $event)" placeholder="L02" maxlength="50" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mã ô</label>
+          <input class="form-control" [ngModel]="locForm().slotCode"
+            (ngModelChange)="setLocField('slotCode', $event)" placeholder="A-R01-L02-03" maxlength="50" />
+        </div>
+      </div>
+
+      <div class="form-row-3">
+        <div class="form-group">
+          <label class="form-label">Sức chứa tối đa</label>
+          <input class="form-control" type="number" min="1" [ngModel]="locForm().maxCapacity"
+            (ngModelChange)="setLocField('maxCapacity', $event)" placeholder="100" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Danh mục cho phép</label>
+          <app-filter-select [options]="categoryOptions()" allLabel="Không giới hạn"
+            [value]="locForm().allowedCategoryId"
+            (valueChange)="setLocField('allowedCategoryId', $event)"></app-filter-select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Độ ưu tiên</label>
+          <input class="form-control" type="number" min="0" [ngModel]="locForm().priority"
+            (ngModelChange)="setLocField('priority', $event)" placeholder="0" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mô tả</label>
+        <textarea class="form-control" rows="2" [ngModel]="locForm().description"
+          (ngModelChange)="setLocField('description', $event)" placeholder="Mô tả thêm về vị trí"
+          maxlength="500"></textarea>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Khu cách ly</label>
+          <label class="toggle-wrap">
+            <input type="checkbox" [ngModel]="locForm().isQuarantine"
+              (ngModelChange)="setLocField('isQuarantine', $event)" />
+            <span class="toggle-label">Là khu vực cách ly</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Trạng thái</label>
+          <label class="toggle-wrap">
+            <input type="checkbox" [ngModel]="locForm().isActive"
+              (ngModelChange)="setLocField('isActive', $event)" />
+            <span class="toggle-label">Đang hoạt động</span>
+          </label>
+        </div>
+      </div>
+
+      <p class="field-note">Độ lấp đầy (đang chứa/ sức chứa) do hệ thống tự cập nhật khi xuất – nhập kho, không chỉnh tay tại đây.</p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" type="button" (click)="closeLocModal()">Hủy</button>
+      <button class="btn btn-primary" type="button" (click)="saveLoc()" [disabled]="savingLoc()">
+        @if (savingLoc()) { <span class="spin-sm"></span> }
+        {{ savingLoc() ? 'Đang lưu...' : isLocEdit() ? 'Cập nhật' : 'Thêm mới' }}
       </button>
     </div>
     }
