@@ -116,10 +116,10 @@ const adminChildren: Routes = [
         .then(m => m.WarehouseComponent),
   },
   {
+    // Vị trí lưu trữ đã gộp vào màn "Kho hàng" -> điều hướng về warehouses.
     path: 'locations',
-    loadComponent: () =>
-      import('./components/location/location.component')
-        .then(m => m.LocationComponent),
+    redirectTo: 'warehouses',
+    pathMatch: 'full',
   },
   {
     path: 'notifications',

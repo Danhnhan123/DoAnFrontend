@@ -1,70 +1,17 @@
 <div class="page-wrapper">
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon-wrap blue">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 21V8l9-5 9 5v13" />
-          <path d="M3 21h18" />
-          <path d="M9 21v-6h6v6" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Tổng kho hàng</span>
-        <span class="stat-value">{{ totalRecords() }}</span>
-        <span class="stat-sub">{{ rows().length }} đang hiển thị</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrap green">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Đang hoạt động</span>
-        <span class="stat-value">{{ activeCount() }}</span>
-        <span class="stat-sub">Trong trang hiện tại</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrap orange">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="15" y1="9" x2="9" y2="15" />
-          <line x1="9" y1="9" x2="15" y2="15" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Ngừng hoạt động</span>
-        <span class="stat-value">{{ inactiveCount() }}</span>
-        <span class="stat-sub">Trong trang hiện tại</span>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon-wrap purple">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="16" y1="13" x2="8" y2="13" />
-          <line x1="16" y1="17" x2="8" y2="17" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Trang hiện tại</span>
-        <span class="stat-value">{{ page() }}/{{ totalPages() || 1 }}</span>
-        <span class="stat-sub">{{ pageSize() }} bản ghi/trang</span>
-      </div>
-    </div>
+  <!-- Nút thêm kho (góc phải trên) -->
+  <div class="top-actions">
+    <button class="icon-btn add-btn" type="button" (click)="openCreate()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Thêm kho hàng
+    </button>
   </div>
 
+  <!-- ===== TOOLBAR KHO ===== -->
   <div class="toolbar card">
     <div class="search-wrap">
       <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -72,132 +19,302 @@
         <circle cx="11" cy="11" r="8" />
         <line x1="21" y1="21" x2="16.65" y2="16.65" />
       </svg>
-      <input class="search-input" placeholder="Tìm tên, mã, địa chỉ, mô tả kho..." [ngModel]="search()"
-        (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+      <input class="search-input" placeholder="Tìm kho theo tên, mã, địa chỉ..." [ngModel]="whSearch()"
+        (ngModelChange)="whSearch.set($event)" (keydown.enter)="onWhSearch()" />
     </div>
 
-    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
-      title="Bộ lọc nâng cao">
+    <button class="icon-btn filter-btn" type="button" (click)="toggleWhFilter()"
+      [class.filter-active]="whShowFilter()" title="Bộ lọc nâng cao">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
         stroke-linecap="round" stroke-linejoin="round">
         <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
       </svg>
-      Bộ lọc nâng cao
-      @if (activeFilterCount() > 0) { <span class="role-pill">{{ activeFilterCount() }}</span> }
+      Bộ lọc
+      @if (whActiveFilterCount() > 0) { <span class="role-pill">{{ whActiveFilterCount() }}</span> }
     </button>
 
-    <app-filter-select class="page-size-select" [clearable]="false"
-      style="width:132px;flex:0 0 auto"
-      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
-      (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+    <app-filter-select class="sort-select" [clearable]="false" style="width:150px;flex:0 0 auto"
+      [options]="whSortOptions" [value]="whSort()"
+      (valueChange)="whSort.set($event); whPage.set(1)"></app-filter-select>
 
-    <button class="icon-btn add-btn" type="button" (click)="openCreate()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19" />
-        <line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
-      Thêm kho
-    </button>
+    <app-filter-select class="page-size-select" [clearable]="false" style="width:120px;flex:0 0 auto"
+      [options]="pageSizeOptions" [value]="whPageSize()"
+      (valueChange)="whPageSize.set(+$event); whPage.set(1)"></app-filter-select>
   </div>
 
-  @if (showFilter()) {
+  @if (whShowFilter()) {
   <div class="filter-panel card">
     <div class="filter-grid">
       <div class="form-group">
         <label>Tên kho</label>
-        <input class="form-control" placeholder="Lọc theo tên..." [ngModel]="filterName()"
-          (ngModelChange)="filterName.set($event || null)" (keydown.enter)="applyFilter()" />
+        <input class="form-control" placeholder="Lọc theo tên..." [ngModel]="whFilterName()"
+          (ngModelChange)="whFilterName.set($event || null)" (keydown.enter)="applyWhFilter()" />
       </div>
-
       <div class="form-group">
         <label>Mã kho</label>
-        <input class="form-control" placeholder="Lọc theo mã..." [ngModel]="filterCode()"
-          (ngModelChange)="filterCode.set($event || null)" (keydown.enter)="applyFilter()" />
+        <input class="form-control" placeholder="Lọc theo mã..." [ngModel]="whFilterCode()"
+          (ngModelChange)="whFilterCode.set($event || null)" (keydown.enter)="applyWhFilter()" />
       </div>
-
       <div class="form-group">
         <label>Trạng thái</label>
         <app-filter-select [options]="statusOptions" allLabel="Tất cả"
-          [value]="filterIsActive()" (valueChange)="filterIsActive.set($event)"></app-filter-select>
+          [value]="whFilterIsActive()" (valueChange)="whFilterIsActive.set($event)"></app-filter-select>
       </div>
-
       <div class="form-group">
         <label>Từ ngày</label>
-        <input class="form-control" type="date" [ngModel]="dateFrom()"
-          (ngModelChange)="dateFrom.set($event || null)" />
+        <input class="form-control" type="date" [ngModel]="whDateFrom()"
+          (ngModelChange)="whDateFrom.set($event || null)" />
       </div>
-
       <div class="form-group">
         <label>Đến ngày</label>
-        <input class="form-control" type="date" [ngModel]="dateTo()"
-          (ngModelChange)="dateTo.set($event || null)" />
+        <input class="form-control" type="date" [ngModel]="whDateTo()"
+          (ngModelChange)="whDateTo.set($event || null)" />
       </div>
     </div>
-
     <div class="filter-actions">
-      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
-      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+      <button class="btn btn-outline" type="button" (click)="clearWhFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyWhFilter()">Áp dụng lọc</button>
     </div>
   </div>
   }
 
-  <div class="card">
-    @if (loading()) {
-    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
-    } @else if (rows().length === 0) {
-    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có dữ liệu</p></div>
+  <!-- ===== LƯỚI THẺ KHO ===== -->
+  @if (loadingWh()) {
+  <div class="card"><div class="state-box"><span class="spin-lg"></span><span>Đang tải kho...</span></div></div>
+  } @else if (warehouses().length === 0) {
+  <div class="card"><div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có kho nào</p></div></div>
+  } @else {
+  <div class="wh-grid">
+    @for (w of warehouses(); track w.id) {
+    <div class="wh-card card" [class.selected]="selectedWarehouseId() === w.id" (click)="selectWarehouse(w.id)">
+      <div class="wh-head">
+        <div class="wh-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        </div>
+        <div class="wh-title-wrap">
+          <div class="wh-title">{{ w.name }}</div>
+          <div class="wh-code">{{ w.code }}</div>
+        </div>
+        <span class="wh-badge" [ngClass]="whStatus(w).cls">{{ whStatus(w).label }}</span>
+        <div class="wh-actions" (click)="$event.stopPropagation()">
+          <button class="icon-btn edit-btn" type="button" (click)="openEditWarehouse(w)" title="Sửa kho">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button class="icon-btn delete-btn" type="button" (click)="deleteWarehouse(w)" title="Xóa kho">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="wh-addr">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <circle cx="12" cy="10" r="3" />
+        </svg>
+        <span>{{ w.address || 'Chưa có địa chỉ' }}</span>
+      </div>
+
+      <div class="wh-info-grid">
+        <div class="wh-info-box">
+          <span class="wh-info-label">Khu vực</span>
+          <span class="wh-info-value">{{ statOf(w.id).zones }} khu</span>
+        </div>
+        <div class="wh-info-box">
+          <span class="wh-info-label">Sức chứa</span>
+          <span class="wh-info-value">{{ statOf(w.id).cap | number }}</span>
+        </div>
+        <div class="wh-info-box">
+          <span class="wh-info-label">Ngày tạo</span>
+          <span class="wh-info-value">{{ w.createdDate | date:'dd/MM/yyyy' }}</span>
+        </div>
+      </div>
+
+      <div class="cap-wrap">
+        <div class="cap-top">
+          <span class="cap-title">Sức chứa sử dụng</span>
+          <span class="cap-num" [ngClass]="fillClass(fillPct(w.id))">
+            {{ fillPct(w.id) }}% ({{ statOf(w.id).occ | number }} / {{ statOf(w.id).cap | number }})
+          </span>
+        </div>
+        <div class="cap-bar">
+          <div class="cap-fill" [ngClass]="fillClass(fillPct(w.id))" [style.width.%]="fillPct(w.id)"></div>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+
+  @if (whTotalPages() > 1) {
+  <div class="pagination wh-pagination">
+    <button class="page-btn" type="button" (click)="setWhPage(1)" [disabled]="whPage() === 1">«</button>
+    <button class="page-btn" type="button" (click)="setWhPage(whPage() - 1)" [disabled]="whPage() === 1">‹</button>
+    @if (whVisiblePages()[0] > 1) { <span class="page-dots">...</span> }
+    @for (p of whVisiblePages(); track p) {
+    <button class="page-btn" type="button" [class.active]="p === whPage()" (click)="setWhPage(p)">{{ p }}</button>
+    }
+    @if ((whVisiblePages().at(-1) ?? 0) < whTotalPages()) { <span class="page-dots">...</span> }
+    <button class="page-btn" type="button" (click)="setWhPage(whPage() + 1)" [disabled]="whPage() === whTotalPages()">›</button>
+    <button class="page-btn" type="button" (click)="setWhPage(whTotalPages())" [disabled]="whPage() === whTotalPages()">»</button>
+    <span class="page-info">{{ whPage() }}/{{ whTotalPages() }}</span>
+  </div>
+  }
+  }
+
+  <!-- ===== BẢNG VỊ TRÍ (DANH SÁCH KHU VỰC KHO) ===== -->
+  <div class="card loc-section">
+    <div class="loc-head">
+      <div class="loc-head-title">
+        <h3>Danh sách khu vực kho</h3>
+        @if (selectedWarehouseId() != null) {
+        <span class="sel-chip">
+          {{ selectedWarehouseName() }}
+          <button type="button" (click)="clearSelectedWarehouse()" title="Bỏ lọc kho">×</button>
+        </span>
+        }
+      </div>
+      <span class="loc-count">{{ totalLocations() | number }} vị trí</span>
+    </div>
+
+    <div class="toolbar loc-toolbar">
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input class="search-input" placeholder="Tìm khu vực, kho, hàng/tầng kệ, mã ô..." [ngModel]="locSearch()"
+          (ngModelChange)="locSearch.set($event)" (keydown.enter)="onLocSearch()" />
+      </div>
+
+      <button class="icon-btn filter-btn" type="button" (click)="toggleLocFilter()"
+        [class.filter-active]="locShowFilter()" title="Bộ lọc nâng cao">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        </svg>
+        Bộ lọc
+        @if (locActiveFilterCount() > 0) { <span class="role-pill">{{ locActiveFilterCount() }}</span> }
+      </button>
+
+      <app-filter-select class="page-size-select" [clearable]="false" style="width:120px;flex:0 0 auto"
+        [options]="locPageSizeOptions" [value]="locPageSize()"
+        (valueChange)="locPageSize.set(+$event); locPage.set(1)"></app-filter-select>
+    </div>
+
+    @if (locShowFilter()) {
+    <div class="filter-panel card loc-filter">
+      <div class="filter-grid">
+        <div class="form-group">
+          <label>Kho hàng</label>
+          <app-filter-select [options]="warehouseOptions()" allLabel="Tất cả kho"
+            [value]="locFilterWarehouseId()"
+            (valueChange)="locFilterWarehouseId.set($event); locPage.set(1)"></app-filter-select>
+        </div>
+        <div class="form-group">
+          <label>Tên khu vực</label>
+          <input class="form-control" placeholder="Lọc theo khu vực..." [ngModel]="locFilterZoneName()"
+            (ngModelChange)="locFilterZoneName.set($event || null)" (keydown.enter)="applyLocFilter()" />
+        </div>
+        <div class="form-group">
+          <label>Mã ô</label>
+          <input class="form-control" placeholder="Lọc theo mã ô..." [ngModel]="locFilterSlotCode()"
+            (ngModelChange)="locFilterSlotCode.set($event || null)" (keydown.enter)="applyLocFilter()" />
+        </div>
+        <div class="form-group">
+          <label>Trạng thái</label>
+          <app-filter-select [options]="statusOptions" allLabel="Tất cả"
+            [value]="locFilterIsActive()" (valueChange)="locFilterIsActive.set($event)"></app-filter-select>
+        </div>
+        <div class="form-group">
+          <label>Từ ngày</label>
+          <input class="form-control" type="date" [ngModel]="locDateFrom()"
+            (ngModelChange)="locDateFrom.set($event || null)" />
+        </div>
+        <div class="form-group">
+          <label>Đến ngày</label>
+          <input class="form-control" type="date" [ngModel]="locDateTo()"
+            (ngModelChange)="locDateTo.set($event || null)" />
+        </div>
+      </div>
+      <div class="filter-actions">
+        <button class="btn btn-outline" type="button" (click)="clearLocFilter()">Xóa lọc</button>
+        <button class="btn btn-primary" type="button" (click)="applyLocFilter()">Áp dụng lọc</button>
+      </div>
+    </div>
+    }
+
+    @if (loadingLoc()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải vị trí...</span></div>
+    } @else if (locations().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có vị trí lưu trữ</p></div>
     } @else {
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th style="width:40px">STT</th>
-            <th class="sortable" (click)="sort('name')">Kho hàng <span class="sort-icon">{{ sortIcon('name') }}</span></th>
-            <th class="sortable" (click)="sort('address')">Địa chỉ <span class="sort-icon">{{ sortIcon('address') }}</span></th>
-            <th>Mô tả</th>
-            <th class="sortable" (click)="sort('isActive')">Trạng thái <span class="sort-icon">{{ sortIcon('isActive') }}</span></th>
-            <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+            <th class="sortable" (click)="locSort('slotCode')">Mã khu / ô <span class="sort-icon">{{ locSortIcon('slotCode') }}</span></th>
+            <th class="sortable" (click)="locSort('zoneName')">Tên khu vực <span class="sort-icon">{{ locSortIcon('zoneName') }}</span></th>
+            <th class="sortable" (click)="locSort('warehouseId')">Kho <span class="sort-icon">{{ locSortIcon('warehouseId') }}</span></th>
+            <th>Vị trí kệ</th>
+            <th class="sortable" (click)="locSort('maxCapacity')">Ô chứa <span class="sort-icon">{{ locSortIcon('maxCapacity') }}</span></th>
+            <th>Lấp đầy</th>
+            <th class="sortable" (click)="locSort('isActive')">Trạng thái <span class="sort-icon">{{ locSortIcon('isActive') }}</span></th>
             <th style="text-align:right">Thao tác</th>
           </tr>
         </thead>
-
         <tbody>
-          @for (row of rows(); track row.id; let idx = $index) {
+          @for (row of locations(); track row.id) {
           <tr>
-            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
-            <td data-label="Kho hàng">
-              <div class="variant-cell">
-                <div class="av-sm">{{ row.name.slice(0, 2).toUpperCase() }}</div>
-                <div>
-                  <div class="u-name">{{ row.name }}</div>
-                  <div class="u-sub"><span class="role-pill">{{ row.code }}</span></div>
-                </div>
-              </div>
+            <td data-label="Mã khu / ô"><span class="code-link">{{ row.slotCode || row.zoneName }}</span></td>
+            <td data-label="Tên khu vực">
+              <div class="u-name">{{ row.zoneName }}</div>
+              @if (row.description) { <div class="u-sub text-muted small">{{ row.description }}</div> }
             </td>
-            <td class="text-muted small" data-label="Địa chỉ">{{ row.address || '—' }}</td>
-            <td class="text-muted small" data-label="Mô tả">{{ row.description || '—' }}</td>
+            <td data-label="Kho"><span class="role-pill">{{ row.warehouseName }}</span></td>
+            <td class="text-muted small" data-label="Vị trí kệ">{{ (row.shelfRow || '—') }} / {{ (row.shelfLevel || '—') }}</td>
+            <td class="text-muted small" data-label="Ô chứa">
+              {{ (row.currentOccupancy ?? 0) | number }} / {{ row.maxCapacity != null ? (row.maxCapacity | number) : '—' }}
+            </td>
+            <td data-label="Lấp đầy">
+              @if (row.maxCapacity) {
+              <span class="fill-badge" [ngClass]="fillClass(rowFill(row))">{{ rowFill(row) }}%</span>
+              } @else { <span class="text-muted small">—</span> }
+            </td>
             <td data-label="Trạng thái">
               <span class="status-pill" [class.active]="row.isActive" [class.inactive]="!row.isActive">
                 {{ row.isActive ? 'Đang hoạt động' : 'Ngừng hoạt động' }}
               </span>
             </td>
-            <td class="text-muted small" data-label="Ngày tạo">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
             <td class="action-cell" data-label="Thao tác">
-              <button class="icon-btn edit-btn" type="button" (click)="openEdit(row)" title="Sửa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button class="icon-btn edit-btn" type="button" (click)="editLocationRow(row)" title="Sửa (trong popup kho)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-              <button class="icon-btn delete-btn" type="button" (click)="delete(row.id, row.name)" title="Xóa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button class="icon-btn delete-btn" type="button" (click)="deleteLocation(row)" title="Xóa vị trí">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
+                  <path d="M10 11v6" /><path d="M14 11v6" />
                   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                 </svg>
               </button>
@@ -208,29 +325,30 @@
       </table>
     </div>
 
-    @if (totalPages() > 1) {
+    @if (locTotalPages() > 1) {
     <div class="pagination">
-      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
-      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
-      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
-      @for (p of visiblePages(); track p) {
-      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      <button class="page-btn" type="button" (click)="setLocPage(1)" [disabled]="locPage() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setLocPage(locPage() - 1)" [disabled]="locPage() === 1">‹</button>
+      @if (locVisiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of locVisiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === locPage()" (click)="setLocPage(p)">{{ p }}</button>
       }
-      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
-      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
-      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
-      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+      @if ((locVisiblePages().at(-1) ?? 0) < locTotalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setLocPage(locPage() + 1)" [disabled]="locPage() === locTotalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setLocPage(locTotalPages())" [disabled]="locPage() === locTotalPages()">»</button>
+      <span class="page-info">{{ locPage() }}/{{ locTotalPages() }}</span>
     </div>
     }
     }
   </div>
 </div>
 
+<!-- ===== POPUP THÊM/SỬA KHO + DANH SÁCH VỊ TRÍ ===== -->
 @if (showModal()) {
 <div class="modal-backdrop" (click)="closeModal()">
-  <div class="modal-box wide" (click)="$event.stopPropagation()">
+  <div class="modal-box wh-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ isEdit() ? 'Cập nhật kho' : 'Thêm kho mới' }}</h3>
+      <h3>{{ isEdit() ? 'Cập nhật kho hàng' : 'Thêm kho hàng mới' }}</h3>
       <button class="modal-close" type="button" (click)="closeModal()">×</button>
     </div>
 
@@ -238,13 +356,14 @@
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
     } @else {
     <div class="modal-body">
+      <!-- Thông tin kho -->
+      <div class="section-label">Thông tin kho</div>
       <div class="form-row-2">
         <div class="form-group">
           <label class="form-label">Mã kho *</label>
           <input class="form-control" [ngModel]="form().code" (ngModelChange)="setField('code', $event)"
             placeholder="WH001" maxlength="100" />
         </div>
-
         <div class="form-group">
           <label class="form-label">Tên kho *</label>
           <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name', $event)"
@@ -254,32 +373,78 @@
 
       <div class="form-group">
         <label class="form-label">Địa chỉ</label>
-        <textarea class="form-control" rows="2" [ngModel]="form().address"
-          (ngModelChange)="setField('address', $event)" placeholder="Số nhà, đường, phường, quận, thành phố"
-          maxlength="500"></textarea>
+        <input class="form-control" [ngModel]="form().address" (ngModelChange)="setField('address', $event)"
+          placeholder="Số nhà, đường, phường, quận, thành phố" maxlength="500" />
       </div>
 
       <div class="form-group">
         <label class="form-label">Mô tả</label>
         <textarea class="form-control" rows="2" [ngModel]="form().description"
-          (ngModelChange)="setField('description', $event)" placeholder="Mô tả thêm về kho"
-          maxlength="500"></textarea>
+          (ngModelChange)="setField('description', $event)" placeholder="Mô tả thêm về kho" maxlength="500"></textarea>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Trạng thái</label>
         <label class="toggle-wrap">
           <input type="checkbox" [ngModel]="form().isActive" (ngModelChange)="setField('isActive', $event)" />
           <span class="toggle-label">Đang hoạt động</span>
         </label>
       </div>
+
+      <!-- Danh sách vị trí lưu trữ -->
+      <div class="section-label with-action">
+        <span>Vị trí lưu trữ <span class="text-muted small">(tùy chọn — {{ form().locations.length }} vị trí)</span></span>
+        <button class="btn btn-outline btn-sm" type="button" (click)="addLine()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          Thêm vị trí
+        </button>
+      </div>
+
+      @if (form().locations.length === 0) {
+      <div class="loc-empty">Chưa có vị trí nào. Bấm "Thêm vị trí" để tạo khu vực/ô lưu trữ cho kho này.</div>
+      } @else {
+      <div class="loc-lines">
+        <div class="loc-line loc-line-head">
+          <span>Tên khu vực *</span>
+          <span>Hàng kệ</span>
+          <span>Tầng kệ</span>
+          <span>Mã ô</span>
+          <span>Sức chứa</span>
+          <span></span>
+        </div>
+        @for (line of form().locations; track $index) {
+        <div class="loc-line">
+          <input class="form-control" [ngModel]="line.zoneName" (ngModelChange)="setLineField($index, 'zoneName', $event)"
+            placeholder="Khu A" maxlength="100" />
+          <input class="form-control" [ngModel]="line.shelfRow" (ngModelChange)="setLineField($index, 'shelfRow', $event)"
+            placeholder="R01" maxlength="50" />
+          <input class="form-control" [ngModel]="line.shelfLevel" (ngModelChange)="setLineField($index, 'shelfLevel', $event)"
+            placeholder="L02" maxlength="50" />
+          <input class="form-control" [ngModel]="line.slotCode" (ngModelChange)="setLineField($index, 'slotCode', $event)"
+            placeholder="A-R01-L02" maxlength="50" />
+          <input class="form-control" type="number" min="0" [ngModel]="line.maxCapacity"
+            (ngModelChange)="setLineField($index, 'maxCapacity', $event)" placeholder="100" />
+          <button class="icon-btn delete-btn line-del" type="button" (click)="removeLine($index)" title="Xóa dòng">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6" /><path d="M14 11v6" />
+            </svg>
+          </button>
+        </div>
+        }
+      </div>
+      }
     </div>
 
     <div class="modal-footer">
       <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
       <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> }
-        {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Thêm mới' }}
+        {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Lưu kho + vị trí' }}
       </button>
     </div>
     }

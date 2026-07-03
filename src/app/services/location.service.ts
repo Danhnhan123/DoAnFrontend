@@ -26,6 +26,11 @@ export class LocationService {
     );
   }
 
+  /** Toàn bộ vị trí (dùng tính số khu vực/sức chứa cho thẻ kho + nạp popup sửa). */
+  getAll(): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.base}/location`);
+  }
+
   /** Chi tiết một vị trí theo id. */
   getById(id: number): Observable<ApiResponse<LocationDetailDto>> {
     return this.http.get<ApiResponse<LocationDetailDto>>(
@@ -36,6 +41,22 @@ export class LocationService {
   /** Tạo mới vị trí. */
   create(payload: CreateLocationDto): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.base}/location`, payload);
+  }
+
+  /** Tạo mới nhiều vị trí cùng lúc (dùng khi lưu kho kèm danh sách vị trí). */
+  createList(payloads: CreateLocationDto[]): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/location/list`,
+      payloads
+    );
+  }
+
+  /** Cập nhật nhiều vị trí cùng lúc. */
+  updateList(payloads: UpdateLocationDto[]): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.base}/location/list`,
+      payloads
+    );
   }
 
   /** Cập nhật vị trí. */
