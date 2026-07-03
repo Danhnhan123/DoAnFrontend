@@ -45,6 +45,7 @@ export class AdminLayoutComponent implements OnInit {
     products: 'Quản lý sản phẩm',
     'product-categories': 'Danh mục sản phẩm',
     'product-variants': 'Biến thể sản phẩm',
+    'product-attributes': 'Thuộc tính sản phẩm',
     users: 'Quản lý người dùng',
     roles: 'Vai trò người dùng',
     menus: 'Quản lý menu',
