@@ -80,6 +80,12 @@ const adminChildren: Routes = [
       .then(m => m.ProductVariantComponent),
   },
   {
+    path: 'product-attributes',
+    loadComponent: () =>
+      import('./components/product-attribute/product-attribute.component')
+        .then(m => m.ProductAttributeComponent),
+  },
+  {
     path: 'inbound-orders',
     loadComponent: () =>
       import('./components/inbound-order/inbound-order.component')

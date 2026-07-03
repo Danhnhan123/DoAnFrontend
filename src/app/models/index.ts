@@ -13,6 +13,7 @@ export * from './action';
 export * from './product';
 export * from './product-category';
 export * from './product-variant';
+export * from './product-attribute';
 export * from './inbound-order';
 export * from './iot-device';
 export * from './supplier';
