@@ -1,0 +1,355 @@
+<div class="profile-page">
+  <!-- Tabs -->
+  <div class="tab-bar">
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'info'"
+      (click)="setTab('info')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      Thông tin cá nhân
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'password'"
+      (click)="setTab('password')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      Đổi mật khẩu
+    </button>
+  </div>
+
+  @if (loading()) {
+  <div class="card loading-card">
+    <div class="spinner"></div>
+    <span>Đang tải hồ sơ...</span>
+  </div>
+  } @else {
+
+  <!-- ============ TAB: THÔNG TIN ============ -->
+  @if (activeTab() === 'info') {
+  <div class="card info-card">
+    <!-- Cột avatar -->
+    <div class="avatar-col">
+      <div class="avatar-box">
+        @if (avatarUrl()) {
+        <img [src]="avatarUrl()" alt="Ảnh đại diện" class="avatar-img" />
+        } @else {
+        <div class="avatar-fallback">{{ initials() }}</div>
+        }
+      </div>
+
+      <div class="avatar-actions">
+        <button type="button" class="btn btn-outline btn-sm" (click)="openPicker()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+          <span>Chọn / Đổi ảnh</span>
+        </button>
+        @if (avatarUrl()) {
+        <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeAvatar()">
+          Bỏ ảnh
+        </button>
+        }
+      </div>
+      <p class="avatar-hint">Chọn từ thư viện của bạn hoặc tải ảnh mới lên.</p>
+
+      <!-- Thông tin chỉ đọc -->
+      <div class="readonly-block">
+        <div class="ro-row">
+          <span class="ro-label">Tên đăng nhập</span>
+          <span class="ro-value">{{ profile()?.username || '—' }}</span>
+        </div>
+        <div class="ro-row">
+          <span class="ro-label">Email</span>
+          <span class="ro-value">{{ profile()?.email || '—' }}</span>
+        </div>
+        <div class="ro-row">
+          <span class="ro-label">Trạng thái</span>
+          <span class="ro-value">
+            <span class="status-pill">{{ profile()?.userStatus?.name || '—' }}</span>
+          </span>
+        </div>
+        <div class="ro-row">
+          <span class="ro-label">Vai trò</span>
+          <span class="ro-value roles">
+            @for (r of profile()?.userRoles || []; track r.id) {
+            <span class="role-pill">{{ r.name }}</span>
+            } @empty { — }
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cột form -->
+    <div class="form-col">
+      <h3 class="col-title">Chỉnh sửa thông tin</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label req">Họ và tên đệm</label>
+          <input class="form-control" [ngModel]="firstName()"
+            (ngModelChange)="firstName.set($event)" placeholder="Nguyễn Văn" />
+        </div>
+        <div class="form-group">
+          <label class="form-label req">Tên</label>
+          <input class="form-control" [ngModel]="lastName()"
+            (ngModelChange)="lastName.set($event)" placeholder="A" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giới tính</label>
+          <app-filter-select
+            [options]="genderOptions"
+            [value]="gender()"
+            (valueChange)="gender.set($event)"
+            allLabel="Chưa chọn"
+          ></app-filter-select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số điện thoại</label>
+          <input class="form-control" [ngModel]="phoneNumber()"
+            (ngModelChange)="phoneNumber.set($event)" placeholder="0912345678" />
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Địa chỉ</label>
+          <input class="form-control" [ngModel]="addresDetail()"
+            (ngModelChange)="addresDetail.set($event)" placeholder="Số nhà, đường, phường/xã..." />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary"
+          [disabled]="savingInfo()" (click)="saveInfo()">
+          @if (savingInfo()) { <span class="spinner sm light"></span> Đang lưu... }
+          @else { Lưu thay đổi }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- ============ TAB: ĐỔI MẬT KHẨU ============ -->
+  @if (activeTab() === 'password') {
+  <div class="card password-card">
+    <h3 class="col-title">Đổi mật khẩu</h3>
+    <p class="card-sub">Để bảo mật, hãy dùng mật khẩu mạnh và không tái sử dụng ở nơi khác.</p>
+
+    <div class="pw-form">
+      <div class="pw-fields">
+        <div class="form-group">
+          <label class="form-label req">Mật khẩu hiện tại</label>
+          <div class="pw-input">
+            <input class="form-control" [type]="showOld() ? 'text' : 'password'"
+              [ngModel]="oldPassword()" (ngModelChange)="oldPassword.set($event)"
+              autocomplete="current-password" placeholder="••••••••" />
+            <button type="button" class="pw-toggle" (click)="showOld.set(!showOld())">
+              {{ showOld() ? 'Ẩn' : 'Hiện' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label req">Mật khẩu mới</label>
+          <div class="pw-input">
+            <input class="form-control" [type]="showNew() ? 'text' : 'password'"
+              [ngModel]="newPassword()" (ngModelChange)="newPassword.set($event)"
+              autocomplete="new-password" placeholder="••••••••" />
+            <button type="button" class="pw-toggle" (click)="showNew.set(!showNew())">
+              {{ showNew() ? 'Ẩn' : 'Hiện' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label req">Xác nhận mật khẩu mới</label>
+          <div class="pw-input">
+            <input class="form-control" [type]="showConfirm() ? 'text' : 'password'"
+              [ngModel]="confirmNewPassword()" (ngModelChange)="confirmNewPassword.set($event)"
+              autocomplete="new-password" placeholder="••••••••" />
+            <button type="button" class="pw-toggle" (click)="showConfirm.set(!showConfirm())">
+              {{ showConfirm() ? 'Ẩn' : 'Hiện' }}
+            </button>
+          </div>
+          @if (confirmNewPassword() && !pwMatch()) {
+          <span class="field-error">Mật khẩu xác nhận không khớp.</span>
+          }
+        </div>
+      </div>
+
+      <!-- Yêu cầu mật khẩu -->
+      <div class="pw-side">
+        <div class="pw-side-title">Yêu cầu mật khẩu</div>
+        <ul class="pw-rules">
+          <li [class.ok]="pwHasMinLen()"><span class="dot"></span> Tối thiểu 10 ký tự</li>
+          <li [class.ok]="pwHasUpper()"><span class="dot"></span> Có chữ hoa (A-Z)</li>
+          <li [class.ok]="pwHasLower()"><span class="dot"></span> Có chữ thường (a-z)</li>
+          <li [class.ok]="pwHasDigit()"><span class="dot"></span> Có chữ số (0-9)</li>
+          <li [class.ok]="pwHasSpecial()"><span class="dot"></span> Có ký tự đặc biệt (!&#64;#...)</li>
+        </ul>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-primary"
+          [disabled]="changingPassword()" (click)="changePassword()">
+          @if (changingPassword()) { <span class="spinner sm light"></span> Đang xử lý... }
+          @else { Cập nhật mật khẩu }
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+
+  }
+
+  <!-- ============ MODAL QUẢN LÝ ẢNH ============ -->
+  @if (pickerOpen()) {
+  <div class="modal-backdrop" (click)="closePicker()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>Chọn ảnh đại diện</h3>
+        <button type="button" class="modal-close" (click)="closePicker()" aria-label="Đóng">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="fm-body">
+        <!-- Cột thư mục -->
+        <aside class="fm-folders">
+          <div class="fm-folders-head">
+            <span>Thư mục</span>
+            <button type="button" class="fm-add-folder" (click)="startCreateFolder()" title="Tạo thư mục">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+            </button>
+          </div>
+
+          @if (creatingFolder()) {
+          <div class="fm-new-folder">
+            <input class="form-control" [ngModel]="newFolderName()"
+              (ngModelChange)="newFolderName.set($event)"
+              (keydown.enter)="submitCreateFolder()"
+              placeholder="Tên thư mục mới" autofocus />
+            <div class="fm-new-actions">
+              <button type="button" class="btn btn-primary btn-xs"
+                [disabled]="savingFolder()" (click)="submitCreateFolder()">Tạo</button>
+              <button type="button" class="btn btn-ghost btn-xs" (click)="cancelCreateFolder()">Hủy</button>
+            </div>
+            @if (selectedFolderId()) {
+            <span class="fm-hint">Tạo trong thư mục đang chọn</span>
+            } @else {
+            <span class="fm-hint">Tạo ở thư mục gốc</span>
+            }
+          </div>
+          }
+
+          <div class="fm-folder-list">
+            @if (foldersLoading()) {
+            <div class="fm-mini-state"><div class="spinner sm"></div></div>
+            } @else if (flatFolders().length === 0) {
+            <div class="fm-mini-state empty">Chưa có thư mục</div>
+            } @else {
+            @for (f of flatFolders(); track f.id) {
+            <button type="button" class="fm-folder-item"
+              [class.active]="selectedFolderId() === f.id"
+              [style.paddingLeft.px]="10 + f.depth * 14"
+              (click)="selectFolder(f.id)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+              </svg>
+              <span class="fm-folder-name">{{ f.name }}</span>
+            </button>
+            }
+            }
+          </div>
+        </aside>
+
+        <!-- Cột ảnh -->
+        <section class="fm-images">
+          <div class="fm-images-toolbar">
+            <label class="btn btn-outline btn-sm upload-inline"
+              [class.disabled]="selectedFolderId() === null || uploading()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>Tải ảnh lên</span>
+              <input type="file" accept="image/*" hidden
+                (change)="onUploadToFolder($event)"
+                [disabled]="selectedFolderId() === null || uploading()" />
+            </label>
+            @if (uploading()) {
+            <span class="uploading"><span class="spinner sm"></span> Đang tải...</span>
+            }
+          </div>
+
+          <div class="fm-images-body">
+            @if (selectedFolderId() === null) {
+            <div class="picker-state empty">Chọn một thư mục bên trái để xem ảnh.</div>
+            } @else if (imagesLoading()) {
+            <div class="picker-state"><div class="spinner"></div></div>
+            } @else if (images().length === 0) {
+            <div class="picker-state empty">Thư mục này chưa có ảnh. Hãy "Tải ảnh lên".</div>
+            } @else {
+            <div class="img-grid">
+              @for (img of images(); track img.id) {
+              <button type="button" class="img-tile"
+                [class.selected]="pickedImageId() === img.id" (click)="pickImage(img)">
+                <img [src]="img.url" [alt]="img.fileName" />
+                @if (pickedImageId() === img.id) {
+                <span class="tick">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </span>
+                }
+              </button>
+              }
+            </div>
+            }
+          </div>
+
+          @if (selectedFolderId() !== null && totalImages() > pageSize) {
+          <div class="fm-pager">
+            <button type="button" class="pager-btn" [disabled]="page() <= 1" (click)="prevPage()">‹ Trước</button>
+            <span class="pager-info">Trang {{ page() }} / {{ totalPages() }}</span>
+            <button type="button" class="pager-btn" [disabled]="page() >= totalPages()" (click)="nextPage()">Sau ›</button>
+          </div>
+          }
+        </section>
+      </div>
+
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" (click)="closePicker()">Hủy</button>
+        <button type="button" class="btn btn-primary"
+          [disabled]="pickedImageId() === null" (click)="confirmPick()">
+          Chọn ảnh này
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+</div>

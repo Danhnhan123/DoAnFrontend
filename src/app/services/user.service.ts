@@ -12,6 +12,12 @@ import {
   UserStatusDetailDto,
   DataItem,
   DTParameters,
+  UserProfileDto,
+  UpdateUserProfileDto,
+  ChangePasswordDto,
+  FileUploadItem,
+  FileManagerPaging,
+  FolderNode,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -62,6 +68,81 @@ export class UserService {
   /** Lấy danh sách vai trò */
   getRoles(): Observable<ApiResponse<DataItem[]>> {
     return this.http.get<ApiResponse<DataItem[]>>(`${this.base}/role`);
+  }
+
+  /** Lấy hồ sơ tài khoản của chính user đang đăng nhập */
+  getMyProfile(): Observable<ApiResponse<UserProfileDto>> {
+    return this.http.get<ApiResponse<UserProfileDto>>(`${this.base}/user/me`);
+  }
+
+  /** Cập nhật hồ sơ cá nhân của chính mình */
+  updateMyProfile(
+    payload: UpdateUserProfileDto
+  ): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(`${this.base}/user/me`, payload);
+  }
+
+  /** Đổi mật khẩu của chính mình */
+  changeMyPassword(
+    payload: ChangePasswordDto
+  ): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.base}/user/me/change-password`,
+      payload
+    );
+  }
+
+  // ===================== FILE MANAGER (chọn ảnh avatar) =====================
+
+  /** Lấy cây thư mục (dùng chung của trình quản lý file). */
+  getFolders(): Observable<ApiResponse<FolderNode[]>> {
+    return this.http.get<ApiResponse<FolderNode[]>>(
+      `${this.base}/file-manager/folders`
+    );
+  }
+
+  /** Tạo thư mục mới. Trả về id của thư mục vừa tạo. */
+  createFolder(
+    folderName: string,
+    parentId: number | null
+  ): Observable<ApiResponse<number>> {
+    return this.http.post<ApiResponse<number>>(
+      `${this.base}/file-manager/folders`,
+      { folderName, parentId: parentId ?? 0 }
+    );
+  }
+
+  /**
+   * Lấy ảnh trong 1 thư mục (có phân trang, chỉ ảnh, lọc theo người sở hữu ở backend).
+   */
+  getFolderImages(
+    folderId: number,
+    pageIndex = 1,
+    pageSize = 24
+  ): Observable<ApiResponse<FileManagerPaging<FileUploadItem>>> {
+    return this.http.post<ApiResponse<FileManagerPaging<FileUploadItem>>>(
+      `${this.base}/file-manager/folders/${folderId}/paged`,
+      {
+        pageIndex,
+        pageSize,
+        keyword: '',
+        fileTypes: ['image'],
+      }
+    );
+  }
+
+  /** Upload ảnh vào 1 thư mục cụ thể. */
+  uploadToFolder(
+    folderId: number,
+    file: File
+  ): Observable<ApiResponse<any>> {
+    const form = new FormData();
+    form.append('Files', file);
+    form.append('FolderUploadId', String(folderId));
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/file-manager/upload`,
+      form
+    );
   }
 
   /** Xây dựng body DataTables cho phân trang user */

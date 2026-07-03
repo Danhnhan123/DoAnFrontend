@@ -116,13 +116,29 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="sidebar-user-card">
-        <div class="user-avatar">{{ getInitials() }}</div>
+      <a
+        class="sidebar-user-card"
+        routerLink="/admin/profile"
+        routerLinkActive="active"
+        (click)="closeMobileMenu()"
+        title="Trang cá nhân"
+      >
+        <div class="user-avatar">
+          @if (user()?.avatarUrl) {
+          <img [src]="user()?.avatarUrl" alt="Ảnh đại diện" />
+          } @else {
+          {{ getInitials() }}
+          }
+        </div>
         <div class="user-info">
           <span class="user-name">{{ user()?.fullName || 'Admin User' }}</span>
           <span class="user-role">Quản trị viên</span>
         </div>
-      </div>
+        <svg class="user-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </a>
     </div>
   </aside>
 
@@ -176,7 +192,13 @@
             aria-haspopup="menu"
             (click)="toggleUserMenu($event)"
           >
-            <div class="chip-avatar">{{ getInitials() }}</div>
+            <div class="chip-avatar">
+              @if (user()?.avatarUrl) {
+              <img [src]="user()?.avatarUrl" alt="Ảnh đại diện" />
+              } @else {
+              {{ getInitials() }}
+              }
+            </div>
             <div class="chip-info">
               <span class="chip-name">{{ user()?.fullName || 'Admin User' }}</span>
               <span class="chip-role">Quản trị viên</span>
@@ -189,6 +211,20 @@
 
           @if (userMenuOpen()) {
           <div class="user-dropdown" role="menu">
+            <a
+              class="user-dropdown-item"
+              role="menuitem"
+              routerLink="/admin/profile"
+              (click)="closeUserMenu()"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span>Trang cá nhân</span>
+            </a>
+            <div class="user-dropdown-divider"></div>
             <button type="button" class="user-dropdown-item danger" role="menuitem" (click)="logout()">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">

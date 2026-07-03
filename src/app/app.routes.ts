@@ -14,6 +14,12 @@ const adminChildren: Routes = [
     .then(m => m.DashboardComponent),
   },
   {
+    path: 'profile',
+    loadComponent: () =>
+      import('./components/profile/profile.component')
+    .then(m => m.ProfileComponent),
+  },
+  {
     path: 'products',
     loadComponent: () =>
       import('./components/product/product.component')

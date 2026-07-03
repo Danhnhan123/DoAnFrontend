@@ -65,6 +65,19 @@ export class AuthService {
     return user?.menus || [];
   }
 
+  /**
+   * Cập nhật thông tin user đang đăng nhập trong bộ nhớ + localStorage.
+   * Dùng sau khi user sửa hồ sơ để tên/avatar trên topbar & sidebar đổi ngay,
+   * không cần đăng nhập lại.
+   */
+  patchCurrentUser(patch: Partial<LoginResponseAdminUserInfo>): void {
+    const current = this.currentUser();
+    if (!current) return;
+    const next = { ...current, ...patch };
+    localStorage.setItem(USER_KEY, JSON.stringify(next));
+    this.currentUser.set(next);
+  }
+
   getToken(): string | null {
     return localStorage.getItem(TOKEN_KEY);
   }
