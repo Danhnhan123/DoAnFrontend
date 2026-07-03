@@ -11,8 +11,8 @@
             </div>
             <div class="stat-body">
                 <span class="stat-label">Tổng người dùng</span>
-                <span class="stat-value">{{ totalRecords() }}</span>
-                <span class="stat-sub">+1 tháng này</span>
+                <span class="stat-value">{{ totalUsersStat() }}</span>
+                <span class="stat-sub">Toàn hệ thống</span>
             </div>
         </div>
 
@@ -25,7 +25,7 @@
             <div class="stat-body">
                 <span class="stat-label">Đang hoạt động</span>
                 <span class="stat-value">{{ activeCount() }}</span>
-                <span class="stat-sub">{{ totalRecords() > 0 ? ((activeCount() * 100 / totalRecords()) | number:'1.0-0') : 0 }}% tổng số</span>
+                <span class="stat-sub">{{ totalUsersStat() > 0 ? ((activeCount() * 100 / totalUsersStat()) | number:'1.0-0') : 0 }}% tổng số</span>
             </div>
         </div>
 
@@ -38,7 +38,7 @@
             <div class="stat-body">
                 <span class="stat-label">Quản lý kho</span>
                 <span class="stat-value">{{ managerCount() }}</span>
-                <span class="stat-sub">{{ managerCount() }} kho</span>
+                <span class="stat-sub">Theo vai trò</span>
             </div>
         </div>
 
@@ -49,9 +49,9 @@
                 </svg>
             </div>
             <div class="stat-body">
-                <span class="stat-label">Nhân viên</span>
+                <span class="stat-label">Nhân viên kho</span>
                 <span class="stat-value">{{ staffCount() }}</span>
-                <span class="stat-sub">3 kho</span>
+                <span class="stat-sub">Theo vai trò</span>
             </div>
         </div>
     </div>
@@ -161,7 +161,13 @@
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
                         <td>
                             <div class="user-cell">
-                                <div class="av-sm">{{ getInitial(row.firstName, row.lastName) }}</div>
+                                <div class="av-sm">
+                                    @if (row.avatarUrl) {
+                                    <img [src]="row.avatarUrl" [alt]="row.firstName + ' ' + row.lastName" />
+                                    } @else {
+                                    {{ getInitial(row.firstName, row.lastName) }}
+                                    }
+                                </div>
                                 <div>
                                     <div class="u-name">{{ row.firstName }} {{ row.lastName }}</div>
                                     <div class="u-sub">{{ row.username }}</div>

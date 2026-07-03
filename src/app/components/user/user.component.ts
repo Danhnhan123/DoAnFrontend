@@ -15,6 +15,7 @@ import {
   UpdateUserDto,
   UserStatusDetailDto,
   DataItem,
+  UserStatistics,
 } from '../../models';
 import { UserService } from '../../services/user.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
@@ -119,6 +120,12 @@ export class UserComponent {
     queryFn: () => lastValueFrom(this.userService.getRoles()),
   }));
 
+  // Thống kê tính trên TOÀN BỘ user (không phụ thuộc trang đang xem).
+  statsQuery = injectQuery(() => ({
+    queryKey: ['user-statistics'],
+    queryFn: () => lastValueFrom(this.userService.getUserStatistics()),
+  }));
+
   detailQuery = injectQuery(() => ({
     queryKey: ['user-detail', this.editItem()?.id],
     enabled: !!this.editItem()?.id && this.showModal(),
@@ -152,27 +159,31 @@ export class UserComponent {
     () => (this.rolesQuery.data() as any)?.resources ?? []
   );
 
-  activeCount = computed<number>(() =>
-    this.rows().filter(r =>
-      (r.userStatusName || '').toLowerCase().includes('hoạt động') ||
-      (r.userStatusName || '').toLowerCase().includes('active')
-    ).length
+  stats = computed<UserStatistics | null>(
+    () => (this.statsQuery.data() as any)?.resources ?? null
   );
+
+  /** Tổng người dùng toàn hệ thống (không theo trang). */
+  totalUsersStat = computed<number>(
+    () => this.stats()?.totalUsers ?? this.totalRecords()
+  );
+  activeCount = computed<number>(() => this.stats()?.activeUsers ?? 0);
+
+  /** Cộng số user của các vai trò có tên khớp từ khóa (khớp khi bạn tạo role sau). */
+  private countByRoleKeyword(...keywords: string[]): number {
+    const rc = this.stats()?.roleCounts ?? [];
+    return rc
+      .filter(r => {
+        const name = (r.roleName || '').toLowerCase();
+        return keywords.some(k => name.includes(k));
+      })
+      .reduce((sum, r) => sum + (r.count || 0), 0);
+  }
   managerCount = computed<number>(() =>
-    this.rows().filter(r =>
-      (r.roles || []).some((role: any) =>
-        (role.name || '').toLowerCase().includes('quản lý') ||
-        (role.name || '').toLowerCase().includes('manager')
-      )
-    ).length
+    this.countByRoleKeyword('quản lý kho', 'quản lý', 'manager')
   );
   staffCount = computed<number>(() =>
-    this.rows().filter(r =>
-      (r.roles || []).some((role: any) =>
-        (role.name || '').toLowerCase().includes('nhân viên') ||
-        (role.name || '').toLowerCase().includes('staff')
-      )
-    ).length
+    this.countByRoleKeyword('nhân viên kho', 'nhân viên', 'staff')
   );
 
  private syncDetail = effect(() => {
@@ -205,6 +216,7 @@ export class UserComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Thêm thành công!');
       } else this.showAlert(res.message || 'Lỗi', false);
     },
@@ -218,6 +230,7 @@ export class UserComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(res.message || 'Lỗi', false);
     },
@@ -230,6 +243,7 @@ export class UserComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(res.message, false);
     },

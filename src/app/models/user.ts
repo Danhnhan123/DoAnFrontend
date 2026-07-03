@@ -134,6 +134,20 @@ export interface FileManagerPaging<T> {
   pageSize: number;
 }
 
+/** Số user theo từng vai trò (thành phần của thống kê). */
+export interface RoleCount {
+  roleId: number;
+  roleName: string;
+  count: number;
+}
+
+/** Thống kê người dùng trên toàn bộ hệ thống (GET /user/statistics). */
+export interface UserStatistics {
+  totalUsers: number;
+  activeUsers: number;
+  roleCounts: RoleCount[];
+}
+
 /** Một thư mục trong cây thư mục file-manager (GET /file-manager/folders). */
 export interface FolderNode {
   id: number;

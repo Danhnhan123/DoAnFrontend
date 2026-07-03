@@ -18,6 +18,7 @@ import {
   FileUploadItem,
   FileManagerPaging,
   FolderNode,
+  UserStatistics,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -68,6 +69,13 @@ export class UserService {
   /** Lấy danh sách vai trò */
   getRoles(): Observable<ApiResponse<DataItem[]>> {
     return this.http.get<ApiResponse<DataItem[]>>(`${this.base}/role`);
+  }
+
+  /** Thống kê người dùng trên toàn bộ hệ thống (tổng, đang hoạt động, theo vai trò). */
+  getUserStatistics(): Observable<ApiResponse<UserStatistics>> {
+    return this.http.get<ApiResponse<UserStatistics>>(
+      `${this.base}/user/statistics`
+    );
   }
 
   /** Lấy hồ sơ tài khoản của chính user đang đăng nhập */
