@@ -11,7 +11,7 @@
           placeholder="Chọn kho"
         ></app-filter-select>
       </div>
-      <p class="dash-date">{{ data().date }} · <strong>{{ warehouseName() }}</strong></p>
+      <p class="dash-date">{{ dateLabel() }} · <strong>{{ warehouseName() }}</strong></p>
     </div>
 
     <div class="period-tabs">
@@ -30,7 +30,7 @@
 
   <!-- Thẻ thống kê -->
   <div class="stats-grid">
-    @for (s of data().stats; track s.label) {
+    @for (s of periodData().stats; track s.label) {
     <div class="stat-card">
       <div class="stat-top">
         <span class="stat-icon" [ngClass]="'ic-' + s.icon">
@@ -88,11 +88,11 @@
           </svg>
           <span>Lịch công việc hôm nay</span>
         </div>
-        <span class="pill-count">{{ data().tasks.length }} việc</span>
+        <span class="pill-count">{{ warehouse().tasks.length }} việc</span>
       </div>
 
       <div class="task-list">
-        @for (t of data().tasks; track t.time + t.title) {
+        @for (t of warehouse().tasks; track t.time + t.title) {
         <div class="task-row">
           <span class="task-time">{{ t.time }}</span>
           <span class="task-ic" [ngClass]="'tic-' + t.icon">
@@ -151,7 +151,7 @@
       </div>
 
       <div class="alert-list">
-        @for (a of data().alerts; track a.text) {
+        @for (a of warehouse().alerts; track a.text) {
         <div class="alert-row">
           <span class="alert-dot" [ngClass]="'lvl-' + a.level"></span>
           <div class="alert-main">
@@ -175,7 +175,7 @@
   <div class="bottom-grid">
     <section class="panel chart-panel">
       <div class="panel-head">
-        <div class="panel-title"><span>Thu mua lúa 7 ngày</span></div>
+        <div class="panel-title"><span>{{ periodData().chartTitle }}</span></div>
         <div class="legend">
           <span class="lg lg-vol">Sản lượng (tấn)</span>
           <span class="lg lg-price">Giá (đ/kg)</span>
@@ -201,7 +201,7 @@
       </div>
 
       <div class="perf-list">
-        @for (p of data().perf; track p.label) {
+        @for (p of warehouse().perf; track p.label) {
         <div class="perf-row">
           <div class="perf-top">
             <span class="perf-label">{{ p.label }}</span>
