@@ -370,7 +370,7 @@ export class InboundOrderComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: icon === 'warning' ? '#ef4444' : '#4f46e5',
+      confirmButtonColor: icon === 'warning' ? '#ef4444' : '#15803d',
     }).then((result) => {
       if (result.isConfirmed) onConfirm();
     });
@@ -398,7 +398,7 @@ export class InboundOrderComponent {
       text,
       icon,
       confirmButtonText: 'Đóng',
-      confirmButtonColor: icon === 'error' ? '#ef4444' : '#4f46e5',
+      confirmButtonColor: icon === 'error' ? '#ef4444' : '#15803d',
     });
   }
 }

@@ -128,8 +128,8 @@
 }
 
 .search-input:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
 }
 
 .search-input::placeholder {
@@ -155,9 +155,9 @@
 
 .filter-btn:hover,
 .filter-btn.filter-active {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
+  background: rgba(22, 163, 74, 0.08);
   transform: none;
 }
 
@@ -172,7 +172,7 @@
   padding: 8px 16px;
   width: auto;
   height: auto;
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: #fff;
   border-radius: var(--radius-sm, 8px);
   font-size: 0.84rem;
@@ -182,15 +182,15 @@
 }
 
 .icon-btn.add-btn:hover {
-  background: #4f46e5;
+  background: #15803d;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
 }
 
 .filter-panel {
   padding: 20px;
   margin-bottom: 20px;
-  border-top: 3px solid var(--accent, #6366f1);
+  border-top: 3px solid var(--accent, #16a34a);
   animation: slideDown 0.3s ease;
 }
 
@@ -241,7 +241,7 @@
   width: 28px;
   height: 28px;
   border: 3px solid var(--border, #e2e8f0);
-  border-top-color: var(--accent, #6366f1);
+  border-top-color: var(--accent, #16a34a);
 }
 
 .spin-sm {
@@ -264,7 +264,7 @@
 }
 
 .sortable:hover {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
 }
 
 .sort-icon {
@@ -296,7 +296,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #16a34a, #15803d);
   color: #fff;
   display: flex;
   align-items: center;
@@ -347,8 +347,8 @@
 .role-pill {
   padding: 1px 9px;
   margin: 1px;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--accent, #6366f1);
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--accent, #16a34a);
   font-size: 0.68rem;
 }
 
@@ -624,9 +624,9 @@
 }
 .icon-btn.filter-btn:hover,
 .icon-btn.filter-btn.filter-active {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
+  background: rgba(22, 163, 74, 0.08);
   transform: none;
 }
 

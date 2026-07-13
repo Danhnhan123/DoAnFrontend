@@ -142,13 +142,13 @@ input[type="number"] {
 }
 
 .btn-primary {
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: white;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover, #4f46e5);
+  background: var(--accent-hover, #15803d);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
 }
 
 .btn-outline {
@@ -157,8 +157,8 @@ input[type="number"] {
   color: var(--text-primary, #1e293b);
 }
 .btn-outline:hover:not(:disabled) {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
 }
 
 .btn-danger {
@@ -202,8 +202,8 @@ input[type="number"] {
 }
 
 .form-control:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
 select.form-control {
@@ -305,9 +305,9 @@ tbody td {
 }
 .page-btn:hover:not(:disabled),
 .page-btn.active {
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: white;
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #16a34a);
 }
 .page-btn:disabled {
   opacity: 0.4;
@@ -346,8 +346,8 @@ html[data-theme="dark"] .swal2-icon.swal2-warning {
 }
 
 html[data-theme="dark"] .swal2-icon.swal2-question {
-  border-color: var(--acc, #6366f1);
-  color: var(--acc, #6366f1);
+  border-color: var(--acc, #16a34a);
+  color: var(--acc, #16a34a);
 }
 
 html[data-theme="dark"] .swal2-icon.swal2-success {

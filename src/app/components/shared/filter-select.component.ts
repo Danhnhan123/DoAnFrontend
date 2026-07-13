@@ -103,8 +103,8 @@ export interface FilterSelectOption {
         background: var(--card-bg, #fff);
       }
       .ms-toggle.has-value {
-        border-color: var(--accent, #6366f1);
-        color: var(--accent, #6366f1);
+        border-color: var(--accent, #16a34a);
+        color: var(--accent, #16a34a);
       }
       .ms-label {
         overflow: hidden;
@@ -158,14 +158,14 @@ export interface FilterSelectOption {
         position: relative;
       }
       .ms-radio.on {
-        border-color: var(--accent, #6366f1);
+        border-color: var(--accent, #16a34a);
       }
       .ms-radio.on::after {
         content: '';
         position: absolute;
         inset: 2px;
         border-radius: 50%;
-        background: var(--accent, #6366f1);
+        background: var(--accent, #16a34a);
       }
       .ms-empty {
         padding: 10px 8px;

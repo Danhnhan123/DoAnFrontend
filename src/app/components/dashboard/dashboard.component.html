@@ -1,78 +1,219 @@
-<div class="dashboard">
-    <div class="page-header">
-      <h1 class="page-title">📊 Dashboard</h1>
-      <p class="page-subtitle">Xin chào! Đây là tổng quan hệ thống của bạn.</p>
+<div class="dash">
+  <!-- Toolbar: chọn kho + ngày/tên kho, mốc thời gian -->
+  <div class="dash-toolbar">
+    <div class="dash-toolbar-left">
+      <div class="wh-select">
+        <app-filter-select
+          [options]="warehouses"
+          [value]="selectedWarehouse()"
+          (valueChange)="setWarehouse($event)"
+          [clearable]="false"
+          placeholder="Chọn kho"
+        ></app-filter-select>
+      </div>
+      <p class="dash-date">{{ data().date }} · <strong>{{ warehouseName() }}</strong></p>
     </div>
-  
-    <!-- Stat Cards -->
-    <div class="stats-grid">
-      @for (stat of stats(); track stat.title) {
-        <div class="stat-card card">
-          <div class="stat-header">
-            <div class="stat-icon" [style.background]="stat.color + '18'" [style.color]="stat.color">
-              {{ stat.icon }}
-            </div>
-            <span class="stat-change" [class.up]="stat.changeType === 'up'" [class.down]="stat.changeType === 'down'">
-              {{ stat.change }}
-            </span>
-          </div>
-          <div class="stat-value">{{ stat.value }}</div>
-          <div class="stat-title">{{ stat.title }}</div>
-        </div>
+
+    <div class="period-tabs">
+      @for (p of periods; track p.id) {
+      <button
+        type="button"
+        class="period-tab"
+        [class.active]="period() === p.id"
+        (click)="setPeriod(p.id)"
+      >
+        {{ p.name }}
+      </button>
       }
     </div>
-  
-    <!-- Quick actions -->
-    <div class="section-title">Truy cập nhanh</div>
-    <div class="quick-grid">
-      <a class="quick-card card" routerLink="/admin/action">
-        <span class="quick-icon">🛠️</span>
-        <span>Quản lý hành động</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/users">
-        <span class="quick-icon">👥</span>
-        <span>Quản lý người dùng</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/roles">
-        <span class="quick-icon">🛡️</span>
-        <span>Vai trò & quyền hạn</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/menus">
-        <span class="quick-icon">📋</span>
-        <span>Quản lý menu</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/system-config">
-        <span class="quick-icon">⚙️</span>
-        <span>Cấu hình hệ thống</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/audit-log">
-        <span class="quick-icon">📝</span>
-        <span>Audit Log</span>
-      </a>
-      <a class="quick-card card" routerLink="/admin/activity-log">
-        <span class="quick-icon">🗂️</span>
-        <span>Activity Log</span>
-      </a>
+  </div>
+
+  <!-- Thẻ thống kê -->
+  <div class="stats-grid">
+    @for (s of data().stats; track s.label) {
+    <div class="stat-card">
+      <div class="stat-top">
+        <span class="stat-icon" [ngClass]="'ic-' + s.icon">
+          @switch (s.icon) {
+          @case ('leaf') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+          </svg>
+          }
+          @case ('rice') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+            <path d="m3.3 7 8.7 5 8.7-5" />
+            <path d="M12 22V12" />
+          </svg>
+          }
+          @case ('truck') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+            <path d="M15 18H9" />
+            <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+            <circle cx="17" cy="18" r="2" />
+            <circle cx="7" cy="18" r="2" />
+          </svg>
+          }
+          @case ('coins') {
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="6" />
+            <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+            <path d="M7 6h1v4" />
+            <path d="m16.71 13.88.7.71-2.82 2.82" />
+          </svg>
+          }
+          }
+        </span>
+        <span class="stat-change" [ngClass]="'ch-' + s.changeType">{{ s.change }}</span>
+      </div>
+      <div class="stat-label">{{ s.label }}</div>
+      <div class="stat-value">{{ s.value }}</div>
     </div>
-  
-    <!-- System info -->
-    <div class="info-row">
-      <div class="info-card card">
-        <div class="info-title">📡 Thông tin hệ thống</div>
-        <div class="info-list">
-          <div class="info-row-item">
-            <span class="info-key">API Base URL</span>
-            <span class="info-val">backend-do-an-api-v2.onrender.com</span>
+    }
+  </div>
+
+  <!-- Hàng giữa: công việc + cảnh báo -->
+  <div class="mid-grid">
+    <section class="panel tasks-panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+            <line x1="16" x2="16" y1="2" y2="6" />
+            <line x1="8" x2="8" y1="2" y2="6" />
+            <line x1="3" x2="21" y1="10" y2="10" />
+          </svg>
+          <span>Lịch công việc hôm nay</span>
+        </div>
+        <span class="pill-count">{{ data().tasks.length }} việc</span>
+      </div>
+
+      <div class="task-list">
+        @for (t of data().tasks; track t.time + t.title) {
+        <div class="task-row">
+          <span class="task-time">{{ t.time }}</span>
+          <span class="task-ic" [ngClass]="'tic-' + t.icon">
+            @switch (t.icon) {
+            @case ('buy') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" />
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+            </svg>
+            }
+            @case ('ship') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+              <path d="M15 18H9" />
+              <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.62l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+              <circle cx="17" cy="18" r="2" /><circle cx="7" cy="18" r="2" />
+            </svg>
+            }
+            @case ('retail') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+              <path d="M3 6h18" />
+              <path d="M16 10a4 4 0 0 1-8 0" />
+            </svg>
+            }
+            @case ('check') {
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <path d="m9 14 2 2 4-4" />
+            </svg>
+            }
+            }
+          </span>
+          <div class="task-main">
+            <div class="task-title">{{ t.title }}</div>
+            <div class="task-sub">{{ t.sub }}</div>
           </div>
-          <div class="info-row-item">
-            <span class="info-key">Phiên bản API</span>
-            <span class="info-val">v1</span>
-          </div>
-          <div class="info-row-item">
-            <span class="info-key">Frontend</span>
-            <span class="info-val">Angular 18+</span>
-          </div>
+          <span class="task-status" [class.confirmed]="t.status === 'confirmed'" [class.pending]="t.status === 'pending'">
+            <span class="dot"></span>{{ t.status === 'confirmed' ? 'Đã xác nhận' : 'Chờ xử lý' }}
+          </span>
+        </div>
+        }
+      </div>
+    </section>
+
+    <section class="panel alerts-panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" /><path d="M12 17h.01" />
+          </svg>
+          <span>Cảnh báo &amp; Thông báo</span>
         </div>
       </div>
-    </div>
+
+      <div class="alert-list">
+        @for (a of data().alerts; track a.text) {
+        <div class="alert-row">
+          <span class="alert-dot" [ngClass]="'lvl-' + a.level"></span>
+          <div class="alert-main">
+            <div class="alert-text">{{ a.text }}</div>
+            <div class="alert-time">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              {{ a.time }}
+            </div>
+          </div>
+        </div>
+        } @empty {
+        <div class="alert-empty">Không có cảnh báo</div>
+        }
+      </div>
+    </section>
   </div>
+
+  <!-- Hàng dưới: biểu đồ + hiệu quả -->
+  <div class="bottom-grid">
+    <section class="panel chart-panel">
+      <div class="panel-head">
+        <div class="panel-title"><span>Thu mua lúa 7 ngày</span></div>
+        <div class="legend">
+          <span class="lg lg-vol">Sản lượng (tấn)</span>
+          <span class="lg lg-price">Giá (đ/kg)</span>
+        </div>
+      </div>
+
+      <div class="chart">
+        @for (b of chartBars(); track b.label) {
+        <div class="chart-col">
+          <div class="bars">
+            <span class="bar bar-vol" [style.height.%]="b.volPct"></span>
+            <span class="bar bar-price" [style.height.%]="b.pricePct"></span>
+          </div>
+          <span class="chart-label">{{ b.label }}</span>
+        </div>
+        }
+      </div>
+    </section>
+
+    <section class="panel perf-panel">
+      <div class="panel-head">
+        <div class="panel-title"><span>Hiệu quả vận hành</span></div>
+      </div>
+
+      <div class="perf-list">
+        @for (p of data().perf; track p.label) {
+        <div class="perf-row">
+          <div class="perf-top">
+            <span class="perf-label">{{ p.label }}</span>
+            <span class="perf-pct">{{ p.percent }}%</span>
+          </div>
+          <div class="perf-track">
+            <span class="perf-fill" [ngClass]="'pf-' + p.color" [style.width.%]="p.percent"></span>
+          </div>
+          <span class="perf-sub">{{ p.sub }}</span>
+        </div>
+        }
+      </div>
+    </section>
+  </div>
+</div>

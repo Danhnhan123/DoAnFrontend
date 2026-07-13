@@ -432,7 +432,7 @@ export class IotDeviceComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (!result.isConfirmed) return;
 
@@ -492,7 +492,7 @@ export class IotDeviceComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (result.isConfirmed) {
         this.toggleActiveMutation.mutate({ id: row.id, isActive: next });
@@ -537,7 +537,7 @@ export class IotDeviceComponent {
         <p style="margin-top:8px;font-size:0.78rem;color:#64748b">Gửi kèm header: <b>${headerName}</b></p>
       `,
       confirmButtonText: 'Đã lưu key',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 
@@ -547,7 +547,7 @@ export class IotDeviceComponent {
       text: message,
       icon: ok ? 'success' : 'error',
       confirmButtonText: 'Đóng',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 }
