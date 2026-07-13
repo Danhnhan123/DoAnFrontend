@@ -390,7 +390,7 @@ export class UserComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
@@ -444,7 +444,7 @@ export class UserComponent {
       text: msg,
       icon: ok ? 'success' : 'error',
       confirmButtonText: 'Đóng',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 }

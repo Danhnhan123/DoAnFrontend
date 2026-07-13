@@ -79,8 +79,8 @@
 }
 
 .search-input:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99,102,241,.08);
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22,163,74,.08);
 }
 
 .search-input::placeholder { color: var(--text-muted, #94a3b8); }
@@ -103,16 +103,16 @@
 }
 
 .filter-btn:hover {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
-  background: rgba(99,102,241,.05);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
+  background: rgba(22,163,74,.05);
   transform: none;
 }
 
 .filter-btn.filter-active {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
-  background: rgba(99,102,241,.08);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
+  background: rgba(22,163,74,.08);
 }
 
 .filter-select {
@@ -136,7 +136,7 @@
   width: 28px;
   height: 28px;
   border: 3px solid var(--border, #e2e8f0);
-  border-top-color: var(--accent, #6366f1);
+  border-top-color: var(--accent, #16a34a);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -162,7 +162,7 @@
   white-space: nowrap;
 }
 .sortable:hover {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
 }
 .sort-icon {
   font-size: 0.7rem;
@@ -186,7 +186,7 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: linear-gradient(135deg, #16a34a, #15803d);
   color: white;
   display: flex;
   align-items: center;
@@ -227,8 +227,8 @@
   font-size: 0.68rem;
   font-weight: 600;
   margin: 1px;
-  background: rgba(99, 102, 241, 0.1);
-  color: var(--accent, #6366f1);
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--accent, #16a34a);
 }
 
 /* Actions */
@@ -363,12 +363,12 @@
 
 /* Edit note */
 .edit-note {
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
   border-radius: 8px;
   padding: 10px 14px;
   font-size: 0.8rem;
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
   margin-bottom: 16px;
 }
 
@@ -397,9 +397,9 @@
   cursor: pointer;
 }
 .role-check-item.selected {
-  background: rgba(99, 102, 241, 0.1);
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
+  background: rgba(22, 163, 74, 0.1);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
 }
 
 /* Toggle */
@@ -420,20 +420,20 @@
   padding: 8px 16px;
   width: auto;
   height: auto;
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: #fff;
   border-radius: var(--radius-sm, 8px);
   font-size: 0.84rem;
   font-weight: 600;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(99,102,241,.25);
+  box-shadow: 0 2px 8px rgba(22,163,74,.25);
   transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
 }
 
 .add-btn:hover {
-  background: #4f46e5;
+  background: #15803d;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(99,102,241,.35);
+  box-shadow: 0 4px 14px rgba(22,163,74,.35);
 }
 .stats-grid {
   display: grid;
@@ -518,7 +518,7 @@
 .filter-panel {
   padding: 20px;
   margin-bottom: 20px;
-  border-top: 3px solid var(--accent, #6366f1);
+  border-top: 3px solid var(--accent, #16a34a);
   animation: slideDown 0.3s ease;
 }
 
@@ -549,7 +549,7 @@
 
 .status-badge {
   padding: 2px 8px;
-  background: rgba(99, 102, 241, 0.1);
+  background: rgba(22, 163, 74, 0.1);
   color: var(--accent);
   border-radius: 4px;
   font-size: 12px;
@@ -583,9 +583,9 @@
 }
 .icon-btn.filter-btn:hover,
 .icon-btn.filter-btn.filter-active {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
-  background: rgba(99, 102, 241, 0.08);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
+  background: rgba(22, 163, 74, 0.08);
   transform: none;
 }
 /* === Popup: header + footer cố định, chỉ phần thân (.modal-body) cuộn ===

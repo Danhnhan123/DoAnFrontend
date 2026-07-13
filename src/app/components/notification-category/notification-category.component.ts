@@ -45,7 +45,7 @@ export class NotificationCategoryComponent {
   showModal = signal(false);
   editItem = signal<NotificationCategoryRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', description: '', color: '#6366f1' });
+  form = signal<any>({ name: '', description: '', color: '#16a34a' });
 
   private readonly colMap: Record<string, number> = {
     id: 0,
@@ -121,7 +121,7 @@ export class NotificationCategoryComponent {
     this.form.set({
       name: detail.name || '',
       description: detail.description || '',
-      color: detail.color || '#6366f1',
+      color: detail.color || '#16a34a',
     });
   });
 
@@ -204,7 +204,7 @@ export class NotificationCategoryComponent {
 
   openCreate(): void {
     this.editItem.set(null);
-    this.form.set({ name: '', description: '', color: '#6366f1' });
+    this.form.set({ name: '', description: '', color: '#16a34a' });
     this.showModal.set(true);
   }
   openEdit(row: NotificationCategoryRow): void {
@@ -212,7 +212,7 @@ export class NotificationCategoryComponent {
     this.form.set({
       name: row.name || '',
       description: row.description || '',
-      color: row.color || '#6366f1',
+      color: row.color || '#16a34a',
     });
     this.showModal.set(true);
   }
@@ -242,7 +242,7 @@ export class NotificationCategoryComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((r) => {
       if (!r.isConfirmed) return;
       const base: CreateNotificationCategoryDto = {
@@ -275,7 +275,7 @@ export class NotificationCategoryComponent {
       text: message,
       icon: ok ? 'success' : 'error',
       confirmButtonText: 'Đóng',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 }

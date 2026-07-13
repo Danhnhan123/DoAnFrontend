@@ -4,16 +4,15 @@
     <div class="sidebar-header">
       <div class="logo-wrap">
         <div class="logo-icon-box">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <rect x="2" y="3" width="9" height="9" rx="1.5" fill="white" fill-opacity="0.9" />
-            <rect x="13" y="3" width="9" height="9" rx="1.5" fill="white" fill-opacity="0.5" />
-            <rect x="2" y="14" width="9" height="7" rx="1.5" fill="white" fill-opacity="0.5" />
-            <rect x="13" y="14" width="9" height="7" rx="1.5" fill="white" fill-opacity="0.9" />
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+            <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
           </svg>
         </div>
         <div class="logo-texts">
-          <span class="logo-brand">WMS-EC</span>
-          <span class="logo-sub">Admin Portal</span>
+          <span class="logo-brand">Tuấn Mây</span>
+          <span class="logo-sub">Quản lý lúa gạo</span>
         </div>
       </div>
     </div>
@@ -158,9 +157,9 @@
           </svg>
         </button>
         <div class="topbar-brand">
-          <span class="topbar-brand-name">WMS-EC</span>
+          <span class="topbar-brand-name">Tuấn Mây</span>
           <span class="topbar-brand-sep">•</span>
-          <span class="topbar-brand-sub">Warehouse Management</span>
+          <span class="topbar-brand-sub">Quản lý chuỗi cung ứng lúa gạo</span>
         </div>
       </div>
 
@@ -244,6 +243,7 @@
       @if (pageTitle()) {
       <div class="page-title-bar">
         <h1 class="page-title">{{ pageTitle() }}</h1>
+        <p class="page-title-sub">Cơ sở Kinh doanh Tuấn Mây · Lúa gạo</p>
       </div>
       }
       <router-outlet />

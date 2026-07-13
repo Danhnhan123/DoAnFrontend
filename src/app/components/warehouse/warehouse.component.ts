@@ -612,7 +612,7 @@ export class WarehouseComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
@@ -849,7 +849,7 @@ export class WarehouseComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (result.isConfirmed) this.doSaveLoc(f);
     });
@@ -944,7 +944,7 @@ export class WarehouseComponent {
       text: message,
       icon: ok ? 'success' : 'error',
       confirmButtonText: 'Đóng',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 }
