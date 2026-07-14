@@ -141,6 +141,31 @@ input[type="number"] {
   pointer-events: none;
 }
 
+/*
+ * Fix nút footer modal bị "2 lớp chồng chéo" khi bấm Lưu (trạng thái "Đang lưu..."):
+ * nút đổi nội dung (chữ <-> spinner + chữ) nên bị co/giãn, chữ và spinner chen/đè lên nhau.
+ * - .modal-footer .btn: không cho co giãn -> giữ nguyên kích thước theo nội dung.
+ * - .modal-footer .btn-primary: min-width cố định -> width ổn định giữa 2 trạng thái.
+ * - .btn .spin-sm/.spin-lg: không bị flex bóp + tính cả viền vào kích thước.
+ * Rule TOÀN CỤC -> sửa 1 chỗ cho MỌI màn (không đụng HTML/CSS từng component).
+ */
+.modal-footer .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.modal-footer .btn-primary {
+  min-width: 124px;
+}
+.modal-footer .btn-label {
+  display: inline-block;
+  line-height: 1;
+}
+.btn .spin-sm,
+.btn .spin-lg {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
 .btn-primary {
   background: var(--accent, #16a34a);
   color: white;
