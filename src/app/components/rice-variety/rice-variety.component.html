@@ -230,7 +230,7 @@
       <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
       <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> }
-        {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Thêm mới' }}
+        <span class="btn-label">{{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Thêm mới' }}</span>
       </button>
     </div>
     }
