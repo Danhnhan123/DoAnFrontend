@@ -110,6 +110,30 @@ const adminChildren: Routes = [
         .then(m => m.SupplierComponent),
   },
   {
+    path: 'rice-varieties',
+    loadComponent: () =>
+      import('./components/rice-variety/rice-variety.component')
+        .then(m => m.RiceVarietyComponent),
+  },
+  {
+    path: 'farmers',
+    loadComponent: () =>
+      import('./components/farmer/farmer.component')
+        .then(m => m.FarmerComponent),
+  },
+  {
+    path: 'customers',
+    loadComponent: () =>
+      import('./components/customer/customer.component')
+        .then(m => m.CustomerComponent),
+  },
+  {
+    path: 'organizations',
+    loadComponent: () =>
+      import('./components/organization/organization.component')
+        .then(m => m.OrganizationComponent),
+  },
+  {
     path: 'unit-of-measures',
     loadComponent: () =>
       import('./components/unit-of-measure/unit-of-measure.component')
