@@ -1,5 +1,6 @@
 export interface MenuAggregate {
   id: number;
+  code?: string;
   parentId?: number;
   treeIds: string;
   menuType: string;
@@ -14,6 +15,7 @@ export interface MenuAggregate {
 
 export interface MenuDetailDto {
   id: number;
+  code?: string;
   parentId?: number;
   treeIds: string;
   menuType: string;
@@ -41,6 +43,7 @@ export interface MenuPermissionDto {
 }
 
 export interface CreateMenuDto {
+  code?: string | null;
   parentId?: number | null;
   menuType: string;
   name: string;

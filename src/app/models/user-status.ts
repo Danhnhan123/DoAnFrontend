@@ -1,5 +1,6 @@
 export interface UserStatusAdvancedRow {
   id: number;
+  code?: string;
   name: string;
   color: string;
   description?: string;
@@ -8,6 +9,7 @@ export interface UserStatusAdvancedRow {
 
 export interface UserStatusDetailDto {
   id: number;
+  code?: string;
   name: string;
   description: string;
   color: string;
@@ -15,6 +17,7 @@ export interface UserStatusDetailDto {
 }
 
 export interface CreateUserStatusDto {
+  code?: string;
   name: string;
   description: string;
   color: string;

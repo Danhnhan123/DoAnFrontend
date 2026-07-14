@@ -183,6 +183,22 @@ export class AdminLayoutComponent implements OnInit {
     return [...(menus || [])].sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
   }
 
+  /**
+   * Làm phẳng 1 nhóm menu: trả về mọi mục con có đường dẫn (mọi cấp) theo thứ tự,
+   * để render dạng phẳng dưới tiêu đề nhóm (giống sidebar Figma, không thu gọn).
+   */
+  flatLeaves(menu: MenuAggregate): MenuAggregate[] {
+    const out: MenuAggregate[] = [];
+    const walk = (items: MenuAggregate[] | undefined): void => {
+      for (const it of this.sortedMenus(items)) {
+        if (this.routerLinkFor(it)) out.push(it);
+        if (it.child?.length) walk(it.child);
+      }
+    };
+    walk(menu.child);
+    return out;
+  }
+
   routerLinkFor(menu: MenuAggregate): string {
     const url = (menu.url || '').trim();
     if (!url || url === '#') return '';

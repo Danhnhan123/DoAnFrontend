@@ -27,6 +27,7 @@
             <span class="tree-icon-badge">{{ root.icon || '📁' }}</span>
             <div class="tree-names">
               <span class="tree-name">{{ root.name }}</span>
+              @if (root.code) { <span class="tree-url" style="opacity:.8">Mã: {{ root.code }}</span> }
               <span class="tree-url">{{ root.url || '(Không có URL)' }}</span>
             </div>
             <span class="type-pill" [class.is-admin]="root.menuType === 'ADMIN'">{{ root.menuType }}</span>
@@ -64,6 +65,7 @@
                 <span class="tree-icon-badge sm">{{ child.icon || '📄' }}</span>
                 <div class="tree-names">
                   <span class="tree-name">{{ child.name }}</span>
+                  @if (child.code) { <span class="tree-url" style="opacity:.8">Mã: {{ child.code }}</span> }
                   <span class="tree-url">{{ child.url || '(Không có URL)' }}</span>
                 </div>
                 <span class="type-pill sm" [class.is-admin]="child.menuType === 'ADMIN'">{{ child.menuType }}</span>
@@ -99,6 +101,7 @@
                     <span class="tree-icon-badge sm">{{ gc.icon || '📄' }}</span>
                     <div class="tree-names">
                       <span class="tree-name">{{ gc.name }}</span>
+                      @if (gc.code) { <span class="tree-url" style="opacity:.8">Mã: {{ gc.code }}</span> }
                       <span class="tree-url">{{ gc.url || '(Không có URL)' }}</span>
                     </div>
                   </div>
@@ -158,6 +161,11 @@
             <label class="form-label">Tên menu *</label>
             <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name',$event)"
               placeholder="Quản lý người dùng" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mã (Code)</label>
+            <input class="form-control" [ngModel]="form().code" (ngModelChange)="setField('code',$event)"
+              placeholder="Chỉ cần khi menu này được gán quyền, vd PRODUCT" />
           </div>
           <div class="form-group">
             <label class="form-label">Menu cha</label>

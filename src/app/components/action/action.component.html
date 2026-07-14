@@ -75,6 +75,7 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
+                        <th>Mã</th>
                         <th class="sortable" (click)="sort('name')">
                             Tên <span class="sort-icon">{{ sortIcon('name') }}</span>
                         </th>
@@ -91,6 +92,7 @@
                     @for (row of rows(); track row.id; let idx = $index) {
                     <tr>
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
+                        <td><span class="text-muted small">{{ row.code || '—' }}</span></td>
                         <td>{{ row.name }}</td>
                         <td>{{ row.description }}</td>
                         <td class="text-muted small">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
@@ -150,6 +152,13 @@
         <div class="state-box" style="padding:40px"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
         } @else {
         <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Mã (Code)</label>
+                    <input class="form-control" [ngModel]="form().code"
+                        (ngModelChange)="setField('code',$event)" placeholder="Mã định danh ổn định, vd CREATE" />
+                </div>
+            </div>
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Tên hành động *</label>

@@ -44,7 +44,7 @@ export class UserStatusComponent {
   showModal = signal(false);
   editItem = signal<UserStatusAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', color: '#000000', description: '' });
+  form = signal<any>({ code: '', name: '', color: '#000000', description: '' });
 
   private readonly colMap: Record<string, number> = {
     name: 1,
@@ -112,7 +112,7 @@ export class UserStatusComponent {
       this._prevDetailData = d;
       const detail: UserStatusDetailDto = (d as any)?.resources ?? (d as any)?.data;
       if (detail)
-        this.form.set({ name: detail.name, color: detail.color, description: detail.description || '' });
+        this.form.set({ code: detail.code || '', name: detail.name, color: detail.color, description: detail.description || '' });
     }
     return true;
   }
@@ -195,13 +195,13 @@ export class UserStatusComponent {
   openCreate(): void {
     this.editItem.set(null);
     this._prevDetailData = null;
-    this.form.set({ name: '', color: '#000000', description: '' });
+    this.form.set({ code: '', name: '', color: '#000000', description: '' });
     this.showModal.set(true);
   }
   openEdit(row: UserStatusAdvancedRow): void {
     this._prevDetailData = null;
     this.editItem.set(row);
-    this.form.set({ name: row.name, color: row.color, description: row.description || '' });
+    this.form.set({ code: row.code || '', name: row.name, color: row.color, description: row.description || '' });
     this.showModal.set(true);
   }
   closeModal(): void {
@@ -230,12 +230,14 @@ export class UserStatusComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: f.code,
           name: f.name,
           color: f.color,
           description: f.description,
         } as UpdateUserStatusDto);
       } else {
         this.createMutation.mutate({
+          code: f.code,
           name: f.name,
           color: f.color,
           description: f.description,
