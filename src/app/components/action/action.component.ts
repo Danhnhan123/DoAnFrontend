@@ -44,7 +44,7 @@ export class ActionComponent {
   showModal = signal(false);
   editItem = signal<ActionAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', description: '' });
+  form = signal<any>({ code: '', name: '', description: '' });
 
   private readonly colMap: Record<string, number> = {
     name: 1,
@@ -111,7 +111,7 @@ export class ActionComponent {
     if (d && d !== this._prevDetailData) {
       this._prevDetailData = d;
       const detail: ActionDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) this.form.set({ name: detail.name, description: detail.description || '' });
+      if (detail) this.form.set({ code: detail.code || '', name: detail.name, description: detail.description || '' });
     }
     return true;
   }
@@ -200,13 +200,13 @@ export class ActionComponent {
   openCreate(): void {
     this.editItem.set(null);
     this._prevDetailData = null;
-    this.form.set({ name: '', description: '' });
+    this.form.set({ code: '', name: '', description: '' });
     this.showModal.set(true);
   }
   openEdit(row: ActionAdvancedRow): void {
     this._prevDetailData = null;
     this.editItem.set(row);
-    this.form.set({ name: row.name, description: row.description || '' });
+    this.form.set({ code: row.code || '', name: row.name, description: row.description || '' });
     this.showModal.set(true);
   }
   closeModal(): void {
@@ -233,9 +233,9 @@ export class ActionComponent {
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
-        this.updateMutation.mutate({ id: this.editItem()!.id, name: f.name, description: f.description });
+        this.updateMutation.mutate({ id: this.editItem()!.id, code: f.code, name: f.name, description: f.description });
       } else {
-        this.createMutation.mutate({ name: f.name, description: f.description });
+        this.createMutation.mutate({ code: f.code, name: f.name, description: f.description });
       }
     });
   }

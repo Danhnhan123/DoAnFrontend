@@ -1,5 +1,6 @@
 export interface RoleListDto {
   id: number;
+  code?: string;
   name: string;
   description?: string;
   createdDate: string;
@@ -21,6 +22,7 @@ export interface RoleMenuActionDto {
 }
 
 export interface CreateRoleDto {
+  code?: string;
   name: string;
   description?: string;
   isCheckAll: boolean;

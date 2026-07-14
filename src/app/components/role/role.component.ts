@@ -49,6 +49,7 @@ export class RoleComponent {
   editItem = signal<RoleListDto | null>(null);
   isEdit = computed(() => !!this.editItem());
 
+  formCode = signal('');
   formName = signal('');
   formDesc = signal('');
 
@@ -237,6 +238,7 @@ export class RoleComponent {
 
   openCreate(): void {
     this.editItem.set(null);
+    this.formCode.set('');
     this.formName.set('');
     this.formDesc.set('');
     this.selectedPerms.set(new Map());
@@ -244,6 +246,7 @@ export class RoleComponent {
   }
   openEdit(role: RoleListDto): void {
     this.editItem.set(role);
+    this.formCode.set(role.code || '');
     this.formName.set(role.name);
     this.formDesc.set(role.description || '');
     this.selectedPerms.set(new Map());
@@ -341,6 +344,7 @@ export class RoleComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: this.formCode(),
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),
@@ -348,6 +352,7 @@ export class RoleComponent {
         } as UpdateRoleDto);
       } else {
         this.createMutation.mutate({
+          code: this.formCode(),
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),

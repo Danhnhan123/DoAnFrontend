@@ -38,6 +38,7 @@ export class MenuComponent {
   isReadOnly = signal(false);
 
   form = signal<{
+    code: string;
     name: string;
     url: string;
     icon: string;
@@ -48,6 +49,7 @@ export class MenuComponent {
     isAdminOnly: boolean;
     actionIds: number[];
   }>({
+    code: '',
     name: '',
     url: '',
     icon: '',
@@ -113,6 +115,7 @@ export class MenuComponent {
     if (!detail) return;
 
     this.form.set({
+      code: detail.code || '',
       name: detail.name,
       url: detail.url || '',
       icon: detail.icon || '',
@@ -220,7 +223,7 @@ export class MenuComponent {
     this.editItem.set(null);
     this.isReadOnly.set(false);
     this.form.set({
-      name: '', url: '', icon: '', className: '', sortOrder: 1,
+      code: '', name: '', url: '', icon: '', className: '', sortOrder: 1,
       parentId: null, menuType: 'ADMIN', isAdminOnly: false, actionIds: [],
     });
     this.showModal.set(true);
@@ -229,7 +232,7 @@ export class MenuComponent {
     this.editItem.set(menu);
     this.isReadOnly.set(readOnly);
     this.form.set({
-      name: menu.name, url: menu.url || '', icon: menu.icon || '',
+      code: menu.code || '', name: menu.name, url: menu.url || '', icon: menu.icon || '',
       className: '', sortOrder: menu.sortOrder, parentId: menu.parentId ?? null,
       menuType: menu.menuType, isAdminOnly: false, actionIds: [],
     });
@@ -270,6 +273,7 @@ export class MenuComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: f.code || null,
           name: f.name,
           url: f.url || '',
           icon: f.icon || '',
@@ -282,6 +286,7 @@ export class MenuComponent {
         } as UpdateMenuDto);
       } else {
         this.createMutation.mutate({
+          code: f.code || null,
           name: f.name,
           url: f.url || '',
           icon: f.icon || '',
