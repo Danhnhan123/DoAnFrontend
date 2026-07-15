@@ -51,8 +51,10 @@ export interface UserDetailDto {
 }
 
 export interface CreateUserDto {
+  /** Tên đăng nhập (tách riêng khỏi email). */
+  username: string;
+  /** Email chỉ dùng để nhận thông báo/cấp mật khẩu từ hệ thống. */
   email: string;
-  passwordHash: string;
   phoneNumber?: string;
   gender?: number;
   firstName: string;
@@ -68,6 +70,34 @@ export interface UpdateUserDto {
   lockEnabled: boolean;
   lockEndDate?: string | null;
   roles: number[];
+}
+
+/** Một dòng trong bảng tạo user hàng loạt (client-side). */
+export interface UserBulkRow {
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber?: string;
+  gender?: number;
+  roles: number[];
+}
+
+/** Dòng user đọc từ file import (BE trả về). */
+export interface UserImportRow {
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  identityNumber?: string;
+  gender?: number;
+}
+
+/** Lỗi theo dòng khi tạo hàng loạt (BE trả về khi 422). Row là số thứ tự 1-based. */
+export interface UserBatchRowError {
+  row: number;
+  errors: string[];
 }
 
 /** Hồ sơ tài khoản của chính user đang đăng nhập (GET /user/me). */

@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard } from './guards/auth.guard';
+import { authGuard, guestGuard, firstLoginGuard } from './guards/auth.guard';
 
 const adminChildren: Routes = [
   {
@@ -178,6 +178,22 @@ export const routes: Routes = [
     canActivate: [guestGuard],
     loadComponent: () =>
       import('./components/login/login.component').then(m => m.LoginComponent),
+  },
+  {
+    path: 'quen-mat-khau',
+    canActivate: [guestGuard],
+    loadComponent: () =>
+      import('./components/forgot-password/forgot-password.component').then(
+        m => m.ForgotPasswordComponent
+      ),
+  },
+  {
+    path: 'doi-mat-khau-lan-dau',
+    canActivate: [firstLoginGuard],
+    loadComponent: () =>
+      import('./components/change-password-first/change-password-first.component').then(
+        m => m.ChangePasswordFirstComponent
+      ),
   },
   {
     path: '',

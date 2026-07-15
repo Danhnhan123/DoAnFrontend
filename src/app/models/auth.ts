@@ -15,6 +15,13 @@ export interface LoginResponseAdminUserInfo {
   roles: DataItem[];
   permissions: PermissionAggregate[];
   menus: MenuAggregate[];
+  /** Bắt buộc đổi mật khẩu ngay sau khi đăng nhập (tài khoản mới/đã reset). */
+  mustChangePassword?: boolean;
+}
+
+/** Payload gửi yêu cầu quên mật khẩu (admin). */
+export interface ForgotPasswordRequest {
+  email: string;
 }
 
 export interface LoginResponse {

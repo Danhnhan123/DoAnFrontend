@@ -19,11 +19,12 @@ import {
 } from '../../models';
 import { UserService } from '../../services/user.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { UserBulkCreateComponent } from '../user-bulk-create/user-bulk-create.component';
 
 @Component({
   selector: 'app-user',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [CommonModule, FormsModule, FilterSelectComponent, UserBulkCreateComponent],
   templateUrl: './user.component.html',
   styleUrl: './user.component.css',
 })
@@ -47,12 +48,13 @@ export class UserComponent {
   filterDateTo = signal('');
 
   showModal = signal(false);
+  showBulk = signal(false);
   editItem = signal<UserAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
 
   form = signal<any>({
+    username: '',
     email: '',
-    passwordHash: 'Abc@123456',
     phoneNumber: '',
     gender: 1,
     firstName: '',
@@ -194,8 +196,8 @@ export class UserComponent {
   if (!detail) return;
 
   this.form.set({
+    username: detail.username,
     email: detail.email,
-    passwordHash: '',
     phoneNumber: detail.phoneNumber || '',
     gender: detail.gender ?? 1,
     firstName: detail.firstName,
@@ -297,8 +299,8 @@ export class UserComponent {
     this.previousStatusId = null;
     this.editItem.set(null);
     this.form.set({
+      username: '',
       email: '',
-      passwordHash: 'Abc@123456',
       phoneNumber: '',
       gender: 1,
       firstName: '',
@@ -323,8 +325,8 @@ export class UserComponent {
     this.previousStatusId = null;
     this.editItem.set(row);
     this.form.set({
+      username: row.username,
       email: row.email,
-      passwordHash: '',
       phoneNumber: '',
       gender: 1,
       firstName: row.firstName,
@@ -340,6 +342,18 @@ export class UserComponent {
   closeModal(): void {
     this.showModal.set(false);
     this.editItem.set(null);
+  }
+
+  openBulk(): void {
+    this.showBulk.set(true);
+  }
+  closeBulk(): void {
+    this.showBulk.set(false);
+  }
+  onBulkSaved(): void {
+    this.showBulk.set(false);
+    this.queryClient.invalidateQueries({ queryKey: ['users'] });
+    this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
   }
   setField(f: string, v: any): void {
     this.form.update((x) => ({ ...x, [f]: v }));
@@ -378,8 +392,16 @@ export class UserComponent {
 
   save(): void {
     const f = this.form();
+    if (!this.isEdit() && !f.username) {
+      this.showAlert('Vui lòng nhập tên đăng nhập', false);
+      return;
+    }
     if (!f.email || !f.firstName || !f.lastName) {
       this.showAlert('Vui lòng điền các trường bắt buộc', false);
+      return;
+    }
+    if (!f.roles || f.roles.length === 0) {
+      this.showAlert('Vui lòng chọn ít nhất một vai trò', false);
       return;
     }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
@@ -404,12 +426,12 @@ export class UserComponent {
         this.updateMutation.mutate(payload);
       } else {
         const payload: CreateUserDto = {
+          username: f.username,
           firstName: f.firstName,
           lastName: f.lastName,
           email: f.email,
           gender: f.gender,
           phoneNumber: f.phoneNumber,
-          passwordHash: f.passwordHash,
           roles: f.roles,
         };
         this.createMutation.mutate(payload);
