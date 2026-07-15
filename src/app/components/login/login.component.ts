@@ -37,7 +37,12 @@ export class LoginComponent {
       next: res => {
         this.loading.set(false);
         if (res.isSucceeded) {
-          this.router.navigate(['/admin/dashboard']);
+          // Tài khoản mới/đã reset: buộc đổi mật khẩu trước khi vào hệ thống.
+          if (res.resources?.userInfo?.mustChangePassword) {
+            this.router.navigate(['/doi-mat-khau-lan-dau']);
+          } else {
+            this.router.navigate(['/admin/dashboard']);
+          }
         } else {
           this.errorMsg.set(res.message || 'Đăng nhập thất bại');
         }

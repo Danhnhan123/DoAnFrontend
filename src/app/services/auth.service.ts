@@ -60,6 +60,21 @@ export class AuthService {
     return this.http.get<ApiResponse<AuthProfile>>(`${this.base}/auth/me`);
   }
 
+  /** Quên mật khẩu (admin): hệ thống sinh mật khẩu mới và gửi qua email. */
+  forgotPassword(email: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/auth/forgot-password`, { email });
+  }
+
+  /** Người dùng đang đăng nhập có bị buộc đổi mật khẩu hay không. */
+  mustChangePassword(): boolean {
+    return !!this.currentUser()?.mustChangePassword;
+  }
+
+  /** Gỡ cờ buộc đổi mật khẩu sau khi đã đổi thành công. */
+  clearMustChangePassword(): void {
+    this.patchCurrentUser({ mustChangePassword: false });
+  }
+
   getMenus(): MenuAggregate[] {
     const user = this.currentUser();
     return user?.menus || [];
