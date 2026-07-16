@@ -5,15 +5,18 @@ import { lastValueFrom } from 'rxjs';
 import Swal from 'sweetalert2';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
+import { UserDeviceService } from '../../services/user-device.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import {
   FileUploadItem,
   FolderNode,
   UpdateUserProfileDto,
   UserProfileDto,
+  MyDevice,
 } from '../../models';
+import { getOrCreateDeviceId } from '../../utils/device.util';
 
-type ProfileTab = 'info' | 'password';
+type ProfileTab = 'info' | 'password' | 'devices';
 
 /**
  * Trang "Tài khoản của tôi" cho web admin.
@@ -31,6 +34,13 @@ type ProfileTab = 'info' | 'password';
 export class ProfileComponent implements OnInit {
   private userService = inject(UserService);
   private authService = inject(AuthService);
+  private userDeviceService = inject(UserDeviceService);
+
+  // ------- Tab thiết bị -------
+  devices = signal<MyDevice[]>([]);
+  devicesLoading = signal(false);
+  devicesLoaded = signal(false);
+  readonly currentDeviceId = getOrCreateDeviceId();
 
   // ------- Trạng thái chung -------
   activeTab = signal<ProfileTab>('info');
@@ -168,6 +178,91 @@ export class ProfileComponent implements OnInit {
 
   setTab(tab: ProfileTab): void {
     this.activeTab.set(tab);
+    if (tab === 'devices' && !this.devicesLoaded()) {
+      this.loadDevices();
+    }
+  }
+
+  // ------- Tab thiết bị -------
+  async loadDevices(): Promise<void> {
+    this.devicesLoading.set(true);
+    try {
+      const res: any = await lastValueFrom(this.userDeviceService.getMyDevices());
+      const list = res?.resources ?? res?.data ?? [];
+      this.devices.set(list);
+      this.devicesLoaded.set(true);
+    } catch {
+      Swal.fire('Lỗi', 'Không tải được danh sách thiết bị.', 'error');
+    } finally {
+      this.devicesLoading.set(false);
+    }
+  }
+
+  isCurrentDevice(d: MyDevice): boolean {
+    return !!d.deviceId && d.deviceId === this.currentDeviceId;
+  }
+
+  async logoutDevice(d: MyDevice): Promise<void> {
+    if (!d.deviceId) return;
+    const isCurrent = this.isCurrentDevice(d);
+    const confirm = await Swal.fire({
+      title: 'Đăng xuất thiết bị?',
+      text: isCurrent
+        ? 'Đây là thiết bị hiện tại, đăng xuất sẽ kết thúc phiên của bạn.'
+        : `Đăng xuất khỏi "${d.deviceName || 'thiết bị này'}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res: any = await lastValueFrom(this.userDeviceService.logoutDevice(d.deviceId));
+      if (res?.isSucceeded) {
+        if (isCurrent) {
+          this.authService.logout().subscribe({
+            next: () => {},
+            error: () => {},
+          });
+          return;
+        }
+        this.devices.update(list => list.filter(x => x.deviceId !== d.deviceId));
+        Swal.fire('Thành công', 'Đã đăng xuất thiết bị.', 'success');
+      } else {
+        Swal.fire('Lỗi', res?.message || 'Đăng xuất thất bại.', 'error');
+      }
+    } catch {
+      Swal.fire('Lỗi', 'Đăng xuất thất bại. Vui lòng thử lại.', 'error');
+    }
+  }
+
+  async logoutOtherDevices(): Promise<void> {
+    const confirm = await Swal.fire({
+      title: 'Đăng xuất tất cả thiết bị khác?',
+      text: 'Các thiết bị khác (trừ thiết bị hiện tại) sẽ bị đăng xuất.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất tất cả',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res: any = await lastValueFrom(
+        this.userDeviceService.logoutOtherDevices(this.currentDeviceId)
+      );
+      if (res?.isSucceeded) {
+        this.devices.update(list => list.filter(x => this.isCurrentDevice(x)));
+        Swal.fire('Thành công', 'Đã đăng xuất các thiết bị khác.', 'success');
+      } else {
+        Swal.fire('Lỗi', res?.message || 'Thao tác thất bại.', 'error');
+      }
+    } catch {
+      Swal.fire('Lỗi', 'Thao tác thất bại. Vui lòng thử lại.', 'error');
+    }
   }
 
   // ------- Trình quản lý ảnh -------

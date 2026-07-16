@@ -4,6 +4,7 @@ export * from './auth';
 export * from './permission';
 export * from './menu';
 export * from './user';
+export * from './user-device';
 export * from './user-status';
 export * from './role';
 export * from './system-config';

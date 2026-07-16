@@ -7,6 +7,7 @@ import {
   ApiResponse, LoginRequest, LoginResponse,
   LoginResponseAdminUserInfo, AuthProfile, MenuAggregate
 } from '../models';
+import { getDeviceInfo } from '../utils/device.util';
 
 const TOKEN_KEY = 'admin_access_token';
 const REFRESH_TOKEN_KEY = 'admin_refresh_token';
@@ -26,9 +27,29 @@ export class AuthService {
       tap(res => {
         if (res.isSucceeded && res.resources) {
           this.saveSession(res.resources);
+          // Đăng ký thiết bị hiện tại (chuẩn bị cho FCM). Chạy nền, không chặn luồng login.
+          this.registerCurrentDevice(res.resources.refreshToken);
         }
       })
     );
+  }
+
+  /** Gọi API đăng ký thiết bị sau khi đăng nhập (best-effort). */
+  private registerCurrentDevice(refreshToken: string): void {
+    try {
+      const info = getDeviceInfo();
+      this.http
+        .post(`${this.base}/user-device/register`, {
+          deviceId: info.deviceId,
+          deviceName: info.deviceName,
+          platform: info.platform,
+          userAgent: info.userAgent,
+          refreshToken,
+        })
+        .subscribe({ next: () => {}, error: () => {} });
+    } catch {
+      /* bỏ qua lỗi đăng ký thiết bị */
+    }
   }
 
   logout(): Observable<any> {
