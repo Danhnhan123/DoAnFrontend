@@ -2,6 +2,7 @@ import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
+import Swal from 'sweetalert2';
 import {
   injectQuery,
   injectMutation,
@@ -33,7 +34,6 @@ export class SystemConfigComponent {
   isEdit = signal(false);
   form = signal<any>({ name: '', configKey: '', configValue: '', description: '' });
   editId = signal<number | null>(null);
-  toast = signal<{ msg: string; ok: boolean } | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -77,10 +77,10 @@ export class SystemConfigComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Thêm thành công!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Thêm thành công!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -90,10 +90,10 @@ export class SystemConfigComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Cập nhật thành công!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Cập nhật thành công!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -102,8 +102,8 @@ export class SystemConfigComponent {
     onSuccess: (r: any) => {
       if (r.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Đã xóa!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Đã xóa!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
   }));
 
@@ -149,7 +149,7 @@ export class SystemConfigComponent {
   save(): void {
     const f = this.form();
     if (!f.name || !f.configKey || !f.configValue) {
-      this.showToast('Tên, Key và Value là bắt buộc', false);
+      this.showAlert('Tên, Key và Value là bắt buộc', false);
       return;
     }
     const payload: CreateSystemConfigDto = {
@@ -166,12 +166,26 @@ export class SystemConfigComponent {
   }
 
   delete(id: number, key: string): void {
-    if (!confirm(`Xóa cấu hình "${key}"?`)) return;
-    this.deleteMutation.mutate(id);
+    Swal.fire({
+      title: 'Xóa cấu hình?',
+      text: `Bạn có chắc muốn xóa cấu hình "${key}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xóa ngay',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    }).then(result => {
+      if (result.isConfirmed) this.deleteMutation.mutate(id);
+    });
   }
 
-  private showToast(msg: string, ok = true): void {
-    this.toast.set({ msg, ok });
-    setTimeout(() => this.toast.set(null), 3000);
+  private showAlert(msg: string, ok = true): void {
+    Swal.fire({
+      title: ok ? 'Thành công' : 'Lỗi',
+      text: msg,
+      icon: ok ? 'success' : 'error',
+      confirmButtonText: 'Đóng',
+      confirmButtonColor: '#15803d',
+    });
   }
 }

@@ -139,13 +139,13 @@ export class ProductComponent {
       if (res.isSucceeded) {
         this.closeForm();
         this.queryClient.invalidateQueries({ queryKey: ['products'] });
-        this.showToast('Thêm sản phẩm thành công.');
+        this.showAlert('Thêm sản phẩm thành công.');
       } else {
-        this.showToast(res.message || 'Thêm sản phẩm thất bại.', false);
+        this.showAlert(res.message || 'Thêm sản phẩm thất bại.', false);
       }
     },
     onError: (err: any) =>
-      this.showToast(err?.error?.message || 'Lỗi thêm sản phẩm.', false),
+      this.showAlert(err?.error?.message || 'Lỗi thêm sản phẩm.', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -155,13 +155,13 @@ export class ProductComponent {
       if (res.isSucceeded) {
         this.closeForm();
         this.queryClient.invalidateQueries({ queryKey: ['products'] });
-        this.showToast('Cập nhật sản phẩm thành công.');
+        this.showAlert('Cập nhật sản phẩm thành công.');
       } else {
-        this.showToast(res.message || 'Cập nhật sản phẩm thất bại.', false);
+        this.showAlert(res.message || 'Cập nhật sản phẩm thất bại.', false);
       }
     },
     onError: (err: any) =>
-      this.showToast(err?.error?.message || 'Lỗi cập nhật sản phẩm.', false),
+      this.showAlert(err?.error?.message || 'Lỗi cập nhật sản phẩm.', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -169,13 +169,13 @@ export class ProductComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['products'] });
-        this.showToast('Đã xóa sản phẩm thành công.');
+        this.showAlert('Đã xóa sản phẩm thành công.');
       } else {
-        this.showToast(res.message || 'Xóa sản phẩm thất bại.', false);
+        this.showAlert(res.message || 'Xóa sản phẩm thất bại.', false);
       }
     },
     onError: (err: any) =>
-      this.showToast(err?.error?.message || 'Lỗi xóa sản phẩm.', false),
+      this.showAlert(err?.error?.message || 'Lỗi xóa sản phẩm.', false),
   }));
 
   rows = computed<ProductAdvancedRow[]>(() => {
@@ -337,12 +337,12 @@ categoryOptions = computed<ProductCategoryOption[]>(() => {
   save(): void {
     const form = this.form();
     if (!form.name.trim() || !form.productCategoryId) {
-      this.showToast('Vui lòng nhập tên sản phẩm và chọn danh mục.', false);
+      this.showAlert('Vui lòng nhập tên sản phẩm và chọn danh mục.', false);
       return;
     }
 
     if (form.name.trim().length > 200) {
-      this.showToast('Tên sản phẩm không được vượt quá 200 ký tự.', false);
+      this.showAlert('Tên sản phẩm không được vượt quá 200 ký tự.', false);
       return;
     }
 
@@ -400,7 +400,7 @@ categoryOptions = computed<ProductCategoryOption[]>(() => {
     return isActive ? 'Đang bán' : 'Ngừng bán';
   }
 
-  private showToast(message: string, ok = true): void {
+  private showAlert(message: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công' : 'Thất bại',
       text: message,

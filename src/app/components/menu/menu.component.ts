@@ -62,7 +62,6 @@ export class MenuComponent {
   });
 
   menuTypes = ['ADMIN', 'CLIENT', 'BOTH'];
-  toast = signal<{ msg: string; ok: boolean } | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────
 

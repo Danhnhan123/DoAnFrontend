@@ -125,12 +125,12 @@ export class ActionComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Thêm mới thành công!');
+        this.showAlert('Thêm mới thành công!');
       } else {
-        this.showToast(res.message || 'Thêm thất bại', false);
+        this.showAlert(res.message || 'Thêm thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -140,12 +140,12 @@ export class ActionComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Cập nhật thành công!');
+        this.showAlert('Cập nhật thành công!');
       } else {
-        this.showToast(res.message || 'Cập nhật thất bại', false);
+        this.showAlert(res.message || 'Cập nhật thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -154,12 +154,12 @@ export class ActionComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Đã xóa thành công!');
+        this.showAlert('Đã xóa thành công!');
       } else {
-        this.showToast(res.message || 'Xóa thất bại', false);
+        this.showAlert(res.message || 'Xóa thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi xóa hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi xóa hệ thống', false),
   }));
 
   saving = computed(
@@ -219,7 +219,7 @@ export class ActionComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.name) { this.showToast('Vui lòng điền đầy đủ tên hành động (*)', false); return; }
+    if (!f.name) { this.showAlert('Vui lòng điền đầy đủ tên hành động (*)', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
       title: `Xác nhận ${actionText}`,
@@ -259,7 +259,7 @@ export class ActionComponent {
     if (this.sortField() !== field) return '⇅';
     return this.sortDir() === 'asc' ? '▲' : '▼';
   }
-  private showToast(msg: string, ok = true): void {
+  private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,

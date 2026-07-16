@@ -126,10 +126,10 @@ export class UserStatusComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Thêm mới thành công!');
-      } else this.showToast(res.message || 'Thêm thất bại', false);
+        this.showAlert('Thêm mới thành công!');
+      } else this.showAlert(res.message || 'Thêm thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi hệ thống', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -139,10 +139,10 @@ export class UserStatusComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Cập nhật thành công!');
-      } else this.showToast(res.message || 'Cập nhật thất bại', false);
+        this.showAlert('Cập nhật thành công!');
+      } else this.showAlert(res.message || 'Cập nhật thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi hệ thống', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -151,10 +151,10 @@ export class UserStatusComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Đã xóa thành công!');
-      } else this.showToast(res.message || 'Xóa thất bại', false);
+        this.showAlert('Đã xóa thành công!');
+      } else this.showAlert(res.message || 'Xóa thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi xóa hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi xóa hệ thống', false),
   }));
 
   saving = computed(
@@ -214,7 +214,7 @@ export class UserStatusComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.name) { this.showToast('Vui lòng điền đầy đủ tên trạng thái người dùng (*)', false); return; }
+    if (!f.name) { this.showAlert('Vui lòng điền đầy đủ tên trạng thái người dùng (*)', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
       title: `Xác nhận ${actionText}`,
@@ -265,7 +265,7 @@ export class UserStatusComponent {
     if (this.sortField() !== field) return '⇅';
     return this.sortDir() === 'asc' ? '▲' : '▼';
   }
-  private showToast(msg: string, ok = true): void {
+  private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,
