@@ -31,7 +31,7 @@ export class SystemConfigComponent {
 
   showModal = signal(false);
   isEdit = signal(false);
-  form = signal<any>({ key: '', value: '', description: '' });
+  form = signal<any>({ name: '', configKey: '', configValue: '', description: '' });
   editId = signal<number | null>(null);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
 
@@ -49,17 +49,22 @@ export class SystemConfigComponent {
       ),
   }));
 
+  /** BE trả ApiResponse.resources = PagingData { dataSource, total, totalFiltered, totalPages }. */
+  private paging = computed<any>(() => {
+    const res = this.listQuery.data() as any;
+    return res?.resources ?? res?.data ?? null;
+  });
   configs = computed<SystemConfigDetailDto[]>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.items ?? [];
+    const p = this.paging();
+    return p?.dataSource ?? p?.items ?? [];
   });
   totalRecords = computed<number>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.totalCount ?? 0;
+    const p = this.paging();
+    return p?.totalFiltered ?? p?.total ?? p?.totalCount ?? 0;
   });
   totalPages = computed<number>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.totalPages ?? 0;
+    const p = this.paging();
+    return p?.totalPages ?? 0;
   });
   loading = computed(() => this.listQuery.isPending());
 
@@ -122,13 +127,18 @@ export class SystemConfigComponent {
   openCreate(): void {
     this.isEdit.set(false);
     this.editId.set(null);
-    this.form.set({ key: '', value: '', description: '' });
+    this.form.set({ name: '', configKey: '', configValue: '', description: '' });
     this.showModal.set(true);
   }
   openEdit(c: SystemConfigDetailDto): void {
     this.isEdit.set(true);
     this.editId.set(c.id);
-    this.form.set({ key: c.key, value: c.value, description: c.description || '' });
+    this.form.set({
+      name: c.name,
+      configKey: c.configKey,
+      configValue: c.configValue,
+      description: c.description || '',
+    });
     this.showModal.set(true);
   }
   closeModal(): void { this.showModal.set(false); }
@@ -138,11 +148,20 @@ export class SystemConfigComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.key || !f.value) { this.showToast('Key và Value là bắt buộc', false); return; }
+    if (!f.name || !f.configKey || !f.configValue) {
+      this.showToast('Tên, Key và Value là bắt buộc', false);
+      return;
+    }
+    const payload: CreateSystemConfigDto = {
+      name: f.name.trim(),
+      configKey: f.configKey.trim(),
+      configValue: f.configValue,
+      description: f.description?.trim() || undefined,
+    };
     if (this.isEdit()) {
-      this.updateMutation.mutate({ ...f, id: this.editId()! } as UpdateSystemConfigDto);
+      this.updateMutation.mutate({ ...payload, id: this.editId()! } as UpdateSystemConfigDto);
     } else {
-      this.createMutation.mutate(f as CreateSystemConfigDto);
+      this.createMutation.mutate(payload);
     }
   }
 
