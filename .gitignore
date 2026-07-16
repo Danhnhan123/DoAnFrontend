@@ -40,3 +40,8 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Firebase config (chứa API key nhạy cảm) - không push lên GitHub
+/public/firebase-messaging-sw.js
+/src/environments/environment.ts
+/src/environments/environment.development.ts

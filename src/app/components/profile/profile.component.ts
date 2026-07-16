@@ -4,10 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { lastValueFrom, Subscription } from 'rxjs';
 import { injectQuery, injectQueryClient } from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
+import { Router, ActivatedRoute } from '@angular/router';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { UserDeviceService } from '../../services/user-device.service';
 import { DevicePresenceService } from '../../services/device-presence.service';
+import { UserNotificationService } from '../../services/user-notification.service';
+import { FcmService } from '../../services/fcm.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import {
   FileUploadItem,
@@ -15,10 +18,11 @@ import {
   UpdateUserProfileDto,
   UserProfileDto,
   MyDevice,
+  MyNotification,
 } from '../../models';
 import { getOrCreateDeviceId } from '../../utils/device.util';
 
-type ProfileTab = 'info' | 'password' | 'devices';
+type ProfileTab = 'info' | 'password' | 'devices' | 'notifications';
 
 /**
  * Trang "Tài khoản của tôi" cho web admin.
@@ -38,15 +42,51 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private userDeviceService = inject(UserDeviceService);
   private devicePresenceService = inject(DevicePresenceService);
+  private notiService = inject(UserNotificationService);
+  private fcm = inject(FcmService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   // ------- Tab thiết bị -------
   private queryClient = injectQueryClient();
   readonly currentDeviceId = getOrCreateDeviceId();
   private presenceSub?: Subscription;
+  private fcmSub?: Subscription;
+  private routeSub?: Subscription;
 
   // ------- Trạng thái chung -------
   activeTab = signal<ProfileTab>('info');
   loading = signal(true);
+
+  // ------- Tab thông báo của tôi (realtime TanStack Query) -------
+  notiPage = signal(1);
+  readonly notiPageSize = 20;
+  notiQuery = injectQuery(() => ({
+    queryKey: ['profile-notifications', this.notiPage()],
+    enabled: this.activeTab() === 'notifications',
+    queryFn: () =>
+      lastValueFrom(
+        this.notiService.getMyNotifications({
+          pageIndex: this.notiPage(),
+          pageSize: this.notiPageSize,
+          isRead: null,
+        })
+      ),
+  }));
+  private notiPaging = computed<any>(() => {
+    const r: any = this.notiQuery.data();
+    return r?.resources ?? r?.data ?? null;
+  });
+  myNotifications = computed<MyNotification[]>(() => {
+    const p = this.notiPaging();
+    return p?.dataSource ?? p?.items ?? [];
+  });
+  notiTotal = computed<number>(() => {
+    const p = this.notiPaging();
+    return p?.totalFiltered ?? p?.total ?? 0;
+  });
+  notiTotalPages = computed<number>(() => Math.max(1, Math.ceil(this.notiTotal() / this.notiPageSize)));
+  notiLoading = computed(() => this.notiQuery.isPending());
 
   // Dùng TanStack Query giống các màn danh sách khác: realtime chỉ cần invalidate ->
   // tự refetch ở nền và render lại tối thiểu (không hiện lại spinner cả bảng).
@@ -166,15 +206,67 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadProfile();
+
+    // Cho phép mở đúng tab qua query param (vd nút "Xem tất cả" -> /admin/profile?tab=notifications).
+    // Dùng subscription để đổi tab được cả khi đang ở sẵn trang Profile.
+    this.routeSub = this.route.queryParamMap.subscribe(params => {
+      const tab = params.get('tab');
+      if (tab === 'notifications' || tab === 'devices' || tab === 'password' || tab === 'info') {
+        this.activeTab.set(tab);
+      }
+    });
+
     // Realtime: server báo thiết bị đổi -> chỉ invalidate query, TanStack tự refetch nền
     // và render lại phần thay đổi (giống các màn danh sách khác), không load lại cả bảng.
     this.presenceSub = this.devicePresenceService.devicesChanged$.subscribe(() => {
       this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
     });
+
+    // Realtime thông báo: có push (foreground) -> làm mới tab thông báo + badge chuông.
+    this.fcmSub = this.fcm.messageReceived$.subscribe(() => this.invalidateNotifications());
   }
 
   ngOnDestroy(): void {
     this.presenceSub?.unsubscribe();
+    this.fcmSub?.unsubscribe();
+    this.routeSub?.unsubscribe();
+  }
+
+  // ------- Tab thông báo của tôi -------
+  private invalidateNotifications(): void {
+    this.queryClient.invalidateQueries({ queryKey: ['profile-notifications'] });
+    this.queryClient.invalidateQueries({ queryKey: ['my-notifications'] });
+    this.queryClient.invalidateQueries({ queryKey: ['my-notifications-unread'] });
+  }
+
+  notiSetPage(p: number): void {
+    if (p < 1 || p > this.notiTotalPages()) return;
+    this.notiPage.set(p);
+  }
+
+  async onNotiClick(n: MyNotification): Promise<void> {
+    if (!n.isRead) {
+      try {
+        await lastValueFrom(this.notiService.markRead(n.id));
+      } catch {
+        /* ignore */
+      }
+      this.invalidateNotifications();
+    }
+    if (n.directionId) {
+      this.router.navigateByUrl(n.directionId);
+    }
+  }
+
+  async toggleNotiRead(n: MyNotification, event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      if (n.isRead) await lastValueFrom(this.notiService.markUnread(n.id));
+      else await lastValueFrom(this.notiService.markRead(n.id));
+      this.invalidateNotifications();
+    } catch {
+      /* ignore */
+    }
   }
 
   // Trạng thái realtime -> nhãn + màu.
