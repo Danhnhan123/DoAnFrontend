@@ -12,33 +12,6 @@
     transform: translateY(0);
   }
 }
-.toast-msg {
-  position: fixed;
-  top: 20px;
-  right: 24px;
-  z-index: 9999;
-  background: #10b981;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.2s ease;
-}
-.toast-err {
-  background: #ef4444;
-}
-@keyframes slideIn {
-  from {
-    transform: translateX(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
 .toolbar {
   display: flex;
   align-items: center;
