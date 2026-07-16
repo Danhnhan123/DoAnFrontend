@@ -1,7 +1,8 @@
 export interface SystemConfigDetailDto {
   id: number;
-  key: string;
-  value: string;
+  name: string;
+  configKey: string;
+  configValue: string;
   description?: string;
   createdDate: string;
 }

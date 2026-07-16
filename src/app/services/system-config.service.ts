@@ -10,8 +10,12 @@ import {
 } from '../models';
 
 export interface CreateSystemConfigDto {
-  key: string;
-  value: string;
+  /** Tên cấu hình (bắt buộc theo BE). */
+  name: string;
+  /** Khóa cấu hình (BE: ConfigKey). */
+  configKey: string;
+  /** Giá trị cấu hình (BE: ConfigValue). */
+  configValue: string;
   description?: string;
 }
 

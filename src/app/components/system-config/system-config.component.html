@@ -35,6 +35,7 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
+                        <th>Tên</th>
                         <th>Key</th>
                         <th>Value</th>
                         <th>Mô tả</th>
@@ -46,8 +47,9 @@
                     @for (c of configs(); track c.id; let idx=$index) {
                     <tr>
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
-                        <td><code class="key-code">{{ c.key }}</code></td>
-                        <td class="val-cell">{{ c.value }}</td>
+                        <td>{{ c.name }}</td>
+                        <td><code class="key-code">{{ c.configKey }}</code></td>
+                        <td class="val-cell">{{ c.configValue }}</td>
                         <td class="text-muted small">{{ c.description || '—' }}</td>
                         <td class="text-muted small">{{ c.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
                         <td class="action-cell">                            <button class="icon-btn edit-btn" (click)="openEdit(c)" title="Sửa">
@@ -57,7 +59,7 @@
                                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                 </svg>
                             </button>
-                            <button class="icon-btn delete-btn" (click)="delete(c.id, c.key)" title="Xóa">
+                            <button class="icon-btn delete-btn" (click)="delete(c.id, c.configKey)" title="Xóa">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6" />
@@ -97,15 +99,20 @@
         </div>
         <div class="modal-body">
             <div class="form-group">
+                <label class="form-label">Tên *</label>
+                <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name',$event)"
+                    placeholder="Tên hệ thống" />
+            </div>
+            <div class="form-group">
                 <label class="form-label">Key *</label>
-                <input class="form-control" [ngModel]="form().key" (ngModelChange)="setField('key',$event)"
+                <input class="form-control" [ngModel]="form().configKey" (ngModelChange)="setField('configKey',$event)"
                     placeholder="SITE_NAME" [disabled]="isEdit()" />
                 @if (isEdit()) { <span class="field-note">Key không thể thay đổi</span> }
             </div>
             <div class="form-group">
                 <label class="form-label">Value *</label>
-                <textarea class="form-control" rows="3" [ngModel]="form().value"
-                    (ngModelChange)="setField('value',$event)" placeholder="Giá trị..."></textarea>
+                <textarea class="form-control" rows="3" [ngModel]="form().configValue"
+                    (ngModelChange)="setField('configValue',$event)" placeholder="Giá trị..."></textarea>
             </div>
             <div class="form-group">
                 <label class="form-label">Mô tả</label>
