@@ -123,4 +123,15 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
     // Mở tab "Thông báo của tôi" trong trang Hồ sơ.
     this.router.navigate(['/admin/profile'], { queryParams: { tab: 'notifications' } });
   }
+
+  /** Trạng thái quyền thông báo: default | granted | denied | unsupported. */
+  notifState(): string {
+    return this.fcm.permissionState();
+  }
+
+  /** Xin quyền thông báo bằng thao tác click của người dùng (đáng tin cậy trên mọi trình duyệt). */
+  enableNotifications(event: Event): void {
+    event.stopPropagation();
+    this.fcm.requestPermission();
+  }
 }

@@ -17,6 +17,16 @@
       <button type="button" class="noti-viewall" (click)="viewAll()">Xem tất cả</button>
     </div>
 
+    @if (notifState() === 'default') {
+    <button type="button" class="noti-enable" (click)="enableNotifications($event)">
+      🔔 Bật thông báo trên trình duyệt
+    </button>
+    } @else if (notifState() === 'denied') {
+    <div class="noti-enable denied">
+      Thông báo đang bị chặn. Hãy bật lại trong cài đặt trình duyệt (biểu tượng ổ khóa trên thanh địa chỉ).
+    </div>
+    }
+
     <div class="noti-list">
       @if (loading()) {
       <div class="noti-empty"><span class="spin-sm"></span> Đang tải...</div>
