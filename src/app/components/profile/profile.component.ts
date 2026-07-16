@@ -1,11 +1,12 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Subscription } from 'rxjs';
 import Swal from 'sweetalert2';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { UserDeviceService } from '../../services/user-device.service';
+import { DevicePresenceService } from '../../services/device-presence.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import {
   FileUploadItem,
@@ -31,16 +32,18 @@ type ProfileTab = 'info' | 'password' | 'devices';
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css',
 })
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private authService = inject(AuthService);
   private userDeviceService = inject(UserDeviceService);
+  private devicePresenceService = inject(DevicePresenceService);
 
   // ------- Tab thiết bị -------
   devices = signal<MyDevice[]>([]);
   devicesLoading = signal(false);
   devicesLoaded = signal(false);
   readonly currentDeviceId = getOrCreateDeviceId();
+  private presenceSub?: Subscription;
 
   // ------- Trạng thái chung -------
   activeTab = signal<ProfileTab>('info');
@@ -150,6 +153,28 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadProfile();
+    // Realtime: server báo thiết bị đổi (đăng nhập/đăng xuất/đổi trạng thái) -> làm mới danh sách.
+    this.presenceSub = this.devicePresenceService.devicesChanged$.subscribe(() => {
+      if (this.activeTab() === 'devices' && this.devicesLoaded()) {
+        this.loadDevices();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.presenceSub?.unsubscribe();
+  }
+
+  // Trạng thái realtime -> nhãn + màu.
+  statusLabel(status?: string): string {
+    if (status === 'active') return 'Đang hoạt động';
+    if (status === 'idle') return 'Đang chờ';
+    return 'Không hoạt động';
+  }
+  statusClass(status?: string): string {
+    if (status === 'active') return 'st-active';
+    if (status === 'idle') return 'st-idle';
+    return 'st-offline';
   }
 
   private async loadProfile(): Promise<void> {
@@ -218,16 +243,17 @@ export class ProfileComponent implements OnInit {
     });
     if (!confirm.isConfirmed) return;
 
+    // Đăng xuất chính thiết bị hiện tại -> dùng luồng logout chung (đã tự xoá đăng ký thiết bị).
+    if (isCurrent) {
+      this.devicePresenceService.stop();
+      this.authService.logout().subscribe({ next: () => {}, error: () => {} });
+      return;
+    }
+
     try {
       const res: any = await lastValueFrom(this.userDeviceService.logoutDevice(d.deviceId));
       if (res?.isSucceeded) {
-        if (isCurrent) {
-          this.authService.logout().subscribe({
-            next: () => {},
-            error: () => {},
-          });
-          return;
-        }
+        // Danh sách sẽ tự làm mới qua realtime; xoá ngay cho phản hồi tức thì.
         this.devices.update(list => list.filter(x => x.deviceId !== d.deviceId));
         Swal.fire('Thành công', 'Đã đăng xuất thiết bị.', 'success');
       } else {

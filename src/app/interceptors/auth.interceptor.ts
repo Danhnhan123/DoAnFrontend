@@ -2,10 +2,16 @@ import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { catchError, throwError, switchMap } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { DevicePresenceService } from '../services/device-presence.service';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.getToken();
+
+  // Mỗi request API (khi đã đăng nhập) = có hoạt động -> đánh dấu để tính trạng thái idle.
+  if (token) {
+    inject(DevicePresenceService).markActivity();
+  }
 
   const authReq = token
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })

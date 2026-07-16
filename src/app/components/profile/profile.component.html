@@ -258,7 +258,7 @@
           <div class="dev-name">
             {{ d.deviceName || 'Thiết bị' }}
             @if (isCurrentDevice(d)) { <span class="dev-badge">Thiết bị hiện tại</span> }
-            @if (d.hasActiveSession) { <span class="dev-online">● Đang hoạt động</span> }
+            <span class="dev-status" [ngClass]="statusClass(d.status)">● {{ statusLabel(d.status) }}</span>
           </div>
           <div class="dev-meta">{{ d.platform || '—' }}</div>
           <div class="dev-meta small" [title]="d.userAgent || ''">{{ d.userAgent || '' }}</div>
