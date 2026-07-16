@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -32,6 +33,16 @@ export class LoginComponent {
     }
     this.loading.set(true);
     this.errorMsg.set('');
+
+    // Xin quyền thông báo NGAY trong thao tác bấm Đăng nhập (còn "user gesture", trước mọi await).
+    // Sau khi vào dashboard, FCM sẽ tự lấy token nếu quyền đã được cấp.
+    if (
+      environment.firebase?.apiKey &&
+      typeof Notification !== 'undefined' &&
+      Notification.permission === 'default'
+    ) {
+      Notification.requestPermission().catch(() => {});
+    }
 
     this.authService.login({ username: this.username(), password: this.password() }).subscribe({
       next: res => {

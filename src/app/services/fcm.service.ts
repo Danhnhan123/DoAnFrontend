@@ -57,26 +57,36 @@ export class FcmService {
 
       onMessage(this.messaging, (payload) => this.messageReceived$.next(payload));
 
-      // Thử xin quyền + lấy token ngay lúc tải (một số trình duyệt chỉ hiện popup khi
-      // có thao tác người dùng -> có thể bấm nút "Bật thông báo" trên chuông để xin lại).
-      await this.requestPermission();
+      // KHÔNG xin quyền lúc tải trang (trình duyệt chặn nếu không có thao tác người dùng).
+      // Nếu đã được cấp quyền từ trước -> lấy token im lặng. Chưa cấp -> chờ user bấm chuông/nút.
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        await this.getAndRegisterToken();
+      }
     } catch (e) {
       console.error('[FCM] Lỗi khởi tạo:', e);
     }
   }
 
-  /** Xin quyền thông báo + lấy token + gửi lên server. Có thể gọi từ click (đáng tin cậy hơn). */
+  /**
+   * Xin quyền thông báo — PHẢI gọi từ một thao tác người dùng (click), nếu không trình duyệt
+   * sẽ chặn: "Notification prompting can only be done from a user gesture".
+   */
   async requestPermission(): Promise<void> {
-    if (!this.initialized) {
-      await this.init();
-      return;
-    }
+    if (!this.initialized) await this.init();
     if (!this.messaging || typeof Notification === 'undefined') return;
     try {
       const permission = await Notification.requestPermission();
       console.log('[FCM] Notification.permission =', permission);
-      if (permission !== 'granted') return;
+      if (permission === 'granted') await this.getAndRegisterToken();
+    } catch (e) {
+      console.error('[FCM] Lỗi xin quyền:', e);
+    }
+  }
 
+  /** Đăng ký service worker + lấy device token + gửi lên server (chỉ khi đã có quyền). */
+  private async getAndRegisterToken(): Promise<void> {
+    if (!this.messaging) return;
+    try {
       const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const token = await getToken(this.messaging, {
         vapidKey: environment.firebase.vapidKey,
@@ -89,7 +99,7 @@ export class FcmService {
         console.warn('[FCM] Không lấy được token — kiểm tra vapidKey và service worker /firebase-messaging-sw.js.');
       }
     } catch (e) {
-      console.error('[FCM] Lỗi xin quyền/lấy token:', e);
+      console.error('[FCM] Lỗi lấy token:', e);
     }
   }
 

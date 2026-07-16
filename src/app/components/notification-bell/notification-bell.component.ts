@@ -79,7 +79,12 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
 
   toggle(event: Event): void {
     event.stopPropagation();
-    this.open.update(v => !v);
+    const willOpen = !this.open();
+    this.open.set(willOpen);
+    // Mở chuông là một thao tác click -> tận dụng để xin quyền thông báo (nếu chưa quyết định).
+    if (willOpen && this.fcm.permissionState() === 'default') {
+      this.fcm.requestPermission();
+    }
   }
 
   close(): void {
