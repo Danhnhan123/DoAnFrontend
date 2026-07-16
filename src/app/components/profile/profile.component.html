@@ -27,6 +27,19 @@
       </svg>
       Đổi mật khẩu
     </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'devices'"
+      (click)="setTab('devices')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" />
+        <line x1="12" y1="18" x2="12" y2="18" />
+      </svg>
+      Thiết bị đăng nhập
+    </button>
   </div>
 
   @if (loading()) {
@@ -208,6 +221,54 @@
         </button>
       </div>
     </div>
+  </div>
+  }
+
+  <!-- ============ TAB: THIẾT BỊ ============ -->
+  @if (activeTab() === 'devices') {
+  <div class="card">
+    <div class="dev-head">
+      <div>
+        <h3 class="dev-title">Thiết bị đăng nhập</h3>
+        <p class="dev-sub">Các thiết bị đã đăng ký với tài khoản của bạn.</p>
+      </div>
+      <button type="button" class="btn btn-outline danger" (click)="logoutOtherDevices()"
+        [disabled]="devicesLoading() || devices().length <= 1">
+        Đăng xuất tất cả thiết bị khác
+      </button>
+    </div>
+
+    @if (devicesLoading()) {
+    <div class="dev-state"><span class="spinner sm"></span> Đang tải...</div>
+    } @else if (devices().length === 0) {
+    <div class="dev-state">Chưa có thiết bị nào.</div>
+    } @else {
+    <div class="dev-list">
+      @for (d of devices(); track d.id) {
+      <div class="dev-item" [class.current]="isCurrentDevice(d)">
+        <div class="dev-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="14" rx="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+        </div>
+        <div class="dev-info">
+          <div class="dev-name">
+            {{ d.deviceName || 'Thiết bị' }}
+            @if (isCurrentDevice(d)) { <span class="dev-badge">Thiết bị hiện tại</span> }
+            @if (d.hasActiveSession) { <span class="dev-online">● Đang hoạt động</span> }
+          </div>
+          <div class="dev-meta">{{ d.platform || '—' }}</div>
+          <div class="dev-meta small" [title]="d.userAgent || ''">{{ d.userAgent || '' }}</div>
+          <div class="dev-meta small">Đăng ký: {{ d.createdDate | date:'dd/MM/yyyy HH:mm' }}</div>
+        </div>
+        <button type="button" class="dev-logout" (click)="logoutDevice(d)">Đăng xuất</button>
+      </div>
+      }
+    </div>
+    }
   </div>
   }
 
