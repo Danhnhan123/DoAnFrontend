@@ -66,6 +66,28 @@
 }
 .noti-viewall:hover { text-decoration: underline; }
 
+.noti-enable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  background: #f0fdf4;
+  border: none;
+  border-bottom: 1px solid #dcfce7;
+  color: #166534;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.noti-enable:hover { background: #dcfce7; }
+.noti-enable.denied {
+  background: #fff7ed;
+  border-bottom-color: #fed7aa;
+  color: #9a3412;
+  font-weight: 500;
+  cursor: default;
+}
+
 .noti-list { max-height: 420px; overflow-y: auto; }
 
 .noti-empty {
