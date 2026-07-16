@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom, Subscription } from 'rxjs';
+import { injectQuery, injectQueryClient } from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
@@ -39,15 +40,27 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private devicePresenceService = inject(DevicePresenceService);
 
   // ------- Tab thiết bị -------
-  devices = signal<MyDevice[]>([]);
-  devicesLoading = signal(false);
-  devicesLoaded = signal(false);
+  private queryClient = injectQueryClient();
   readonly currentDeviceId = getOrCreateDeviceId();
   private presenceSub?: Subscription;
 
   // ------- Trạng thái chung -------
   activeTab = signal<ProfileTab>('info');
   loading = signal(true);
+
+  // Dùng TanStack Query giống các màn danh sách khác: realtime chỉ cần invalidate ->
+  // tự refetch ở nền và render lại tối thiểu (không hiện lại spinner cả bảng).
+  deviceListQuery = injectQuery(() => ({
+    queryKey: ['my-devices'],
+    enabled: this.activeTab() === 'devices',
+    queryFn: () => lastValueFrom(this.userDeviceService.getMyDevices()),
+  }));
+  devices = computed<MyDevice[]>(() => {
+    const res: any = this.deviceListQuery.data();
+    return res?.resources ?? res?.data ?? [];
+  });
+  /** Chỉ hiện spinner ở lần tải đầu (chưa có dữ liệu); refetch realtime thì im lặng. */
+  devicesLoading = computed(() => this.deviceListQuery.isPending());
   profile = signal<UserProfileDto | null>(null);
 
   /** Đồng bộ với genderOptions của màn Quản lý người dùng (Nam=1, Nữ=0). */
@@ -153,11 +166,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadProfile();
-    // Realtime: server báo thiết bị đổi (đăng nhập/đăng xuất/đổi trạng thái) -> làm mới danh sách.
+    // Realtime: server báo thiết bị đổi -> chỉ invalidate query, TanStack tự refetch nền
+    // và render lại phần thay đổi (giống các màn danh sách khác), không load lại cả bảng.
     this.presenceSub = this.devicePresenceService.devicesChanged$.subscribe(() => {
-      if (this.activeTab() === 'devices' && this.devicesLoaded()) {
-        this.loadDevices();
-      }
+      this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
     });
   }
 
@@ -202,27 +214,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   setTab(tab: ProfileTab): void {
+    // Query 'my-devices' tự bật khi activeTab='devices' (enabled) và tự fetch lần đầu.
     this.activeTab.set(tab);
-    if (tab === 'devices' && !this.devicesLoaded()) {
-      this.loadDevices();
-    }
   }
 
   // ------- Tab thiết bị -------
-  async loadDevices(): Promise<void> {
-    this.devicesLoading.set(true);
-    try {
-      const res: any = await lastValueFrom(this.userDeviceService.getMyDevices());
-      const list = res?.resources ?? res?.data ?? [];
-      this.devices.set(list);
-      this.devicesLoaded.set(true);
-    } catch {
-      Swal.fire('Lỗi', 'Không tải được danh sách thiết bị.', 'error');
-    } finally {
-      this.devicesLoading.set(false);
-    }
-  }
-
   isCurrentDevice(d: MyDevice): boolean {
     return !!d.deviceId && d.deviceId === this.currentDeviceId;
   }
@@ -253,8 +249,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
     try {
       const res: any = await lastValueFrom(this.userDeviceService.logoutDevice(d.deviceId));
       if (res?.isSucceeded) {
-        // Danh sách sẽ tự làm mới qua realtime; xoá ngay cho phản hồi tức thì.
-        this.devices.update(list => list.filter(x => x.deviceId !== d.deviceId));
+        // Chỉ invalidate -> query tự refetch nền và render lại (realtime cũng sẽ bắn thêm).
+        this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
         Swal.fire('Thành công', 'Đã đăng xuất thiết bị.', 'success');
       } else {
         Swal.fire('Lỗi', res?.message || 'Đăng xuất thất bại.', 'error');
@@ -281,7 +277,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.userDeviceService.logoutOtherDevices(this.currentDeviceId)
       );
       if (res?.isSucceeded) {
-        this.devices.update(list => list.filter(x => this.isCurrentDevice(x)));
+        this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
         Swal.fire('Thành công', 'Đã đăng xuất các thiết bị khác.', 'success');
       } else {
         Swal.fire('Lỗi', res?.message || 'Thao tác thất bại.', 'error');
