@@ -918,3 +918,70 @@
   cursor: pointer;
 }
 .dev-logout:hover { background: #fef2f2; }
+
+/* ===== Tab Thông báo của tôi ===== */
+.noti-tab-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.noti-tab-title { margin: 0; font-size: 16px; font-weight: 700; color: #14532d; }
+.noti-tab-total { font-size: 13px; color: #64748b; }
+
+.noti-tab-list { display: flex; flex-direction: column; }
+.noti-tab-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.noti-tab-item:hover { background: #f8fafc; }
+.noti-tab-item.unread { background: #f0fdf4; }
+.noti-tab-item.unread:hover { background: #dcfce7; }
+
+.noti-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: transparent; margin-top: 6px; flex: 0 0 8px;
+}
+.noti-dot.on { background: #16a34a; }
+
+.noti-tab-body { flex: 1; min-width: 0; }
+.noti-tab-item-title { font-size: 14px; font-weight: 600; color: #1e293b; }
+.noti-tab-item-content { font-size: 13px; color: #64748b; margin-top: 3px; line-height: 1.5; }
+.noti-tab-item-meta { font-size: 12px; color: #94a3b8; margin-top: 5px; }
+.noti-cat { color: #16a34a; font-weight: 600; }
+
+.noti-tab-mark {
+  flex: 0 0 auto;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #475569;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.noti-tab-mark:hover { background: #f9fafb; }
+
+.noti-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+.noti-pagination .page-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #374151;
+}
+.noti-pagination .page-btn:disabled { opacity: .5; cursor: not-allowed; }
+.noti-pagination .page-info { font-size: 13px; color: #64748b; }
