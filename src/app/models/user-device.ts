@@ -8,6 +8,8 @@ export interface MyDevice {
   appVersion?: string;
   userAgent?: string;
   hasActiveSession: boolean;
+  /** Trạng thái realtime: 'active' | 'idle' | 'offline'. */
+  status?: string;
   createdDate: string;
   lastModifiedDate?: string;
 }

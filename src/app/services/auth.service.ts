@@ -7,7 +7,7 @@ import {
   ApiResponse, LoginRequest, LoginResponse,
   LoginResponseAdminUserInfo, AuthProfile, MenuAggregate
 } from '../models';
-import { getDeviceInfo } from '../utils/device.util';
+import { getDeviceInfo, getOrCreateDeviceId } from '../utils/device.util';
 
 const TOKEN_KEY = 'admin_access_token';
 const REFRESH_TOKEN_KEY = 'admin_refresh_token';
@@ -54,6 +54,10 @@ export class AuthService {
 
   logout(): Observable<any> {
     const refreshToken = this.getRefreshToken();
+    // Xoá đăng ký thiết bị hiện tại (thu hồi phiên + không hiển thị lại trong danh sách thiết bị).
+    this.http
+      .post(`${this.base}/user-device/logout`, { deviceId: getOrCreateDeviceId() })
+      .subscribe({ next: () => {}, error: () => {} });
     return this.http.post(`${this.base}/auth/logout`, { refreshToken }).pipe(
       tap(() => this.clearSession()),
       catchError(err => {
