@@ -68,6 +68,7 @@ export class AdminLayoutComponent implements OnInit {
     notifications: 'Quản lý thông báo',
     'notification-categories': 'Danh mục thông báo',
     'notification-types': 'Loại thông báo',
+    alerts: 'Cảnh báo hệ thống',
   };
 
   /**

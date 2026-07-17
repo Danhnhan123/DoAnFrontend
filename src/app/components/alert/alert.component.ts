@@ -1,108 +1,50 @@
 import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { lastValueFrom } from 'rxjs';
 import {
   injectQuery,
   injectMutation,
   injectQueryClient,
 } from '@tanstack/angular-query-experimental';
-import Swal from 'sweetalert2';
 
-import { AlertRow, AlertDetailDto, AlertSummaryDto } from '../../models';
+import { AlertRow, AlertRule, AlertSummaryDto } from '../../models';
 import { AlertService } from '../../services/alert.service';
-import { FilterSelectComponent } from '../shared/filter-select.component';
+
+const DEFAULT_RULES: AlertRule[] = [
+  { code: 'LOW_STOCK', title: 'Tồn kho thấp', description: 'Khi tồn kho < ngưỡng cảnh báo', enabled: true },
+  { code: 'WAREHOUSE_CAPACITY', title: 'Kho gần đầy', description: 'Khi sức chứa đạt ≥ 85%', enabled: true },
+  { code: 'EXPIRY_SOON', title: 'Hàng sắp hết hạn', description: 'Cảnh báo trước 7 ngày hết hạn', enabled: true },
+];
 
 @Component({
   selector: 'app-alert',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [CommonModule],
   templateUrl: './alert.component.html',
-  styleUrls: ['../supplier/supplier.component.css'],
-  styles: [
-    `
-      .sev-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        white-space: nowrap;
-      }
-      .sev-critical { background: #fee2e2; color: #b91c1c; }
-      .sev-warning { background: #fef3c7; color: #b45309; }
-      .sev-info { background: #dbeafe; color: #1e40af; }
-      .status-pill.pending { background: #fef3c7; color: #b45309; }
-      .stat-icon-wrap.red { background: #fee2e2; color: #b91c1c; }
-      .detail-grid {
-        display: grid;
-        grid-template-columns: 160px 1fr;
-        gap: 8px 14px;
-        align-items: start;
-      }
-      .detail-grid .k { color: #6b7280; font-size: 0.85rem; }
-      .detail-grid .v { font-size: 0.9rem; word-break: break-word; }
-      .msg-box {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        padding: 12px;
-        margin-top: 6px;
-        line-height: 1.5;
-      }
-    `,
-  ],
+  styleUrls: ['../supplier/supplier.component.css', './alert.component.css'],
 })
 export class AlertComponent {
   private service = inject(AlertService);
+  private router = inject(Router);
   private queryClient = injectQueryClient();
 
-  page = signal(1);
-  pageSize = signal(10);
-  search = signal('');
-  sortField = signal('createdDate');
-  sortDir = signal<'asc' | 'desc'>('desc');
+  // ── Quy tắc cảnh báo (bật/tắt) — quản lý bằng signal, có fallback mặc định ──
+  rules = signal<AlertRule[]>(DEFAULT_RULES);
 
-  showFilter = signal(false);
-  filterAlertType = signal<string | null>(null);
-  filterSeverity = signal<string | null>(null);
-  filterStatus = signal<string | null>(null);
-  filterWarehouseId = signal<number | null>(null);
-  dateFrom = signal<string | null>(null);
-  dateTo = signal<string | null>(null);
+  constructor() {
+    this.loadRules();
+  }
 
-  readonly typeOptions = [
-    { id: 'LOW_STOCK', name: 'Tồn thấp' },
-    { id: 'INTAKE_BOTTLENECK', name: 'Nghẽn nhập kho' },
-    { id: 'LOT_QUALITY', name: 'Chất lượng lô' },
-    { id: 'DEBT_OVERDUE', name: 'Công nợ quá hạn' },
-  ];
-  readonly severityOptions = [
-    { id: 'INFO', name: 'Thông tin' },
-    { id: 'WARNING', name: 'Cảnh báo' },
-    { id: 'CRITICAL', name: 'Nghiêm trọng' },
-  ];
-  readonly statusOptions = [
-    { id: 'OPEN', name: 'Đang mở' },
-    { id: 'ACKNOWLEDGED', name: 'Đã ghi nhận' },
-    { id: 'RESOLVED', name: 'Đã xử lý' },
-  ];
-
-  showDetail = signal(false);
-  selectedItem = signal<AlertRow | null>(null);
-
-  private readonly colMap: Record<string, number> = {
-    id: 0,
-    alertType: 1,
-    severity: 2,
-    status: 3,
-    warehouseId: 4,
-    createdDate: 6,
-  };
-
+  // ── Queries ────────────────────────────────────────────────────────────────
   summaryQuery = injectQuery(() => ({
     queryKey: ['alerts-summary'],
     queryFn: () => lastValueFrom(this.service.getSummary()),
+  }));
+
+  listQuery = injectQuery(() => ({
+    queryKey: ['alerts'],
+    queryFn: () => lastValueFrom(this.service.getPagedAdvanced(this.service.buildListBody(100))),
   }));
 
   summary = computed<AlertSummaryDto>(() => {
@@ -120,266 +62,200 @@ export class AlertComponent {
     );
   });
 
-  warehouseQuery = injectQuery(() => ({
-    queryKey: ['warehouse-options'],
-    queryFn: () => lastValueFrom(this.service.getWarehouseOptions()),
-    staleTime: 5 * 60 * 1000,
-  }));
-
-  warehouseSelectOptions = computed(() => {
-    const res = this.warehouseQuery.data();
-    const list = (res as any)?.resources ?? (res as any)?.data ?? [];
-    return (list as any[]).map((w) => ({
-      id: w.id,
-      name: `${w.code} — ${w.name}`,
-    }));
-  });
-
-  listQuery = injectQuery(() => ({
-    queryKey: [
-      'alerts',
-      this.page(),
-      this.pageSize(),
-      this.search(),
-      this.sortField(),
-      this.sortDir(),
-      this.filterAlertType(),
-      this.filterSeverity(),
-      this.filterStatus(),
-      this.filterWarehouseId(),
-      this.dateFrom(),
-      this.dateTo(),
-    ],
-    queryFn: () => {
-      const body = this.service.buildPagedBody({
-        page: this.page(),
-        pageSize: this.pageSize(),
-        search: this.search(),
-        sortField: this.sortField(),
-        sortDir: this.sortDir(),
-        colMap: this.colMap,
-        filterAlertType: this.filterAlertType(),
-        filterSeverity: this.filterSeverity(),
-        filterStatus: this.filterStatus(),
-        filterWarehouseId: this.filterWarehouseId(),
-        dateFrom: this.dateFrom(),
-        dateTo: this.dateTo(),
-      });
-      return lastValueFrom(this.service.getPagedAdvanced(body));
-    },
-  }));
-
-  detailQuery = injectQuery(() => ({
-    queryKey: ['alert-detail', this.selectedItem()?.id],
-    enabled: !!this.selectedItem()?.id && this.showDetail(),
-    queryFn: () => lastValueFrom(this.service.getById(this.selectedItem()!.id)),
-  }));
-
-  detail = computed<AlertDetailDto | null>(() => {
-    const d = this.detailQuery.data();
-    return (d as any)?.resources ?? (d as any)?.data ?? null;
-  });
-
   rows = computed<AlertRow[]>(() => {
     const res = this.listQuery.data();
     const r = (res as any)?.resources ?? (res as any)?.data;
     return r?.data ?? [];
   });
 
-  totalRecords = computed<number>(() => {
-    const res = this.listQuery.data();
-    const r = (res as any)?.resources ?? (res as any)?.data;
-    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
-  });
+  loading = computed(
+    () => this.listQuery.isPending() || this.summaryQuery.isPending()
+  );
+  isError = computed(
+    () => this.listQuery.isError() || this.summaryQuery.isError()
+  );
+  isEmpty = computed(() => this.rows().length === 0);
+  /** Có cảnh báo nhưng không còn cái nào đang mở -> "Tất cả đã được đọc và xử lý". */
+  allHandled = computed(() => this.rows().length > 0 && this.summary().totalOpen === 0);
 
-  loading = computed(() => this.listQuery.isPending());
-  loadingDetail = computed(() => this.detailQuery.isFetching());
-
+  // ── Mutations ────────────────────────────────────────────────────────────────
   private refresh(): void {
     this.queryClient.invalidateQueries({ queryKey: ['alerts'] });
     this.queryClient.invalidateQueries({ queryKey: ['alerts-summary'] });
   }
 
-  acknowledgeMutation = injectMutation(() => ({
+  markReadMutation = injectMutation(() => ({
     mutationFn: (id: number) => lastValueFrom(this.service.acknowledge(id)),
-    onSuccess: (res: any) => {
-      if (res.isSucceeded) {
-        this.refresh();
-        this.showAlert('Đã ghi nhận cảnh báo.');
-      } else {
-        this.showAlert(res.message || 'Ghi nhận thất bại', false);
-      }
-    },
-    onError: (err: any) =>
-      this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+    onSuccess: () => this.refresh(),
   }));
 
-  resolveMutation = injectMutation(() => ({
-    mutationFn: (id: number) => lastValueFrom(this.service.resolve(id)),
-    onSuccess: (res: any) => {
-      if (res.isSucceeded) {
-        this.refresh();
-        this.closeDetail();
-        this.showAlert('Đã xử lý cảnh báo.');
-      } else {
-        this.showAlert(res.message || 'Xử lý thất bại', false);
-      }
-    },
-    onError: (err: any) =>
-      this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  markAllReadMutation = injectMutation(() => ({
+    mutationFn: () => lastValueFrom(this.service.markAllRead()),
+    onSuccess: () => this.refresh(),
   }));
 
-  deleteMutation = injectMutation(() => ({
-    mutationFn: (id: number) => lastValueFrom(this.service.delete(id)),
-    onSuccess: (res: any) => {
-      if (res.isSucceeded) {
-        this.refresh();
-        this.showAlert('Đã xóa cảnh báo.');
-      } else {
-        this.showAlert(res.message || 'Xóa thất bại', false);
-      }
-    },
-    onError: (err: any) =>
-      this.showAlert(err?.error?.message || 'Lỗi xóa', false),
+  dismissMutation = injectMutation(() => ({
+    mutationFn: (id: number) => lastValueFrom(this.service.dismiss(id)),
+    onSuccess: () => this.refresh(),
+    onError: () => this.refresh(),
   }));
 
-  acting = computed(
-    () =>
-      this.acknowledgeMutation.isPending() ||
-      this.resolveMutation.isPending() ||
-      this.deleteMutation.isPending()
-  );
-
-  typeLabel(t: string): string {
-    return this.typeOptions.find((x) => x.id === t)?.name ?? t;
-  }
-  severityLabel(s: string): string {
-    return this.severityOptions.find((x) => x.id === s)?.name ?? s;
-  }
-  statusLabel(s: string): string {
-    return this.statusOptions.find((x) => x.id === s)?.name ?? s;
-  }
-  severityClass(s: string): string {
-    if (s === 'CRITICAL') return 'sev-critical';
-    if (s === 'WARNING') return 'sev-warning';
-    return 'sev-info';
-  }
-  statusClass(s: string): string {
-    if (s === 'RESOLVED') return 'active';
-    if (s === 'ACKNOWLEDGED') return 'pending';
-    return 'inactive';
-  }
-  canAct(row: AlertRow): boolean {
-    return row.status !== 'RESOLVED';
+  // ── Actions ─────────────────────────────────────────────────────────────────
+  retry(): void {
+    this.summaryQuery.refetch();
+    this.listQuery.refetch();
+    this.loadRules();
   }
 
-  toggleFilter(): void {
-    this.showFilter.set(!this.showFilter());
-  }
-  applyFilter(): void {
-    this.page.set(1);
-  }
-  clearFilter(): void {
-    this.filterAlertType.set(null);
-    this.filterSeverity.set(null);
-    this.filterStatus.set(null);
-    this.filterWarehouseId.set(null);
-    this.dateFrom.set(null);
-    this.dateTo.set(null);
-    this.applyFilter();
-  }
-  onSearch(): void {
-    this.page.set(1);
-  }
-  sort(field: string): void {
-    if (this.sortField() === field) {
-      this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      this.sortField.set(field);
-      this.sortDir.set('asc');
+  markRead(row: AlertRow): void {
+    if (this.isUnread(row) && !this.markReadMutation.isPending()) {
+      this.markReadMutation.mutate(row.id);
     }
-    this.page.set(1);
   }
-  sortIcon(field: string): string {
-    if (this.sortField() !== field) return '⇅';
-    return this.sortDir() === 'asc' ? '▲' : '▼';
-  }
-  setPage(p: number): void {
-    if (p < 1 || p > this.totalPages()) return;
-    this.page.set(p);
-  }
-  totalPages(): number {
-    return Math.ceil(this.totalRecords() / this.pageSize());
-  }
-  visiblePages(): number[] {
-    const total = this.totalPages();
-    const cur = this.page();
-    const d = 2;
-    const pages: number[] = [];
-    for (let i = Math.max(1, cur - d); i <= Math.min(total, cur + d); i++) {
-      pages.push(i);
+
+  markAllRead(): void {
+    if (this.summary().totalOpen > 0 && !this.markAllReadMutation.isPending()) {
+      this.markAllReadMutation.mutate();
     }
-    return pages;
   }
 
-  openDetail(row: AlertRow): void {
-    this.selectedItem.set(row);
-    this.showDetail.set(true);
-  }
-  closeDetail(): void {
-    this.showDetail.set(false);
-    this.selectedItem.set(null);
+  dismiss(row: AlertRow, event: Event): void {
+    event.stopPropagation();
+    this.dismissMutation.mutate(row.id);
   }
 
-  acknowledge(row: AlertRow): void {
-    Swal.fire({
-      title: 'Ghi nhận cảnh báo?',
-      text: 'Đánh dấu bạn đã tiếp nhận cảnh báo này.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Ghi nhận',
-      cancelButtonText: 'Hủy',
-      confirmButtonColor: '#15803d',
-    }).then((r) => {
-      if (r.isConfirmed) this.acknowledgeMutation.mutate(row.id);
+  goAddRule(): void {
+    this.router.navigate(['/admin/stock-alert-configs']);
+  }
+
+  private loadRules(): void {
+    this.service.getRules().subscribe({
+      next: (res: any) => {
+        const list = res?.resources ?? res?.data;
+        if (Array.isArray(list) && list.length) this.rules.set(list);
+      },
+      error: () => {
+        /* giữ nguyên rule mặc định nếu API chưa sẵn sàng */
+      },
     });
   }
 
-  resolve(row: AlertRow): void {
-    Swal.fire({
-      title: 'Xử lý xong cảnh báo?',
-      text: 'Đánh dấu cảnh báo đã được xử lý (resolved).',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'Đã xử lý',
-      cancelButtonText: 'Hủy',
-      confirmButtonColor: '#15803d',
-    }).then((r) => {
-      if (r.isConfirmed) this.resolveMutation.mutate(row.id);
+  toggleRule(rule: AlertRule): void {
+    const target = !rule.enabled;
+    // Cập nhật ngay trên UI (optimistic)
+    this.rules.update((list) =>
+      list.map((r) => (r.code === rule.code ? { ...r, enabled: target } : r))
+    );
+    this.service.toggleRule(rule.code, target).subscribe({
+      error: () => {
+        // Khôi phục nếu lỗi
+        this.rules.update((list) =>
+          list.map((r) => (r.code === rule.code ? { ...r, enabled: rule.enabled } : r))
+        );
+      },
     });
   }
 
-  delete(row: AlertRow): void {
-    Swal.fire({
-      title: 'Xóa cảnh báo?',
-      text: 'Bạn có chắc muốn xóa cảnh báo này khỏi danh sách?',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Xóa ngay',
-      confirmButtonColor: '#ef4444',
-      cancelButtonText: 'Hủy',
-    }).then((r) => {
-      if (r.isConfirmed) this.deleteMutation.mutate(row.id);
-    });
+  ruleIcon(code: string): 'stock' | 'warehouse' | 'expiry' {
+    if (code === 'WAREHOUSE_CAPACITY') return 'warehouse';
+    if (code === 'EXPIRY_SOON') return 'expiry';
+    return 'stock';
   }
 
-  private showAlert(message: string, ok = true): void {
-    Swal.fire({
-      title: ok ? 'Thành công' : 'Lỗi',
-      text: message,
-      icon: ok ? 'success' : 'error',
-      confirmButtonText: 'Đóng',
-      confirmButtonColor: '#15803d',
-    });
+  // ── Helpers hiển thị 1 dòng cảnh báo ─────────────────────────────────────────
+  isUnread(row: AlertRow): boolean {
+    return row.status === 'OPEN';
+  }
+
+  /** Phân loại cảnh báo dựa trên alertType (khoan dung nhiều biến thể tên). */
+  badgeKind(alertType: string | null | undefined): string {
+    const a = (alertType || '').toUpperCase();
+    if (a.includes('SYSTEM') || a.includes('STOCKTAKE') || a.includes('AUDIT') || a.includes('MILLING'))
+      return 'system';
+    if (a.includes('INBOUND') || a.includes('INTAKE') || a.includes('RECEIPT') || a.includes('PURCHASE') || a.includes('BOTTLENECK'))
+      return 'inbound';
+    if (a.includes('OUTBOUND') || a.includes('SALES') || a.includes('DELIVERY') || a.includes('SHIP'))
+      return 'outbound';
+    if (a.includes('CAPACITY') || a.includes('WAREHOUSE') || a.includes('OCCUP') || a.includes('FULL'))
+      return 'warehouse';
+    if (a.includes('STOCK') || a.includes('EXPIR') || a.includes('LOT') || a.includes('QUALITY'))
+      return 'stock';
+    return 'other';
+  }
+
+  badgeLabel(row: AlertRow): string {
+    switch (this.badgeKind(row.alertType)) {
+      case 'stock': return 'Tồn kho';
+      case 'warehouse': return 'Kho hàng';
+      case 'inbound': return 'Nhập kho';
+      case 'outbound': return 'Xuất kho';
+      case 'system': return 'Hệ thống';
+      default: return 'Khác';
+    }
+  }
+
+  badgeClass(row: AlertRow): string {
+    return 'b-' + this.badgeKind(row.alertType);
+  }
+
+  /** Loại icon tròn bên trái dòng. */
+  iconKind(row: AlertRow): 'alert' | 'bell' | 'box' | 'check' | 'info' {
+    const bk = this.badgeKind(row.alertType);
+    if (row.severity === 'CRITICAL') return 'alert';
+    if (bk === 'system') return 'check';
+    if (bk === 'inbound' || bk === 'outbound') return 'box';
+    if (row.severity === 'WARNING') return 'bell';
+    return 'info';
+  }
+
+  iconClass(row: AlertRow): string {
+    const k = this.iconKind(row);
+    if (k === 'alert') return 'i-red';
+    if (k === 'bell') return 'i-amber';
+    if (k === 'check') return 'i-green';
+    return 'i-blue';
+  }
+
+  /** Tiêu đề (dòng đậm) — suy ra từ loại + mức độ. */
+  alertTitle(row: AlertRow): string {
+    const bk = this.badgeKind(row.alertType);
+    const a = (row.alertType || '').toUpperCase();
+    switch (bk) {
+      case 'stock':
+        if (a.includes('EXPIR')) return 'Hàng sắp hết hạn';
+        return row.severity === 'CRITICAL' ? 'Hết hàng sắp xảy ra' : 'Tồn kho thấp';
+      case 'warehouse':
+        return row.warehouseName ? `${row.warehouseName} gần đầy` : 'Kho gần đầy';
+      case 'inbound': return 'Phiếu nhập chờ duyệt';
+      case 'outbound': return 'Phiếu xuất chờ duyệt';
+      case 'system': return 'Cập nhật hệ thống';
+      default:
+        return row.severity === 'CRITICAL'
+          ? 'Cảnh báo nghiêm trọng'
+          : row.severity === 'WARNING'
+          ? 'Cảnh báo'
+          : 'Thông tin';
+    }
+  }
+
+  alertSubtitle(row: AlertRow): string {
+    return row.message || '';
+  }
+
+  relativeTime(dateStr: string | null | undefined): string {
+    if (!dateStr) return '';
+    const then = new Date(dateStr).getTime();
+    if (isNaN(then)) return '';
+    const diff = Date.now() - then;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'Vừa xong';
+    if (min < 60) return `${min} phút trước`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr} giờ trước`;
+    const day = Math.floor(hr / 24);
+    if (day < 7) return `${day} ngày trước`;
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
   }
 }

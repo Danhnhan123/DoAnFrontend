@@ -4,17 +4,17 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   ApiResponse,
-  AlertDetailDto,
+  AlertRule,
   AlertSummaryDto,
   AlertPagedAdvancedRequest,
 } from '../models';
-import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
 export class AlertService {
   private http = inject(HttpClient);
   private readonly base = environment.baseUrl;
 
+  /** Danh sách cảnh báo (mới nhất trước). */
   getPagedAdvanced(
     body: AlertPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
@@ -24,18 +24,14 @@ export class AlertService {
     );
   }
 
+  /** Tổng hợp KPI cho 4 thẻ trên cùng. */
   getSummary(): Observable<ApiResponse<AlertSummaryDto>> {
     return this.http.get<ApiResponse<AlertSummaryDto>>(
       `${this.base}/alerts/summary`
     );
   }
 
-  getById(id: number): Observable<ApiResponse<AlertDetailDto>> {
-    return this.http.get<ApiResponse<AlertDetailDto>>(
-      `${this.base}/alerts/${id}`
-    );
-  }
-
+  /** Đánh dấu 1 cảnh báo là đã đọc (ghi nhận). */
   acknowledge(id: number): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(
       `${this.base}/alerts/${id}/acknowledge`,
@@ -43,69 +39,52 @@ export class AlertService {
     );
   }
 
-  resolve(id: number): Observable<ApiResponse<any>> {
+  /** Đánh dấu tất cả cảnh báo đang mở là đã đọc. */
+  markAllRead(): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(
-      `${this.base}/alerts/${id}/resolve`,
+      `${this.base}/alerts/read-all`,
       {}
     );
   }
 
-  delete(id: number): Observable<ApiResponse<any>> {
+  /** Bỏ (xoá mềm) 1 cảnh báo khỏi danh sách. */
+  dismiss(id: number): Observable<ApiResponse<any>> {
     return this.http.delete<ApiResponse<any>>(`${this.base}/alerts/${id}`);
   }
 
-  /** Danh sách kho cho dropdown lọc (GET /warehouse). */
-  getWarehouseOptions(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/warehouse`);
+  /** Danh sách quy tắc cảnh báo + trạng thái bật/tắt. */
+  getRules(): Observable<ApiResponse<AlertRule[]>> {
+    return this.http.get<ApiResponse<AlertRule[]>>(`${this.base}/alerts/rules`);
   }
 
-  buildPagedBody(params: {
-    page: number;
-    pageSize: number;
-    search: string;
-    sortField: string;
-    sortDir: 'asc' | 'desc';
-    colMap: Record<string, number>;
-    filterAlertType: string | null;
-    filterSeverity: string | null;
-    filterStatus: string | null;
-    filterWarehouseId: number | null;
-    dateFrom?: string | null;
-    dateTo?: string | null;
-  }): AlertPagedAdvancedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['createdDate'];
+  /** Bật/tắt 1 quy tắc cảnh báo theo mã. */
+  toggleRule(code: string, enabled: boolean): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.base}/alerts/rules/${code}`,
+      { enabled }
+    );
+  }
 
-    const col = (data: string, value = '') => ({
+  /**
+   * Body danh sách: lấy tối đa {length} cảnh báo mới nhất (sắp xếp theo createdDate giảm dần).
+   * Không có bộ lọc — màn cảnh báo hiển thị toàn bộ theo thiết kế Figma.
+   */
+  buildListBody(length = 100): AlertPagedAdvancedRequest {
+    const col = (data: string) => ({
       data,
       name: data,
       searchable: true,
       orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
+      search: { value: '', regex: false, fixed: [] as any[] },
     });
 
-    const warehouseValue =
-      params.filterWarehouseId != null ? String(params.filterWarehouseId) : '';
-    const dateSearch = buildDateRange(
-      params.dateFrom ?? '',
-      params.dateTo ?? ''
-    );
-
     return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('alertType', params.filterAlertType ?? ''),
-        col('severity', params.filterSeverity ?? ''),
-        col('status', params.filterStatus ?? ''),
-        col('warehouseId', warehouseValue),
-        col('warehouseName'),
-        col('createdDate', dateSearch),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+      draw: 1,
+      columns: [col('createdDate')],
+      order: [{ column: 0, dir: 'desc', name: 'createdDate' }],
+      start: 0,
+      length,
+      search: { value: '', regex: false, fixed: [] },
     };
   }
 }
