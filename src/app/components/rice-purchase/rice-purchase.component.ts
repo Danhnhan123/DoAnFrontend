@@ -144,10 +144,60 @@ export class RicePurchaseComponent implements OnDestroy {
   }));
 
   private readonly receiptStatsQuery = injectQuery(() => ({
-    queryKey: ['rice-purchase', 'receipts', 'all'],
-    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getReceipts()), 'Không tải được dữ liệu tổng hợp phiếu mua.'),
-    staleTime: 30_000,
-  }));
+  queryKey: ['rice-purchase', 'receipts', 'summary'],
+
+  queryFn: async () => {
+    const pageSize = 500;
+
+    const loadPage = async (
+      page: number
+    ): Promise<DTResponse<PaddyPurchaseReceiptRow>> => {
+      const body = this.purchaseService.buildReceiptPagedBody({
+        page,
+        pageSize,
+        search: '',
+        sortField: 'receiptDate',
+        sortDir: 'desc',
+      });
+
+      return this.unwrap(
+        await lastValueFrom(
+          this.purchaseService.getReceiptsPaged(body)
+        ),
+        'Không tải được dữ liệu tổng hợp phiếu mua.'
+      ) as DTResponse<PaddyPurchaseReceiptRow>;
+    };
+
+    const firstPage = await loadPage(1);
+
+    const totalRecords = Number(
+      firstPage.recordsFiltered ??
+      firstPage.recordsTotal ??
+      firstPage.data?.length ??
+      0
+    );
+
+    const totalPages = Math.ceil(totalRecords / pageSize);
+
+    if (totalPages <= 1) {
+      return firstPage.data || [];
+    }
+
+    const remainingPages = await Promise.all(
+      Array.from(
+        { length: totalPages - 1 },
+        (_, index) => loadPage(index + 2)
+      )
+    );
+
+    return [
+      ...(firstPage.data || []),
+      ...remainingPages.flatMap(page => page.data || []),
+    ];
+  },
+
+  staleTime: 30_000,
+}));
 
   private readonly schedulesPagedQuery = injectQuery(() => ({
     queryKey: ['rice-purchase', 'schedules', 'paged', this.schedulePage(), this.scheduleSearch()],
@@ -251,9 +301,12 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly receiptDebtAmount = computed(() => Math.max(0, this.roundMoney(this.receiptTotalAmount() - Number(this.receiptForm().paidAmount || 0))));
 
   readonly stockedReceiptStatsRows = computed(() => {
-    if (!this.scheduleStateReady()) return [];
-    return this.receiptStatsRows().filter(row => this.isReceiptStocked(row));
-  });
+  if (!this.scheduleStateReady()) return [];
+
+  return this.receiptStatsRows().filter(row =>
+    this.isReceiptStocked(row)
+  );
+});
   readonly totalPurchaseThisWeekKg = computed(() => {
     const { start, end } = this.currentWeekRange();
     return this.stockedReceiptStatsRows().filter(x => {
@@ -631,9 +684,29 @@ export class RicePurchaseComponent implements OnDestroy {
     return this.isScheduleCancelled(row.scheduleId);
   }
 
-  isReceiptStocked(row: Pick<PaddyPurchaseReceiptRow, 'isConfirmed' | 'scheduleId'>): boolean {
-    return row.isConfirmed === true && !this.isReceiptCancelled(row);
+  isReceiptStocked(
+  row: Pick<PaddyPurchaseReceiptRow, 'isConfirmed' | 'scheduleId'>
+): boolean {
+  // Chưa chốt phiếu thì chưa nhập kho.
+  if (row.isConfirmed !== true) {
+    return false;
   }
+
+  // Phiếu không liên kết lịch nhưng đã chốt vẫn được tính là đã nhập kho.
+  if (!row.scheduleId) {
+    return true;
+  }
+
+  const schedule = this.scheduleOptions().find(
+    item => item.id === row.scheduleId
+  );
+
+  // Phiếu có lịch chỉ được tổng hợp khi lịch ở trạng thái STOCKED.
+  return (
+    !!schedule &&
+    this.statusOf(schedule.statusId).code === 'STOCKED'
+  );
+}
 
   receiptStatusLabel(row: PaddyPurchaseReceiptRow): string {
     if (this.isReceiptCancelled(row)) return 'Đã hủy';
