@@ -35,4 +35,12 @@ export interface AlertSummaryDto {
   openInfo: number;
 }
 
+/** Một quy tắc cảnh báo (bật/tắt) trong khối "Quy tắc cảnh báo". */
+export interface AlertRule {
+  code: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+}
+
 export interface AlertPagedAdvancedRequest extends DTParameters {}

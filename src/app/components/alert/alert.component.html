@@ -1,239 +1,187 @@
-<div class="page-wrapper">
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon-wrap orange">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Đang mở</span>
-        <span class="stat-value">{{ summary().totalOpen }}</span>
-        <span class="stat-sub">Chưa xử lý</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon-wrap red">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Nghiêm trọng (đang mở)</span>
-        <span class="stat-value">{{ summary().openCritical }}</span>
-        <span class="stat-sub">Cần ưu tiên</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon-wrap blue">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Đã ghi nhận</span>
-        <span class="stat-value">{{ summary().totalAcknowledged }}</span>
-        <span class="stat-sub">Đang theo dõi</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon-wrap green">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-        </svg>
-      </div>
-      <div class="stat-body">
-        <span class="stat-label">Đã xử lý</span>
-        <span class="stat-value">{{ summary().totalResolved }}</span>
-        <span class="stat-sub">Hoàn tất</span>
-      </div>
-    </div>
-  </div>
+<div class="alert-page page-wrapper">
 
-  <div class="toolbar card">
-    <div class="search-wrap">
-      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  <!-- ═══════════════ TRẠNG THÁI: LỖI ═══════════════ -->
+  @if (isError()) {
+  <div class="card state-card">
+    <span class="state-ic red">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
       </svg>
-      <input class="search-input" placeholder="Tìm nội dung, loại, kho..." [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
-    </div>
-    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()" title="Bộ lọc nâng cao">
+    </span>
+    <h3 class="state-title">Không tải được danh sách cảnh báo</h3>
+    <p class="state-desc">Lỗi kết nối. Thử lại.</p>
+    <button class="btn-retry" type="button" (click)="retry()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+        <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
       </svg>
-      Bộ lọc nâng cao
+      Thử lại
     </button>
-    <app-filter-select class="page-size-select" [clearable]="false" style="width:132px;flex:0 0 auto"
-      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
-      (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
   </div>
 
-  @if (showFilter()) {
-  <div class="filter-panel card">
-    <div class="filter-grid">
-      <div class="form-group">
-        <label>Loại cảnh báo</label>
-        <app-filter-select [options]="typeOptions" allLabel="Tất cả" [value]="filterAlertType()" (valueChange)="filterAlertType.set($event)"></app-filter-select>
-      </div>
-      <div class="form-group">
-        <label>Mức độ</label>
-        <app-filter-select [options]="severityOptions" allLabel="Tất cả" [value]="filterSeverity()" (valueChange)="filterSeverity.set($event)"></app-filter-select>
-      </div>
-      <div class="form-group">
-        <label>Trạng thái</label>
-        <app-filter-select [options]="statusOptions" allLabel="Tất cả" [value]="filterStatus()" (valueChange)="filterStatus.set($event)"></app-filter-select>
-      </div>
-      <div class="form-group">
-        <label>Kho</label>
-        <app-filter-select [options]="warehouseSelectOptions()" allLabel="Tất cả" [value]="filterWarehouseId()" (valueChange)="filterWarehouseId.set($event)"></app-filter-select>
-      </div>
-      <div class="form-group">
-        <label>Từ ngày</label>
-        <input class="form-control" type="date" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event || null)" />
-      </div>
-      <div class="form-group">
-        <label>Đến ngày</label>
-        <input class="form-control" type="date" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event || null)" />
-      </div>
-    </div>
-    <div class="filter-actions">
-      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
-      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
-    </div>
+  <!-- ═══════════════ TRẠNG THÁI: ĐANG TẢI ═══════════════ -->
+  } @else if (loading()) {
+  <div class="stat-row">
+    @for (i of [1,2,3,4]; track i) {
+    <div class="stat-box sk"></div>
+    }
+  </div>
+  <div class="card list-block">
+    <div class="sk-line big"></div>
+    @for (i of [1,2,3,4,5,6]; track i) {
+    <div class="sk-line"></div>
+    }
+  </div>
+
+  <!-- ═══════════════ TRẠNG THÁI: CÓ DỮ LIỆU ═══════════════ -->
+  } @else {
+
+  @if (allHandled()) {
+  <div class="banner-ok">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+    <span>Tất cả cảnh báo đã được đọc và xử lý.</span>
   </div>
   }
 
-  <div class="card">
-    @if (loading()) {
-    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
-    } @else if (rows().length === 0) {
-    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có cảnh báo</p></div>
-    } @else {
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:40px">STT</th>
-            <th class="sortable" (click)="sort('severity')">Mức độ <span class="sort-icon">{{ sortIcon('severity') }}</span></th>
-            <th class="sortable" (click)="sort('alertType')">Loại <span class="sort-icon">{{ sortIcon('alertType') }}</span></th>
-            <th>Nội dung</th>
-            <th>Kho / SKU</th>
-            <th class="sortable" (click)="sort('status')">Trạng thái <span class="sort-icon">{{ sortIcon('status') }}</span></th>
-            <th class="sortable" (click)="sort('createdDate')">Thời điểm <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
-            <th style="text-align:right">Thao tác</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row.id; let idx = $index) {
-          <tr>
-            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
-            <td data-label="Mức độ"><span class="sev-badge" [ngClass]="severityClass(row.severity)">{{ severityLabel(row.severity) }}</span></td>
-            <td class="small" data-label="Loại">{{ typeLabel(row.alertType) }}</td>
-            <td class="small" data-label="Nội dung" style="max-width:320px">{{ row.message }}</td>
-            <td class="text-muted small" data-label="Kho / SKU">
-              {{ row.warehouseName || '—' }}<br />
-              <span class="text-muted">{{ row.productVariantSku || '' }}</span>
-            </td>
-            <td data-label="Trạng thái">
-              <span class="status-pill" [ngClass]="statusClass(row.status)">{{ statusLabel(row.status) }}</span>
-            </td>
-            <td class="text-muted small" data-label="Thời điểm">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
-            <td class="action-cell" data-label="Thao tác">
-              <button class="icon-btn" type="button" (click)="openDetail(row)" title="Chi tiết">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-              @if (row.status === 'OPEN') {
-              <button class="icon-btn edit-btn" type="button" (click)="acknowledge(row)" [disabled]="acting()" title="Ghi nhận">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </button>
-              }
-              @if (canAct(row)) {
-              <button class="icon-btn add-btn" type="button" (click)="resolve(row)" [disabled]="acting()" title="Xử lý xong" style="width:auto;padding:0 8px">
-                Xử lý
-              </button>
-              }
-              <button class="icon-btn delete-btn" type="button" (click)="delete(row)" [disabled]="acting()" title="Xóa">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                </svg>
-              </button>
-            </td>
-          </tr>
+  <!-- 4 thẻ KPI -->
+  <div class="stat-row">
+    <div class="stat-box sc-critical">
+      <span class="sc-num">{{ summary().openCritical }}</span>
+      <div class="sc-text"><span class="sc-label">Nghiêm trọng</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-warning">
+      <span class="sc-num">{{ summary().openWarning }}</span>
+      <div class="sc-text"><span class="sc-label">Cảnh báo</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-info">
+      <span class="sc-num">{{ summary().openInfo }}</span>
+      <div class="sc-text"><span class="sc-label">Thông tin</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-resolved">
+      <span class="sc-num">{{ summary().totalResolved }}</span>
+      <div class="sc-text"><span class="sc-label">Đã xử lý</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+  </div>
+
+  <!-- ─────────── TRẠNG THÁI: KHÔNG CÓ CẢNH BÁO ─────────── -->
+  @if (isEmpty()) {
+  <div class="card state-card">
+    <span class="state-ic green">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    </span>
+    <h3 class="state-title">Không có cảnh báo nào đang hoạt động</h3>
+    <p class="state-desc">Hệ thống đang hoạt động bình thường. Không có tồn kho thấp hoặc sự kiện bất thường.</p>
+  </div>
+
+  <!-- ─────────── CÓ CẢNH BÁO: QUY TẮC + DANH SÁCH ─────────── -->
+  } @else {
+
+  <!-- Quy tắc cảnh báo -->
+  <div class="card rules-card">
+    <div class="card-head">
+      <h3 class="card-title">Quy tắc cảnh báo</h3>
+      <button class="link-btn" type="button" (click)="goAddRule()">Thêm quy tắc</button>
+    </div>
+    <div class="rules-grid">
+      @for (rule of rules(); track rule.code) {
+      <div class="rule-tile">
+        <span class="rule-icon rk-{{ ruleIcon(rule.code) }}">
+          @switch (ruleIcon(rule.code)) {
+          @case ('warehouse') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
           }
-        </tbody>
-      </table>
-    </div>
-
-    @if (totalPages() > 1) {
-    <div class="pagination">
-      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
-      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
-      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
-      @for (p of visiblePages(); track p) {
-      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
-      }
-      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
-      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
-      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
-      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
-    </div>
-    }
-    }
-  </div>
-</div>
-
-@if (showDetail()) {
-<div class="modal-backdrop" (click)="closeDetail()">
-  <div class="modal-box wide" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h3>Chi tiết cảnh báo</h3>
-      <button class="modal-close" type="button" (click)="closeDetail()">×</button>
-    </div>
-    @if (loadingDetail()) {
-    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
-    } @else if (detail()) { @if (detail(); as d) {
-    <div class="modal-body">
-      <div class="detail-grid">
-        <div class="k">Mức độ</div>
-        <div class="v"><span class="sev-badge" [ngClass]="severityClass(d.severity)">{{ severityLabel(d.severity) }}</span></div>
-        <div class="k">Loại</div>
-        <div class="v">{{ typeLabel(d.alertType) }}</div>
-        <div class="k">Trạng thái</div>
-        <div class="v"><span class="status-pill" [ngClass]="statusClass(d.status)">{{ statusLabel(d.status) }}</span></div>
-        <div class="k">Kho</div>
-        <div class="v">{{ d.warehouseName || '—' }}</div>
-        <div class="k">SKU / Sản phẩm</div>
-        <div class="v">{{ d.productVariantSku ? (d.productVariantSku + (d.productName ? ' — ' + d.productName : '')) : '—' }}</div>
-        <div class="k">Vị trí</div>
-        <div class="v">{{ d.locationName || '—' }}</div>
-        <div class="k">Đối tượng liên quan</div>
-        <div class="v">{{ d.relatedEntityType ? (d.relatedEntityType + ' #' + d.relatedEntityId) : '—' }}</div>
-        <div class="k">Người ghi nhận</div>
-        <div class="v">{{ d.acknowledgedByName || '—' }}<span class="text-muted small" *ngIf="d.acknowledgedAt"> · {{ d.acknowledgedAt | date:'dd/MM/yyyy HH:mm' }}</span></div>
-        <div class="k">Thời điểm xử lý</div>
-        <div class="v">{{ d.resolvedAt ? (d.resolvedAt | date:'dd/MM/yyyy HH:mm') : '—' }}</div>
-        <div class="k">Thời điểm tạo</div>
-        <div class="v">{{ d.createdDate | date:'dd/MM/yyyy HH:mm' }}</div>
+          @case ('expiry') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          }
+          @default {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" />
+          </svg>
+          }
+          }
+        </span>
+        <div class="rule-text">
+          <span class="rule-title">{{ rule.title }}</span>
+          <span class="rule-desc">{{ rule.description }}</span>
+        </div>
+        <button class="switch" type="button" role="switch" [class.on]="rule.enabled"
+          [attr.aria-checked]="rule.enabled" (click)="toggleRule(rule)">
+          <span class="knob"></span>
+        </button>
       </div>
-      <div class="msg-box">{{ d.message }}</div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" type="button" (click)="closeDetail()">Đóng</button>
-      @if (d.status === 'OPEN') {
-      <button class="btn btn-outline" type="button" (click)="acknowledge(d)" [disabled]="acting()">Ghi nhận</button>
-      }
-      @if (d.status !== 'RESOLVED') {
-      <button class="btn btn-primary" type="button" (click)="resolve(d)" [disabled]="acting()">
-        @if (acting()) { <span class="spin-sm"></span> }
-        <span class="btn-label">Đánh dấu đã xử lý</span>
-      </button>
       }
     </div>
-    } }
   </div>
+
+  <!-- Danh sách cảnh báo -->
+  <div class="card list-card">
+    <div class="card-head">
+      <h3 class="card-title">Danh sách cảnh báo</h3>
+      <button class="link-btn" type="button" (click)="markAllRead()"
+        [disabled]="summary().totalOpen === 0 || markAllReadMutation.isPending()">
+        Đánh dấu tất cả đã đọc
+      </button>
+    </div>
+
+    <div class="alert-list">
+      @for (row of rows(); track row.id) {
+      <div class="alert-item" [class.row-critical]="row.severity === 'CRITICAL' && isUnread(row)"
+        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)" (click)="markRead(row)">
+        <span class="ai-icon {{ iconClass(row) }}">
+          @switch (iconKind(row)) {
+          @case ('alert') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          }
+          @case ('bell') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          }
+          @case ('box') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+          }
+          @case ('check') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          }
+          @default {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          }
+          }
+        </span>
+
+        <div class="ai-body">
+          <div class="ai-top">
+            <span class="ai-badge {{ badgeClass(row) }}">{{ badgeLabel(row) }}</span>
+            @if (isUnread(row)) { <span class="ai-dot" title="Chưa đọc"></span> }
+          </div>
+          <div class="ai-title">{{ alertTitle(row) }}</div>
+          <div class="ai-sub">{{ alertSubtitle(row) }}</div>
+        </div>
+
+        <div class="ai-meta">
+          <span class="ai-time">{{ relativeTime(row.createdDate) }}</span>
+          <button class="ai-x" type="button" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+
+  }
+  }
 </div>
-}
