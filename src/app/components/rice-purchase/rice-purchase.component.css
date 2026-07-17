@@ -932,3 +932,46 @@
     grid-column: auto;
   }
 }
+
+/* Trạng thái phiếu mua được suy ra từ phiếu và lịch liên kết. */
+.receipt-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.receipt-status-badge.receipt-confirmed { background: #dcfce7; color: #15803d; }
+.receipt-status-badge.receipt-draft { background: #f1f5f9; color: #64748b; }
+.receipt-status-badge.receipt-cancelled { background: #fee2e2; color: #b91c1c; }
+.stocked-row td { background: #f0fdf4; color: #476154; }
+.stocked-row:hover td { background: #eafaf0 !important; }
+.stocked-row .code-link {
+  color: #166534;
+  text-decoration: none;
+}
+.cancelled-row td { background: #fff8f8; color: #9ca3af; }
+.cancelled-row:hover td { background: #fff1f2 !important; }
+.cancelled-row .code-link { color: #b91c1c; text-decoration: line-through; }
+
+.schedule-stocked-mark {
+  vertical-align: middle;
+}
+
+.cancelled-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 22px;
+  padding: 11px 13px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 650;
+}

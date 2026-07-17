@@ -1,19 +1,26 @@
 import {
   Component,
   OnDestroy,
-  OnInit,
   computed,
   inject,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { finalize, forkJoin, lastValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
+import {
+  injectMutation,
+  injectQuery,
+  QueryClient,
+} from '@tanstack/angular-query-experimental';
+import { keepPreviousData } from '@tanstack/query-core';
 import Swal from 'sweetalert2';
 
 import {
+  ApiResponse,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
+  DTResponse,
   FarmerDetailDto,
   PaddyPurchaseReceiptRow,
   PaddyPurchaseScheduleRow,
@@ -28,6 +35,14 @@ import {
 import { PaddyPurchaseService } from '../../services/paddy-purchase.service';
 
 type PurchaseTab = 'schedule' | 'receipt';
+
+type SaveScheduleVariables =
+  | { mode: 'create'; payload: CreatePaddyPurchaseScheduleDto }
+  | { mode: 'update'; payload: UpdatePaddyPurchaseScheduleDto };
+
+type SaveReceiptVariables =
+  | { mode: 'create'; payload: CreatePaddyPurchaseReceiptDto }
+  | { mode: 'update'; payload: UpdatePaddyPurchaseReceiptDto };
 
 interface ScheduleFormState {
   id?: number;
@@ -69,8 +84,9 @@ interface ReceiptFormState {
   templateUrl: './rice-purchase.component.html',
   styleUrl: './rice-purchase.component.css',
 })
-export class RicePurchaseComponent implements OnInit, OnDestroy {
+export class RicePurchaseComponent implements OnDestroy {
   private readonly purchaseService = inject(PaddyPurchaseService);
+  private readonly queryClient = inject(QueryClient);
 
   readonly statuses: PaddyScheduleStatusOption[] = [
     { id: 1, code: 'NEW', name: 'Mới tạo', color: '#6B7280' },
@@ -82,261 +98,215 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
   ];
 
   activeTab = signal<PurchaseTab>('schedule');
-
-  farmers = signal<FarmerDetailDto[]>([]);
-  riceVarieties = signal<RiceVarietyDetailDto[]>([]);
-  warehouses = signal<WarehouseDetailDto[]>([]);
-  scheduleOptions = signal<PaddyPurchaseScheduleRow[]>([]);
-
-  scheduleRows = signal<PaddyPurchaseScheduleRow[]>([]);
-  receiptRows = signal<PaddyPurchaseReceiptRow[]>([]);
-  receiptStatsRows = signal<PaddyPurchaseReceiptRow[]>([]);
-
-  scheduleTotal = signal(0);
-  receiptTotal = signal(0);
   schedulePage = signal(1);
   receiptPage = signal(1);
   readonly pageSize = 10;
 
+  scheduleSearchInput = signal('');
+  receiptSearchInput = signal('');
   scheduleSearch = signal('');
   receiptSearch = signal('');
 
-  loadingReference = signal(false);
-  loadingSchedules = signal(false);
-  loadingReceipts = signal(false);
-  savingSchedule = signal(false);
-  savingReceipt = signal(false);
   confirmingReceiptId = signal<number | null>(null);
   updatingScheduleId = signal<number | null>(null);
-
   showScheduleModal = signal(false);
   showReceiptModal = signal(false);
   editingSchedule = signal<PaddyPurchaseScheduleRow | null>(null);
   editingReceipt = signal<PaddyPurchaseReceiptRow | null>(null);
-
   scheduleForm = signal<ScheduleFormState>(this.defaultScheduleForm());
   receiptForm = signal<ReceiptFormState>(this.defaultReceiptForm());
 
   private scheduleSearchTimer?: ReturnType<typeof setTimeout>;
   private receiptSearchTimer?: ReturnType<typeof setTimeout>;
 
-  readonly scheduleFarmer = computed(() =>
-    this.farmers().find((x) => x.id === this.scheduleForm().farmerId)
+  private readonly farmersQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'farmers'],
+    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getFarmers()), 'Không tải được danh sách nông dân.'),
+    staleTime: 5 * 60_000,
+  }));
+
+  private readonly riceVarietiesQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'rice-varieties'],
+    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getRiceVarieties()), 'Không tải được danh sách giống lúa.'),
+    staleTime: 5 * 60_000,
+  }));
+
+  private readonly warehousesQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'warehouses'],
+    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getWarehouses()), 'Không tải được danh sách kho.'),
+    staleTime: 5 * 60_000,
+  }));
+
+  private readonly scheduleOptionsQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'schedules', 'all'],
+    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getSchedules()), 'Không tải được danh sách lịch thu mua.'),
+    staleTime: 30_000,
+  }));
+
+  private readonly receiptStatsQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'receipts', 'all'],
+    queryFn: async () => this.unwrap(await lastValueFrom(this.purchaseService.getReceipts()), 'Không tải được dữ liệu tổng hợp phiếu mua.'),
+    staleTime: 30_000,
+  }));
+
+  private readonly schedulesPagedQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'schedules', 'paged', this.schedulePage(), this.scheduleSearch()],
+    queryFn: async () => {
+      const body = this.purchaseService.buildSchedulePagedBody({
+        page: this.schedulePage(), pageSize: this.pageSize, search: this.scheduleSearch(),
+        sortField: 'scheduleDate', sortDir: 'desc',
+      });
+      return this.unwrap(await lastValueFrom(this.purchaseService.getSchedulesPaged(body)), 'Không tải được lịch thu mua.') as DTResponse<PaddyPurchaseScheduleRow>;
+    },
+    placeholderData: keepPreviousData,
+  }));
+
+  private readonly receiptsPagedQuery = injectQuery(() => ({
+    queryKey: ['rice-purchase', 'receipts', 'paged', this.receiptPage(), this.receiptSearch()],
+    queryFn: async () => {
+      const body = this.purchaseService.buildReceiptPagedBody({
+        page: this.receiptPage(), pageSize: this.pageSize, search: this.receiptSearch(),
+        sortField: 'receiptDate', sortDir: 'desc',
+      });
+      return this.unwrap(await lastValueFrom(this.purchaseService.getReceiptsPaged(body)), 'Không tải được phiếu mua lúa.') as DTResponse<PaddyPurchaseReceiptRow>;
+    },
+    placeholderData: keepPreviousData,
+  }));
+
+  private readonly saveScheduleMutation = injectMutation(() => ({
+    mutationFn: async (variables: SaveScheduleVariables) => {
+      const request = variables.mode === 'create'
+        ? this.purchaseService.createSchedule(variables.payload)
+        : this.purchaseService.updateSchedule(variables.payload);
+      return this.ensureSucceeded(await lastValueFrom(request), 'Không lưu được lịch thu mua.');
+    },
+    onSuccess: async () => this.invalidateScheduleQueries(),
+  }));
+
+  private readonly scheduleStatusMutation = injectMutation(() => ({
+    mutationFn: async (variables: { id: number; statusCode: PaddyScheduleStatusCode }) =>
+      this.ensureSucceeded(
+        await lastValueFrom(this.purchaseService.updateScheduleStatus(variables.id, variables.statusCode)),
+        'Không cập nhật được trạng thái lịch.'
+      ),
+    onSuccess: async () => this.invalidateScheduleQueries(),
+  }));
+
+  private readonly saveReceiptMutation = injectMutation(() => ({
+    mutationFn: async (variables: SaveReceiptVariables) => {
+      const request = variables.mode === 'create'
+        ? this.purchaseService.createReceipt(variables.payload)
+        : this.purchaseService.updateReceipt(variables.payload);
+      return this.ensureSucceeded(await lastValueFrom(request), 'Không lưu được phiếu mua lúa.');
+    },
+    onSuccess: async () => this.invalidateReceiptQueries(),
+  }));
+
+  private readonly confirmReceiptMutation = injectMutation(() => ({
+    mutationFn: async (id: number) =>
+      this.ensureSucceeded(
+        await lastValueFrom(this.purchaseService.confirmReceipt(id)),
+        'Không chốt được phiếu mua lúa.'
+      ),
+    onSuccess: async () => {
+      await Promise.all([this.invalidateReceiptQueries(), this.invalidateScheduleQueries()]);
+    },
+  }));
+
+  readonly farmers = computed(() =>
+    [...(this.farmersQuery.data() || [])].filter(x => x.isActive !== false).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+  );
+  readonly riceVarieties = computed(() =>
+    [...(this.riceVarietiesQuery.data() || [])].filter(x => x.isActive !== false).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+  );
+  readonly warehouses = computed(() =>
+    [...(this.warehousesQuery.data() || [])].filter(x => x.isActive !== false).sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+  );
+  readonly scheduleOptions = computed(() =>
+    [...(this.scheduleOptionsQuery.data() || [])].sort((a, b) => new Date(b.scheduleDate).getTime() - new Date(a.scheduleDate).getTime())
+  );
+  readonly scheduleRows = computed(() => this.schedulesPagedQuery.data()?.data || []);
+  readonly receiptRows = computed(() => this.receiptsPagedQuery.data()?.data || []);
+  readonly receiptStatsRows = computed(() => this.receiptStatsQuery.data() || []);
+  readonly scheduleTotal = computed(() => Number(this.schedulesPagedQuery.data()?.recordsFiltered ?? this.schedulesPagedQuery.data()?.recordsTotal ?? 0));
+  readonly receiptTotal = computed(() => Number(this.receiptsPagedQuery.data()?.recordsFiltered ?? this.receiptsPagedQuery.data()?.recordsTotal ?? 0));
+  readonly loadingReference = computed(() => this.farmersQuery.isPending() || this.riceVarietiesQuery.isPending() || this.warehousesQuery.isPending() || this.scheduleOptionsQuery.isPending());
+  readonly loadingSchedules = computed(() => this.schedulesPagedQuery.isPending());
+  readonly loadingReceipts = computed(() => this.receiptsPagedQuery.isPending());
+  readonly savingSchedule = computed(() => this.saveScheduleMutation.isPending());
+  readonly savingReceipt = computed(() => this.saveReceiptMutation.isPending());
+
+  readonly scheduleFarmer = computed(() => this.farmers().find(x => x.id === this.scheduleForm().farmerId));
+  readonly selectedReceiptSchedule = computed(() => this.scheduleOptions().find(x => x.id === this.receiptForm().scheduleId));
+  readonly scheduleStateReady = computed(() => this.scheduleOptionsQuery.isSuccess());
+  readonly scheduleFormLocked = computed(() => this.isScheduleLocked(this.editingSchedule()));
+  readonly receiptFormCancelled = computed(() => this.isScheduleCancelled(this.receiptForm().scheduleId));
+  readonly receiptFormLocked = computed(() =>
+    this.receiptForm().isConfirmed ||
+    this.receiptFormCancelled() ||
+    (!!this.receiptForm().scheduleId && !this.scheduleStateReady())
   );
 
-  readonly selectedReceiptSchedule = computed(() =>
-    this.scheduleOptions().find((x) => x.id === this.receiptForm().scheduleId)
-  );
+  readonly receiptTotalAmount = computed(() => this.roundMoney(Number(this.receiptForm().actualWeightKg || 0) * Number(this.receiptForm().agreedPrice || 0)));
+  readonly receiptDebtAmount = computed(() => Math.max(0, this.roundMoney(this.receiptTotalAmount() - Number(this.receiptForm().paidAmount || 0))));
 
-  readonly receiptTotalAmount = computed(() => {
-    const weight = Number(this.receiptForm().actualWeightKg || 0);
-    const price = Number(this.receiptForm().agreedPrice || 0);
-    return this.roundMoney(weight * price);
+  readonly stockedReceiptStatsRows = computed(() => {
+    if (!this.scheduleStateReady()) return [];
+    return this.receiptStatsRows().filter(row => this.isReceiptStocked(row));
   });
-
-  readonly receiptDebtAmount = computed(() => {
-    const paid = Number(this.receiptForm().paidAmount || 0);
-    return Math.max(0, this.roundMoney(this.receiptTotalAmount() - paid));
-  });
-
   readonly totalPurchaseThisWeekKg = computed(() => {
     const { start, end } = this.currentWeekRange();
-    return this.receiptStatsRows()
-      .filter((x) => {
-        const date = new Date(x.receiptDate);
-        return !Number.isNaN(date.getTime()) && date >= start && date <= end;
-      })
-      .reduce((sum, x) => sum + Number(x.actualWeightKg || 0), 0);
+    return this.stockedReceiptStatsRows().filter(x => {
+      const date = new Date(x.receiptDate);
+      return !Number.isNaN(date.getTime()) && date >= start && date <= end;
+    }).reduce((sum, x) => sum + Number(x.actualWeightKg || 0), 0);
   });
-
   readonly averagePurchasePrice = computed(() => {
-    const rows = this.receiptStatsRows();
-    const totalWeight = rows.reduce(
-      (sum, x) => sum + Number(x.actualWeightKg || 0),
-      0
-    );
-    const totalAmount = rows.reduce(
-      (sum, x) => sum + Number(x.totalAmount || 0),
-      0
-    );
+    const rows = this.stockedReceiptStatsRows();
+    const totalWeight = rows.reduce((sum, x) => sum + Number(x.actualWeightKg || 0), 0);
+    const totalAmount = rows.reduce((sum, x) => sum + Number(x.totalAmount || 0), 0);
     return totalWeight > 0 ? totalAmount / totalWeight : 0;
   });
-
-  readonly totalPurchaseCost = computed(() =>
-    this.receiptStatsRows().reduce(
-      (sum, x) => sum + Number(x.totalAmount || 0),
-      0
-    )
-  );
-
-  readonly totalFarmerDebt = computed(() =>
-    this.receiptStatsRows().reduce(
-      (sum, x) => sum + Number(x.debtAmount || 0),
-      0
-    )
-  );
-
-  ngOnInit(): void {
-    this.loadReferenceData();
-    this.loadSchedules();
-    this.loadReceipts();
-  }
+  readonly totalPurchaseCost = computed(() => this.stockedReceiptStatsRows().reduce((sum, x) => sum + Number(x.totalAmount || 0), 0));
+  readonly totalFarmerDebt = computed(() => this.stockedReceiptStatsRows().reduce((sum, x) => sum + Number(x.debtAmount || 0), 0));
 
   ngOnDestroy(): void {
     if (this.scheduleSearchTimer) clearTimeout(this.scheduleSearchTimer);
     if (this.receiptSearchTimer) clearTimeout(this.receiptSearchTimer);
   }
 
-  switchTab(tab: PurchaseTab): void {
-    this.activeTab.set(tab);
-  }
-
-  // ───────────────────────── NẠP DỮ LIỆU ─────────────────────────
-
-  loadReferenceData(): void {
-    this.loadingReference.set(true);
-    forkJoin({
-      farmers: this.purchaseService.getFarmers(),
-      varieties: this.purchaseService.getRiceVarieties(),
-      warehouses: this.purchaseService.getWarehouses(),
-      schedules: this.purchaseService.getSchedules(),
-      receipts: this.purchaseService.getReceipts(),
-    })
-      .pipe(finalize(() => this.loadingReference.set(false)))
-      .subscribe({
-      next: (res) => {
-        this.farmers.set(
-          [...(res.farmers.resources || [])]
-            .filter((x) => x.isActive !== false)
-            .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-        );
-        this.riceVarieties.set(
-          [...(res.varieties.resources || [])]
-            .filter((x) => x.isActive !== false)
-            .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-        );
-        this.warehouses.set(
-          [...(res.warehouses.resources || [])]
-            .filter((x) => x.isActive !== false)
-            .sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-        );
-        this.scheduleOptions.set(
-          [...(res.schedules.resources || [])].sort(
-            (a, b) =>
-              new Date(b.scheduleDate).getTime() -
-              new Date(a.scheduleDate).getTime()
-          )
-        );
-        this.receiptStatsRows.set(res.receipts.resources || []);
-      },
-      error: (err) =>
-        this.showError(
-          this.apiError(err, 'Không tải được dữ liệu danh mục cho form.')
-        ),
-    });
-  }
-
-  loadSchedules(): void {
-    this.loadingSchedules.set(true);
-    const body = this.purchaseService.buildSchedulePagedBody({
-      page: this.schedulePage(),
-      pageSize: this.pageSize,
-      search: this.scheduleSearch(),
-      sortField: 'scheduleDate',
-      sortDir: 'desc',
-    });
-
-    this.purchaseService
-      .getSchedulesPaged(body)
-      .pipe(finalize(() => this.loadingSchedules.set(false)))
-      .subscribe({
-      next: (res) => {
-        const paged = res.resources as any;
-        this.scheduleRows.set(paged?.data || []);
-        this.scheduleTotal.set(
-          Number(paged?.recordsFiltered ?? paged?.recordsTotal ?? 0)
-        );
-      },
-      error: (err) =>
-        this.showError(this.apiError(err, 'Không tải được lịch thu mua.')),
-    });
-  }
-
-  loadReceipts(): void {
-    this.loadingReceipts.set(true);
-    const body = this.purchaseService.buildReceiptPagedBody({
-      page: this.receiptPage(),
-      pageSize: this.pageSize,
-      search: this.receiptSearch(),
-      sortField: 'receiptDate',
-      sortDir: 'desc',
-    });
-
-    this.purchaseService
-      .getReceiptsPaged(body)
-      .pipe(finalize(() => this.loadingReceipts.set(false)))
-      .subscribe({
-      next: (res) => {
-        const paged = res.resources as any;
-        this.receiptRows.set(paged?.data || []);
-        this.receiptTotal.set(
-          Number(paged?.recordsFiltered ?? paged?.recordsTotal ?? 0)
-        );
-      },
-      error: (err) =>
-        this.showError(this.apiError(err, 'Không tải được phiếu mua lúa.')),
-    });
-  }
-
-  refreshScheduleData(): void {
-    this.loadSchedules();
-    this.purchaseService.getSchedules().subscribe({
-      next: (res) => this.scheduleOptions.set(res.resources || []),
-    });
-  }
-
-  refreshReceiptData(): void {
-    this.loadReceipts();
-    this.purchaseService.getReceipts().subscribe({
-      next: (res) => this.receiptStatsRows.set(res.resources || []),
-    });
-  }
+  switchTab(tab: PurchaseTab): void { this.activeTab.set(tab); }
 
   // ───────────────────────── TÌM KIẾM / PHÂN TRANG ────────────────
 
   onScheduleSearch(value: string): void {
-    this.scheduleSearch.set(value);
-    this.schedulePage.set(1);
+    this.scheduleSearchInput.set(value);
     if (this.scheduleSearchTimer) clearTimeout(this.scheduleSearchTimer);
-    this.scheduleSearchTimer = setTimeout(() => this.loadSchedules(), 350);
+    this.scheduleSearchTimer = setTimeout(() => {
+      this.schedulePage.set(1);
+      this.scheduleSearch.set(value.trim());
+    }, 350);
   }
 
   onReceiptSearch(value: string): void {
-    this.receiptSearch.set(value);
-    this.receiptPage.set(1);
+    this.receiptSearchInput.set(value);
     if (this.receiptSearchTimer) clearTimeout(this.receiptSearchTimer);
-    this.receiptSearchTimer = setTimeout(() => this.loadReceipts(), 350);
+    this.receiptSearchTimer = setTimeout(() => {
+      this.receiptPage.set(1);
+      this.receiptSearch.set(value.trim());
+    }, 350);
   }
 
   setSchedulePage(page: number): void {
-    if (page < 1 || page > this.scheduleTotalPages()) return;
-    this.schedulePage.set(page);
-    this.loadSchedules();
+    if (page >= 1 && page <= this.scheduleTotalPages()) this.schedulePage.set(page);
   }
 
   setReceiptPage(page: number): void {
-    if (page < 1 || page > this.receiptTotalPages()) return;
-    this.receiptPage.set(page);
-    this.loadReceipts();
+    if (page >= 1 && page <= this.receiptTotalPages()) this.receiptPage.set(page);
   }
 
-  scheduleTotalPages(): number {
-    return Math.max(1, Math.ceil(this.scheduleTotal() / this.pageSize));
-  }
-
-  receiptTotalPages(): number {
-    return Math.max(1, Math.ceil(this.receiptTotal() / this.pageSize));
-  }
+  scheduleTotalPages(): number { return Math.max(1, Math.ceil(this.scheduleTotal() / this.pageSize)); }
+  receiptTotalPages(): number { return Math.max(1, Math.ceil(this.receiptTotal() / this.pageSize)); }
 
   // ───────────────────────── FORM LỊCH THU MUA ────────────────────
 
@@ -381,69 +351,47 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
   }
 
   async saveSchedule(): Promise<void> {
-    const form = this.scheduleForm();
-    const validationMessage = this.validateSchedule(form);
-    if (validationMessage) {
-      this.showError(validationMessage);
+    if (this.scheduleFormLocked()) {
+      this.showError('Lich thu mua da huy hoac da nhap kho nen khong the chinh sua.');
       return;
     }
 
+    const form = this.scheduleForm();
+    const validationMessage = this.validateSchedule(form);
+    if (validationMessage) { this.showError(validationMessage); return; }
+
+    const wasEditing = !!this.editingSchedule();
     const accepted = await this.askConfirm(
-      this.editingSchedule() ? 'Cập nhật lịch thu mua?' : 'Tạo lịch thu mua?',
-      this.editingSchedule()
-        ? 'Các thông tin lịch hẹn sẽ được cập nhật theo dữ liệu vừa nhập.'
-        : 'Hệ thống sẽ tạo mã lịch tự động và lưu trạng thái Mới tạo.'
+      wasEditing ? 'Cập nhật lịch thu mua?' : 'Tạo lịch thu mua?',
+      wasEditing ? 'Các thông tin lịch hẹn sẽ được cập nhật theo dữ liệu vừa nhập.' : 'Hệ thống sẽ tạo mã lịch tự động và lưu trạng thái Mới tạo.'
     );
     if (!accepted) return;
 
     const base: CreatePaddyPurchaseScheduleDto = {
       organizationId: form.organizationId ?? null,
-      farmerId: Number(form.farmerId),
-      statusId: form.statusId || 1,
+      farmerId: Number(form.farmerId), statusId: form.statusId || 1,
       riceVarietyId: form.riceVarietyId || null,
-      scheduleDate: this.toApiDate(form.scheduleDate),
-      location: form.location.trim(),
-      estimatedQtyKg:
-        form.estimatedQtyTon != null
-          ? this.roundWeight(Number(form.estimatedQtyTon) * 1000)
-          : null,
-      expectedPrice: form.expectedPrice ?? null,
-      assignedUserId: form.assignedUserId ?? null,
+      scheduleDate: this.toApiDate(form.scheduleDate), location: form.location.trim(),
+      estimatedQtyKg: form.estimatedQtyTon != null ? this.roundWeight(Number(form.estimatedQtyTon) * 1000) : null,
+      expectedPrice: form.expectedPrice ?? null, assignedUserId: form.assignedUserId ?? null,
       note: form.note.trim() || null,
     };
 
-    const wasEditing = !!this.editingSchedule();
-    this.savingSchedule.set(true);
     try {
-      const response = wasEditing
-        ? await lastValueFrom(
-            this.purchaseService.updateSchedule({
-              ...base,
-              id: this.editingSchedule()!.id,
-            } as UpdatePaddyPurchaseScheduleDto)
-          )
-        : await lastValueFrom(this.purchaseService.createSchedule(base));
-
-      if (!response.isSucceeded) {
-        throw new Error(response.message || 'Không lưu được lịch thu mua.');
-      }
-
+      const response = await this.saveScheduleMutation.mutateAsync(
+        wasEditing
+          ? { mode: 'update', payload: { ...base, id: this.editingSchedule()!.id } }
+          : { mode: 'create', payload: base }
+      );
       this.showScheduleModal.set(false);
       this.editingSchedule.set(null);
-      this.refreshScheduleData();
-      await this.showSuccess(
-        wasEditing
-          ? 'Cập nhật lịch thu mua thành công.'
-          : response.message || 'Tạo lịch thu mua thành công.'
-      );
-    } catch (err) {
-      this.showError(this.apiError(err, 'Không lưu được lịch thu mua.'));
-    } finally {
-      this.savingSchedule.set(false);
-    }
+      await this.showSuccess(wasEditing ? 'Cập nhật lịch thu mua thành công.' : response.message || 'Tạo lịch thu mua thành công.');
+    } catch (err) { this.showError(this.apiError(err, 'Không lưu được lịch thu mua.')); }
   }
 
   async advanceSchedule(row: PaddyPurchaseScheduleRow): Promise<void> {
+    if (this.isScheduleLocked(row)) return;
+
     const next = this.nextStatus(row.statusId);
     if (!next) return;
 
@@ -455,13 +403,10 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
     this.updatingScheduleId.set(row.id);
     try {
-      const response = await lastValueFrom(
-        this.purchaseService.updateScheduleStatus(row.id, next.code)
-      );
+      const response = await this.scheduleStatusMutation.mutateAsync({ id: row.id, statusCode: next.code });
       if (!response.isSucceeded) {
         throw new Error(response.message || 'Không cập nhật được trạng thái.');
       }
-      this.refreshScheduleData();
       await this.showSuccess(response.message || 'Đã cập nhật trạng thái.');
     } catch (err) {
       this.showError(this.apiError(err, 'Không cập nhật được trạng thái.'));
@@ -471,7 +416,7 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
   }
 
   async cancelSchedule(row: PaddyPurchaseScheduleRow): Promise<void> {
-    if (row.statusId === 5 || row.statusId === 6) return;
+    if (this.isScheduleLocked(row)) return;
     const accepted = await this.askConfirm(
       'Hủy lịch thu mua?',
       `Lịch ${row.scheduleCode} sẽ chuyển sang trạng thái Hủy.`
@@ -480,11 +425,8 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
     this.updatingScheduleId.set(row.id);
     try {
-      const response = await lastValueFrom(
-        this.purchaseService.updateScheduleStatus(row.id, 'CANCELLED')
-      );
+      const response = await this.scheduleStatusMutation.mutateAsync({ id: row.id, statusCode: 'CANCELLED' });
       if (!response.isSucceeded) throw new Error(response.message);
-      this.refreshScheduleData();
       this.showScheduleModal.set(false);
       await this.showSuccess('Đã hủy lịch thu mua.');
     } catch (err) {
@@ -497,6 +439,10 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
   // ───────────────────────── FORM PHIẾU MUA LÚA ──────────────────
 
   openCreateReceipt(schedule?: PaddyPurchaseScheduleRow): void {
+    if (schedule && this.isScheduleLocked(schedule)) {
+      this.showError('Lịch thu mua đã hủy hoặc đã nhập kho nên không thể tạo phiếu mua liên kết.');
+      return;
+    }
     this.editingReceipt.set(null);
     const form = this.defaultReceiptForm();
     if (schedule) {
@@ -548,10 +494,13 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
   onReceiptScheduleChange(rawValue: number | string | null): void {
     const id = rawValue ? Number(rawValue) : null;
-    const schedule = this.scheduleOptions().find((x) => x.id === id);
-    this.receiptForm.update((current) => ({
-      ...current,
-      scheduleId: id,
+    const schedule = this.scheduleOptions().find(x => x.id === id);
+    if (schedule && this.isScheduleLocked(schedule)) {
+      this.showError('Lịch thu mua này đã hủy hoặc đã nhập kho nên không thể liên kết với phiếu mua.');
+      return;
+    }
+    this.receiptForm.update(current => ({
+      ...current, scheduleId: id,
       farmerId: schedule?.farmerId ?? current.farmerId,
       riceVarietyId: schedule?.riceVarietyId ?? current.riceVarietyId,
     }));
@@ -559,20 +508,12 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
   async saveReceipt(): Promise<void> {
     const form = this.receiptForm();
-    if (form.isConfirmed) {
-      this.showError('Phiếu đã chốt nên không thể chỉnh sửa.');
-      return;
-    }
+    if (form.scheduleId && !this.scheduleStateReady()) { this.showError('Đang tải trạng thái lịch liên kết, vui lòng thử lại.'); return; }
+    if (this.receiptFormCancelled()) { this.showError('Phiếu liên kết với lịch đã hủy nên không thể sửa.'); return; }
+    if (form.isConfirmed) { this.showError('Phiếu đã chốt nên không thể chỉnh sửa.'); return; }
 
     const validationMessage = this.validateReceipt(form);
-    if (validationMessage) {
-      this.showError(validationMessage);
-      return;
-    }
-
-    const totalAmount = this.receiptTotalAmount();
-    const debtAmount = this.receiptDebtAmount();
-    const qualityJson = this.buildQualityJson(form);
+    if (validationMessage) { this.showError(validationMessage); return; }
 
     const accepted = await this.askConfirm(
       this.editingReceipt() ? 'Cập nhật phiếu mua lúa?' : 'Tạo phiếu mua lúa?',
@@ -581,50 +522,37 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
     if (!accepted) return;
 
     const base: CreatePaddyPurchaseReceiptDto = {
-      organizationId: form.organizationId ?? null,
-      scheduleId: form.scheduleId || null,
-      farmerId: Number(form.farmerId),
-      riceVarietyId: form.riceVarietyId || null,
-      warehouseId: Number(form.warehouseId),
-      actualWeightKg: this.roundWeight(Number(form.actualWeightKg)),
-      bagCount: form.bagCount ?? null,
-      agreedPrice: this.roundMoney(Number(form.agreedPrice)),
-      totalAmount,
-      paidAmount: this.roundMoney(Number(form.paidAmount || 0)),
-      debtAmount,
-      qualityJson,
-      priceAdjustReason: form.priceAdjustReason.trim() || null,
-      receiptDate: this.toApiDate(form.receiptDate),
+      organizationId: form.organizationId ?? null, scheduleId: form.scheduleId || null,
+      farmerId: Number(form.farmerId), riceVarietyId: form.riceVarietyId || null,
+      warehouseId: Number(form.warehouseId), actualWeightKg: this.roundWeight(Number(form.actualWeightKg)),
+      bagCount: form.bagCount ?? null, agreedPrice: this.roundMoney(Number(form.agreedPrice)),
+      totalAmount: this.receiptTotalAmount(), paidAmount: this.roundMoney(Number(form.paidAmount || 0)),
+      debtAmount: this.receiptDebtAmount(), qualityJson: this.buildQualityJson(form),
+      priceAdjustReason: form.priceAdjustReason.trim() || null, receiptDate: this.toApiDate(form.receiptDate),
     };
 
-    this.savingReceipt.set(true);
     try {
-      const response = this.editingReceipt()
-        ? await lastValueFrom(
-            this.purchaseService.updateReceipt({
-              ...base,
-              id: this.editingReceipt()!.id,
-            } as UpdatePaddyPurchaseReceiptDto)
-          )
-        : await lastValueFrom(this.purchaseService.createReceipt(base));
-
-      if (!response.isSucceeded) {
-        throw new Error(response.message || 'Không lưu được phiếu mua lúa.');
-      }
-
+      const response = await this.saveReceiptMutation.mutateAsync(
+        this.editingReceipt()
+          ? { mode: 'update', payload: { ...base, id: this.editingReceipt()!.id } }
+          : { mode: 'create', payload: base }
+      );
       this.showReceiptModal.set(false);
       this.editingReceipt.set(null);
-      this.refreshReceiptData();
       await this.showSuccess(response.message || 'Đã lưu phiếu mua lúa.');
-    } catch (err) {
-      this.showError(this.apiError(err, 'Không lưu được phiếu mua lúa.'));
-    } finally {
-      this.savingReceipt.set(false);
-    }
+    } catch (err) { this.showError(this.apiError(err, 'Không lưu được phiếu mua lúa.')); }
   }
 
   async confirmReceipt(row: PaddyPurchaseReceiptRow): Promise<void> {
     if (row.isConfirmed) return;
+    if (row.scheduleId && !this.scheduleStateReady()) {
+      this.showError('Đang tải trạng thái lịch liên kết, vui lòng thử lại.');
+      return;
+    }
+    if (this.isReceiptCancelled(row)) {
+      this.showError('Phiếu liên kết với lịch đã hủy nên không thể chốt.');
+      return;
+    }
     const accepted = await this.askConfirm(
       'Chốt phiếu mua lúa?',
       'Thao tác này sẽ sinh lô lúa, tạo đơn nhập, tăng tồn kho và ghi công nợ. Phiếu sẽ không thể sửa sau khi chốt.'
@@ -633,26 +561,11 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
     this.confirmingReceiptId.set(row.id);
     try {
-      const response = await lastValueFrom(
-        this.purchaseService.confirmReceipt(row.id)
-      );
-      if (!response.isSucceeded) {
-        throw new Error(response.message || 'Không chốt được phiếu.');
-      }
-
-      this.refreshReceiptData();
-      this.refreshScheduleData();
+      const response = await this.confirmReceiptMutation.mutateAsync(row.id);
       const lotCode = response.resources?.lotCode;
-      await this.showSuccess(
-        lotCode
-          ? `${response.message} Mã lô: ${lotCode}`
-          : response.message || 'Chốt phiếu thành công.'
-      );
-    } catch (err) {
-      this.showError(this.apiError(err, 'Không chốt được phiếu mua lúa.'));
-    } finally {
-      this.confirmingReceiptId.set(null);
-    }
+      await this.showSuccess(lotCode ? `${response.message} Mã lô: ${lotCode}` : response.message || 'Chốt phiếu thành công.');
+    } catch (err) { this.showError(this.apiError(err, 'Không chốt được phiếu mua lúa.')); }
+    finally { this.confirmingReceiptId.set(null); }
   }
 
   // ───────────────────────── HIỂN THỊ / TIỆN ÍCH ─────────────────
@@ -692,6 +605,44 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
 
   statusClass(statusId: number): string {
     return `status-${this.statusOf(statusId).code.toLowerCase()}`;
+  }
+
+  isScheduleLocked(row?: Pick<PaddyPurchaseScheduleRow, 'statusId'> | null): boolean {
+    if (!row) return false;
+    const code = this.statusOf(row.statusId).code;
+    return code === 'STOCKED' || code === 'CANCELLED';
+  }
+
+  isScheduleStocked(row?: Pick<PaddyPurchaseScheduleRow, 'statusId'> | null): boolean {
+    return !!row && this.statusOf(row.statusId).code === 'STOCKED';
+  }
+
+  isScheduleCancelledRow(row?: Pick<PaddyPurchaseScheduleRow, 'statusId'> | null): boolean {
+    return !!row && this.statusOf(row.statusId).code === 'CANCELLED';
+  }
+
+  isScheduleCancelled(scheduleId?: number | null): boolean {
+    if (!scheduleId) return false;
+    const schedule = this.scheduleOptions().find(x => x.id === scheduleId);
+    return !!schedule && this.statusOf(schedule.statusId).code === 'CANCELLED';
+  }
+
+  isReceiptCancelled(row: Pick<PaddyPurchaseReceiptRow, 'scheduleId'>): boolean {
+    return this.isScheduleCancelled(row.scheduleId);
+  }
+
+  isReceiptStocked(row: Pick<PaddyPurchaseReceiptRow, 'isConfirmed' | 'scheduleId'>): boolean {
+    return row.isConfirmed === true && !this.isReceiptCancelled(row);
+  }
+
+  receiptStatusLabel(row: PaddyPurchaseReceiptRow): string {
+    if (this.isReceiptCancelled(row)) return 'Đã hủy';
+    return row.isConfirmed ? 'Đã chốt' : 'Chưa chốt';
+  }
+
+  receiptStatusClass(row: PaddyPurchaseReceiptRow): string {
+    if (this.isReceiptCancelled(row)) return 'receipt-cancelled';
+    return row.isConfirmed ? 'receipt-confirmed' : 'receipt-draft';
   }
 
   qualityOf(row: PaddyPurchaseReceiptRow): PaddyQualitySnapshot {
@@ -912,6 +863,24 @@ export class RicePurchaseComponent implements OnInit, OnDestroy {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(value);
+  }
+
+  private async invalidateScheduleQueries(): Promise<void> {
+    await this.queryClient.invalidateQueries({ queryKey: ['rice-purchase', 'schedules'] });
+  }
+
+  private async invalidateReceiptQueries(): Promise<void> {
+    await this.queryClient.invalidateQueries({ queryKey: ['rice-purchase', 'receipts'] });
+  }
+
+  private unwrap<T>(response: ApiResponse<T>, fallback: string): T {
+    if (!response.isSucceeded) throw new Error(response.message || fallback);
+    return response.resources;
+  }
+
+  private ensureSucceeded<T>(response: ApiResponse<T>, fallback: string): ApiResponse<T> {
+    if (!response.isSucceeded) throw new Error(response.message || fallback);
+    return response;
   }
 
   private async askConfirm(title: string, text: string): Promise<boolean> {

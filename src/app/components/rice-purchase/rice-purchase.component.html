@@ -102,11 +102,17 @@
               </tr>
             } @else {
               @for (row of scheduleRows(); track row.id) {
-                <tr>
+                <tr
+                  [class.stocked-row]="isScheduleStocked(row)"
+                  [class.cancelled-row]="isScheduleCancelledRow(row)"
+                >
                   <td>
                     <button type="button" class="code-link" (click)="openEditSchedule(row)">
                       {{ row.scheduleCode }}
                     </button>
+                    @if (isScheduleStocked(row)) {
+                      <span class="confirmed-mark schedule-stocked-mark" title="Lịch đã nhập kho">✓</span>
+                    }
                   </td>
                   <td>
                     <div class="person-cell">
@@ -155,7 +161,7 @@
                         type="button"
                         class="icon-action receipt"
                         title="Tạo phiếu mua từ lịch này"
-                        [disabled]="row.statusId === 5 || row.statusId === 6"
+                        [disabled]="isScheduleLocked(row)"
                         (click)="openCreateReceipt(row)"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -261,7 +267,7 @@
               </tr>
             } @else {
               @for (row of receiptRows(); track row.id) {
-                <tr>
+                <tr [class.cancelled-row]="isReceiptCancelled(row)">
                   <td>
                     <button type="button" class="code-link" (click)="openEditReceipt(row)">
                       {{ row.receiptCode }}
@@ -301,7 +307,7 @@
                           <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                       </button>
-                      @if (!row.isConfirmed) {
+                      @if (!row.isConfirmed && !isReceiptCancelled(row)) {
                         <button
                           type="button"
                           class="icon-action confirm"
@@ -351,6 +357,19 @@
         <button type="button" class="modal-close" aria-label="Đóng" (click)="closeScheduleModal()">×</button>
       </header>
 
+      @if (isScheduleStocked(editingSchedule())) {
+        <div class="confirmed-banner">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M20 6 9 17l-5-5"></path>
+          </svg>
+          Lịch đã nhập kho. Dữ liệu không thể chỉnh sửa.
+        </div>
+      } @else if (isScheduleCancelledRow(editingSchedule())) {
+        <div class="cancelled-banner">
+          Lịch đã hủy. Dữ liệu không thể chỉnh sửa.
+        </div>
+      }
+
       <div class="modal-body">
         <div class="form-grid two-columns">
           <label class="field-group span-2">
@@ -358,7 +377,7 @@
             <select
               [ngModel]="scheduleForm().farmerId"
               (ngModelChange)="setScheduleField('farmerId', $event)"
-              [disabled]="loadingReference()"
+              [disabled]="scheduleFormLocked() || loadingReference()"
             >
               <option [ngValue]="null">Chọn nông dân...</option>
               @for (farmer of farmers(); track farmer.id) {
@@ -378,6 +397,7 @@
               type="date"
               [ngModel]="scheduleForm().scheduleDate"
               (ngModelChange)="setScheduleField('scheduleDate', $event)"
+              [disabled]="scheduleFormLocked()"
             />
           </label>
 
@@ -387,6 +407,7 @@
               type="text"
               [ngModel]="scheduleForm().location"
               (ngModelChange)="setScheduleField('location', $event)"
+              [disabled]="scheduleFormLocked()"
               placeholder="Ấp, xã, huyện, ghi chú đường vào..."
             />
           </label>
@@ -396,6 +417,7 @@
             <select
               [ngModel]="scheduleForm().riceVarietyId"
               (ngModelChange)="setScheduleField('riceVarietyId', $event)"
+              [disabled]="scheduleFormLocked()"
             >
               <option [ngValue]="null">Chưa xác định</option>
               @for (variety of riceVarieties(); track variety.id) {
@@ -412,6 +434,7 @@
               step="0.01"
               [ngModel]="scheduleForm().estimatedQtyTon"
               (ngModelChange)="setScheduleField('estimatedQtyTon', $event)"
+              [disabled]="scheduleFormLocked()"
               placeholder="5.0"
             />
           </label>
@@ -422,6 +445,7 @@
               rows="3"
               [ngModel]="scheduleForm().note"
               (ngModelChange)="setScheduleField('note', $event)"
+              [disabled]="scheduleFormLocked()"
               placeholder="Ví dụ: gọi trước 30 phút, xe vào được tới bờ kênh..."
             ></textarea>
           </label>
@@ -430,19 +454,21 @@
 
       <footer class="modal-footer">
         <div class="footer-danger-zone">
-          @if (editingSchedule() && editingSchedule()!.statusId !== 5 && editingSchedule()!.statusId !== 6) {
+          @if (editingSchedule() && !scheduleFormLocked()) {
             <button type="button" class="danger-link" (click)="cancelSchedule(editingSchedule()!)">Hủy lịch</button>
           }
         </div>
         <button type="button" class="secondary-button" [disabled]="savingSchedule()" (click)="closeScheduleModal()">Đóng</button>
-        <button type="button" class="save-button" [disabled]="savingSchedule()" (click)="saveSchedule()">
-          @if (savingSchedule()) {
-            <span class="button-spinner"></span>
-            Đang lưu...
-          } @else {
-            {{ editingSchedule() ? 'Lưu thay đổi' : 'Lưu lịch thu mua' }}
-          }
-        </button>
+        @if (!scheduleFormLocked()) {
+          <button type="button" class="save-button" [disabled]="savingSchedule()" (click)="saveSchedule()">
+            @if (savingSchedule()) {
+              <span class="button-spinner"></span>
+              Đang lưu...
+            } @else {
+              {{ editingSchedule() ? 'Lưu thay đổi' : 'Lưu lịch thu mua' }}
+            }
+          </button>
+        }
       </footer>
     </section>
   </div>
@@ -468,6 +494,12 @@
         </div>
       }
 
+      @if (receiptFormCancelled()) {
+        <div class="cancelled-banner">
+          Phiếu liên kết với lịch đã hủy. Dữ liệu không thể chỉnh sửa hoặc chốt kho.
+        </div>
+      }
+
       <div class="modal-body">
         <div class="form-grid receipt-form-grid">
           <label class="field-group span-2">
@@ -475,7 +507,7 @@
             <select
               [ngModel]="receiptForm().scheduleId"
               (ngModelChange)="onReceiptScheduleChange($event)"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             >
               <option [ngValue]="null">Không gắn lịch — chọn nông dân trực tiếp</option>
               @for (schedule of scheduleOptions(); track schedule.id) {
@@ -492,7 +524,7 @@
               type="date"
               [ngModel]="receiptForm().receiptDate"
               (ngModelChange)="setReceiptField('receiptDate', $event)"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             />
           </label>
 
@@ -501,7 +533,7 @@
             <select
               [ngModel]="receiptForm().farmerId"
               (ngModelChange)="setReceiptField('farmerId', $event)"
-              [disabled]="receiptForm().isConfirmed || !!receiptForm().scheduleId"
+              [disabled]="receiptFormLocked() || !!receiptForm().scheduleId"
             >
               <option [ngValue]="null">Chọn nông dân...</option>
               @for (farmer of farmers(); track farmer.id) {
@@ -515,7 +547,7 @@
             <select
               [ngModel]="receiptForm().riceVarietyId"
               (ngModelChange)="setReceiptField('riceVarietyId', $event)"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             >
               <option [ngValue]="null">Chưa xác định</option>
               @for (variety of riceVarieties(); track variety.id) {
@@ -533,7 +565,7 @@
               [ngModel]="receiptForm().actualWeightKg"
               (ngModelChange)="setReceiptField('actualWeightKg', $event)"
               placeholder="4.120"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             />
           </label>
 
@@ -546,7 +578,7 @@
               [ngModel]="receiptForm().agreedPrice"
               (ngModelChange)="setReceiptField('agreedPrice', $event)"
               placeholder="6.350"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             />
           </label>
 
@@ -560,7 +592,7 @@
               [ngModel]="receiptForm().moisturePercent"
               (ngModelChange)="setReceiptField('moisturePercent', $event)"
               placeholder="14.5"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             />
           </label>
 
@@ -569,7 +601,7 @@
             <select
               [ngModel]="receiptForm().qualityGrade"
               (ngModelChange)="setReceiptField('qualityGrade', $event)"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             >
               <option value="">Chưa đánh giá</option>
               <option value="Xuất sắc">Xuất sắc</option>
@@ -589,7 +621,7 @@
               [ngModel]="receiptForm().paidAmount"
               (ngModelChange)="setReceiptField('paidAmount', $event)"
               placeholder="20.000.000"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             />
           </label>
 
@@ -598,7 +630,7 @@
             <select
               [ngModel]="receiptForm().warehouseId"
               (ngModelChange)="setReceiptField('warehouseId', $event)"
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             >
               <option [ngValue]="null">Chọn kho nhập...</option>
               @for (warehouse of warehouses(); track warehouse.id) {
@@ -625,7 +657,7 @@
               [ngModel]="receiptForm().priceAdjustReason"
               (ngModelChange)="setReceiptField('priceAdjustReason', $event)"
               placeholder="Số bao, tạp chất, công nợ còn lại, ghi chú cân..."
-              [disabled]="receiptForm().isConfirmed"
+              [disabled]="receiptFormLocked()"
             ></textarea>
           </label>
         </div>
@@ -634,7 +666,7 @@
       <footer class="modal-footer">
         <div class="footer-danger-zone"></div>
         <button type="button" class="secondary-button" [disabled]="savingReceipt()" (click)="closeReceiptModal()">Đóng</button>
-        @if (!receiptForm().isConfirmed) {
+        @if (!receiptFormLocked()) {
           <button type="button" class="save-button" [disabled]="savingReceipt()" (click)="saveReceipt()">
             @if (savingReceipt()) {
               <span class="button-spinner"></span>
