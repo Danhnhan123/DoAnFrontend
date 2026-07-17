@@ -169,6 +169,24 @@ const adminChildren: Routes = [
       import('./components/notification-type/notification-type.component')
         .then(m => m.NotificationTypeComponent),
   },
+  {
+    path: 'milling-yield-configs',
+    loadComponent: () =>
+      import('./components/milling-yield-config/milling-yield-config.component')
+        .then(m => m.MillingYieldConfigComponent),
+  },
+  {
+    path: 'stock-alert-configs',
+    loadComponent: () =>
+      import('./components/stock-alert-config/stock-alert-config.component')
+        .then(m => m.StockAlertConfigComponent),
+  },
+  {
+    path: 'alerts',
+    loadComponent: () =>
+      import('./components/alert/alert.component')
+        .then(m => m.AlertComponent),
+  },
 ];
 
 export const routes: Routes = [

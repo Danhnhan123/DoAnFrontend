@@ -1,0 +1,239 @@
+<div class="page-wrapper">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon-wrap orange">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Đang mở</span>
+        <span class="stat-value">{{ summary().totalOpen }}</span>
+        <span class="stat-sub">Chưa xử lý</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap red">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Nghiêm trọng (đang mở)</span>
+        <span class="stat-value">{{ summary().openCritical }}</span>
+        <span class="stat-sub">Cần ưu tiên</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap blue">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Đã ghi nhận</span>
+        <span class="stat-value">{{ summary().totalAcknowledged }}</span>
+        <span class="stat-sub">Đang theo dõi</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-wrap green">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+        </svg>
+      </div>
+      <div class="stat-body">
+        <span class="stat-label">Đã xử lý</span>
+        <span class="stat-value">{{ summary().totalResolved }}</span>
+        <span class="stat-sub">Hoàn tất</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar card">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="search-input" placeholder="Tìm nội dung, loại, kho..." [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+    </div>
+    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()" title="Bộ lọc nâng cao">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      Bộ lọc nâng cao
+    </button>
+    <app-filter-select class="page-size-select" [clearable]="false" style="width:132px;flex:0 0 auto"
+      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+      (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+  </div>
+
+  @if (showFilter()) {
+  <div class="filter-panel card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Loại cảnh báo</label>
+        <app-filter-select [options]="typeOptions" allLabel="Tất cả" [value]="filterAlertType()" (valueChange)="filterAlertType.set($event)"></app-filter-select>
+      </div>
+      <div class="form-group">
+        <label>Mức độ</label>
+        <app-filter-select [options]="severityOptions" allLabel="Tất cả" [value]="filterSeverity()" (valueChange)="filterSeverity.set($event)"></app-filter-select>
+      </div>
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <app-filter-select [options]="statusOptions" allLabel="Tất cả" [value]="filterStatus()" (valueChange)="filterStatus.set($event)"></app-filter-select>
+      </div>
+      <div class="form-group">
+        <label>Kho</label>
+        <app-filter-select [options]="warehouseSelectOptions()" allLabel="Tất cả" [value]="filterWarehouseId()" (valueChange)="filterWarehouseId.set($event)"></app-filter-select>
+      </div>
+      <div class="form-group">
+        <label>Từ ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateFrom()" (ngModelChange)="dateFrom.set($event || null)" />
+      </div>
+      <div class="form-group">
+        <label>Đến ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateTo()" (ngModelChange)="dateTo.set($event || null)" />
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+    </div>
+  </div>
+  }
+
+  <div class="card">
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+    } @else if (rows().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có cảnh báo</p></div>
+    } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">STT</th>
+            <th class="sortable" (click)="sort('severity')">Mức độ <span class="sort-icon">{{ sortIcon('severity') }}</span></th>
+            <th class="sortable" (click)="sort('alertType')">Loại <span class="sort-icon">{{ sortIcon('alertType') }}</span></th>
+            <th>Nội dung</th>
+            <th>Kho / SKU</th>
+            <th class="sortable" (click)="sort('status')">Trạng thái <span class="sort-icon">{{ sortIcon('status') }}</span></th>
+            <th class="sortable" (click)="sort('createdDate')">Thời điểm <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+            <th style="text-align:right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id; let idx = $index) {
+          <tr>
+            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
+            <td data-label="Mức độ"><span class="sev-badge" [ngClass]="severityClass(row.severity)">{{ severityLabel(row.severity) }}</span></td>
+            <td class="small" data-label="Loại">{{ typeLabel(row.alertType) }}</td>
+            <td class="small" data-label="Nội dung" style="max-width:320px">{{ row.message }}</td>
+            <td class="text-muted small" data-label="Kho / SKU">
+              {{ row.warehouseName || '—' }}<br />
+              <span class="text-muted">{{ row.productVariantSku || '' }}</span>
+            </td>
+            <td data-label="Trạng thái">
+              <span class="status-pill" [ngClass]="statusClass(row.status)">{{ statusLabel(row.status) }}</span>
+            </td>
+            <td class="text-muted small" data-label="Thời điểm">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="action-cell" data-label="Thao tác">
+              <button class="icon-btn" type="button" (click)="openDetail(row)" title="Chi tiết">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              @if (row.status === 'OPEN') {
+              <button class="icon-btn edit-btn" type="button" (click)="acknowledge(row)" [disabled]="acting()" title="Ghi nhận">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
+              </button>
+              }
+              @if (canAct(row)) {
+              <button class="icon-btn add-btn" type="button" (click)="resolve(row)" [disabled]="acting()" title="Xử lý xong" style="width:auto;padding:0 8px">
+                Xử lý
+              </button>
+              }
+              <button class="icon-btn delete-btn" type="button" (click)="delete(row)" [disabled]="acting()" title="Xóa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of visiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
+    }
+  </div>
+</div>
+
+@if (showDetail()) {
+<div class="modal-backdrop" (click)="closeDetail()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Chi tiết cảnh báo</h3>
+      <button class="modal-close" type="button" (click)="closeDetail()">×</button>
+    </div>
+    @if (loadingDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else if (detail()) { @if (detail(); as d) {
+    <div class="modal-body">
+      <div class="detail-grid">
+        <div class="k">Mức độ</div>
+        <div class="v"><span class="sev-badge" [ngClass]="severityClass(d.severity)">{{ severityLabel(d.severity) }}</span></div>
+        <div class="k">Loại</div>
+        <div class="v">{{ typeLabel(d.alertType) }}</div>
+        <div class="k">Trạng thái</div>
+        <div class="v"><span class="status-pill" [ngClass]="statusClass(d.status)">{{ statusLabel(d.status) }}</span></div>
+        <div class="k">Kho</div>
+        <div class="v">{{ d.warehouseName || '—' }}</div>
+        <div class="k">SKU / Sản phẩm</div>
+        <div class="v">{{ d.productVariantSku ? (d.productVariantSku + (d.productName ? ' — ' + d.productName : '')) : '—' }}</div>
+        <div class="k">Vị trí</div>
+        <div class="v">{{ d.locationName || '—' }}</div>
+        <div class="k">Đối tượng liên quan</div>
+        <div class="v">{{ d.relatedEntityType ? (d.relatedEntityType + ' #' + d.relatedEntityId) : '—' }}</div>
+        <div class="k">Người ghi nhận</div>
+        <div class="v">{{ d.acknowledgedByName || '—' }}<span class="text-muted small" *ngIf="d.acknowledgedAt"> · {{ d.acknowledgedAt | date:'dd/MM/yyyy HH:mm' }}</span></div>
+        <div class="k">Thời điểm xử lý</div>
+        <div class="v">{{ d.resolvedAt ? (d.resolvedAt | date:'dd/MM/yyyy HH:mm') : '—' }}</div>
+        <div class="k">Thời điểm tạo</div>
+        <div class="v">{{ d.createdDate | date:'dd/MM/yyyy HH:mm' }}</div>
+      </div>
+      <div class="msg-box">{{ d.message }}</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" type="button" (click)="closeDetail()">Đóng</button>
+      @if (d.status === 'OPEN') {
+      <button class="btn btn-outline" type="button" (click)="acknowledge(d)" [disabled]="acting()">Ghi nhận</button>
+      }
+      @if (d.status !== 'RESOLVED') {
+      <button class="btn btn-primary" type="button" (click)="resolve(d)" [disabled]="acting()">
+        @if (acting()) { <span class="spin-sm"></span> }
+        <span class="btn-label">Đánh dấu đã xử lý</span>
+      </button>
+      }
+    </div>
+    } }
+  </div>
+</div>
+}
