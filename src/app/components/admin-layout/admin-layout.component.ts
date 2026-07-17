@@ -55,6 +55,7 @@ export class AdminLayoutComponent implements OnInit {
     'activity-log': 'Lịch sử hoạt động',
     actions: 'Quản lý hành động',
     'user-status': 'Trạng thái người dùng',
+    'rice-purchase': 'Lịch & Phiếu mua lúa',
     'inbound-orders': 'Đơn nhập kho',
     'iot-devices': 'Thiết bị IoT',
     suppliers: 'Nhà cung cấp',

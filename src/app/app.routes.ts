@@ -169,6 +169,12 @@ const adminChildren: Routes = [
       import('./components/notification-type/notification-type.component')
         .then(m => m.NotificationTypeComponent),
   },
+  {
+    path: 'rice-purchase',
+    loadComponent: () =>
+      import('./components/rice-purchase/rice-purchase.component')
+        .then(m => m.RicePurchaseComponent),
+  }
 ];
 
 export const routes: Routes = [
