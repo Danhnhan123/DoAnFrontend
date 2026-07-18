@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
+import { injectQuery } from '@tanstack/angular-query-experimental';
 
 import {
   InventoryRow,
@@ -35,7 +36,10 @@ interface WarehouseOption {
  * - 5 thẻ KPI theo trạng thái (Tồn thực tế / Khả dụng / Đã giữ / Đang xử lý / Cách ly)
  * - Bảng tồn theo lô/cột/khu (+ tab lọc Lúa/Gạo/Tấm/Cám/Trấu)
  * - Panel Cảnh báo tồn kho + Lịch sử InventoryTransaction
- * Tất cả dữ liệu lấy từ API backend đã có/bổ sung.
+ *
+ * Realtime: dữ liệu lấy qua TanStack Query. Khi server (SignalR) báo Inventory/
+ * InventoryTransaction/Alert thay đổi, RealtimeService invalidate các queryKey
+ * ['inventories'|'inventory-summary'|'inventory-transactions'|'alerts'] -> tự refetch.
  */
 @Component({
   selector: 'app-inventory-monitoring',
@@ -44,46 +48,172 @@ interface WarehouseOption {
   templateUrl: './inventory-monitoring.component.html',
   styleUrl: './inventory-monitoring.component.css',
 })
-export class InventoryMonitoringComponent implements OnInit {
+export class InventoryMonitoringComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly txService = inject(InventoryTransactionService);
   private readonly alertService = inject(AlertService);
   private readonly warehouseService = inject(WarehouseService);
   private readonly categoryService = inject(ProductCategoryService);
 
-  // ----- Dữ liệu -----
-  summary = signal<InventoryStockSummary | null>(null);
-  rows = signal<InventoryRow[]>([]);
-  alerts = signal<AlertRow[]>([]);
-  transactions = signal<InventoryTransactionRow[]>([]);
-  warehouses = signal<WarehouseOption[]>([]);
-  categories = signal<CategoryTab[]>([]);
-
-  // ----- Trạng thái tải -----
-  loadingRows = signal(false);
-  loadingSummary = signal(false);
-  loadingAlerts = signal(false);
-  loadingTx = signal(false);
-  errorMsg = signal<string | null>(null);
-
   // ----- Bộ lọc / phân trang -----
   warehouseId = signal<number | null>(null);
   activeCategoryId = signal<number | null>(null); // null = Tất cả
-  search = signal('');
+  searchInput = signal(''); // giá trị gõ trực tiếp (binding ô tìm)
+  search = signal(''); // giá trị đã debounce (dùng trong queryKey)
   page = signal(1);
   pageSize = signal(10);
-  total = signal(0);
   sortField = signal('id');
   sortDir = signal<'asc' | 'desc'>('desc');
 
   private searchTimer: any = null;
 
+  private readonly colMap: Record<string, number> = {
+    lotCode: 0,
+    categoryName: 1,
+    warehouseName: 2,
+    bags: 3,
+    quantityOnHand: 4,
+    quantityAvailable: 5,
+    quantityReserved: 6,
+    costPrice: 7,
+    id: 8,
+  };
+
+  // ========== TanStack Queries (realtime qua invalidateQueries) ==========
+
+  /** Danh sách kho (dropdown) — realtime theo key 'warehouse-options'. */
+  private warehousesQuery = injectQuery(() => ({
+    queryKey: ['warehouse-options'],
+    queryFn: () => lastValueFrom(this.warehouseService.getAll()),
+    staleTime: 60_000,
+  }));
+
+  /** Danh mục (tab lọc) — realtime theo key 'product-category-options'. */
+  private categoriesQuery = injectQuery(() => ({
+    queryKey: ['product-category-options'],
+    queryFn: () => lastValueFrom(this.categoryService.getAll()),
+    staleTime: 60_000,
+  }));
+
+  /** 5 thẻ KPI — realtime theo key 'inventory-summary'. */
+  private summaryQuery = injectQuery(() => ({
+    queryKey: [
+      'inventory-summary',
+      this.warehouseId(),
+      this.activeCategoryId(),
+    ],
+    queryFn: () =>
+      lastValueFrom(
+        this.inventoryService.getSummary({
+          warehouseId: this.warehouseId(),
+          productCategoryId: this.activeCategoryId(),
+          lotType: null,
+        })
+      ),
+  }));
+
+  /** Bảng tồn theo lô — realtime theo key 'inventories'. */
+  private listQuery = injectQuery(() => ({
+    queryKey: [
+      'inventories',
+      this.page(),
+      this.pageSize(),
+      this.search(),
+      this.sortField(),
+      this.sortDir(),
+      this.warehouseId(),
+      this.activeCategoryId(),
+    ],
+    queryFn: () => {
+      const body = this.inventoryService.buildPagedBody({
+        page: this.page(),
+        pageSize: this.pageSize(),
+        search: this.search(),
+        sortField: this.sortField(),
+        sortDir: this.sortDir(),
+        colMap: this.colMap,
+        warehouseId: this.warehouseId(),
+        productCategoryId: this.activeCategoryId(),
+      });
+      return lastValueFrom(this.inventoryService.getPagedAdvanced(body));
+    },
+  }));
+
+  /** Cảnh báo tồn kho — realtime theo key 'alerts'. */
+  private alertsQuery = injectQuery(() => ({
+    queryKey: ['alerts', 'inventory-monitoring'],
+    queryFn: () =>
+      lastValueFrom(
+        this.alertService.getPagedAdvanced(this.alertService.buildListBody(15))
+      ),
+  }));
+
+  /** Lịch sử InventoryTransaction — realtime theo key 'inventory-transactions'. */
+  private txQuery = injectQuery(() => ({
+    queryKey: ['inventory-transactions', this.warehouseId()],
+    queryFn: () =>
+      lastValueFrom(
+        this.txService.getPagedAdvanced(
+          this.txService.buildListBody({
+            length: 15,
+            warehouseId: this.warehouseId(),
+          })
+        )
+      ),
+  }));
+
+  // ========== Dữ liệu suy ra từ query ==========
+
+  warehouses = computed<WarehouseOption[]>(
+    () => (this.warehousesQuery.data() as any)?.resources ?? []
+  );
+
+  categories = computed<CategoryTab[]>(() =>
+    ((this.categoriesQuery.data() as any)?.resources ?? []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+    }))
+  );
+
+  summary = computed<InventoryStockSummary | null>(
+    () => (this.summaryQuery.data() as any)?.resources ?? null
+  );
+
+  rows = computed<InventoryRow[]>(() => {
+    const r = (this.listQuery.data() as any)?.resources;
+    return r?.data ?? [];
+  });
+
+  total = computed<number>(() => {
+    const r = (this.listQuery.data() as any)?.resources;
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
+
+  alerts = computed<AlertRow[]>(
+    () => (this.alertsQuery.data() as any)?.resources?.data ?? []
+  );
+
+  transactions = computed<InventoryTransactionRow[]>(
+    () => (this.txQuery.data() as any)?.resources?.data ?? []
+  );
+
+  // ----- Trạng thái tải -----
+  loadingRows = computed(
+    () => this.listQuery.isPending() || this.listQuery.isFetching()
+  );
+  loadingSummary = computed(() => this.summaryQuery.isPending());
+  loadingAlerts = computed(() => this.alertsQuery.isPending());
+  loadingTx = computed(() => this.txQuery.isPending());
+  errorMsg = computed(() =>
+    this.listQuery.isError() ? 'Không tải được danh sách tồn kho.' : null
+  );
+
+  // ----- Tabs / options -----
   readonly tabs = computed<CategoryTab[]>(() => [
     { id: null, name: 'Tất cả' },
     ...this.categories(),
   ]);
 
-  /** Options cho dropdown chọn kho dùng chung (app-filter-select). */
   readonly warehouseOptions = computed<FilterSelectOption[]>(() =>
     this.warehouses().map((w) => ({ id: w.id, name: w.name }))
   );
@@ -99,166 +229,36 @@ export class InventoryMonitoringComponent implements OnInit {
     Math.max(1, Math.ceil(this.total() / this.pageSize()))
   );
 
-  private readonly colMap: Record<string, number> = {
-    lotCode: 0,
-    categoryName: 1,
-    warehouseName: 2,
-    bags: 3,
-    quantityOnHand: 4,
-    quantityAvailable: 5,
-    quantityReserved: 6,
-    costPrice: 7,
-    id: 8,
-  };
-
-  async ngOnInit(): Promise<void> {
-    await Promise.all([this.loadWarehouses(), this.loadCategories()]);
-    await this.reloadAll();
-  }
-
-  // ---------- Loaders ----------
-
-  private async loadWarehouses(): Promise<void> {
-    try {
-      const res = await lastValueFrom(this.warehouseService.getAll());
-      this.warehouses.set((res?.resources as WarehouseOption[]) ?? []);
-    } catch {
-      this.warehouses.set([]);
-    }
-  }
-
-  private async loadCategories(): Promise<void> {
-    try {
-      const res = await lastValueFrom(this.categoryService.getAll());
-      const list = (res?.resources as any[]) ?? [];
-      this.categories.set(list.map((c) => ({ id: c.id, name: c.name })));
-    } catch {
-      this.categories.set([]);
-    }
-  }
-
-  async loadSummary(): Promise<void> {
-    this.loadingSummary.set(true);
-    try {
-      const res = await lastValueFrom(
-        this.inventoryService.getSummary({
-          warehouseId: this.warehouseId(),
-          productCategoryId: this.activeCategoryId(),
-          lotType: null,
-        })
-      );
-      this.summary.set(res?.resources ?? null);
-    } catch {
-      this.summary.set(null);
-    } finally {
-      this.loadingSummary.set(false);
-    }
-  }
-
-  async loadRows(): Promise<void> {
-    this.loadingRows.set(true);
-    this.errorMsg.set(null);
-    try {
-      const body = this.inventoryService.buildPagedBody({
-        page: this.page(),
-        pageSize: this.pageSize(),
-        search: this.search(),
-        sortField: this.sortField(),
-        sortDir: this.sortDir(),
-        colMap: this.colMap,
-        warehouseId: this.warehouseId(),
-        productCategoryId: this.activeCategoryId(),
-      });
-      const res = await lastValueFrom(
-        this.inventoryService.getPagedAdvanced(body)
-      );
-      const r = res?.resources as any;
-      this.rows.set(r?.data ?? []);
-      this.total.set(r?.recordsFiltered ?? r?.recordsTotal ?? 0);
-    } catch (e) {
-      this.rows.set([]);
-      this.total.set(0);
-      this.errorMsg.set('Không tải được danh sách tồn kho.');
-    } finally {
-      this.loadingRows.set(false);
-    }
-  }
-
-  async loadAlerts(): Promise<void> {
-    this.loadingAlerts.set(true);
-    try {
-      const body = this.alertService.buildListBody(15);
-      const res = await lastValueFrom(this.alertService.getPagedAdvanced(body));
-      const r = res?.resources as any;
-      this.alerts.set(r?.data ?? []);
-    } catch {
-      this.alerts.set([]);
-    } finally {
-      this.loadingAlerts.set(false);
-    }
-  }
-
-  async loadTransactions(): Promise<void> {
-    this.loadingTx.set(true);
-    try {
-      const body = this.txService.buildListBody({
-        length: 15,
-        warehouseId: this.warehouseId(),
-      });
-      const res = await lastValueFrom(this.txService.getPagedAdvanced(body));
-      const r = res?.resources as any;
-      this.transactions.set(r?.data ?? []);
-    } catch {
-      this.transactions.set([]);
-    } finally {
-      this.loadingTx.set(false);
-    }
-  }
-
-  async reloadAll(): Promise<void> {
-    await Promise.all([
-      this.loadSummary(),
-      this.loadRows(),
-      this.loadAlerts(),
-      this.loadTransactions(),
-    ]);
-  }
-
-  // ---------- Tương tác ----------
+  // ---------- Tương tác (chỉ set signal -> query tự refetch) ----------
 
   onWarehouseChange(value: number | null): void {
     this.warehouseId.set(value != null ? Number(value) : null);
     this.page.set(1);
-    void this.reloadAll();
   }
 
   selectTab(id: number | null): void {
     if (this.activeCategoryId() === id) return;
     this.activeCategoryId.set(id);
     this.page.set(1);
-    void this.loadSummary();
-    void this.loadRows();
   }
 
   onSearchChange(value: string): void {
-    this.search.set(value);
+    this.searchInput.set(value);
     if (this.searchTimer) clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
       this.page.set(1);
-      void this.loadRows();
+      this.search.set(value.trim());
     }, 350);
   }
 
   setPage(p: number): void {
     if (p < 1 || p > this.totalPages() || p === this.page()) return;
     this.page.set(p);
-    void this.loadRows();
   }
 
   setPageSize(value: string | number): void {
     this.pageSize.set(Number(value));
     this.page.set(1);
-    void this.loadRows();
   }
 
   /** Dải số trang hiển thị quanh trang hiện tại (±2). */
@@ -281,7 +281,6 @@ export class InventoryMonitoringComponent implements OnInit {
       this.sortDir.set('asc');
     }
     this.page.set(1);
-    void this.loadRows();
   }
 
   sortIcon(field: string): string {
