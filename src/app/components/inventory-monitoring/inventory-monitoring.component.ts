@@ -14,6 +14,10 @@ import { InventoryTransactionService } from '../../services/inventory-transactio
 import { AlertService } from '../../services/alert.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { ProductCategoryService } from '../../services/product-category.service';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 interface CategoryTab {
   id: number | null;
@@ -36,7 +40,7 @@ interface WarehouseOption {
 @Component({
   selector: 'app-inventory-monitoring',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './inventory-monitoring.component.html',
   styleUrl: './inventory-monitoring.component.css',
 })
@@ -78,6 +82,11 @@ export class InventoryMonitoringComponent implements OnInit {
     { id: null, name: 'Tất cả' },
     ...this.categories(),
   ]);
+
+  /** Options cho dropdown chọn kho dùng chung (app-filter-select). */
+  readonly warehouseOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({ id: w.id, name: w.name }))
+  );
 
   readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.total() / this.pageSize()))
@@ -210,8 +219,8 @@ export class InventoryMonitoringComponent implements OnInit {
 
   // ---------- Tương tác ----------
 
-  onWarehouseChange(value: string): void {
-    this.warehouseId.set(value ? Number(value) : null);
+  onWarehouseChange(value: number | null): void {
+    this.warehouseId.set(value != null ? Number(value) : null);
     this.page.set(1);
     void this.reloadAll();
   }
