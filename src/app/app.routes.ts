@@ -187,6 +187,12 @@ const adminChildren: Routes = [
       import('./components/alert/alert.component')
         .then(m => m.AlertComponent),
   },
+  {
+    path: 'inventory-monitoring',
+    loadComponent: () =>
+      import('./components/inventory-monitoring/inventory-monitoring.component')
+        .then(m => m.InventoryMonitoringComponent),
+  },
 ];
 
 export const routes: Routes = [

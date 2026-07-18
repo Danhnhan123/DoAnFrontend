@@ -32,3 +32,4 @@ export * from './notification';
 export * from './milling-yield-config';
 export * from './stock-alert-config';
 export * from './alert';
+export * from './inventory';
