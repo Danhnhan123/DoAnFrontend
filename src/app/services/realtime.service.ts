@@ -27,6 +27,13 @@ const REALTIME_MAP: Record<string, string[]> = {
   Warehouse: ['warehouses', 'warehouse-options', 'inbound-warehouse-options'],
   Location: ['locations'],
   InboundOrder: ['inbound-orders'],
+  Inventory: ['inventories', 'inventory-summary'],
+  InventoryTransaction: [
+    'inventory-transactions',
+    'inventories',
+    'inventory-summary',
+  ],
+  Alert: ['alerts', 'alerts-summary'],
   SystemConfig: ['system-configs'],
   Notification: ['notifications'],
   NotificationCategory: ['notification-categories', 'notification-category-options'],
