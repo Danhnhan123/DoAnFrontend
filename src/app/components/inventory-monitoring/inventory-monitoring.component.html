@@ -10,16 +10,13 @@
       </p>
     </div>
     <div class="inv-head-right">
-      <select
-        class="inv-select"
-        [ngModel]="warehouseId()"
-        (ngModelChange)="onWarehouseChange($event)"
-      >
-        <option [ngValue]="null">Tất cả kho</option>
-        @for (w of warehouses(); track w.id) {
-          <option [ngValue]="w.id">{{ w.name }}</option>
-        }
-      </select>
+      <app-filter-select
+        [options]="warehouseOptions()"
+        [value]="warehouseId()"
+        (valueChange)="onWarehouseChange($event)"
+        allLabel="Tất cả kho"
+        placeholder="Tất cả kho"
+      ></app-filter-select>
     </div>
   </div>
 

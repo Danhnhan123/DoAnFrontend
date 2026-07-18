@@ -51,20 +51,7 @@
 }
 .inv-head-right {
   flex-shrink: 0;
-}
-.inv-select {
-  border: 1px solid var(--line);
-  background: #fff;
-  border-radius: 10px;
-  padding: 9px 14px;
-  font-size: 13px;
-  color: var(--ink);
-  min-width: 170px;
-  cursor: pointer;
-}
-.inv-select:focus {
-  outline: none;
-  border-color: var(--green);
+  width: 200px;
 }
 
 /* ===== KPI ===== */
