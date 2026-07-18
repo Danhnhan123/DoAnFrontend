@@ -1,0 +1,256 @@
+<div class="inv-page">
+  <!-- ===== Header ===== -->
+  <div class="inv-head">
+    <div class="inv-head-left">
+      <span class="inv-chip">🌾 Quản lý tồn kho lúa/gạo</span>
+      <h1 class="inv-title">Tồn đa trạng thái theo lô, khu và cột</h1>
+      <p class="inv-sub">
+        Theo dõi lúa, gạo, tấm, cám, trấu theo tồn thực tế, khả dụng, đã giữ,
+        đang xử lý và cách ly; có lịch sử InventoryTransaction để truy vết.
+      </p>
+    </div>
+    <div class="inv-head-right">
+      <select
+        class="inv-select"
+        [ngModel]="warehouseId()"
+        (ngModelChange)="onWarehouseChange($event)"
+      >
+        <option [ngValue]="null">Tất cả kho</option>
+        @for (w of warehouses(); track w.id) {
+          <option [ngValue]="w.id">{{ w.name }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <!-- ===== 5 thẻ KPI ===== -->
+  @if (summary(); as s) {
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-ico ico-onhand">📦</div>
+        <div class="kpi-label">Tồn thực tế</div>
+        <div class="kpi-value">
+          {{ kpiValue(s.totalOnHandWeightKg, s.totalOnHand) }}
+          <span class="kpi-unit">{{ kpiUnit(s.totalOnHandWeightKg) }}</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-ico ico-avail">✓</div>
+        <div class="kpi-label">Khả dụng</div>
+        <div class="kpi-value green">
+          {{ kpiValue(s.totalAvailableWeightKg, s.totalAvailable) }}
+          <span class="kpi-unit">{{ kpiUnit(s.totalAvailableWeightKg) }}</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-ico ico-reserved">🔒</div>
+        <div class="kpi-label">Đã giữ</div>
+        <div class="kpi-value amber">
+          {{ kpiValue(s.totalReservedWeightKg, s.totalReserved) }}
+          <span class="kpi-unit">{{ kpiUnit(s.totalReservedWeightKg) }}</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-ico ico-proc">⚙️</div>
+        <div class="kpi-label">Đang xử lý</div>
+        <div class="kpi-value blue">
+          {{ kpiValue(s.totalProcessingWeightKg, s.totalProcessing) }}
+          <span class="kpi-unit">{{ kpiUnit(s.totalProcessingWeightKg) }}</span>
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-ico ico-quar">⚠️</div>
+        <div class="kpi-label">Cách ly</div>
+        <div class="kpi-value red">
+          {{ kpiValue(s.totalQuarantineWeightKg, s.totalQuarantine) }}
+          <span class="kpi-unit">{{ kpiUnit(s.totalQuarantineWeightKg) }}</span>
+        </div>
+      </div>
+    </div>
+  } @else if (loadingSummary()) {
+    <div class="kpi-row">
+      @for (i of [1,2,3,4,5]; track i) {
+        <div class="kpi-card skeleton"></div>
+      }
+    </div>
+  }
+
+  <!-- ===== Nội dung: bảng + panel phải ===== -->
+  <div class="inv-grid">
+    <!-- Bảng tồn theo lô -->
+    <div class="card table-card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Tồn theo lô/cột/khu</h2>
+          <p class="card-sub">
+            Chiến lược xuất có thể ưu tiên theo cột/lô, chất lượng và hạn xử lý.
+          </p>
+        </div>
+        <div class="search-box">
+          <input
+            type="text"
+            class="inv-search"
+            placeholder="Tìm lô, mặt hàng, cột..."
+            [ngModel]="search()"
+            (ngModelChange)="onSearchChange($event)"
+          />
+        </div>
+      </div>
+
+      <!-- Tabs lọc theo loại -->
+      <div class="tabs">
+        @for (t of tabs(); track t.id) {
+          <button
+            class="tab"
+            [class.active]="activeCategoryId() === t.id"
+            (click)="selectTab(t.id)"
+          >
+            {{ t.name }}
+          </button>
+        }
+      </div>
+
+      <!-- Bảng -->
+      <div class="table-wrap">
+        <table class="inv-table">
+          <thead>
+            <tr>
+              <th (click)="sortBy('lotCode')">LÔ</th>
+              <th (click)="sortBy('categoryName')">LOẠI</th>
+              <th>VỊ TRÍ</th>
+              <th class="num" (click)="sortBy('bags')">BAO</th>
+              <th class="num" (click)="sortBy('quantityOnHand')">THỰC TẾ</th>
+              <th class="num" (click)="sortBy('quantityAvailable')">KHẢ DỤNG</th>
+              <th>GIỮ/XL/CL</th>
+              <th>CHẤT LƯỢNG</th>
+              <th class="num" (click)="sortBy('costPrice')">GIÁ VỐN</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loadingRows()) {
+              <tr><td colspan="9" class="empty">Đang tải...</td></tr>
+            } @else if (rows().length === 0) {
+              <tr><td colspan="9" class="empty">
+                {{ errorMsg() || 'Không có dữ liệu tồn kho.' }}
+              </td></tr>
+            } @else {
+              @for (r of rows(); track trackRow($index, r)) {
+                <tr>
+                  <td>
+                    <div class="lot-code">{{ r.lotCode || r.sku }}</div>
+                    <div class="cell-sub">{{ fmtDate(r.lotInboundDate) }}</div>
+                  </td>
+                  <td>
+                    <span class="type-badge">{{ typeLabel(r) }}</span>
+                    <div class="cell-sub">{{ r.productVariantName }}</div>
+                  </td>
+                  <td>
+                    <div class="loc-main">📍 {{ r.warehouseName }}</div>
+                    <div class="cell-sub">{{ r.locationCode || '—' }}</div>
+                  </td>
+                  <td class="num">{{ fmtNum(r.bags) }}</td>
+                  <td class="num">
+                    <div class="qty-main">{{ fmtNum(r.quantityOnHand) }} {{ unitOf(r) }}</div>
+                    @if (r.totalWeightKg > 0) {
+                      <div class="cell-sub">{{ fmtNum(r.totalWeightKg) }} kg</div>
+                    }
+                  </td>
+                  <td class="num green-txt">{{ fmtNum(r.quantityAvailable) }} {{ unitOf(r) }}</td>
+                  <td>
+                    <div class="mix">
+                      Giữ {{ fmtNum(r.quantityReserved) }} ·
+                      XL {{ fmtNum(r.quantityProcessing) }} ·
+                      CL {{ fmtNum(r.quantityQuarantine) }}
+                    </div>
+                    <span
+                      class="status-dot-badge"
+                      [style.color]="statusColor(r)"
+                    >
+                      <span class="dot" [style.background]="statusColor(r)"></span>
+                      {{ statusLabel(r) }}
+                    </span>
+                  </td>
+                  <td class="quality">{{ r.lotQualityStatus || '—' }}</td>
+                  <td class="num strong">
+                    {{ fmtMoney(r.lotCostPricePerKg || r.costPrice) }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Phân trang -->
+      <div class="pager">
+        <span class="pager-info">
+          Trang {{ page() }}/{{ totalPages() }} · {{ total() }} dòng
+        </span>
+        <div class="pager-btns">
+          <button (click)="changePage(-1)" [disabled]="page() <= 1">‹ Trước</button>
+          <button (click)="changePage(1)" [disabled]="page() >= totalPages()">Sau ›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel phải -->
+    <div class="side-col">
+      <!-- Cảnh báo tồn kho -->
+      <div class="card side-card">
+        <h2 class="card-title with-ico">⚠️ Cảnh báo tồn kho</h2>
+        <div class="alert-list">
+          @if (loadingAlerts()) {
+            <div class="side-empty">Đang tải...</div>
+          } @else if (alerts().length === 0) {
+            <div class="side-empty">Không có cảnh báo.</div>
+          } @else {
+            @for (a of alerts(); track trackAlert($index, a)) {
+              <div class="alert-item" [ngClass]="alertSeverityClass(a.severity)">
+                <div class="alert-title">{{ alertTypeLabel(a.alertType) }}</div>
+                <div class="alert-msg">{{ a.message }}</div>
+                @if (a.warehouseName || a.productName) {
+                  <div class="alert-meta">
+                    {{ a.warehouseName }}{{ a.productName ? ' · ' + a.productName : '' }}
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+
+      <!-- Lịch sử InventoryTransaction -->
+      <div class="card side-card">
+        <h2 class="card-title with-ico">🕓 Lịch sử InventoryTransaction</h2>
+        <div class="tx-list">
+          @if (loadingTx()) {
+            <div class="side-empty">Đang tải...</div>
+          } @else if (transactions().length === 0) {
+            <div class="side-empty">Chưa có giao dịch.</div>
+          } @else {
+            @for (t of transactions(); track trackTx($index, t)) {
+              <div class="tx-item">
+                <div class="tx-badge" [ngClass]="txDirClass(t)">
+                  {{ txDirClass(t) === 'tx-in' ? '↓' : '↑' }}
+                </div>
+                <div class="tx-body">
+                  <div class="tx-top">
+                    <span class="tx-type">{{ txLabel(t.transactionType) }}</span>
+                    <span class="tx-qty" [ngClass]="txDirClass(t)">{{ txSign(t) }}</span>
+                  </div>
+                  <div class="tx-note">
+                    {{ t.note || t.productVariantName || t.sku || '' }}
+                  </div>
+                  <div class="tx-meta">
+                    {{ t.warehouseName }}{{ t.locationCode ? ' · ' + t.locationCode : '' }}
+                    · {{ fmtDate(t.createdDate) }}
+                  </div>
+                </div>
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
