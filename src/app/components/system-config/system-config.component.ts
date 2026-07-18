@@ -2,6 +2,7 @@ import { Component, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
+import Swal from 'sweetalert2';
 import {
   injectQuery,
   injectMutation,
@@ -31,9 +32,8 @@ export class SystemConfigComponent {
 
   showModal = signal(false);
   isEdit = signal(false);
-  form = signal<any>({ key: '', value: '', description: '' });
+  form = signal<any>({ name: '', configKey: '', configValue: '', description: '' });
   editId = signal<number | null>(null);
-  toast = signal<{ msg: string; ok: boolean } | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -49,17 +49,22 @@ export class SystemConfigComponent {
       ),
   }));
 
+  /** BE trả ApiResponse.resources = PagingData { dataSource, total, totalFiltered, totalPages }. */
+  private paging = computed<any>(() => {
+    const res = this.listQuery.data() as any;
+    return res?.resources ?? res?.data ?? null;
+  });
   configs = computed<SystemConfigDetailDto[]>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.items ?? [];
+    const p = this.paging();
+    return p?.dataSource ?? p?.items ?? [];
   });
   totalRecords = computed<number>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.totalCount ?? 0;
+    const p = this.paging();
+    return p?.totalFiltered ?? p?.total ?? p?.totalCount ?? 0;
   });
   totalPages = computed<number>(() => {
-    const d = (this.listQuery.data() as any)?.data;
-    return d?.totalPages ?? 0;
+    const p = this.paging();
+    return p?.totalPages ?? 0;
   });
   loading = computed(() => this.listQuery.isPending());
 
@@ -72,10 +77,10 @@ export class SystemConfigComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Thêm thành công!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Thêm thành công!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -85,10 +90,10 @@ export class SystemConfigComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Cập nhật thành công!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Cập nhật thành công!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -97,8 +102,8 @@ export class SystemConfigComponent {
     onSuccess: (r: any) => {
       if (r.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['system-configs'] });
-        this.showToast('Đã xóa!');
-      } else this.showToast(r.message || 'Lỗi', false);
+        this.showAlert('Đã xóa!');
+      } else this.showAlert(r.message || 'Lỗi', false);
     },
   }));
 
@@ -122,13 +127,18 @@ export class SystemConfigComponent {
   openCreate(): void {
     this.isEdit.set(false);
     this.editId.set(null);
-    this.form.set({ key: '', value: '', description: '' });
+    this.form.set({ name: '', configKey: '', configValue: '', description: '' });
     this.showModal.set(true);
   }
   openEdit(c: SystemConfigDetailDto): void {
     this.isEdit.set(true);
     this.editId.set(c.id);
-    this.form.set({ key: c.key, value: c.value, description: c.description || '' });
+    this.form.set({
+      name: c.name,
+      configKey: c.configKey,
+      configValue: c.configValue,
+      description: c.description || '',
+    });
     this.showModal.set(true);
   }
   closeModal(): void { this.showModal.set(false); }
@@ -138,21 +148,44 @@ export class SystemConfigComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.key || !f.value) { this.showToast('Key và Value là bắt buộc', false); return; }
+    if (!f.name || !f.configKey || !f.configValue) {
+      this.showAlert('Tên, Key và Value là bắt buộc', false);
+      return;
+    }
+    const payload: CreateSystemConfigDto = {
+      name: f.name.trim(),
+      configKey: f.configKey.trim(),
+      configValue: f.configValue,
+      description: f.description?.trim() || undefined,
+    };
     if (this.isEdit()) {
-      this.updateMutation.mutate({ ...f, id: this.editId()! } as UpdateSystemConfigDto);
+      this.updateMutation.mutate({ ...payload, id: this.editId()! } as UpdateSystemConfigDto);
     } else {
-      this.createMutation.mutate(f as CreateSystemConfigDto);
+      this.createMutation.mutate(payload);
     }
   }
 
   delete(id: number, key: string): void {
-    if (!confirm(`Xóa cấu hình "${key}"?`)) return;
-    this.deleteMutation.mutate(id);
+    Swal.fire({
+      title: 'Xóa cấu hình?',
+      text: `Bạn có chắc muốn xóa cấu hình "${key}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Xóa ngay',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    }).then(result => {
+      if (result.isConfirmed) this.deleteMutation.mutate(id);
+    });
   }
 
-  private showToast(msg: string, ok = true): void {
-    this.toast.set({ msg, ok });
-    setTimeout(() => this.toast.set(null), 3000);
+  private showAlert(msg: string, ok = true): void {
+    Swal.fire({
+      title: ok ? 'Thành công' : 'Lỗi',
+      text: msg,
+      icon: ok ? 'success' : 'error',
+      confirmButtonText: 'Đóng',
+      confirmButtonColor: '#15803d',
+    });
   }
 }

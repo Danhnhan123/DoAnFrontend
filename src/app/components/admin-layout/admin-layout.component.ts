@@ -14,12 +14,15 @@ import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
 import { MenuService } from '../../services/menu.service';
 import { RealtimeService } from '../../services/realtime.service';
+import { DevicePresenceService } from '../../services/device-presence.service';
+import { FcmService } from '../../services/fcm.service';
+import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
 import { MenuAggregate } from '../../models';
 
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, NotificationBellComponent],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.css',
 })
@@ -28,6 +31,8 @@ export class AdminLayoutComponent implements OnInit {
   themeService = inject(ThemeService);
   menuService = inject(MenuService);
   realtimeService = inject(RealtimeService);
+  devicePresenceService = inject(DevicePresenceService);
+  fcmService = inject(FcmService);
   router = inject(Router);
   destroyRef = inject(DestroyRef);
 
@@ -64,6 +69,7 @@ export class AdminLayoutComponent implements OnInit {
     notifications: 'Quản lý thông báo',
     'notification-categories': 'Danh mục thông báo',
     'notification-types': 'Loại thông báo',
+    alerts: 'Cảnh báo hệ thống',
   };
 
   /**
@@ -104,6 +110,10 @@ export class AdminLayoutComponent implements OnInit {
   ngOnInit(): void {
     // Mở kết nối realtime: khi DB đổi, server báo -> các màn đang mở tự refetch.
     this.realtimeService.start();
+    // Kết nối presence: theo dõi trạng thái thiết bị + nhận lệnh đăng xuất tại chỗ.
+    this.devicePresenceService.start();
+    // Khởi tạo FCM: xin quyền + đăng ký device token để nhận push (bỏ qua nếu chưa cấu hình firebase).
+    this.fcmService.init();
 
     this.updatePageTitle();
     this.router.events
@@ -244,6 +254,7 @@ export class AdminLayoutComponent implements OnInit {
   logout(): void {
     this.closeUserMenu();
     this.realtimeService.stop();
+    this.devicePresenceService.stop();
     this.authService.logout().subscribe({
       next: () => {},
       error: () => {},

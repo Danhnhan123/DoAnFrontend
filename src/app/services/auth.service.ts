@@ -7,6 +7,7 @@ import {
   ApiResponse, LoginRequest, LoginResponse,
   LoginResponseAdminUserInfo, AuthProfile, MenuAggregate
 } from '../models';
+import { getDeviceInfo, getOrCreateDeviceId } from '../utils/device.util';
 
 const TOKEN_KEY = 'admin_access_token';
 const REFRESH_TOKEN_KEY = 'admin_refresh_token';
@@ -26,13 +27,37 @@ export class AuthService {
       tap(res => {
         if (res.isSucceeded && res.resources) {
           this.saveSession(res.resources);
+          // Đăng ký thiết bị hiện tại (chuẩn bị cho FCM). Chạy nền, không chặn luồng login.
+          this.registerCurrentDevice(res.resources.refreshToken);
         }
       })
     );
   }
 
+  /** Gọi API đăng ký thiết bị sau khi đăng nhập (best-effort). */
+  private registerCurrentDevice(refreshToken: string): void {
+    try {
+      const info = getDeviceInfo();
+      this.http
+        .post(`${this.base}/user-device/register`, {
+          deviceId: info.deviceId,
+          deviceName: info.deviceName,
+          platform: info.platform,
+          userAgent: info.userAgent,
+          refreshToken,
+        })
+        .subscribe({ next: () => {}, error: () => {} });
+    } catch {
+      /* bỏ qua lỗi đăng ký thiết bị */
+    }
+  }
+
   logout(): Observable<any> {
     const refreshToken = this.getRefreshToken();
+    // Xoá đăng ký thiết bị hiện tại (thu hồi phiên + không hiển thị lại trong danh sách thiết bị).
+    this.http
+      .post(`${this.base}/user-device/logout`, { deviceId: getOrCreateDeviceId() })
+      .subscribe({ next: () => {}, error: () => {} });
     return this.http.post(`${this.base}/auth/logout`, { refreshToken }).pipe(
       tap(() => this.clearSession()),
       catchError(err => {
@@ -58,6 +83,21 @@ export class AuthService {
 
   getProfile(): Observable<ApiResponse<AuthProfile>> {
     return this.http.get<ApiResponse<AuthProfile>>(`${this.base}/auth/me`);
+  }
+
+  /** Quên mật khẩu (admin): hệ thống sinh mật khẩu mới và gửi qua email. */
+  forgotPassword(email: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/auth/forgot-password`, { email });
+  }
+
+  /** Người dùng đang đăng nhập có bị buộc đổi mật khẩu hay không. */
+  mustChangePassword(): boolean {
+    return !!this.currentUser()?.mustChangePassword;
+  }
+
+  /** Gỡ cờ buộc đổi mật khẩu sau khi đã đổi thành công. */
+  clearMustChangePassword(): void {
+    this.patchCurrentUser({ mustChangePassword: false });
   }
 
   getMenus(): MenuAggregate[] {

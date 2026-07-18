@@ -19,6 +19,7 @@ import {
   FileManagerPaging,
   FolderNode,
   UserStatistics,
+  UserImportRow,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -52,6 +53,29 @@ export class UserService {
   /** Cập nhật user */
   update(payload: UpdateUserDto): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(`${this.base}/user`, payload);
+  }
+
+  /** Tạo hàng loạt user (toàn bộ hoặc không) */
+  createList(payload: CreateUserDto[]): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/user/create-list`, payload);
+  }
+
+  /** Tải file mẫu import (xlsx | csv) dạng Blob */
+  downloadImportTemplate(format: 'xlsx' | 'csv'): Observable<Blob> {
+    return this.http.get(`${this.base}/user/import-template`, {
+      params: { format },
+      responseType: 'blob',
+    });
+  }
+
+  /** Upload file Excel/CSV, nhận về danh sách dòng user đã đọc được */
+  parseImport(file: File): Observable<ApiResponse<UserImportRow[]>> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<ApiResponse<UserImportRow[]>>(
+      `${this.base}/user/import-parse`,
+      form
+    );
   }
 
   /** Xóa user theo ID */

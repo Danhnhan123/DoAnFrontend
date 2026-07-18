@@ -115,7 +115,7 @@
           </div>
         </div>
 
-        <a class="forgot-link" href="javascript:void(0)">Quên mật khẩu?</a>
+        <a class="forgot-link" href="javascript:void(0)" (click)="router.navigate(['/quen-mat-khau'])">Quên mật khẩu?</a>
 
         <button type="submit" class="login-btn" [disabled]="loading()">
           @if (loading()) {

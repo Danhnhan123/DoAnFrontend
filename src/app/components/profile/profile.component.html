@@ -27,6 +27,32 @@
       </svg>
       Đổi mật khẩu
     </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'devices'"
+      (click)="setTab('devices')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="2" />
+        <line x1="12" y1="18" x2="12" y2="18" />
+      </svg>
+      Thiết bị đăng nhập
+    </button>
+    <button
+      type="button"
+      class="tab-btn"
+      [class.active]="activeTab() === 'notifications'"
+      (click)="setTab('notifications')"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      Thông báo của tôi
+    </button>
   </div>
 
   @if (loading()) {
@@ -208,6 +234,98 @@
         </button>
       </div>
     </div>
+  </div>
+  }
+
+  <!-- ============ TAB: THIẾT BỊ ============ -->
+  @if (activeTab() === 'devices') {
+  <div class="card">
+    <div class="dev-head">
+      <div>
+        <h3 class="dev-title">Thiết bị đăng nhập</h3>
+        <p class="dev-sub">Các thiết bị đã đăng ký với tài khoản của bạn.</p>
+      </div>
+      <button type="button" class="btn btn-outline danger" (click)="logoutOtherDevices()"
+        [disabled]="devicesLoading() || devices().length <= 1">
+        Đăng xuất tất cả thiết bị khác
+      </button>
+    </div>
+
+    @if (devicesLoading()) {
+    <div class="dev-state"><span class="spinner sm"></span> Đang tải...</div>
+    } @else if (devices().length === 0) {
+    <div class="dev-state">Chưa có thiết bị nào.</div>
+    } @else {
+    <div class="dev-list">
+      @for (d of devices(); track d.id) {
+      <div class="dev-item" [class.current]="isCurrentDevice(d)">
+        <div class="dev-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="4" width="20" height="14" rx="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+          </svg>
+        </div>
+        <div class="dev-info">
+          <div class="dev-name">
+            {{ d.deviceName || 'Thiết bị' }}
+            @if (isCurrentDevice(d)) { <span class="dev-badge">Thiết bị hiện tại</span> }
+            <span class="dev-status" [ngClass]="statusClass(d.status)">● {{ statusLabel(d.status) }}</span>
+          </div>
+          <div class="dev-meta">{{ d.platform || '—' }}</div>
+          <div class="dev-meta small" [title]="d.userAgent || ''">{{ d.userAgent || '' }}</div>
+          <div class="dev-meta small">Đăng ký: {{ d.createdDate | date:'dd/MM/yyyy HH:mm' }}</div>
+        </div>
+        <button type="button" class="dev-logout" (click)="logoutDevice(d)">Đăng xuất</button>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+
+  <!-- ============ TAB: THÔNG BÁO CỦA TÔI ============ -->
+  @if (activeTab() === 'notifications') {
+  <div class="card">
+    <div class="noti-tab-head">
+      <h3 class="noti-tab-title">Thông báo của tôi</h3>
+      <span class="noti-tab-total">{{ notiTotal() }} thông báo</span>
+    </div>
+
+    @if (notiLoading()) {
+    <div class="dev-state"><span class="spinner sm"></span> Đang tải...</div>
+    } @else if (myNotifications().length === 0) {
+    <div class="dev-state">Chưa có thông báo nào.</div>
+    } @else {
+    <div class="noti-tab-list">
+      @for (n of myNotifications(); track n.id) {
+      <div class="noti-tab-item" [class.unread]="!n.isRead" (click)="onNotiClick(n)">
+        <span class="noti-dot" [class.on]="!n.isRead"></span>
+        <div class="noti-tab-body">
+          <div class="noti-tab-item-title">{{ n.title }}</div>
+          <div class="noti-tab-item-content">{{ n.content }}</div>
+          <div class="noti-tab-item-meta">
+            <span class="noti-cat">{{ n.notificationCategoryName }}</span>
+            · {{ n.createdDate | date:'dd/MM/yyyy HH:mm' }}
+          </div>
+        </div>
+        <button type="button" class="noti-tab-mark" (click)="toggleNotiRead(n, $event)"
+          [title]="n.isRead ? 'Đánh dấu chưa đọc' : 'Đánh dấu đã đọc'">
+          {{ n.isRead ? 'Đã đọc' : 'Chưa đọc' }}
+        </button>
+      </div>
+      }
+    </div>
+
+    @if (notiTotalPages() > 1) {
+    <div class="noti-pagination">
+      <button class="page-btn" (click)="notiSetPage(notiPage()-1)" [disabled]="notiPage()===1">‹ Trước</button>
+      <span class="page-info">Trang {{ notiPage() }}/{{ notiTotalPages() }}</span>
+      <button class="page-btn" (click)="notiSetPage(notiPage()+1)" [disabled]="notiPage()===notiTotalPages()">Sau ›</button>
+    </div>
+    }
+    }
   </div>
   }
 

@@ -1,19 +1,28 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { lastValueFrom } from 'rxjs';
+import { lastValueFrom, Subscription } from 'rxjs';
+import { injectQuery, injectQueryClient } from '@tanstack/angular-query-experimental';
 import Swal from 'sweetalert2';
+import { Router, ActivatedRoute } from '@angular/router';
 import { UserService } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
+import { UserDeviceService } from '../../services/user-device.service';
+import { DevicePresenceService } from '../../services/device-presence.service';
+import { UserNotificationService } from '../../services/user-notification.service';
+import { FcmService } from '../../services/fcm.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import {
   FileUploadItem,
   FolderNode,
   UpdateUserProfileDto,
   UserProfileDto,
+  MyDevice,
+  MyNotification,
 } from '../../models';
+import { getOrCreateDeviceId } from '../../utils/device.util';
 
-type ProfileTab = 'info' | 'password';
+type ProfileTab = 'info' | 'password' | 'devices' | 'notifications';
 
 /**
  * Trang "Tài khoản của tôi" cho web admin.
@@ -28,13 +37,70 @@ type ProfileTab = 'info' | 'password';
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css',
 })
-export class ProfileComponent implements OnInit {
+export class ProfileComponent implements OnInit, OnDestroy {
   private userService = inject(UserService);
   private authService = inject(AuthService);
+  private userDeviceService = inject(UserDeviceService);
+  private devicePresenceService = inject(DevicePresenceService);
+  private notiService = inject(UserNotificationService);
+  private fcm = inject(FcmService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
+  // ------- Tab thiết bị -------
+  private queryClient = injectQueryClient();
+  readonly currentDeviceId = getOrCreateDeviceId();
+  private presenceSub?: Subscription;
+  private fcmSub?: Subscription;
+  private routeSub?: Subscription;
 
   // ------- Trạng thái chung -------
   activeTab = signal<ProfileTab>('info');
   loading = signal(true);
+
+  // ------- Tab thông báo của tôi (realtime TanStack Query) -------
+  notiPage = signal(1);
+  readonly notiPageSize = 20;
+  notiQuery = injectQuery(() => ({
+    queryKey: ['profile-notifications', this.notiPage()],
+    enabled: this.activeTab() === 'notifications',
+    queryFn: () =>
+      lastValueFrom(
+        this.notiService.getMyNotifications({
+          pageIndex: this.notiPage(),
+          pageSize: this.notiPageSize,
+          isRead: null,
+        })
+      ),
+  }));
+  private notiPaging = computed<any>(() => {
+    const r: any = this.notiQuery.data();
+    return r?.resources ?? r?.data ?? null;
+  });
+  myNotifications = computed<MyNotification[]>(() => {
+    const p = this.notiPaging();
+    return p?.dataSource ?? p?.items ?? [];
+  });
+  notiTotal = computed<number>(() => {
+    const p = this.notiPaging();
+    return p?.totalFiltered ?? p?.total ?? 0;
+  });
+  notiTotalPages = computed<number>(() => Math.max(1, Math.ceil(this.notiTotal() / this.notiPageSize)));
+  notiLoading = computed(() => this.notiQuery.isPending());
+
+  // Dùng TanStack Query giống các màn danh sách khác: realtime chỉ cần invalidate ->
+  // tự refetch ở nền và render lại tối thiểu (không hiện lại spinner cả bảng).
+  deviceListQuery = injectQuery(() => ({
+    queryKey: ['my-devices'],
+    enabled: this.activeTab() === 'devices',
+    queryFn: () => lastValueFrom(this.userDeviceService.getMyDevices()),
+  }));
+  devices = computed<MyDevice[]>(() => {
+    const res: any = this.deviceListQuery.data();
+    return res?.resources ?? res?.data ?? [];
+  });
+  /** Chỉ hiện spinner ở lần tải đầu (chưa có dữ liệu); refetch realtime thì im lặng. */
+  devicesLoading = computed(() => this.deviceListQuery.isPending());
   profile = signal<UserProfileDto | null>(null);
 
   /** Đồng bộ với genderOptions của màn Quản lý người dùng (Nam=1, Nữ=0). */
@@ -140,6 +206,79 @@ export class ProfileComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadProfile();
+
+    // Cho phép mở đúng tab qua query param (vd nút "Xem tất cả" -> /admin/profile?tab=notifications).
+    // Dùng subscription để đổi tab được cả khi đang ở sẵn trang Profile.
+    this.routeSub = this.route.queryParamMap.subscribe(params => {
+      const tab = params.get('tab');
+      if (tab === 'notifications' || tab === 'devices' || tab === 'password' || tab === 'info') {
+        this.activeTab.set(tab);
+      }
+    });
+
+    // Realtime: server báo thiết bị đổi -> chỉ invalidate query, TanStack tự refetch nền
+    // và render lại phần thay đổi (giống các màn danh sách khác), không load lại cả bảng.
+    this.presenceSub = this.devicePresenceService.devicesChanged$.subscribe(() => {
+      this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
+    });
+
+    // Realtime thông báo: có push (foreground) -> làm mới tab thông báo + badge chuông.
+    this.fcmSub = this.fcm.messageReceived$.subscribe(() => this.invalidateNotifications());
+  }
+
+  ngOnDestroy(): void {
+    this.presenceSub?.unsubscribe();
+    this.fcmSub?.unsubscribe();
+    this.routeSub?.unsubscribe();
+  }
+
+  // ------- Tab thông báo của tôi -------
+  private invalidateNotifications(): void {
+    this.queryClient.invalidateQueries({ queryKey: ['profile-notifications'] });
+    this.queryClient.invalidateQueries({ queryKey: ['my-notifications'] });
+    this.queryClient.invalidateQueries({ queryKey: ['my-notifications-unread'] });
+  }
+
+  notiSetPage(p: number): void {
+    if (p < 1 || p > this.notiTotalPages()) return;
+    this.notiPage.set(p);
+  }
+
+  async onNotiClick(n: MyNotification): Promise<void> {
+    if (!n.isRead) {
+      try {
+        await lastValueFrom(this.notiService.markRead(n.id));
+      } catch {
+        /* ignore */
+      }
+      this.invalidateNotifications();
+    }
+    if (n.directionId) {
+      this.router.navigateByUrl(n.directionId);
+    }
+  }
+
+  async toggleNotiRead(n: MyNotification, event: Event): Promise<void> {
+    event.stopPropagation();
+    try {
+      if (n.isRead) await lastValueFrom(this.notiService.markUnread(n.id));
+      else await lastValueFrom(this.notiService.markRead(n.id));
+      this.invalidateNotifications();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // Trạng thái realtime -> nhãn + màu.
+  statusLabel(status?: string): string {
+    if (status === 'active') return 'Đang hoạt động';
+    if (status === 'idle') return 'Đang chờ';
+    return 'Không hoạt động';
+  }
+  statusClass(status?: string): string {
+    if (status === 'active') return 'st-active';
+    if (status === 'idle') return 'st-idle';
+    return 'st-offline';
   }
 
   private async loadProfile(): Promise<void> {
@@ -167,7 +306,77 @@ export class ProfileComponent implements OnInit {
   }
 
   setTab(tab: ProfileTab): void {
+    // Query 'my-devices' tự bật khi activeTab='devices' (enabled) và tự fetch lần đầu.
     this.activeTab.set(tab);
+  }
+
+  // ------- Tab thiết bị -------
+  isCurrentDevice(d: MyDevice): boolean {
+    return !!d.deviceId && d.deviceId === this.currentDeviceId;
+  }
+
+  async logoutDevice(d: MyDevice): Promise<void> {
+    if (!d.deviceId) return;
+    const isCurrent = this.isCurrentDevice(d);
+    const confirm = await Swal.fire({
+      title: 'Đăng xuất thiết bị?',
+      text: isCurrent
+        ? 'Đây là thiết bị hiện tại, đăng xuất sẽ kết thúc phiên của bạn.'
+        : `Đăng xuất khỏi "${d.deviceName || 'thiết bị này'}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    });
+    if (!confirm.isConfirmed) return;
+
+    // Đăng xuất chính thiết bị hiện tại -> dùng luồng logout chung (đã tự xoá đăng ký thiết bị).
+    if (isCurrent) {
+      this.devicePresenceService.stop();
+      this.authService.logout().subscribe({ next: () => {}, error: () => {} });
+      return;
+    }
+
+    try {
+      const res: any = await lastValueFrom(this.userDeviceService.logoutDevice(d.deviceId));
+      if (res?.isSucceeded) {
+        // Chỉ invalidate -> query tự refetch nền và render lại (realtime cũng sẽ bắn thêm).
+        this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
+        Swal.fire('Thành công', 'Đã đăng xuất thiết bị.', 'success');
+      } else {
+        Swal.fire('Lỗi', res?.message || 'Đăng xuất thất bại.', 'error');
+      }
+    } catch {
+      Swal.fire('Lỗi', 'Đăng xuất thất bại. Vui lòng thử lại.', 'error');
+    }
+  }
+
+  async logoutOtherDevices(): Promise<void> {
+    const confirm = await Swal.fire({
+      title: 'Đăng xuất tất cả thiết bị khác?',
+      text: 'Các thiết bị khác (trừ thiết bị hiện tại) sẽ bị đăng xuất.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đăng xuất tất cả',
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Hủy',
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res: any = await lastValueFrom(
+        this.userDeviceService.logoutOtherDevices(this.currentDeviceId)
+      );
+      if (res?.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
+        Swal.fire('Thành công', 'Đã đăng xuất các thiết bị khác.', 'success');
+      } else {
+        Swal.fire('Lỗi', res?.message || 'Thao tác thất bại.', 'error');
+      }
+    } catch {
+      Swal.fire('Lỗi', 'Thao tác thất bại. Vui lòng thử lại.', 'error');
+    }
   }
 
   // ------- Trình quản lý ảnh -------
