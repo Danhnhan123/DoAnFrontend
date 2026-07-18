@@ -83,14 +83,23 @@
             Chiến lược xuất có thể ưu tiên theo cột/lô, chất lượng và hạn xử lý.
           </p>
         </div>
-        <div class="search-box">
-          <input
-            type="text"
-            class="inv-search"
-            placeholder="Tìm lô, mặt hàng, cột..."
-            [ngModel]="search()"
-            (ngModelChange)="onSearchChange($event)"
-          />
+        <div class="head-controls">
+          <div class="search-box">
+            <input
+              type="text"
+              class="inv-search"
+              placeholder="Tìm lô, mặt hàng, cột..."
+              [ngModel]="search()"
+              (ngModelChange)="onSearchChange($event)"
+            />
+          </div>
+          <app-filter-select
+            class="page-size-select"
+            [clearable]="false"
+            [options]="pageSizeOptions"
+            [value]="pageSize()"
+            (valueChange)="setPageSize($event)"
+          ></app-filter-select>
         </div>
       </div>
 
@@ -112,15 +121,31 @@
         <table class="inv-table">
           <thead>
             <tr>
-              <th (click)="sortBy('lotCode')">LÔ</th>
-              <th (click)="sortBy('categoryName')">LOẠI</th>
-              <th>VỊ TRÍ</th>
-              <th class="num" (click)="sortBy('bags')">BAO</th>
-              <th class="num" (click)="sortBy('quantityOnHand')">THỰC TẾ</th>
-              <th class="num" (click)="sortBy('quantityAvailable')">KHẢ DỤNG</th>
-              <th>GIỮ/XL/CL</th>
+              <th class="sortable" (click)="sort('lotCode')">
+                LÔ <span class="sort-icon">{{ sortIcon('lotCode') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('categoryName')">
+                LOẠI <span class="sort-icon">{{ sortIcon('categoryName') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('warehouseName')">
+                VỊ TRÍ <span class="sort-icon">{{ sortIcon('warehouseName') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('bags')">
+                BAO <span class="sort-icon">{{ sortIcon('bags') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('quantityOnHand')">
+                THỰC TẾ <span class="sort-icon">{{ sortIcon('quantityOnHand') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('quantityAvailable')">
+                KHẢ DỤNG <span class="sort-icon">{{ sortIcon('quantityAvailable') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('quantityReserved')">
+                GIỮ/XL/CL <span class="sort-icon">{{ sortIcon('quantityReserved') }}</span>
+              </th>
               <th>CHẤT LƯỢNG</th>
-              <th class="num" (click)="sortBy('costPrice')">GIÁ VỐN</th>
+              <th class="num sortable" (click)="sort('costPrice')">
+                GIÁ VỐN <span class="sort-icon">{{ sortIcon('costPrice') }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -179,15 +204,21 @@
       </div>
 
       <!-- Phân trang -->
-      <div class="pager">
-        <span class="pager-info">
-          Trang {{ page() }}/{{ totalPages() }} · {{ total() }} dòng
-        </span>
-        <div class="pager-btns">
-          <button (click)="changePage(-1)" [disabled]="page() <= 1">‹ Trước</button>
-          <button (click)="changePage(1)" [disabled]="page() >= totalPages()">Sau ›</button>
+      @if (total() > 0) {
+        <div class="pagination">
+          <span class="page-total">{{ total() }} dòng</span>
+          <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+          <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+          @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+          @for (p of visiblePages(); track p) {
+            <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+          }
+          @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+          <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+          <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+          <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Panel phải -->

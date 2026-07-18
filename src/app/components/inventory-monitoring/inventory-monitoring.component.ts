@@ -88,6 +88,13 @@ export class InventoryMonitoringComponent implements OnInit {
     this.warehouses().map((w) => ({ id: w.id, name: w.name }))
   );
 
+  readonly pageSizeOptions: FilterSelectOption[] = [
+    { id: 5, name: '5 / trang' },
+    { id: 10, name: '10 / trang' },
+    { id: 20, name: '20 / trang' },
+    { id: 50, name: '50 / trang' },
+  ];
+
   readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.total() / this.pageSize()))
   );
@@ -242,21 +249,44 @@ export class InventoryMonitoringComponent implements OnInit {
     }, 350);
   }
 
-  changePage(delta: number): void {
-    const next = this.page() + delta;
-    if (next < 1 || next > this.totalPages()) return;
-    this.page.set(next);
+  setPage(p: number): void {
+    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    this.page.set(p);
     void this.loadRows();
   }
 
-  sortBy(field: string): void {
+  setPageSize(value: string | number): void {
+    this.pageSize.set(Number(value));
+    this.page.set(1);
+    void this.loadRows();
+  }
+
+  /** Dải số trang hiển thị quanh trang hiện tại (±2). */
+  visiblePages(): number[] {
+    const total = this.totalPages();
+    const cur = this.page();
+    const d = 2;
+    const pages: number[] = [];
+    for (let i = Math.max(1, cur - d); i <= Math.min(total, cur + d); i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  sort(field: string): void {
     if (this.sortField() === field) {
       this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
     } else {
       this.sortField.set(field);
       this.sortDir.set('asc');
     }
+    this.page.set(1);
     void this.loadRows();
+  }
+
+  sortIcon(field: string): string {
+    if (this.sortField() !== field) return '⇅';
+    return this.sortDir() === 'asc' ? '▲' : '▼';
   }
 
   // ---------- Định dạng / hiển thị ----------
