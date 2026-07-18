@@ -170,6 +170,12 @@ const adminChildren: Routes = [
         .then(m => m.NotificationTypeComponent),
   },
   {
+    path: 'rice-purchase',
+    loadComponent: () =>
+      import('./components/rice-purchase/rice-purchase.component')
+        .then(m => m.RicePurchaseComponent),
+  },
+  {
     path: 'milling-yield-configs',
     loadComponent: () =>
       import('./components/milling-yield-config/milling-yield-config.component')
