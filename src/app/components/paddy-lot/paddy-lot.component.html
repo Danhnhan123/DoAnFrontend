@@ -1,0 +1,355 @@
+<section class="lot-page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow">
+        <span class="leaf-mark">◇</span>
+        SCR-LOT-01 · Quản lý lô & truy vết
+      </span>
+      <h1>Lô lúa/gạo là đơn vị truy vết chính</h1>
+      <p>
+        Theo dõi nguồn mua, phiếu nguồn, ngày nhập, giống/SKU, vị trí,
+        chất lượng, lượng còn lại và giá vốn của từng lô.
+      </p>
+    </div>
+
+    <button class="primary-btn" type="button" (click)="refresh()">
+      <span aria-hidden="true">↻</span>
+      Làm mới dữ liệu
+    </button>
+  </header>
+
+  <div class="kpi-grid" aria-label="Tổng hợp lô">
+    <article class="kpi-card">
+      <span>Tổng lô</span>
+      <strong>{{ fmtNumber(summary().totalLots) }}</strong>
+    </article>
+    <article class="kpi-card">
+      <span>Tồn lúa</span>
+      <strong>{{ fmtTon(summary().totalPaddyKg) }}</strong>
+    </article>
+    <article class="kpi-card">
+      <span>Tồn gạo</span>
+      <strong>{{ fmtTon(summary().totalRiceKg) }}</strong>
+    </article>
+    <article class="kpi-card attention">
+      <span>Lô cần chú ý</span>
+      <strong>{{ fmtNumber(summary().attentionLots) }}</strong>
+    </article>
+  </div>
+
+  <div class="filter-bar">
+    <label class="search-box">
+      <span aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        placeholder="Tìm mã lô, giống, SKU, kho..."
+        [ngModel]="searchInput()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </label>
+
+    <label>
+      <span class="sr-only">Loại lô</span>
+      <select [ngModel]="lotType() || ''" (ngModelChange)="setLotType($event)">
+        <option value="">Tất cả loại lô</option>
+        @for (type of lotTypes; track type.value) {
+          <option [value]="type.value">{{ type.label }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span class="sr-only">Kho</span>
+      <select
+        [ngModel]="warehouseId() || ''"
+        (ngModelChange)="setWarehouse($event)"
+      >
+        <option value="">Tất cả kho</option>
+        @for (warehouse of warehouses(); track warehouse.id) {
+          <option [value]="warehouse.id">{{ warehouse.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span class="sr-only">Trạng thái</span>
+      <select [ngModel]="statusId() || ''" (ngModelChange)="setStatus($event)">
+        <option value="">Tất cả trạng thái</option>
+        @for (status of statuses; track status.id) {
+          <option [value]="status.id">{{ status.name }}</option>
+        }
+      </select>
+    </label>
+  </div>
+
+  <div class="workspace-grid">
+    <article class="panel list-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Danh sách lô lúa/gạo</h2>
+          <p>{{ fmtNumber(total()) }} lô phù hợp bộ lọc</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sortBy('lotCode')">Mã lô</th>
+              <th>Loại / giống</th>
+              <th>Nguồn</th>
+              <th>Khối lượng</th>
+              <th>Vị trí</th>
+              <th class="sortable" (click)="sortBy('statusId')">Trạng thái</th>
+              <th class="sortable money" (click)="sortBy('costPricePerKg')">
+                Giá vốn
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              @for (item of [1, 2, 3, 4, 5]; track item) {
+                <tr class="skeleton-row">
+                  <td colspan="7"><span></span></td>
+                </tr>
+              }
+            } @else if (errorMessage()) {
+              <tr>
+                <td class="state-cell error-state" colspan="7">
+                  <strong>Không tải được danh sách lô</strong>
+                  <span>{{ errorMessage() }}</span>
+                  <button type="button" (click)="refresh()">Thử lại</button>
+                </td>
+              </tr>
+            } @else if (!rows().length) {
+              <tr>
+                <td class="state-cell" colspan="7">
+                  <strong>Chưa có lô phù hợp</strong>
+                  <span>Hãy đổi bộ lọc hoặc chốt và nhập kho một phiếu mua lúa.</span>
+                </td>
+              </tr>
+            } @else {
+              @for (row of rows(); track row.id) {
+                <tr
+                  class="data-row"
+                  [class.selected]="activeLotId() === row.id"
+                  (click)="selectLot(row.id)"
+                >
+                  <td>
+                    <button class="lot-code" type="button">
+                      {{ row.lotCode }}
+                    </button>
+                    <small>{{ fmtDate(row.inboundDate) }}</small>
+                  </td>
+                  <td>
+                    <span class="type-badge" [ngClass]="typeClass(row.lotType)">
+                      {{ typeLabel(row.lotType) }}
+                    </span>
+                    <strong class="product-name">
+                      {{ row.riceVarietyName || row.productVariantName || row.sku || '—' }}
+                    </strong>
+                  </td>
+                  <td>
+                    <span>{{ sourceLabel(row) }}</span>
+                    <small>{{ row.warehouseName || 'Kho #' + row.warehouseId }}</small>
+                  </td>
+                  <td>
+                    <strong>{{ fmtWeight(row.remainingWeightKg) }}</strong>
+                    <small>
+                      Ban đầu {{ fmtWeight(row.initialWeightKg) }}
+                    </small>
+                  </td>
+                  <td class="location-cell">
+                    {{ locationLabel(row.locationId) }}
+                  </td>
+                  <td>
+                    <span
+                      class="status-badge"
+                      [style.--status-color]="statusColor(row)"
+                    >
+                      {{ statusLabel(row) }}
+                    </span>
+                    <small
+                      class="quality-label"
+                      [ngClass]="qualityClass(row.qualityStatus)"
+                    >
+                      {{ qualityLabel(row.qualityStatus) }}
+                    </small>
+                  </td>
+                  <td class="money">
+                    <strong>{{ fmtMoney(row.costPricePerKg) }}</strong>
+                    <small>/kg</small>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination">
+        <span>
+          Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản ghi
+        </span>
+        <div>
+          <button
+            type="button"
+            [disabled]="page() <= 1 || loading()"
+            (click)="setPage(page() - 1)"
+          >
+            ‹
+          </button>
+          <strong>{{ page() }}</strong>
+          <button
+            type="button"
+            [disabled]="page() >= totalPages() || loading()"
+            (click)="setPage(page() + 1)"
+          >
+            ›
+          </button>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="detail-column">
+      <article class="panel detail-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Chi tiết lô</h2>
+            <p>Thông tin nguồn và tồn hiện tại</p>
+          </div>
+          <span class="view-icon" aria-hidden="true">◉</span>
+        </div>
+
+        @if (loadingDetail()) {
+          <div class="detail-loading">
+            @for (item of [1, 2, 3, 4, 5]; track item) {
+              <span></span>
+            }
+          </div>
+        } @else {
+          @if (selectedLot(); as lot) {
+          <div class="detail-code-row">
+            <div>
+              <small>Mã lô</small>
+              <strong>{{ lot.lotCode }}</strong>
+            </div>
+            <span class="type-badge" [ngClass]="typeClass(lot.lotType)">
+              {{ typeLabel(lot.lotType) }}
+            </span>
+          </div>
+
+          <dl class="detail-list">
+            <div>
+              <dt>Nguồn lô</dt>
+              <dd>{{ sourceLabel(lot) }}</dd>
+            </div>
+            <div>
+              <dt>Giống / SKU</dt>
+              <dd>
+                {{ lot.riceVarietyName || lot.productVariantName || lot.sku || '—' }}
+              </dd>
+            </div>
+            <div>
+              <dt>Kho</dt>
+              <dd>{{ lot.warehouseName || 'Kho #' + lot.warehouseId }}</dd>
+            </div>
+            <div>
+              <dt>Vị trí</dt>
+              <dd>{{ locationLabel(lot.locationId) }}</dd>
+            </div>
+            <div>
+              <dt>Khối lượng còn lại</dt>
+              <dd>{{ fmtWeight(lot.remainingWeightKg) }}</dd>
+            </div>
+            <div>
+              <dt>Chất lượng</dt>
+              <dd [ngClass]="qualityClass(lot.qualityStatus)">
+                {{ qualityLabel(lot.qualityStatus) }}
+              </dd>
+            </div>
+            <div>
+              <dt>Trạng thái</dt>
+              <dd>
+                <span
+                  class="status-badge"
+                  [style.--status-color]="statusColor(lot)"
+                >
+                  {{ statusLabel(lot) }}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>Giá vốn</dt>
+              <dd>{{ fmtMoney(lot.costPricePerKg) }}/kg</dd>
+            </div>
+          </dl>
+          } @else {
+            <div class="empty-detail">
+              <span aria-hidden="true">◎</span>
+              <strong>Chưa chọn lô</strong>
+              <p>Chọn một dòng trong bảng để xem thông tin truy vết.</p>
+            </div>
+          }
+        }
+      </article>
+
+      <article class="panel trace-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Dấu mốc truy vết</h2>
+            <p>Các dấu mốc backend hiện đã cung cấp</p>
+          </div>
+        </div>
+
+        @if (selectedLot(); as lot) {
+          <ol class="timeline">
+            <li>
+              <span class="timeline-icon source">↳</span>
+              <div>
+                <strong>{{ sourceLabel(lot) }}</strong>
+                <p>
+                  {{ lot.sourceReceiptId ? 'Lô sinh khi chốt phiếu mua' :
+                     lot.sourceMillingOrderId ? 'Lô đầu ra từ lệnh xay' :
+                     'Lô được tạo trực tiếp' }}
+                </p>
+              </div>
+            </li>
+            <li>
+              <span class="timeline-icon created">＋</span>
+              <div>
+                <strong>Tạo lô {{ lot.lotCode }}</strong>
+                <p>{{ fmtDate(lot.createdDate, true) }}</p>
+              </div>
+            </li>
+            <li>
+              <span class="timeline-icon stored">⌂</span>
+              <div>
+                <strong>{{ statusLabel(lot) }}</strong>
+                <p>{{ locationLabel(lot.locationId) }}</p>
+              </div>
+            </li>
+            @if (lot.lastModifiedDate) {
+              <li>
+                <span class="timeline-icon updated">↻</span>
+                <div>
+                  <strong>Cập nhật gần nhất</strong>
+                  <p>{{ fmtDate(lot.lastModifiedDate, true) }}</p>
+                </div>
+              </li>
+            }
+          </ol>
+
+          <p class="trace-note">
+            Lịch sử nhập, xay, giữ và xuất theo đúng từng lô cần backend bổ sung
+            API truy vấn giao dịch theo <code>paddyLotId</code>.
+          </p>
+        } @else {
+          <div class="empty-detail compact">
+            <p>Chọn một lô để xem dấu mốc.</p>
+          </div>
+        }
+      </article>
+    </aside>
+  </div>
+</section>

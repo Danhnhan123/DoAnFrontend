@@ -199,6 +199,12 @@ const adminChildren: Routes = [
       import('./components/inventory-monitoring/inventory-monitoring.component')
         .then(m => m.InventoryMonitoringComponent),
   },
+  {
+    path: 'paddy-lots',
+    loadComponent: () =>
+      import('./components/paddy-lot/paddy-lot.component')
+        .then(m => m.PaddyLotComponent),
+  },
 ];
 
 export const routes: Routes = [
