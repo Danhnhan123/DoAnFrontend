@@ -5,13 +5,18 @@ import { environment } from '../../environments/environment';
 import {
   ApiResponse,
   ConfirmPaddyPurchaseReceiptResult,
+  ConfirmStoreInRequest,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
   DTParameters,
   FarmerDetailDto,
+  GetPutawaySuggestionsRequest,
+  PaddyLotDetailDto,
   PaddyPurchaseReceiptRow,
   PaddyPurchaseScheduleRow,
+  PaddyPurchaseUserOption,
   PaddyScheduleStatusCode,
+  PutawaySuggestionsResponse,
   RiceVarietyDetailDto,
   UpdatePaddyPurchaseReceiptDto,
   UpdatePaddyPurchaseScheduleDto,
@@ -153,14 +158,44 @@ export class PaddyPurchaseService {
     );
   }
 
-  getWarehouses(): Observable<ApiResponse<WarehouseDetailDto[]>> {
+ getWarehouses(): Observable<ApiResponse<WarehouseDetailDto[]>> {
     return this.http.get<ApiResponse<WarehouseDetailDto[]>>(
       `${this.base}/warehouse`
     );
   }
 
-  // ───────────────────────── BODY DATATABLES ──────────────────────
+  getUsers(): Observable<ApiResponse<PaddyPurchaseUserOption[]>> {
+    return this.http.get<ApiResponse<PaddyPurchaseUserOption[]>>(
+      `${this.base}/user`
+    );
+  }
 
+  getPaddyLot(id: number): Observable<ApiResponse<PaddyLotDetailDto>> {
+    return this.http.get<ApiResponse<PaddyLotDetailDto>>(
+      `${this.base}/paddy-lots/${id}`
+    );
+  }
+
+  getPutawaySuggestions(
+    payload: GetPutawaySuggestionsRequest
+  ): Observable<ApiResponse<PutawaySuggestionsResponse>> {
+    return this.http.post<ApiResponse<PutawaySuggestionsResponse>>(
+      `${this.base}/putaway/suggestions`,
+      payload
+    );
+  }
+
+  confirmPaddyStoreIn(
+    receiptId: number,
+    payload: ConfirmStoreInRequest
+  ): Observable<ApiResponse<number>> {
+    return this.http.post<ApiResponse<number>>(
+      `${this.base}/paddy-purchase-receipts/${receiptId}/store-in`,
+      payload
+    );
+  }
+
+  // ───────────────────────── BODY DATATABLES ──────────────────────
   buildSchedulePagedBody(params: {
     page: number;
     pageSize: number;
