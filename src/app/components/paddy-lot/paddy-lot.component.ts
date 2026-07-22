@@ -313,18 +313,29 @@ export class PaddyLotComponent implements OnDestroy {
     );
   }
 
-  qualityLabel(value: string | null | undefined): string {
-    switch ((value || '').toUpperCase()) {
-      case 'PASSED':
-        return 'Đạt';
-      case 'FAILED':
-        return 'Không đạt';
-      case 'PENDING':
-        return 'Chờ kiểm tra';
-      default:
-        return value || 'Chưa kiểm tra';
-    }
+ qualityLabel(value: string | null | undefined): string {
+  if (!value) return 'Chưa kiểm tra';
+
+  switch (value.toUpperCase()) {
+    case 'PASSED':
+      return 'Đạt';
+    case 'FAILED':
+      return 'Không đạt';
+    case 'PENDING':
+      return 'Chờ kiểm tra';
   }
+
+  try {
+    const quality = JSON.parse(value);
+    const grade = quality.grade || 'Chưa đánh giá';
+
+    return quality.moisturePercent != null
+      ? `${grade} · Độ ẩm ${quality.moisturePercent}%`
+      : grade;
+  } catch {
+    return value;
+  }
+}
 
   qualityClass(value: string | null | undefined): string {
     switch ((value || '').toUpperCase()) {
