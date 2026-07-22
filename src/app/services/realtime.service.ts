@@ -40,6 +40,7 @@ const REALTIME_MAP: Record<string, string[]> = {
   NotificationType: ['notification-types'],
   AuditLog: ['audit-log'],
   ActivityLog: ['activity-log'],
+  PaddyLot: ['paddy-lots'],
 };
 
 @Injectable({ providedIn: 'root' })
