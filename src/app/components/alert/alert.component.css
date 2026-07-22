@@ -4,6 +4,27 @@
   display: block;
 }
 
+/* ── Phân trang danh sách cảnh báo ─────────────────────────────────────────── */
+.list-card .pagination {
+  border-top: 1px solid var(--border, #e5e7eb);
+  margin-top: 4px;
+}
+.list-card .pagination .page-total {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  margin-right: auto;
+}
+.list-card .pagination .page-info {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #64748b);
+  font-weight: 600;
+  margin-left: 4px;
+}
+.list-card .pagination .page-dots {
+  color: var(--text-secondary, #94a3b8);
+  padding: 0 2px;
+}
+
 /* ── 4 thẻ KPI ─────────────────────────────────────────────────────────────── */
 .stat-row {
   display: grid;

@@ -58,7 +58,7 @@ export class StockAlertConfigService {
 
   /** Danh sách SKU/biến thể cho dropdown (GET /product-variants). */
   getVariantOptions(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/product-variants`);
+    return this.http.get<ApiResponse<any>>(`${this.base}/product-variant`);
   }
 
   buildPagedBody(params: {
