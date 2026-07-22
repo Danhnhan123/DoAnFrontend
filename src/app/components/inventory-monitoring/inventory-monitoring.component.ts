@@ -60,8 +60,15 @@ export class InventoryMonitoringComponent {
   activeCategoryId = signal<number | null>(null); // null = Tất cả
   searchInput = signal(''); // giá trị gõ trực tiếp (binding ô tìm)
   search = signal(''); // giá trị đã debounce (dùng trong queryKey)
+  showFilters = signal(false); // panel lọc nâng cao (mở bằng nút phễu)
   page = signal(1);
   pageSize = signal(10);
+
+  // Phân trang riêng cho 2 panel phụ (tránh danh sách quá dài)
+  alertPage = signal(1);
+  txPage = signal(1);
+  readonly alertPageSize = 4;
+  readonly txPageSize = 4;
   sortField = signal('id');
   sortDir = signal<'asc' | 'desc'>('desc');
 
@@ -139,23 +146,29 @@ export class InventoryMonitoringComponent {
     },
   }));
 
-  /** Cảnh báo tồn kho — realtime theo key 'alerts'. */
+  /** Cảnh báo tồn kho (phân trang) — realtime theo key 'alerts'. */
   private alertsQuery = injectQuery(() => ({
-    queryKey: ['alerts', 'inventory-monitoring'],
+    queryKey: ['alerts', 'inventory-monitoring', this.alertPage()],
     queryFn: () =>
       lastValueFrom(
-        this.alertService.getPagedAdvanced(this.alertService.buildListBody(15))
+        this.alertService.getPagedAdvanced(
+          this.alertService.buildListBody(
+            this.alertPageSize,
+            (this.alertPage() - 1) * this.alertPageSize
+          )
+        )
       ),
   }));
 
-  /** Lịch sử InventoryTransaction — realtime theo key 'inventory-transactions'. */
+  /** Lịch sử giao dịch (phân trang) — realtime theo key 'inventory-transactions'. */
   private txQuery = injectQuery(() => ({
-    queryKey: ['inventory-transactions', this.warehouseId()],
+    queryKey: ['inventory-transactions', this.warehouseId(), this.txPage()],
     queryFn: () =>
       lastValueFrom(
         this.txService.getPagedAdvanced(
           this.txService.buildListBody({
-            length: 15,
+            length: this.txPageSize,
+            start: (this.txPage() - 1) * this.txPageSize,
             warehouseId: this.warehouseId(),
           })
         )
@@ -193,8 +206,24 @@ export class InventoryMonitoringComponent {
     () => (this.alertsQuery.data() as any)?.resources?.data ?? []
   );
 
+  alertTotal = computed<number>(() => {
+    const r = (this.alertsQuery.data() as any)?.resources;
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
+  alertTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.alertTotal() / this.alertPageSize))
+  );
+
   transactions = computed<InventoryTransactionRow[]>(
     () => (this.txQuery.data() as any)?.resources?.data ?? []
+  );
+
+  txTotal = computed<number>(() => {
+    const r = (this.txQuery.data() as any)?.resources;
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
+  txTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.txTotal() / this.txPageSize))
   );
 
   // ----- Trạng thái tải -----
@@ -234,12 +263,17 @@ export class InventoryMonitoringComponent {
   onWarehouseChange(value: number | null): void {
     this.warehouseId.set(value != null ? Number(value) : null);
     this.page.set(1);
+    this.txPage.set(1);
   }
 
   selectTab(id: number | null): void {
     if (this.activeCategoryId() === id) return;
     this.activeCategoryId.set(id);
     this.page.set(1);
+  }
+
+  toggleFilters(): void {
+    this.showFilters.update((v) => !v);
   }
 
   onSearchChange(value: string): void {
@@ -259,6 +293,18 @@ export class InventoryMonitoringComponent {
   setPageSize(value: string | number): void {
     this.pageSize.set(Number(value));
     this.page.set(1);
+  }
+
+  /** Phân trang panel Cảnh báo tồn kho. */
+  setAlertPage(p: number): void {
+    if (p < 1 || p > this.alertTotalPages() || p === this.alertPage()) return;
+    this.alertPage.set(p);
+  }
+
+  /** Phân trang panel Lịch sử giao dịch. */
+  setTxPage(p: number): void {
+    if (p < 1 || p > this.txTotalPages() || p === this.txPage()) return;
+    this.txPage.set(p);
   }
 
   /** Dải số trang hiển thị quanh trang hiện tại (±2). */
@@ -326,6 +372,25 @@ export class InventoryMonitoringComponent {
   /** Đơn vị hiển thị cho số lượng của 1 dòng. */
   unitOf(row: InventoryRow): string {
     return row.unitName?.trim() || 'đv';
+  }
+
+  /**
+   * Hiển thị khối lượng kg cho 1 lượng (qty) theo unitWeightKg của lô.
+   * Nếu chưa cấu hình KL đơn vị thì fallback về số lượng + đơn vị (đv/bao).
+   */
+  qtyKg(qty: number | null | undefined, row: InventoryRow): string {
+    const uw = Number(row.unitWeightKg ?? 0);
+    const q = Number(qty ?? 0);
+    if (uw > 0) return `${this.fmtNum(q * uw)} kg`;
+    return `${this.fmtNum(q)} ${this.unitOf(row)}`;
+  }
+
+  /** Tồn thực tế của 1 dòng — ưu tiên tổng khối lượng lô, fallback qty*KLĐV. */
+  onHandKg(row: InventoryRow): string {
+    if (row.totalWeightKg && row.totalWeightKg > 0) {
+      return `${this.fmtNum(row.totalWeightKg)} kg`;
+    }
+    return this.qtyKg(row.quantityOnHand, row);
   }
 
   /** Nhãn loại theo lô hoặc danh mục. */
