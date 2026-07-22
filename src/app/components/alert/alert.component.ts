@@ -6,6 +6,7 @@ import {
   injectQuery,
   injectMutation,
   injectQueryClient,
+  keepPreviousData,
 } from '@tanstack/angular-query-experimental';
 
 import { AlertRow, AlertRule, AlertSummaryDto } from '../../models';
@@ -32,6 +33,10 @@ export class AlertComponent {
   // ── Quy tắc cảnh báo (bật/tắt) — quản lý bằng signal, có fallback mặc định ──
   rules = signal<AlertRule[]>(DEFAULT_RULES);
 
+  // ── Phân trang danh sách cảnh báo (10/trang, server-side) ──
+  page = signal(1);
+  readonly pageSize = 10;
+
   constructor() {
     this.loadRules();
   }
@@ -43,8 +48,18 @@ export class AlertComponent {
   }));
 
   listQuery = injectQuery(() => ({
-    queryKey: ['alerts'],
-    queryFn: () => lastValueFrom(this.service.getPagedAdvanced(this.service.buildListBody(100))),
+    queryKey: ['alerts', this.page()],
+    queryFn: () =>
+      lastValueFrom(
+        this.service.getPagedAdvanced(
+          this.service.buildListBody(
+            this.pageSize,
+            (this.page() - 1) * this.pageSize
+          )
+        )
+      ),
+    // Giữ dữ liệu trang trước khi đổi trang -> không nháy skeleton cả màn.
+    placeholderData: keepPreviousData,
   }));
 
   summary = computed<AlertSummaryDto>(() => {
@@ -67,6 +82,15 @@ export class AlertComponent {
     const r = (res as any)?.resources ?? (res as any)?.data;
     return r?.data ?? [];
   });
+
+  total = computed<number>(() => {
+    const res = this.listQuery.data();
+    const r = (res as any)?.resources ?? (res as any)?.data;
+    return r?.recordsFiltered ?? r?.recordsTotal ?? 0;
+  });
+  totalPages = computed(() =>
+    Math.max(1, Math.ceil(this.total() / this.pageSize))
+  );
 
   loading = computed(
     () => this.listQuery.isPending() || this.summaryQuery.isPending()
@@ -105,6 +129,23 @@ export class AlertComponent {
     this.summaryQuery.refetch();
     this.listQuery.refetch();
     this.loadRules();
+  }
+
+  setPage(p: number): void {
+    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    this.page.set(p);
+  }
+
+  /** Dải số trang hiển thị quanh trang hiện tại (±2). */
+  visiblePages(): number[] {
+    const total = this.totalPages();
+    const cur = this.page();
+    const d = 2;
+    const pages: number[] = [];
+    for (let i = Math.max(1, cur - d); i <= Math.min(total, cur + d); i++) {
+      pages.push(i);
+    }
+    return pages;
   }
 
   markRead(row: AlertRow): void {

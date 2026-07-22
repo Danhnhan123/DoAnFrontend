@@ -205,6 +205,12 @@ const adminChildren: Routes = [
       import('./components/paddy-lot/paddy-lot.component')
         .then(m => m.PaddyLotComponent),
   },
+  // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./components/not-found/not-found.component').then(m => m.NotFoundComponent),
+  },
 ];
 
 export const routes: Routes = [
@@ -243,5 +249,10 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: '/admin/dashboard' },
+  // Mọi đường dẫn không khớp đều nhảy vào trang 404.
+  {
+    path: '**',
+    loadComponent: () =>
+      import('./components/not-found/not-found.component').then(m => m.NotFoundComponent),
+  },
 ];

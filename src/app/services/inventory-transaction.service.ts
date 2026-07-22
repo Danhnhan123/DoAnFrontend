@@ -28,9 +28,13 @@ export class InventoryTransactionService {
     );
   }
 
-  /** Body DataTables: {length} giao dịch mới nhất, lọc theo kho (tuỳ chọn). */
+  /**
+   * Body DataTables: {length} giao dịch mới nhất kể từ vị trí {start},
+   * lọc theo kho (tuỳ chọn). Dùng start/length để phân trang.
+   */
   buildListBody(params: {
     length?: number;
+    start?: number;
     warehouseId?: number | null;
     productVariantId?: number | null;
   }): InventoryTransactionAdvancedRequest {
@@ -46,7 +50,7 @@ export class InventoryTransactionService {
       draw: 1,
       columns: [col('createdDate')],
       order: [{ column: 0, dir: 'desc', name: 'createdDate' }],
-      start: 0,
+      start: params.start ?? 0,
       length: params.length ?? 20,
       search: { value: '', regex: false, fixed: [] },
       warehouseId: params.warehouseId ?? null,
