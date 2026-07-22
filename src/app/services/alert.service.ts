@@ -66,10 +66,10 @@ export class AlertService {
   }
 
   /**
-   * Body danh sách: lấy tối đa {length} cảnh báo mới nhất (sắp xếp theo createdDate giảm dần).
-   * Không có bộ lọc — màn cảnh báo hiển thị toàn bộ theo thiết kế Figma.
+   * Body danh sách: lấy {length} cảnh báo mới nhất kể từ vị trí {start}
+   * (sắp xếp theo createdDate giảm dần). Dùng start/length để phân trang.
    */
-  buildListBody(length = 100): AlertPagedAdvancedRequest {
+  buildListBody(length = 100, start = 0): AlertPagedAdvancedRequest {
     const col = (data: string) => ({
       data,
       name: data,
@@ -82,7 +82,7 @@ export class AlertService {
       draw: 1,
       columns: [col('createdDate')],
       order: [{ column: 0, dir: 'desc', name: 'createdDate' }],
-      start: 0,
+      start,
       length,
       search: { value: '', regex: false, fixed: [] },
     };

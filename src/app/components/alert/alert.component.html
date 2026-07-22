@@ -180,6 +180,22 @@
       </div>
       }
     </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <span class="page-total">{{ total() }} cảnh báo</span>
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of visiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
   </div>
 
   }

@@ -2,7 +2,14 @@
   <!-- ===== Header ===== -->
   <div class="inv-head">
     <div class="inv-head-left">
-      <span class="inv-chip">🌾 Quản lý tồn kho lúa/gạo</span>
+      <span class="inv-chip">
+        <svg class="chip-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 20h10" /><path d="M10 20c5.5-2.5.8-6.4 3-10" />
+          <path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8Z" />
+          <path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2Z" />
+        </svg>
+        Quản lý tồn kho lúa/gạo
+      </span>
       <h1 class="inv-title">Tồn đa trạng thái theo lô, khu và cột</h1>
       <p class="inv-sub">
         Theo dõi lúa, gạo, tấm, cám, trấu theo tồn thực tế, khả dụng, đã giữ,
@@ -10,16 +17,14 @@
       </p>
     </div>
     <div class="inv-head-right">
-      <select
-        class="inv-select"
-        [ngModel]="warehouseId()"
-        (ngModelChange)="onWarehouseChange($event)"
-      >
-        <option [ngValue]="null">Tất cả kho</option>
-        @for (w of warehouses(); track w.id) {
-          <option [ngValue]="w.id">{{ w.name }}</option>
-        }
-      </select>
+      <button type="button" class="btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <path d="m9 14 2 2 4-4" />
+        </svg>
+        Kiểm kê khu/cột/lô
+      </button>
     </div>
   </div>
 
@@ -27,7 +32,12 @@
   @if (summary(); as s) {
     <div class="kpi-row">
       <div class="kpi-card">
-        <div class="kpi-ico ico-onhand">📦</div>
+        <div class="kpi-ico ico-onhand">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73Z" />
+            <path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+          </svg>
+        </div>
         <div class="kpi-label">Tồn thực tế</div>
         <div class="kpi-value">
           {{ kpiValue(s.totalOnHandWeightKg, s.totalOnHand) }}
@@ -35,7 +45,11 @@
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-ico ico-avail">✓</div>
+        <div class="kpi-ico ico-avail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.801 10A10 10 0 1 1 17 3.335" /><path d="m9 11 3 3L22 4" />
+          </svg>
+        </div>
         <div class="kpi-label">Khả dụng</div>
         <div class="kpi-value green">
           {{ kpiValue(s.totalAvailableWeightKg, s.totalAvailable) }}
@@ -43,7 +57,11 @@
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-ico ico-reserved">🔒</div>
+        <div class="kpi-ico ico-reserved">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+        </div>
         <div class="kpi-label">Đã giữ</div>
         <div class="kpi-value amber">
           {{ kpiValue(s.totalReservedWeightKg, s.totalReserved) }}
@@ -51,7 +69,12 @@
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-ico ico-proc">⚙️</div>
+        <div class="kpi-ico ico-proc">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+            <path d="M2 12.65 11.17 16.8a2 2 0 0 0 1.66 0L22 12.65" /><path d="M2 17.65l9.17 4.16a2 2 0 0 0 1.66 0L22 17.65" />
+          </svg>
+        </div>
         <div class="kpi-label">Đang xử lý</div>
         <div class="kpi-value blue">
           {{ kpiValue(s.totalProcessingWeightKg, s.totalProcessing) }}
@@ -59,7 +82,12 @@
         </div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-ico ico-quar">⚠️</div>
+        <div class="kpi-ico ico-quar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" /><path d="M12 17h.01" />
+          </svg>
+        </div>
         <div class="kpi-label">Cách ly</div>
         <div class="kpi-value red">
           {{ kpiValue(s.totalQuarantineWeightKg, s.totalQuarantine) }}
@@ -86,16 +114,51 @@
             Chiến lược xuất có thể ưu tiên theo cột/lô, chất lượng và hạn xử lý.
           </p>
         </div>
-        <div class="search-box">
-          <input
-            type="text"
-            class="inv-search"
-            placeholder="Tìm lô, mặt hàng, cột..."
-            [ngModel]="search()"
-            (ngModelChange)="onSearchChange($event)"
-          />
+        <div class="head-controls">
+          <div class="search-box">
+            <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+            </svg>
+            <input
+              type="text"
+              class="inv-search"
+              placeholder="Tìm lô, mặt hàng, cột..."
+              [ngModel]="searchInput()"
+              (ngModelChange)="onSearchChange($event)"
+            />
+          </div>
+          <button
+            type="button"
+            class="funnel-btn"
+            [class.active]="showFilters()"
+            (click)="toggleFilters()"
+            title="Bộ lọc"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+          </button>
         </div>
       </div>
+
+      <!-- Bộ lọc nâng cao (ẩn/hiện bằng nút phễu) -->
+      @if (showFilters()) {
+        <div class="filter-row">
+          <app-filter-select
+            [options]="warehouseOptions()"
+            [value]="warehouseId()"
+            (valueChange)="onWarehouseChange($event)"
+            allLabel="Tất cả kho"
+            placeholder="Tất cả kho"
+          ></app-filter-select>
+          <app-filter-select
+            [clearable]="false"
+            [options]="pageSizeOptions"
+            [value]="pageSize()"
+            (valueChange)="setPageSize($event)"
+          ></app-filter-select>
+        </div>
+      }
 
       <!-- Tabs lọc theo loại -->
       <div class="tabs">
@@ -115,15 +178,31 @@
         <table class="inv-table">
           <thead>
             <tr>
-              <th (click)="sortBy('lotCode')">LÔ</th>
-              <th (click)="sortBy('categoryName')">LOẠI</th>
-              <th>VỊ TRÍ</th>
-              <th class="num" (click)="sortBy('bags')">BAO</th>
-              <th class="num" (click)="sortBy('quantityOnHand')">THỰC TẾ</th>
-              <th class="num" (click)="sortBy('quantityAvailable')">KHẢ DỤNG</th>
-              <th>GIỮ/XL/CL</th>
+              <th class="sortable" (click)="sort('lotCode')">
+                LÔ <span class="sort-icon">{{ sortIcon('lotCode') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('categoryName')">
+                LOẠI <span class="sort-icon">{{ sortIcon('categoryName') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('warehouseName')">
+                VỊ TRÍ <span class="sort-icon">{{ sortIcon('warehouseName') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('bags')">
+                BAO <span class="sort-icon">{{ sortIcon('bags') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('quantityOnHand')">
+                THỰC TẾ <span class="sort-icon">{{ sortIcon('quantityOnHand') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('quantityAvailable')">
+                KHẢ DỤNG <span class="sort-icon">{{ sortIcon('quantityAvailable') }}</span>
+              </th>
+              <th (click)="sort('quantityReserved')" class="sortable">
+                GIỮ/XL/CL <span class="sort-icon">{{ sortIcon('quantityReserved') }}</span>
+              </th>
               <th>CHẤT LƯỢNG</th>
-              <th class="num" (click)="sortBy('costPrice')">GIÁ VỐN</th>
+              <th class="num sortable" (click)="sort('costPrice')">
+                GIÁ VỐN <span class="sort-icon">{{ sortIcon('costPrice') }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -141,31 +220,33 @@
                     <div class="cell-sub">{{ fmtDate(r.lotInboundDate) }}</div>
                   </td>
                   <td>
-                    <span class="type-badge">{{ typeLabel(r) }}</span>
+                    <span class="type-badge" [ngClass]="'type-' + (r.lotType || 'default').toLowerCase()">
+                      {{ typeLabel(r) }}
+                    </span>
                     <div class="cell-sub">{{ r.productVariantName }}</div>
                   </td>
                   <td>
-                    <div class="loc-main">📍 {{ r.warehouseName }}</div>
+                    <div class="loc-main">
+                      <svg class="pin-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                      {{ r.warehouseName }}
+                    </div>
                     <div class="cell-sub">{{ r.locationCode || '—' }}</div>
                   </td>
                   <td class="num">{{ fmtNum(r.bags) }}</td>
                   <td class="num">
-                    <div class="qty-main">{{ fmtNum(r.quantityOnHand) }} {{ unitOf(r) }}</div>
-                    @if (r.totalWeightKg > 0) {
-                      <div class="cell-sub">{{ fmtNum(r.totalWeightKg) }} kg</div>
-                    }
+                    <div class="qty-main">{{ onHandKg(r) }}</div>
                   </td>
-                  <td class="num green-txt">{{ fmtNum(r.quantityAvailable) }} {{ unitOf(r) }}</td>
+                  <td class="num green-txt">{{ qtyKg(r.quantityAvailable, r) }}</td>
                   <td>
                     <div class="mix">
                       Giữ {{ fmtNum(r.quantityReserved) }} ·
                       XL {{ fmtNum(r.quantityProcessing) }} ·
                       CL {{ fmtNum(r.quantityQuarantine) }}
                     </div>
-                    <span
-                      class="status-dot-badge"
-                      [style.color]="statusColor(r)"
-                    >
+                    <span class="status-dot-badge" [style.color]="statusColor(r)">
                       <span class="dot" [style.background]="statusColor(r)"></span>
                       {{ statusLabel(r) }}
                     </span>
@@ -182,22 +263,34 @@
       </div>
 
       <!-- Phân trang -->
-      <div class="pager">
-        <span class="pager-info">
-          Trang {{ page() }}/{{ totalPages() }} · {{ total() }} dòng
-        </span>
-        <div class="pager-btns">
-          <button (click)="changePage(-1)" [disabled]="page() <= 1">‹ Trước</button>
-          <button (click)="changePage(1)" [disabled]="page() >= totalPages()">Sau ›</button>
+      @if (total() > 0) {
+        <div class="pagination">
+          <span class="page-total">{{ total() }} dòng</span>
+          <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+          <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+          @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+          @for (p of visiblePages(); track p) {
+            <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+          }
+          @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+          <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+          <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+          <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
         </div>
-      </div>
+      }
     </div>
 
     <!-- Panel phải -->
     <div class="side-col">
       <!-- Cảnh báo tồn kho -->
       <div class="card side-card">
-        <h2 class="card-title with-ico">⚠️ Cảnh báo tồn kho</h2>
+        <h2 class="card-title with-ico">
+          <svg class="title-ico warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <path d="M12 9v4" /><path d="M12 17h.01" />
+          </svg>
+          Cảnh báo tồn kho
+        </h2>
         <div class="alert-list">
           @if (loadingAlerts()) {
             <div class="side-empty">Đang tải...</div>
@@ -217,11 +310,26 @@
             }
           }
         </div>
+        @if (alertTotalPages() > 1) {
+          <div class="mini-pager">
+            <span class="mini-total">{{ alertTotal() }} cảnh báo</span>
+            <div class="mini-nav">
+              <button type="button" class="mini-btn" (click)="setAlertPage(alertPage() - 1)" [disabled]="alertPage() === 1">‹</button>
+              <span class="mini-info">{{ alertPage() }}/{{ alertTotalPages() }}</span>
+              <button type="button" class="mini-btn" (click)="setAlertPage(alertPage() + 1)" [disabled]="alertPage() === alertTotalPages()">›</button>
+            </div>
+          </div>
+        }
       </div>
 
-      <!-- Lịch sử InventoryTransaction -->
+      <!-- Lịch sử giao dịch -->
       <div class="card side-card">
-        <h2 class="card-title with-ico">🕓 Lịch sử InventoryTransaction</h2>
+        <h2 class="card-title with-ico">
+          <svg class="title-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+          </svg>
+          Lịch sử giao dịch
+        </h2>
         <div class="tx-list">
           @if (loadingTx()) {
             <div class="side-empty">Đang tải...</div>
@@ -231,7 +339,15 @@
             @for (t of transactions(); track trackTx($index, t)) {
               <div class="tx-item">
                 <div class="tx-badge" [ngClass]="txDirClass(t)">
-                  {{ txDirClass(t) === 'tx-in' ? '↓' : '↑' }}
+                  @if (txDirClass(t) === 'tx-in') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 5v14" /><path d="m19 12-7 7-7-7" />
+                    </svg>
+                  } @else {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 19V5" /><path d="m5 12 7-7 7 7" />
+                    </svg>
+                  }
                 </div>
                 <div class="tx-body">
                   <div class="tx-top">
@@ -250,6 +366,16 @@
             }
           }
         </div>
+        @if (txTotalPages() > 1) {
+          <div class="mini-pager">
+            <span class="mini-total">{{ txTotal() }} giao dịch</span>
+            <div class="mini-nav">
+              <button type="button" class="mini-btn" (click)="setTxPage(txPage() - 1)" [disabled]="txPage() === 1">‹</button>
+              <span class="mini-info">{{ txPage() }}/{{ txTotalPages() }}</span>
+              <button type="button" class="mini-btn" (click)="setTxPage(txPage() + 1)" [disabled]="txPage() === txTotalPages()">›</button>
+            </div>
+          </div>
+        }
       </div>
     </div>
   </div>
