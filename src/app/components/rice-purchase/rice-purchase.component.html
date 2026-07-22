@@ -1,24 +1,13 @@
 <section class="rice-purchase-page">
   <div class="purchase-toolbar">
-    <div
-      class="purchase-tabs"
-      role="tablist"
-      aria-label="Lịch và phiếu mua lúa"
-    >
+    <div class="purchase-tabs" role="tablist" aria-label="Lịch và phiếu mua lúa">
       <button
         type="button"
         class="purchase-tab"
         [class.active]="activeTab() === 'schedule'"
         (click)="switchTab('schedule')"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="5" width="18" height="16" rx="2"></rect>
           <path d="M16 3v4M8 3v4M3 10h18"></path>
         </svg>
@@ -32,14 +21,7 @@
         [class.active]="activeTab() === 'receipt'"
         (click)="switchTab('receipt')"
       >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
           <path d="M9 8h6M9 12h6"></path>
         </svg>
@@ -48,38 +30,16 @@
       </button>
     </div>
 
-    @if (activeTab() === "schedule") {
-      <button
-        type="button"
-        class="primary-action"
-        (click)="openCreateSchedule()"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.2"
-        >
+    @if (activeTab() === 'schedule') {
+      <button type="button" class="primary-action" (click)="openCreateSchedule()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M12 5v14M5 12h14"></path>
         </svg>
         Tạo lịch thu mua
       </button>
     } @else {
-      <button
-        type="button"
-        class="primary-action"
-        (click)="openCreateReceipt()"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.2"
-        >
+      <button type="button" class="primary-action" (click)="openCreateReceipt()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M12 5v14M5 12h14"></path>
         </svg>
         Tạo phiếu mua
@@ -87,17 +47,10 @@
     }
   </div>
 
-  @if (activeTab() === "schedule") {
+  @if (activeTab() === 'schedule') {
     <div class="search-row">
       <label class="search-box">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.3-4.3"></path>
         </svg>
@@ -138,21 +91,12 @@
               <tr>
                 <td colspan="7">
                   <div class="empty-state">
-                    <svg
-                      width="38"
-                      height="38"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                    >
+                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                       <rect x="3" y="5" width="18" height="16" rx="2"></rect>
                       <path d="M16 3v4M8 3v4M3 10h18"></path>
                     </svg>
                     <strong>Chưa có lịch thu mua</strong>
-                    <span
-                      >Tạo lịch mới để hẹn ngày đến thu lúa từ nông dân.</span
-                    >
+                    <span>Tạo lịch mới để hẹn ngày đến thu lúa từ nông dân.</span>
                   </div>
                 </td>
               </tr>
@@ -163,36 +107,19 @@
                   [class.cancelled-row]="isScheduleCancelledRow(row)"
                 >
                   <td>
-                    <button
-                      type="button"
-                      class="code-link"
-                      (click)="openEditSchedule(row)"
-                    >
+                    <button type="button" class="code-link" (click)="openEditSchedule(row)">
                       {{ row.scheduleCode }}
                     </button>
                     @if (isScheduleStocked(row)) {
-                      <span
-                        class="confirmed-mark schedule-stocked-mark"
-                        title="Lịch đã nhập kho"
-                        >✓</span
-                      >
+                      <span class="confirmed-mark schedule-stocked-mark" title="Lịch đã nhập kho">✓</span>
                     }
                   </td>
                   <td>
                     <div class="person-cell">
-                      <strong>{{ row.farmerName || "Chưa rõ" }}</strong>
+                      <strong>{{ row.farmerName || 'Chưa rõ' }}</strong>
                       <span>
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <path
-                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"
-                          ></path>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"></path>
                         </svg>
                         {{ farmerPhone(row.farmerId) }}
                       </span>
@@ -200,30 +127,18 @@
                   </td>
                   <td>
                     <span class="variety-badge">
-                      {{
-                        row.riceVarietyName ||
-                          riceVarietyName(row.riceVarietyId)
-                      }}
+                      {{ row.riceVarietyName || riceVarietyName(row.riceVarietyId) }}
                     </span>
                   </td>
-                  <td class="weight-cell">
-                    {{ formatTonFromKg(row.estimatedQtyKg) }}
-                  </td>
+                  <td class="weight-cell">{{ formatTonFromKg(row.estimatedQtyKg) }}</td>
                   <td>{{ formatDate(row.scheduleDate) }}</td>
                   <td>
                     <button
                       type="button"
                       class="status-badge"
                       [class]="'status-badge ' + statusClass(row.statusId)"
-                      [disabled]="
-                        !nextStatus(row.statusId) ||
-                        updatingScheduleId() === row.id
-                      "
-                      [title]="
-                        nextStatus(row.statusId)
-                          ? 'Chuyển tiếp sang ' + nextStatus(row.statusId)?.name
-                          : statusOf(row.statusId).name
-                      "
+                      [disabled]="!nextStatus(row.statusId) || updatingScheduleId() === row.id"
+                      [title]="nextStatus(row.statusId) ? 'Chuyển tiếp sang ' + nextStatus(row.statusId)?.name : statusOf(row.statusId).name"
                       (click)="advanceSchedule(row)"
                     >
                       @if (updatingScheduleId() === row.id) {
@@ -236,23 +151,9 @@
                   </td>
                   <td>
                     <div class="action-cell">
-                      <button
-                        type="button"
-                        class="icon-action view"
-                        title="Xem và sửa lịch"
-                        (click)="openEditSchedule(row)"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <path
-                            d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
-                          ></path>
+                      <button type="button" class="icon-action view" title="Xem và sửa lịch" (click)="openEditSchedule(row)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path>
                           <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                       </button>
@@ -263,14 +164,7 @@
                         [disabled]="isScheduleLocked(row)"
                         (click)="openCreateReceipt(row)"
                       >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                           <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
                           <path d="M9 8h6M9 12h6"></path>
                         </svg>
@@ -288,20 +182,8 @@
         <div class="pagination-bar">
           <span>Trang {{ schedulePage() }} / {{ scheduleTotalPages() }}</span>
           <div class="pagination-actions">
-            <button
-              type="button"
-              [disabled]="schedulePage() <= 1"
-              (click)="setSchedulePage(schedulePage() - 1)"
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              [disabled]="schedulePage() >= scheduleTotalPages()"
-              (click)="setSchedulePage(schedulePage() + 1)"
-            >
-              Sau
-            </button>
+            <button type="button" [disabled]="schedulePage() <= 1" (click)="setSchedulePage(schedulePage() - 1)">Trước</button>
+            <button type="button" [disabled]="schedulePage() >= scheduleTotalPages()" (click)="setSchedulePage(schedulePage() + 1)">Sau</button>
           </div>
         </div>
       }
@@ -328,14 +210,7 @@
 
     <div class="search-row">
       <label class="search-box">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"></circle>
           <path d="m21 21-4.3-4.3"></path>
         </svg>
@@ -372,10 +247,7 @@
             @if (loadingReceipts()) {
               @for (_ of [1, 2, 3, 4, 5]; track _) {
                 <tr class="skeleton-row">
-                  @for (
-                    __ of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-                    track __
-                  ) {
+                  @for (__ of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; track __) {
                     <td><span class="skeleton-line"></span></td>
                   }
                 </tr>
@@ -384,14 +256,7 @@
               <tr>
                 <td colspan="12">
                   <div class="empty-state">
-                    <svg
-                      width="38"
-                      height="38"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                    >
+                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
                       <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
                       <path d="M9 8h6M9 12h6"></path>
                     </svg>
@@ -404,134 +269,59 @@
               @for (row of receiptRows(); track row.id) {
                 <tr [class.cancelled-row]="isReceiptCancelled(row)">
                   <td>
-                    <button
-                      type="button"
-                      class="code-link"
-                      (click)="openEditReceipt(row)"
-                    >
+                    <button type="button" class="code-link" (click)="openEditReceipt(row)">
                       {{ row.receiptCode }}
                     </button>
                     @if (row.isConfirmed) {
-                      <span class="confirmed-mark" title="Phiếu đã chốt"
-                        >✓</span
-                      >
+                      <span class="confirmed-mark" title="Phiếu đã chốt">✓</span>
                     }
                   </td>
-                  <td>
-                    <strong>{{ row.farmerName || "Chưa rõ" }}</strong>
-                  </td>
-                  <td>
-                    <span class="variety-badge">{{
-                      row.riceVarietyName || riceVarietyName(row.riceVarietyId)
-                    }}</span>
-                  </td>
-                  <td class="weight-cell">
-                    {{ formatTonFromKg(row.actualWeightKg) }}
-                  </td>
+                  <td><strong>{{ row.farmerName || 'Chưa rõ' }}</strong></td>
+                  <td><span class="variety-badge">{{ row.riceVarietyName || riceVarietyName(row.riceVarietyId) }}</span></td>
+                  <td class="weight-cell">{{ formatTonFromKg(row.actualWeightKg) }}</td>
                   <td>{{ formatPrice(row.agreedPrice) }}</td>
-                  <td class="money-strong">
-                    {{ formatCompactMoney(row.totalAmount) }}
-                  </td>
+                  <td class="money-strong">{{ formatCompactMoney(row.totalAmount) }}</td>
                   <td>
                     <span
                       class="moisture-badge"
-                      [class]="
-                        'moisture-badge ' +
-                        moistureClass(qualityOf(row).moisturePercent)
-                      "
+                      [class]="'moisture-badge ' + moistureClass(qualityOf(row).moisturePercent)"
                     >
-                      {{
-                        qualityOf(row).moisturePercent != null
-                          ? qualityOf(row).moisturePercent + "%"
-                          : "—"
-                      }}
+                      {{ qualityOf(row).moisturePercent != null ? qualityOf(row).moisturePercent + '%' : '—' }}
                     </span>
                   </td>
-                  <td>{{ qualityOf(row).grade || "—" }}</td>
-                  <td class="paid-cell">
-                    {{ formatCompactMoney(row.paidAmount) }}
-                  </td>
+                  <td>{{ qualityOf(row).grade || '—' }}</td>
+                  <td class="paid-cell">{{ formatCompactMoney(row.paidAmount) }}</td>
                   <td>
                     @if (row.debtAmount > 0) {
-                      <span class="debt-cell">{{
-                        formatCompactMoney(row.debtAmount)
-                      }}</span>
+                      <span class="debt-cell">{{ formatCompactMoney(row.debtAmount) }}</span>
                     } @else {
-                      <span class="debt-cleared" title="Đã thanh toán đủ"
-                        >✓</span
-                      >
+                      <span class="debt-cleared" title="Đã thanh toán đủ">✓</span>
                     }
                   </td>
                   <td>{{ formatDate(row.receiptDate) }}</td>
                   <td>
                     <div class="action-cell">
-                      <button
-                        type="button"
-                        class="icon-action view"
-                        title="Xem phiếu"
-                        (click)="openEditReceipt(row)"
-                      >
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <path
-                            d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
-                          ></path>
+                      <button type="button" class="icon-action view" title="Xem phiếu" (click)="openEditReceipt(row)">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path>
                           <circle cx="12" cy="12" r="3"></circle>
                         </svg>
                       </button>
                       @if (!row.isConfirmed && !isReceiptCancelled(row)) {
                         <button
                           type="button"
-                          class="icon-action putaway location-action"
-                          title="Chốt phiếu và chọn vị trí cất lúa"
-                          [disabled]="
-                            confirmingReceiptId() === row.id || loadingPutaway()
-                          "
-                          (click)="chooseLocationForReceipt(row)"
+                          class="icon-action confirm"
+                          title="Chốt phiếu và nhập kho"
+                          [disabled]="confirmingReceiptId() === row.id"
+                          (click)="confirmReceipt(row)"
                         >
                           @if (confirmingReceiptId() === row.id) {
                             <span class="mini-spinner"></span>
                           } @else {
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="2"
-                            >
-                              <path d="M3 21V5l9-3 9 3v16"></path>
-                              <path d="M7 9h10M7 13h10M7 17h10"></path>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                              <path d="m5 12 4 4L19 6"></path>
                             </svg>
                           }
-                          <span>Chọn vị trí</span>
-                        </button>
-                      } @else if (row.isConfirmed) {
-                        <button
-                          type="button"
-                          class="icon-action putaway location-action"
-                          title="Tiếp tục chọn khu vực/cột cất lúa"
-                          [disabled]="loadingPutaway()"
-                          (click)="openPutawayForReceipt(row)"
-                        >
-                          <svg
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                          >
-                            <path d="M3 21V5l9-3 9 3v16"></path>
-                            <path d="M7 9h10M7 13h10M7 17h10"></path>
-                          </svg>
-                          <span>Chọn vị trí</span>
                         </button>
                       }
                     </div>
@@ -547,20 +337,8 @@
         <div class="pagination-bar">
           <span>Trang {{ receiptPage() }} / {{ receiptTotalPages() }}</span>
           <div class="pagination-actions">
-            <button
-              type="button"
-              [disabled]="receiptPage() <= 1"
-              (click)="setReceiptPage(receiptPage() - 1)"
-            >
-              Trước
-            </button>
-            <button
-              type="button"
-              [disabled]="receiptPage() >= receiptTotalPages()"
-              (click)="setReceiptPage(receiptPage() + 1)"
-            >
-              Sau
-            </button>
+            <button type="button" [disabled]="receiptPage() <= 1" (click)="setReceiptPage(receiptPage() - 1)">Trước</button>
+            <button type="button" [disabled]="receiptPage() >= receiptTotalPages()" (click)="setReceiptPage(receiptPage() + 1)">Sau</button>
           </div>
         </div>
       }
@@ -570,47 +348,18 @@
 
 @if (showScheduleModal()) {
   <div class="modal-backdrop" (mousedown)="closeScheduleModal()">
-    <section
-      class="purchase-modal schedule-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="schedule-modal-title"
-      (mousedown)="$event.stopPropagation()"
-    >
+    <section class="purchase-modal schedule-modal" role="dialog" aria-modal="true" aria-labelledby="schedule-modal-title" (mousedown)="$event.stopPropagation()">
       <header class="modal-header">
         <div>
-          <h2 id="schedule-modal-title">
-            {{
-              editingSchedule()
-                ? "Cập nhật lịch thu mua lúa"
-                : "Tạo lịch thu mua lúa"
-            }}
-          </h2>
-          <p>
-            Dùng để hẹn nông dân, ghi khu vực và sản lượng dự kiến trước khi đi
-            thu mua.
-          </p>
+          <h2 id="schedule-modal-title">{{ editingSchedule() ? 'Cập nhật lịch thu mua lúa' : 'Tạo lịch thu mua lúa' }}</h2>
+          <p>Dùng để hẹn nông dân, ghi khu vực và sản lượng dự kiến trước khi đi thu mua.</p>
         </div>
-        <button
-          type="button"
-          class="modal-close"
-          aria-label="Đóng"
-          (click)="closeScheduleModal()"
-        >
-          ×
-        </button>
+        <button type="button" class="modal-close" aria-label="Đóng" (click)="closeScheduleModal()">×</button>
       </header>
 
       @if (isScheduleStocked(editingSchedule())) {
         <div class="confirmed-banner">
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M20 6 9 17l-5-5"></path>
           </svg>
           Lịch đã nhập kho. Dữ liệu không thể chỉnh sửa.
@@ -632,21 +381,14 @@
             >
               <option [ngValue]="null">Chọn nông dân...</option>
               @for (farmer of farmers(); track farmer.id) {
-                <option [ngValue]="farmer.id">
-                  {{ farmer.name }} · {{ farmer.code }}
-                </option>
+                <option [ngValue]="farmer.id">{{ farmer.name }} · {{ farmer.code }}</option>
               }
             </select>
           </label>
 
           <label class="field-group">
             <span>Số điện thoại</span>
-            <input
-              type="text"
-              [value]="scheduleFarmer()?.phone || ''"
-              placeholder="Tự động theo nông dân"
-              readonly
-            />
+            <input type="text" [value]="scheduleFarmer()?.phone || ''" placeholder="Tự động theo nông dân" readonly />
           </label>
 
           <label class="field-group">
@@ -679,9 +421,7 @@
             >
               <option [ngValue]="null">Chưa xác định</option>
               @for (variety of riceVarieties(); track variety.id) {
-                <option [ngValue]="variety.id">
-                  {{ variety.name }} · {{ variety.code }}
-                </option>
+                <option [ngValue]="variety.id">{{ variety.name }} · {{ variety.code }}</option>
               }
             </select>
           </label>
@@ -697,33 +437,6 @@
               [disabled]="scheduleFormLocked()"
               placeholder="5.0"
             />
-          </label>
-
-          <label class="field-group">
-            <span>Giá dự kiến/kg</span>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              [ngModel]="scheduleForm().expectedPrice"
-              (ngModelChange)="setScheduleField('expectedPrice', $event)"
-              [disabled]="scheduleFormLocked()"
-              placeholder="6.500"
-            />
-          </label>
-
-          <label class="field-group">
-            <span>Nhân viên phụ trách</span>
-            <select
-              [ngModel]="scheduleForm().assignedUserId"
-              (ngModelChange)="setScheduleField('assignedUserId', $event)"
-              [disabled]="scheduleFormLocked() || loadingReference()"
-            >
-              <option [ngValue]="null">Chưa phân công</option>
-              @for (user of users(); track user.id) {
-                <option [ngValue]="user.id">{{ userDisplayName(user) }}</option>
-              }
-            </select>
           </label>
 
           <label class="field-group span-2">
@@ -742,35 +455,17 @@
       <footer class="modal-footer">
         <div class="footer-danger-zone">
           @if (editingSchedule() && !scheduleFormLocked()) {
-            <button
-              type="button"
-              class="danger-link"
-              (click)="cancelSchedule(editingSchedule()!)"
-            >
-              Hủy lịch
-            </button>
+            <button type="button" class="danger-link" (click)="cancelSchedule(editingSchedule()!)">Hủy lịch</button>
           }
         </div>
-        <button
-          type="button"
-          class="secondary-button"
-          [disabled]="savingSchedule()"
-          (click)="closeScheduleModal()"
-        >
-          Đóng
-        </button>
+        <button type="button" class="secondary-button" [disabled]="savingSchedule()" (click)="closeScheduleModal()">Đóng</button>
         @if (!scheduleFormLocked()) {
-          <button
-            type="button"
-            class="save-button"
-            [disabled]="savingSchedule()"
-            (click)="saveSchedule()"
-          >
+          <button type="button" class="save-button" [disabled]="savingSchedule()" (click)="saveSchedule()">
             @if (savingSchedule()) {
               <span class="button-spinner"></span>
               Đang lưu...
             } @else {
-              {{ editingSchedule() ? "Lưu thay đổi" : "Lưu lịch thu mua" }}
+              {{ editingSchedule() ? 'Lưu thay đổi' : 'Lưu lịch thu mua' }}
             }
           </button>
         }
@@ -781,56 +476,27 @@
 
 @if (showReceiptModal()) {
   <div class="modal-backdrop" (mousedown)="closeReceiptModal()">
-    <section
-      class="purchase-modal receipt-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="receipt-modal-title"
-      (mousedown)="$event.stopPropagation()"
-    >
+    <section class="purchase-modal receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-modal-title" (mousedown)="$event.stopPropagation()">
       <header class="modal-header">
         <div>
-          <h2 id="receipt-modal-title">
-            {{
-              editingReceipt() ? "Chi tiết phiếu mua lúa" : "Tạo phiếu mua lúa"
-            }}
-          </h2>
-          <p>
-            Dùng khi đã cân/nhận lúa thực tế, nhập khối lượng, giá mua, chất
-            lượng và thanh toán.
-          </p>
+          <h2 id="receipt-modal-title">{{ editingReceipt() ? 'Chi tiết phiếu mua lúa' : 'Tạo phiếu mua lúa' }}</h2>
+          <p>Dùng khi đã cân/nhận lúa thực tế, nhập khối lượng, giá mua, chất lượng và thanh toán.</p>
         </div>
-        <button
-          type="button"
-          class="modal-close"
-          aria-label="Đóng"
-          (click)="closeReceiptModal()"
-        >
-          ×
-        </button>
+        <button type="button" class="modal-close" aria-label="Đóng" (click)="closeReceiptModal()">×</button>
       </header>
 
       @if (receiptForm().isConfirmed) {
         <div class="confirmed-banner">
-          <svg
-            width="17"
-            height="17"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-          >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M20 6 9 17l-5-5"></path>
           </svg>
-          Phiếu đã chốt. Hệ thống đã sinh lô và nhập tồn; dữ liệu không thể
-          chỉnh sửa.
+          Phiếu đã chốt. Hệ thống đã sinh lô và nhập tồn; dữ liệu không thể chỉnh sửa.
         </div>
       }
 
       @if (receiptFormCancelled()) {
         <div class="cancelled-banner">
-          Phiếu liên kết với lịch đã hủy. Dữ liệu không thể chỉnh sửa hoặc chốt
-          kho.
+          Phiếu liên kết với lịch đã hủy. Dữ liệu không thể chỉnh sửa hoặc chốt kho.
         </div>
       }
 
@@ -843,13 +509,10 @@
               (ngModelChange)="onReceiptScheduleChange($event)"
               [disabled]="receiptFormLocked()"
             >
-              <option [ngValue]="null">
-                Không gắn lịch — chọn nông dân trực tiếp
-              </option>
+              <option [ngValue]="null">Không gắn lịch — chọn nông dân trực tiếp</option>
               @for (schedule of scheduleOptions(); track schedule.id) {
                 <option [ngValue]="schedule.id">
-                  {{ schedule.scheduleCode }} · {{ schedule.farmerName }} ·
-                  {{ formatDate(schedule.scheduleDate) }}
+                  {{ schedule.scheduleCode }} · {{ schedule.farmerName }} · {{ formatDate(schedule.scheduleDate) }}
                 </option>
               }
             </select>
@@ -874,9 +537,7 @@
             >
               <option [ngValue]="null">Chọn nông dân...</option>
               @for (farmer of farmers(); track farmer.id) {
-                <option [ngValue]="farmer.id">
-                  {{ farmer.name }} · {{ farmer.phone || farmer.code }}
-                </option>
+                <option [ngValue]="farmer.id">{{ farmer.name }} · {{ farmer.phone || farmer.code }}</option>
               }
             </select>
           </label>
@@ -890,9 +551,7 @@
             >
               <option [ngValue]="null">Chưa xác định</option>
               @for (variety of riceVarieties(); track variety.id) {
-                <option [ngValue]="variety.id">
-                  {{ variety.name }} · {{ variety.code }}
-                </option>
+                <option [ngValue]="variety.id">{{ variety.name }} · {{ variety.code }}</option>
               }
             </select>
           </label>
@@ -906,19 +565,6 @@
               [ngModel]="receiptForm().actualWeightKg"
               (ngModelChange)="setReceiptField('actualWeightKg', $event)"
               placeholder="4.120"
-              [disabled]="receiptFormLocked()"
-            />
-          </label>
-
-          <label class="field-group">
-            <span>Số bao</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              [ngModel]="receiptForm().bagCount"
-              (ngModelChange)="setReceiptField('bagCount', $event)"
-              placeholder="80"
               [disabled]="receiptFormLocked()"
             />
           </label>
@@ -951,20 +597,6 @@
           </label>
 
           <label class="field-group">
-            <span>Tạp chất (%)</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              [ngModel]="receiptForm().impurityPercent"
-              (ngModelChange)="setReceiptField('impurityPercent', $event)"
-              placeholder="1.5"
-              [disabled]="receiptFormLocked()"
-            />
-          </label>
-
-          <label class="field-group">
             <span>Chất lượng</span>
             <select
               [ngModel]="receiptForm().qualityGrade"
@@ -978,54 +610,6 @@
               <option value="Cần xử lý">Cần xử lý</option>
               <option value="Cách ly">Cách ly</option>
             </select>
-          </label>
-
-          <label class="field-group">
-            <span>Tình trạng bao bì</span>
-            <select
-              [ngModel]="receiptForm().packagingStatus"
-              (ngModelChange)="setReceiptField('packagingStatus', $event)"
-              [disabled]="receiptFormLocked()"
-            >
-              <option value="">Chưa kiểm tra</option>
-              <option value="Nguyên vẹn">Nguyên vẹn</option>
-              <option value="Rách nhẹ">Rách nhẹ</option>
-              <option value="Ẩm">Ẩm</option>
-              <option value="Cần thay bao">Cần thay bao</option>
-            </select>
-          </label>
-
-          <div class="quality-checks span-2">
-            <span class="quality-checks-title">Kiểm tra rủi ro chất lượng</span>
-            <label>
-              <input
-                type="checkbox"
-                [ngModel]="receiptForm().hasMold"
-                (ngModelChange)="setReceiptField('hasMold', $event)"
-                [disabled]="receiptFormLocked()"
-              />
-              Phát hiện mốc
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                [ngModel]="receiptForm().hasPest"
-                (ngModelChange)="setReceiptField('hasPest', $event)"
-                [disabled]="receiptFormLocked()"
-              />
-              Phát hiện sâu mọt
-            </label>
-          </div>
-
-          <label class="field-group span-2">
-            <span>Ghi chú kiểm tra chất lượng</span>
-            <textarea
-              rows="2"
-              [ngModel]="receiptForm().qualityNote"
-              (ngModelChange)="setReceiptField('qualityNote', $event)"
-              placeholder="Màu sắc, mùi, tình trạng hạt hoặc hướng xử lý..."
-              [disabled]="receiptFormLocked()"
-            ></textarea>
           </label>
 
           <label class="field-group">
@@ -1050,9 +634,7 @@
             >
               <option [ngValue]="null">Chọn kho nhập...</option>
               @for (warehouse of warehouses(); track warehouse.id) {
-                <option [ngValue]="warehouse.id">
-                  {{ warehouse.name }} · {{ warehouse.code }}
-                </option>
+                <option [ngValue]="warehouse.id">{{ warehouse.name }} · {{ warehouse.code }}</option>
               }
             </select>
           </label>
@@ -1064,9 +646,7 @@
             </div>
             <div>
               <span>Còn nợ</span>
-              <strong [class.has-debt]="receiptDebtAmount() > 0">{{
-                formatMoney(receiptDebtAmount())
-              }}</strong>
+              <strong [class.has-debt]="receiptDebtAmount() > 0">{{ formatMoney(receiptDebtAmount()) }}</strong>
             </div>
           </div>
 
@@ -1085,220 +665,17 @@
 
       <footer class="modal-footer">
         <div class="footer-danger-zone"></div>
-        <button
-          type="button"
-          class="secondary-button"
-          [disabled]="savingReceipt()"
-          (click)="closeReceiptModal()"
-        >
-          Đóng
-        </button>
+        <button type="button" class="secondary-button" [disabled]="savingReceipt()" (click)="closeReceiptModal()">Đóng</button>
         @if (!receiptFormLocked()) {
-          <button
-            type="button"
-            class="save-button"
-            [disabled]="savingReceipt()"
-            (click)="saveReceipt()"
-          >
+          <button type="button" class="save-button" [disabled]="savingReceipt()" (click)="saveReceipt()">
             @if (savingReceipt()) {
               <span class="button-spinner"></span>
               Đang lưu...
             } @else {
-              {{ editingReceipt() ? "Lưu thay đổi" : "Lưu phiếu mua" }}
+              {{ editingReceipt() ? 'Lưu thay đổi' : 'Lưu phiếu mua' }}
             }
           </button>
         }
-      </footer>
-    </section>
-  </div>
-}
-
-@if (showPutawayModal() && putawayForm(); as form) {
-  <div class="modal-backdrop" (mousedown)="closePutawayModal()">
-    <section
-      class="purchase-modal putaway-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="putaway-modal-title"
-      (mousedown)="$event.stopPropagation()"
-    >
-      <header class="modal-header">
-        <div>
-          <h2 id="putaway-modal-title">Chọn vị trí và hoàn tất nhập kho</h2>
-          <p>
-            Lô {{ form.lotCode }} · {{ form.warehouseName }} ·
-            {{ formatTonFromKg(form.weightKg) }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="modal-close"
-          aria-label="Đóng"
-          (click)="closePutawayModal()"
-        >
-          ×
-        </button>
-      </header>
-
-      <div class="modal-body">
-        <div class="putaway-flow-note">
-          Phiếu đã được chốt để sinh lô. Hãy xác nhận vị trí để chuyển tồn từ
-          khu đệm vào khu vực/cột thực tế.
-        </div>
-        <div class="putaway-settings">
-          <label class="field-group">
-            <span>Chế độ lưu kho</span>
-            <select
-              [ngModel]="form.placementMode"
-              (ngModelChange)="
-                setPutawayField('placementMode', $event);
-                reloadPutawaySuggestions()
-              "
-              [disabled]="loadingPutaway() || savingPutaway()"
-            >
-              <option [ngValue]="1">Lưu kho bình thường</option>
-              <option [ngValue]="2">Khu vực cách ly</option>
-            </select>
-          </label>
-          <label class="field-group">
-            <span>Khối lượng cất (kg)</span>
-            <input
-              type="number"
-              min="0.01"
-              step="0.01"
-              [ngModel]="form.weightKg"
-              (ngModelChange)="setPutawayField('weightKg', $event)"
-              [disabled]="savingPutaway()"
-            />
-          </label>
-          <label class="field-group">
-            <span>Số bao</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              [ngModel]="form.bagCount"
-              (ngModelChange)="setPutawayField('bagCount', $event)"
-              [disabled]="savingPutaway()"
-            />
-          </label>
-          <button
-            type="button"
-            class="secondary-button refresh-suggestion"
-            [disabled]="loadingPutaway() || savingPutaway()"
-            (click)="reloadPutawaySuggestions()"
-          >
-            Tải lại gợi ý
-          </button>
-        </div>
-
-        @if (loadingPutaway()) {
-          <div class="putaway-loading">
-            <span class="button-spinner"></span> Đang tìm vị trí phù hợp...
-          </div>
-        } @else {
-          @if (putawaySuggestions(); as result) {
-            @if (result.hasSuggestion && result.suggestions.length) {
-              <div class="suggestion-list">
-                @for (
-                  suggestion of result.suggestions;
-                  track suggestion.locationId
-                ) {
-                  <button
-                    type="button"
-                    class="suggestion-card"
-                    [class.selected]="
-                      form.selectedLocationId === suggestion.locationId
-                    "
-                    (click)="selectPutawaySuggestion(suggestion)"
-                  >
-                    <span class="suggestion-rank">#{{ suggestion.rank }}</span>
-                    <span class="suggestion-main">
-                      <strong
-                        >{{ suggestion.zoneName }} ·
-                        {{ suggestion.locationCode }}</strong
-                      >
-                      <small>{{ suggestion.reason }}</small>
-                      <small
-                        >Còn trống
-                        {{ formatTonFromKg(suggestion.freeCapacityKg) }} · Sau
-                        khi xếp còn
-                        {{
-                          formatTonFromKg(suggestion.remainingAfterKg)
-                        }}</small
-                      >
-                    </span>
-                    <span class="suggestion-score">{{
-                      suggestion.score | number: "1.0-2"
-                    }}</span>
-                  </button>
-                }
-              </div>
-            } @else {
-              <div class="putaway-empty">
-                <strong>Không có một vị trí đủ sức chứa toàn bộ lô.</strong>
-                <span>{{
-                  result.message ||
-                    "Hãy giảm khối lượng để chia lô vào nhiều vị trí hoặc cập nhật sức chứa kho."
-                }}</span>
-                @if (result.canSplit && result.splitSuggestions?.length) {
-                  <div class="split-hints">
-                    @for (
-                      split of result.splitSuggestions || [];
-                      track split.locationId
-                    ) {
-                      <span
-                        >Vị trí #{{ split.locationId }}:
-                        {{ formatTonFromKg(split.weightKg) }}</span
-                      >
-                    }
-                  </div>
-                }
-              </div>
-            }
-          }
-        }
-
-        @if (
-          form.suggestedLocationId &&
-          form.selectedLocationId !== form.suggestedLocationId
-        ) {
-          <label class="field-group putaway-override">
-            <span>Lý do chọn khác gợi ý <b>*</b></span>
-            <textarea
-              rows="2"
-              [ngModel]="form.overrideReason"
-              (ngModelChange)="setPutawayField('overrideReason', $event)"
-              placeholder="Ví dụ: lối vào cột đang bị chắn..."
-            ></textarea>
-          </label>
-        }
-      </div>
-
-      <footer class="modal-footer">
-        <div class="footer-danger-zone"></div>
-        <button
-          type="button"
-          class="secondary-button"
-          [disabled]="savingPutaway()"
-          (click)="closePutawayModal()"
-        >
-          Để sau
-        </button>
-        <button
-          type="button"
-          class="save-button"
-          [disabled]="
-            savingPutaway() || loadingPutaway() || !form.selectedLocationId
-          "
-          (click)="confirmStoreIn()"
-        >
-          @if (savingPutaway()) {
-            <span class="button-spinner"></span> Đang xác nhận...
-          } @else {
-            Xác nhận vị trí & hoàn tất
-          }
-        </button>
       </footer>
     </section>
   </div>

@@ -1,4 +1,4 @@
-import { DTParameters } from "./search";
+import { DTParameters } from './search';
 
 /**
  * Một dòng lịch thu mua trả về từ PaddyPurchaseScheduleAggregate / DetailDto.
@@ -97,10 +97,6 @@ export interface UpdatePaddyPurchaseReceiptDto
 /** JSON chất lượng được lưu trong PaddyPurchaseReceipt.QualityJson. */
 export interface PaddyQualitySnapshot {
   moisturePercent?: number | null;
-  impurityPercent?: number | null;
-  hasMold?: boolean | null;
-  hasPest?: boolean | null;
-  packagingStatus?: string | null;
   grade?: string | null;
   note?: string | null;
 }
@@ -111,108 +107,19 @@ export interface ConfirmPaddyPurchaseReceiptResult {
   inboundOrderId: number;
 }
 
-/** Chi tiết lô dùng để lấy ProductVariantId sau khi chốt phiếu. */
-export interface PaddyLotDetailDto {
-  id: number;
-  lotCode: string;
-  lotType: string;
-  productVariantId: number;
-  productVariantName?: string | null;
-  riceVarietyId?: number | null;
-  riceVarietyName?: string | null;
-  warehouseId: number;
-  warehouseName?: string | null;
-  locationId?: number | null;
-  initialWeightKg: number;
-  remainingWeightKg: number;
-  qualityStatus?: string | null;
-}
-
-export type PutawayPlacementMode = 1 | 2;
-
-export interface GetPutawaySuggestionsRequest {
-  warehouseId: number;
-  productVariantId: number;
-  paddyLotId?: number | null;
-  requiredWeightKg: number;
-  placementMode: PutawayPlacementMode;
-  top?: number;
-}
-
-export interface PutawayScoreDetails {
-  capacityFit: number;
-  occupancyFit: number;
-  categoryMatch: number;
-  priorityNorm: number;
-}
-
-export interface PutawaySuggestion {
-  rank: number;
-  locationId: number;
-  locationCode: string;
-  zoneName: string;
-  currentOccupancyKg: number;
-  maxCapacityKg: number;
-  freeCapacityKg: number;
-  remainingAfterKg: number;
-  currentProductVariantId?: number | null;
-  isEmpty: boolean;
-  score: number;
-  scoreDetails: PutawayScoreDetails;
-  reason: string;
-}
-
-export interface SplitPutawaySuggestion {
-  locationId: number;
-  weightKg: number;
-}
-
-export interface PutawaySuggestionsResponse {
-  hasSuggestion: boolean;
-  warehouseId: number;
-  productVariantId: number;
-  requiredWeightKg: number;
-  suggestions: PutawaySuggestion[];
-  message?: string | null;
-  canSplit?: boolean | null;
-  totalFreeCapacityKg?: number | null;
-  splitSuggestions?: SplitPutawaySuggestion[] | null;
-}
-
-export interface ConfirmStoreInRequest {
-  productVariantId: number;
-  paddyLotId?: number | null;
-  selectedLocationId: number;
-  suggestedLocationId?: number | null;
-  weightKg: number;
-  bagCount?: number | null;
-  overrideReason?: string | null;
-}
-
 export interface PaddyPurchasePagedRequest extends DTParameters {}
 
 export type PaddyScheduleStatusCode =
-  | "NEW"
-  | "CONFIRMED"
-  | "COLLECTING"
-  | "WEIGHED"
-  | "PARTIALLY_STOCKED"
-  | "STOCKED"
-  | "CANCELLED";
+  | 'NEW'
+  | 'CONFIRMED'
+  | 'COLLECTING'
+  | 'WEIGHED'
+  | 'STOCKED'
+  | 'CANCELLED';
 
 export interface PaddyScheduleStatusOption {
   id: number;
   code: PaddyScheduleStatusCode;
   name: string;
   color: string;
-}
-
-export interface PaddyPurchaseUserOption {
-  id: number;
-  username: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  userStatusId?: number;
-  userStatusName?: string;
 }

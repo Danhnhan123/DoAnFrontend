@@ -165,7 +165,7 @@
 }
 
 .summary-card::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
@@ -186,18 +186,10 @@
   line-height: 1.25;
 }
 
-.summary-card.green strong {
-  color: #139148;
-}
-.summary-card.orange strong {
-  color: #d97706;
-}
-.summary-card.blue strong {
-  color: #2563eb;
-}
-.summary-card.red strong {
-  color: #ef4444;
-}
+.summary-card.green strong { color: #139148; }
+.summary-card.orange strong { color: #d97706; }
+.summary-card.blue strong { color: #2563eb; }
+.summary-card.red strong { color: #ef4444; }
 
 .data-card {
   overflow: hidden;
@@ -269,7 +261,7 @@
   border: 0;
   background: transparent;
   color: #2563eb;
-  font-family: "JetBrains Mono", monospace;
+  font-family: 'JetBrains Mono', monospace;
   font-size: 0.76rem;
   font-weight: 700;
   cursor: pointer;
@@ -535,9 +527,7 @@
 }
 
 @keyframes skeletonMove {
-  to {
-    background-position: -200% 0;
-  }
+  to { background-position: -200% 0; }
 }
 
 /* =========================== MODAL =========================== */
@@ -570,14 +560,8 @@
 }
 
 @keyframes modalIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(8px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .modal-header {
@@ -844,9 +828,7 @@
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 1050px) {
@@ -963,40 +945,18 @@
   font-weight: 700;
 }
 
-.receipt-status-badge.receipt-confirmed {
-  background: #dcfce7;
-  color: #15803d;
-}
-.receipt-status-badge.receipt-draft {
-  background: #f1f5f9;
-  color: #64748b;
-}
-.receipt-status-badge.receipt-cancelled {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-.stocked-row td {
-  background: #f0fdf4;
-  color: #476154;
-}
-.stocked-row:hover td {
-  background: #eafaf0 !important;
-}
+.receipt-status-badge.receipt-confirmed { background: #dcfce7; color: #15803d; }
+.receipt-status-badge.receipt-draft { background: #f1f5f9; color: #64748b; }
+.receipt-status-badge.receipt-cancelled { background: #fee2e2; color: #b91c1c; }
+.stocked-row td { background: #f0fdf4; color: #476154; }
+.stocked-row:hover td { background: #eafaf0 !important; }
 .stocked-row .code-link {
   color: #166534;
   text-decoration: none;
 }
-.cancelled-row td {
-  background: #fff8f8;
-  color: #9ca3af;
-}
-.cancelled-row:hover td {
-  background: #fff1f2 !important;
-}
-.cancelled-row .code-link {
-  color: #b91c1c;
-  text-decoration: line-through;
-}
+.cancelled-row td { background: #fff8f8; color: #9ca3af; }
+.cancelled-row:hover td { background: #fff1f2 !important; }
+.cancelled-row .code-link { color: #b91c1c; text-decoration: line-through; }
 
 .schedule-stocked-mark {
   vertical-align: middle;
@@ -1014,202 +974,4 @@
   color: #b91c1c;
   font-size: 0.82rem;
   font-weight: 650;
-}
-.icon-action.putaway {
-  color: #0f766e;
-  background: #f0fdfa;
-}
-
-.icon-action.location-action {
-  width: auto;
-  min-width: 108px;
-  padding: 0 10px;
-  gap: 6px;
-  white-space: nowrap;
-  font-size: 0.72rem;
-  font-weight: 700;
-}
-
-.status-partially_stocked {
-  background: #cffafe;
-  color: #0e7490;
-}
-
-.putaway-flow-note {
-  margin-bottom: 14px;
-  padding: 10px 12px;
-  border: 1px solid #bae6fd;
-  border-radius: 9px;
-  background: #f0f9ff;
-  color: #075985;
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.quality-checks {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 22px;
-  padding: 14px 16px;
-  border: 1px solid #dbe4df;
-  border-radius: 10px;
-  background: #f8fbf9;
-}
-
-.quality-checks-title {
-  flex-basis: 100%;
-  color: #374151;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.quality-checks label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: #374151;
-  font-size: 13px;
-}
-
-.quality-checks input[type="checkbox"] {
-  width: 17px;
-  height: 17px;
-  accent-color: #15803d;
-}
-
-.putaway-modal {
-  width: min(760px, calc(100vw - 32px));
-}
-
-.putaway-settings {
-  display: grid;
-  grid-template-columns: 1.25fr 1fr 0.8fr auto;
-  gap: 12px;
-  align-items: end;
-  margin-bottom: 18px;
-}
-
-.refresh-suggestion {
-  min-height: 42px;
-  white-space: nowrap;
-}
-
-.putaway-loading,
-.putaway-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 150px;
-  padding: 24px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-  color: #64748b;
-  text-align: center;
-  background: #f8fafc;
-}
-
-.suggestion-list {
-  display: grid;
-  gap: 10px;
-}
-
-.suggestion-card {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 42px 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 14px;
-  border: 1px solid #d8e1dc;
-  border-radius: 12px;
-  color: #334155;
-  text-align: left;
-  background: #fff;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.suggestion-card:hover,
-.suggestion-card.selected {
-  border-color: #16a34a;
-  background: #f0fdf4;
-  box-shadow: 0 0 0 2px rgb(22 163 74 / 10%);
-}
-
-.suggestion-rank {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  color: #166534;
-  font-weight: 800;
-  background: #dcfce7;
-}
-
-.suggestion-main {
-  display: grid;
-  gap: 3px;
-}
-
-.suggestion-main strong {
-  color: #1f2937;
-}
-
-.suggestion-main small {
-  color: #64748b;
-}
-
-.suggestion-score {
-  padding: 5px 9px;
-  border-radius: 999px;
-  color: #166534;
-  font-weight: 800;
-  background: #dcfce7;
-}
-
-.split-hints {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-
-.split-hints span {
-  padding: 5px 9px;
-  border-radius: 999px;
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.putaway-override {
-  margin-top: 16px;
-}
-
-@media (max-width: 760px) {
-  .putaway-settings {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 520px) {
-  .putaway-settings {
-    grid-template-columns: 1fr;
-  }
-
-  .suggestion-card {
-    grid-template-columns: 36px 1fr;
-  }
-
-  .suggestion-score {
-    grid-column: 2;
-    justify-self: start;
-  }
 }
