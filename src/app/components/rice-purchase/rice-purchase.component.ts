@@ -201,7 +201,7 @@ export class RicePurchaseComponent implements OnDestroy {
           page,
           pageSize,
           search: "",
-          sortField: "receiptDate",
+          sortField: "createdDate",
           sortDir: "desc",
         });
 
@@ -254,7 +254,7 @@ export class RicePurchaseComponent implements OnDestroy {
         page: this.schedulePage(),
         pageSize: this.pageSize,
         search: this.scheduleSearch(),
-        sortField: "scheduleDate",
+        sortField: "createdDate",
         sortDir: "desc",
       });
       return this.unwrap(
@@ -278,7 +278,7 @@ export class RicePurchaseComponent implements OnDestroy {
         page: this.receiptPage(),
         pageSize: this.pageSize,
         search: this.receiptSearch(),
-        sortField: "receiptDate",
+        sortField: "createdDate",
         sortDir: "desc",
       });
       return this.unwrap(
@@ -366,7 +366,7 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly scheduleOptions = computed(() =>
     [...(this.scheduleOptionsQuery.data() || [])].sort(
       (a, b) =>
-        new Date(b.scheduleDate).getTime() - new Date(a.scheduleDate).getTime(),
+        new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime(),
     ),
   );
   readonly scheduleRows = computed(
