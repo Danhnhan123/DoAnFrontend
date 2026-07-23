@@ -152,6 +152,13 @@ const adminChildren: Routes = [
     pathMatch: 'full',
   },
   {
+    // Bản đồ khu/cột (sơ đồ mặt phẳng nhìn từ trên xuống của kho).
+    path: 'warehouse-map',
+    loadComponent: () =>
+      import('./components/warehouse-map/warehouse-map.component')
+        .then(m => m.WarehouseMapComponent),
+  },
+  {
     path: 'notifications',
     loadComponent: () =>
       import('./components/notification/notification.component')
