@@ -1,6 +1,7 @@
 import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { lastValueFrom } from 'rxjs';
 import {
   injectQuery,
@@ -54,6 +55,12 @@ export class WarehouseComponent {
   private locationService = inject(LocationService);
   private categoryService = inject(ProductCategoryService);
   private queryClient = injectQueryClient();
+  private router = inject(Router);
+
+  /** Mở màn Bản đồ khu/cột. */
+  goToMap(): void {
+    this.router.navigate(['/admin/warehouse-map']);
+  }
 
   // ===== 1. State bảng KHO (cards) =====
   whPage = signal(1);
@@ -798,6 +805,27 @@ export class WarehouseComponent {
     });
     this.locHydrated.set(true);
   });
+
+  /** Mở popup thêm MỘT khu/cột mới (prefill kho đang chọn nếu có). */
+  openLocCreate(): void {
+    this.editLoc.set(null);
+    this.locHydrated.set(true);
+    this.locForm.set({
+      warehouseId: this.selectedWarehouseId() ?? null,
+      zoneName: '',
+      shelfRow: '',
+      shelfLevel: '',
+      slotCode: '',
+      maxCapacity: null,
+      allowedCategoryId: null,
+      priority: 0,
+      isQuarantine: false,
+      description: '',
+      isActive: true,
+      currentOccupancy: 0,
+    });
+    this.showLocModal.set(true);
+  }
 
   openLocEdit(row: LocationRow): void {
     this.editLoc.set(row);
