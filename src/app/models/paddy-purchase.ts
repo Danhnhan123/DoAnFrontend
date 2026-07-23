@@ -1,4 +1,4 @@
-import { DTParameters } from './search';
+import { DTParameters } from "./search";
 
 /**
  * Một dòng lịch thu mua trả về từ PaddyPurchaseScheduleAggregate / DetailDto.
@@ -107,15 +107,78 @@ export interface ConfirmPaddyPurchaseReceiptResult {
   inboundOrderId: number;
 }
 
+export type PutawayPlacementMode = 1 | 2;
+
+export interface GetPutawaySuggestionsRequest {
+  warehouseId: number;
+  productVariantId: number;
+  paddyLotId?: number | null;
+  requiredWeightKg: number;
+  placementMode: PutawayPlacementMode;
+  top: number;
+}
+
+export interface PutawayScoreDetails {
+  capacityFit: number;
+  occupancyFit: number;
+  categoryMatch: number;
+  priorityNorm: number;
+  [key: string]: number | string | boolean | null | undefined;
+}
+
+export interface PutawaySuggestion {
+  rank: number;
+  locationId: number;
+  locationCode: string;
+  zoneName?: string | null;
+  currentOccupancyKg: number;
+  maxCapacityKg: number;
+  freeCapacityKg: number;
+  remainingAfterKg: number;
+  currentProductVariantId?: number | null;
+  isEmpty: boolean;
+  score: number;
+  scoreDetails?: PutawayScoreDetails | null;
+  reason?: string | null;
+}
+
+export interface SplitPutawaySuggestion {
+  locationId: number;
+  weightKg: number;
+}
+
+export interface PutawaySuggestionsResponse {
+  hasSuggestion: boolean;
+  warehouseId: number;
+  productVariantId: number;
+  requiredWeightKg: number;
+  suggestions: PutawaySuggestion[];
+  message?: string | null;
+  canSplit?: boolean;
+  totalFreeCapacityKg?: number | null;
+  splitSuggestions?: SplitPutawaySuggestion[] | null;
+}
+
+export interface ConfirmStoreInRequest {
+  productVariantId: number;
+  paddyLotId: number;
+  selectedLocationId: number;
+  suggestedLocationId?: number | null;
+  weightKg: number;
+  bagCount?: number | null;
+  overrideReason?: string | null;
+}
+
 export interface PaddyPurchasePagedRequest extends DTParameters {}
 
 export type PaddyScheduleStatusCode =
-  | 'NEW'
-  | 'CONFIRMED'
-  | 'COLLECTING'
-  | 'WEIGHED'
-  | 'STOCKED'
-  | 'CANCELLED';
+  | "NEW"
+  | "CONFIRMED"
+  | "COLLECTING"
+  | "WEIGHED"
+  | "PARTIALLY_STOCKED"
+  | "STOCKED"
+  | "CANCELLED";
 
 export interface PaddyScheduleStatusOption {
   id: number;
