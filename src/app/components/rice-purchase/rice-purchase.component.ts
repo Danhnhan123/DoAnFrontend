@@ -188,6 +188,22 @@ export class RicePurchaseComponent implements OnDestroy {
     staleTime: 30_000,
   }));
 
+  readonly receiptScheduleOptions = computed(() => {
+  // Khi xem phiếu cũ, vẫn giữ lịch đang liên kết để không bị trống select.
+  const editingScheduleId = this.editingReceipt()?.scheduleId ?? null;
+
+  return this.scheduleOptions().filter((schedule) => {
+    const statusCode = this.statusOf(schedule.statusId).code;
+
+    const canCreateReceipt =
+      statusCode !== "CANCELLED" &&
+      statusCode !== "STOCKED" &&
+      statusCode !== "PARTIALLY_STOCKED";
+
+    return canCreateReceipt || schedule.id === editingScheduleId;
+  });
+});
+
   private readonly receiptStatsQuery = injectQuery(() => ({
     queryKey: ["rice-purchase", "receipts", "summary"],
 
@@ -744,20 +760,34 @@ export class RicePurchaseComponent implements OnDestroy {
     this.receiptForm.update((current) => ({ ...current, [field]: value }));
   }
 
-  onReceiptScheduleChange(rawValue: number | string | null): void {
-    const id = rawValue ? Number(rawValue) : null;
-    const schedule = this.scheduleOptions().find((x) => x.id === id);
-    if (schedule && this.isScheduleLocked(schedule)) {
+ onReceiptScheduleChange(
+  rawValue: number | string | null,): void {
+  const id = rawValue ? Number(rawValue) : null;
+  const schedule = this.scheduleOptions().find(
+    (item) => item.id === id,
+  );
+
+  if (schedule) {
+    const statusCode = this.statusOf(schedule.statusId).code;
+
+    if (
+      statusCode === "CANCELLED" ||
+      statusCode === "STOCKED" ||
+      statusCode === "PARTIALLY_STOCKED"
+    ) {
       this.showError(
-        "Lịch thu mua này đã hủy hoặc đã nhập kho nên không thể liên kết với phiếu mua.",
+        "Lịch thu mua này đã hủy hoặc đã bắt đầu nhập kho nên không thể tạo phiếu mới.",
       );
       return;
     }
+  }
+
     this.receiptForm.update((current) => ({
       ...current,
       scheduleId: id,
       farmerId: schedule?.farmerId ?? current.farmerId,
-      riceVarietyId: schedule?.riceVarietyId ?? current.riceVarietyId,
+      riceVarietyId:
+        schedule?.riceVarietyId ?? current.riceVarietyId,
     }));
   }
 
