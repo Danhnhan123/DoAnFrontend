@@ -811,7 +811,7 @@
               <option [ngValue]="null">
                 Không gắn lịch — chọn nông dân trực tiếp
               </option>
-              @for (schedule of scheduleOptions(); track schedule.id) {
+              @for (schedule of receiptScheduleOptions(); track schedule.id) {
                 <option [ngValue]="schedule.id">
                   {{ schedule.scheduleCode }} · {{ schedule.farmerName }} ·
                   {{ formatDate(schedule.scheduleDate) }}
@@ -1032,13 +1032,6 @@
             ×
           </button>
         </header>
-
-        <div class="putaway-flow-note">
-          <strong>Luồng xử lý an toàn:</strong>
-          phiếu đã được chốt để sinh lô ở vùng chờ. API store-in bên dưới mới
-          chuyển đúng khối lượng sang vị trí thực tế, nên không cộng tồn kho hai
-          lần.
-        </div>
 
         <div class="modal-body putaway-body">
           <div class="putaway-settings">
