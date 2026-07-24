@@ -213,6 +213,12 @@ const adminChildren: Routes = [
         .then(m => m.PaddyLotComponent),
   },
   {
+    path: 'milling-orders',
+    loadComponent: () =>
+      import('./components/milling-order/milling-order.component')
+        .then(m => m.MillingOrderComponent),
+  },
+  {
     path: 'quality-inspections',
     loadComponent: () =>
       import('./components/quality-inspection/quality-inspection.component')
