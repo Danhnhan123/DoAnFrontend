@@ -212,6 +212,12 @@ const adminChildren: Routes = [
       import('./components/paddy-lot/paddy-lot.component')
         .then(m => m.PaddyLotComponent),
   },
+  {
+    path: 'quality-inspections',
+    loadComponent: () =>
+      import('./components/quality-inspection/quality-inspection.component')
+        .then(m => m.QualityInspectionComponent),
+  },
   // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
   {
     path: '**',
