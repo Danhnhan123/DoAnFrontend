@@ -1,0 +1,317 @@
+<div class="qc-page">
+  <!-- ===== Banner ===== -->
+  <div class="qc-banner">
+    <div class="qc-banner-main">
+      <span class="qc-tag">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        Quản lý chất lượng &amp; cách ly lô
+      </span>
+      <h2 class="qc-banner-title">Rủi ro chất lượng theo Mã lô + Vị trí + Số lượng ảnh hưởng</h2>
+      <p class="qc-banner-sub">
+        Hệ thống không mặc định khóa toàn bộ lô ở mọi nơi. Khi phát hiện rủi ro, chỉ phần tồn bị ảnh hưởng tại vị trí cụ thể
+        được chuyển sang cảnh báo, chờ kiểm tra hoặc cách ly.
+      </p>
+    </div>
+    <button class="btn btn-primary qc-create-btn" type="button" (click)="openCreate()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Tạo phiếu kiểm tra
+    </button>
+  </div>
+
+  <!-- ===== KPI ===== -->
+  <div class="qc-kpis">
+    <div class="qc-kpi">
+      <span class="qc-kpi-label">Tổng phiếu kiểm</span>
+      <span class="qc-kpi-value">{{ kpiTotal() }}</span>
+    </div>
+    <div class="qc-kpi">
+      <span class="qc-kpi-label">Cách ly / không đạt</span>
+      <span class="qc-kpi-value amber">{{ kpiQuarantine() }}</span>
+    </div>
+    <div class="qc-kpi">
+      <span class="qc-kpi-label">Đạt chất lượng</span>
+      <span class="qc-kpi-value green">{{ kpiPassed() }}</span>
+    </div>
+    <div class="qc-kpi">
+      <span class="qc-kpi-label">Đang xử lý (phơi/sấy/đảo)</span>
+      <span class="qc-kpi-value amber">{{ kpiHandling() }}</span>
+    </div>
+  </div>
+
+  <!-- ===== Split ===== -->
+  <div class="qc-split">
+    <!-- LEFT: risk / quarantine list -->
+    <div class="card qc-panel">
+      <div class="qc-panel-head">
+        <h3>Danh sách lô rủi ro / cách ly theo vị trí</h3>
+        <div class="qc-head-tools">
+          <div class="qc-search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input placeholder="Tìm mã lô, người kiểm..." [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+          </div>
+          <app-filter-select style="width:160px" [options]="resultFilterOptions" allLabel="Tất cả kết quả"
+            [value]="filterPassed()" (valueChange)="filterPassed.set($event); page.set(1)"></app-filter-select>
+          <app-filter-select style="width:118px" [clearable]="false" [options]="pageSizeOptions"
+            [value]="pageSize()" (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+        </div>
+      </div>
+
+      @if (loading()) {
+      <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+      } @else if (rows().length === 0) {
+      <div class="state-box"><span style="font-size:2.2rem">□</span><p>Chưa có phiếu kiểm định</p></div>
+      } @else {
+      <div class="qc-table-wrap">
+        <table class="qc-table">
+          <thead>
+            <tr>
+              <th>MÃ LÔ</th>
+              <th>LOẠI HÀNG</th>
+              <th>VỊ TRÍ</th>
+              <th>SỐ LƯỢNG</th>
+              <th>RỦI RO CHÍNH</th>
+              <th>MỨC ĐỘ</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+            <tr [class.selected]="row.id === selectedId()" (click)="selectRow(row)">
+              <td>
+                <div class="lot-link">{{ row.lotCode || ('Lô #' + row.paddyLotId) }}</div>
+                <div class="cell-sub">{{ statusText(row) }}</div>
+              </td>
+              <td class="cell-strong">{{ productName(row) }}</td>
+              <td class="cell-muted">{{ locationName(row) }}</td>
+              <td>
+                <div class="cell-strong">{{ affectedMain(row) }}</div>
+                <div class="cell-sub">{{ affectedSub(row) }}</div>
+              </td>
+              <td class="cell-muted">{{ riskText(row) }}</td>
+              <td>
+                <span class="lvl-pill" [ngClass]="severity(row).cls">
+                  <span class="lvl-dot"></span>{{ severity(row).label }}
+                </span>
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages() > 1) {
+      <div class="qc-pagination">
+        <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+        <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+        @if (visiblePages()[0] > 1) { <span class="page-dots">…</span> }
+        @for (p of visiblePages(); track p) {
+        <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+        }
+        @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">…</span> }
+        <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+        <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+        <span class="page-info">{{ page() }}/{{ totalPages() }} · {{ totalRecords() }} phiếu</span>
+      </div>
+      }
+      }
+    </div>
+
+    <!-- RIGHT: detail + history -->
+    <div class="qc-side">
+      <div class="card qc-panel">
+        @if (selectedRow(); as sel) {
+        <div class="qc-panel-head">
+          <h3>Chi tiết xử lý {{ sel.lotCode || ('#' + sel.paddyLotId) }}</h3>
+        </div>
+        <div class="qc-detail">
+          <div class="d-row"><span>Mã lô</span><b>{{ sel.lotCode || ('#' + sel.paddyLotId) }}</b></div>
+          <div class="d-row"><span>Loại hàng</span><b>{{ productName(sel) }}</b></div>
+          <div class="d-row"><span>Vị trí</span><b>{{ locationName(sel) }}</b></div>
+          <div class="d-row"><span>Tổng tồn của lô</span><b>{{ fmtKg(lotWeightKg(sel)) }}</b></div>
+          <div class="d-row"><span>Số lượng ảnh hưởng</span><b>{{ affectedMain(sel) }}</b></div>
+          <div class="d-row"><span>Phạm vi xử lý</span><b>{{ scopeText(sel) }}</b></div>
+          <div class="d-row"><span>Độ ẩm</span><b>{{ sel.moisturePercent != null ? sel.moisturePercent + '%' : '—' }}</b></div>
+          <div class="d-row"><span>Tạp chất</span><b>{{ sel.impurityPercent != null ? sel.impurityPercent + '%' : '—' }}</b></div>
+          <div class="d-row"><span>Mốc / Sâu mọt</span><b>{{ (sel.moldLevel || '—') }} / {{ (sel.pestLevel || '—') }}</b></div>
+          <div class="d-row"><span>Đóng gói</span><b>{{ sel.packagingStatus || '—' }}</b></div>
+          <div class="d-row"><span>Rủi ro chính</span><b>{{ riskText(sel) }}</b></div>
+          <div class="d-row"><span>Mức độ</span>
+            <b><span class="lvl-pill" [ngClass]="severity(sel).cls"><span class="lvl-dot"></span>{{ severity(sel).label }}</span></b>
+          </div>
+          <div class="d-row"><span>Trạng thái</span>
+            <b><span class="status-chip" [class.ok]="sel.passedInspection" [class.bad]="!sel.passedInspection">{{ statusText(sel) }}</span></b>
+          </div>
+          <div class="d-row"><span>Hướng xử lý</span><b>{{ sel.handling || '—' }}</b></div>
+          <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
+        </div>
+        <div class="qc-detail-actions">
+          <button class="btn btn-danger-soft" type="button" (click)="deleteSelected()"
+            [disabled]="wasSplit(sel)"
+            [title]="wasSplit(sel) ? 'Phiếu đã tách lô cách ly — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
+          <button class="btn btn-primary" type="button" (click)="openEditSelected()">Sửa phiếu</button>
+        </div>
+        } @else {
+        <div class="state-box"><span style="font-size:2rem">☰</span><p>Chọn một dòng để xem chi tiết xử lý</p></div>
+        }
+      </div>
+
+      <div class="card qc-panel">
+        <div class="qc-panel-head"><h3>Lịch sử kiểm tra</h3></div>
+        @if (historyQuery.isFetching()) {
+        <div class="state-box"><span class="spin-lg"></span></div>
+        } @else if (historyRows().length === 0) {
+        <div class="state-box"><p class="cell-muted">Chưa có lịch sử kiểm tra cho lô này</p></div>
+        } @else {
+        <ul class="qc-timeline">
+          @for (h of historyRows(); track h.id) {
+          <li>
+            <span class="tl-dot" [ngClass]="severity(h).cls"></span>
+            <div class="tl-body">
+              <div class="tl-title">{{ h.lotCode || ('#' + h.paddyLotId) }} · <span [class.ok-text]="h.passedInspection" [class.bad-text]="!h.passedInspection">{{ statusText(h) }}</span></div>
+              <div class="tl-meta">{{ h.handling || 'Chưa xử lý' }}<span *ngIf="h.packagingStatus"> · Bao {{ h.packagingStatus }}</span></div>
+              <div class="tl-meta muted">{{ h.inspectorName || 'N/A' }} · {{ h.inspectedAt | date:'dd/MM/yyyy HH:mm' }}</div>
+              @if (h.note) { <div class="tl-note">{{ h.note }}</div> }
+            </div>
+          </li>
+          }
+        </ul>
+        }
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Modal tạo / sửa phiếu ===== -->
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal-box wide qc-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="qc-modal-title">
+        <h3>{{ isEdit() ? 'Cập nhật phiếu kiểm tra chất lượng' : 'Tạo phiếu kiểm tra chất lượng' }}</h3>
+        <span class="qc-modal-badge">Lô + Chỉ số + Quyết định</span>
+      </div>
+      <button class="modal-close" type="button" (click)="closeModal()">×</button>
+    </div>
+
+    @if (loadingDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    <div class="modal-body">
+      <!-- 1 -->
+      <div class="qc-section">
+        <div class="qc-section-title">1. Lô được kiểm tra &amp; phạm vi ảnh hưởng</div>
+        @if (editLockedSplit()) {
+        <div class="qc-lock-note">Phiếu này đã tách lô cách ly — không thể đổi Lô, Kết quả hay Kg ảnh hưởng, và không thể xóa.</div>
+        }
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Mã lô *</label>
+            <app-filter-select [options]="lotOptions()" [clearable]="false" placeholder="-- Chọn lô --"
+              [disabled]="editLockedSplit()"
+              [value]="form().paddyLotId" (valueChange)="setField('paddyLotId', $event)"></app-filter-select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Loại hàng</label>
+            <div class="qc-readonly">{{ formLot()?.productVariantName || '— chọn lô để tự điền —' }}</div>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Vị trí</label>
+            <div class="qc-readonly">{{ formLot()?.warehouseName || (formLot() ? ('Kho #' + formLot()?.warehouseId) : '—') }}</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tổng tồn của lô</label>
+            <div class="qc-readonly">{{ formLot() ? fmtKg(formLot()?.remainingWeightKg) : '—' }}</div>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Kg ảnh hưởng (tách sang cách ly)</label>
+            <input class="form-control" type="number" step="0.1" min="0" [disabled]="editLockedSplit()"
+              [ngModel]="form().affectedWeightKg" (ngModelChange)="setField('affectedWeightKg', $event)"
+              placeholder="VD: 500 — để trống nếu cách ly toàn bộ" />
+            <div class="qc-hint">Chỉ áp dụng khi bấm “Lưu &amp; cách ly”. Phải nhỏ hơn tồn còn lại{{ formLot() ? ' (' + fmtKg(formLot()?.remainingWeightKg) + ')' : '' }}.</div>
+          </div>
+          <div class="form-group"></div>
+        </div>
+      </div>
+
+      <!-- 2 -->
+      <div class="qc-section">
+        <div class="qc-section-title">2. Chỉ số kiểm định</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label">Độ ẩm (%)</label>
+            <input class="form-control" type="number" step="0.1" min="0" max="100" [ngModel]="form().moisturePercent" (ngModelChange)="setField('moisturePercent', $event)" placeholder="VD: 14.5" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tạp chất (%)</label>
+            <input class="form-control" type="number" step="0.1" min="0" max="100" [ngModel]="form().impurityPercent" (ngModelChange)="setField('impurityPercent', $event)" placeholder="VD: 2.0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tình trạng đóng gói</label>
+            <app-filter-select [options]="packagingOptions" allLabel="-- Không đánh giá --"
+              [value]="form().packagingStatus" (valueChange)="setField('packagingStatus', $event)"></app-filter-select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3 -->
+      <div class="qc-section">
+        <div class="qc-section-title">3. Đánh giá &amp; quyết định</div>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label class="form-label">Mức độ mốc</label>
+            <app-filter-select [options]="moldOptions" allLabel="-- Không đánh giá --"
+              [value]="form().moldLevel" (valueChange)="setField('moldLevel', $event)"></app-filter-select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mức độ sâu mọt</label>
+            <app-filter-select [options]="pestOptions" allLabel="-- Không đánh giá --"
+              [value]="form().pestLevel" (valueChange)="setField('pestLevel', $event)"></app-filter-select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hướng xử lý</label>
+            <app-filter-select [options]="handlingOptions" allLabel="-- Chọn hướng --"
+              [value]="form().handling" (valueChange)="setField('handling', $event)"></app-filter-select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label class="form-label">Người kiểm</label>
+            <app-filter-select [options]="userOptions()" allLabel="-- Không chọn --"
+              [value]="form().inspectorId" (valueChange)="setField('inspectorId', $event)"></app-filter-select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ngày kiểm *</label>
+            <input class="form-control" type="datetime-local" [ngModel]="form().inspectedAt" (ngModelChange)="setField('inspectedAt', $event)" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú</label>
+          <textarea class="form-control" rows="2" [ngModel]="form().note" (ngModelChange)="setField('note', $event)" placeholder="Mẫu đo đại diện toàn bộ cột/lớp không, lý do tách một phần, điều kiện mở khóa..." maxlength="500"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer qc-modal-footer">
+      <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
+      <button class="btn btn-amber" type="button" (click)="save(false)" [disabled]="saving()">
+        @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; cách ly lô
+      </button>
+      @if (!editLockedSplit()) {
+      <button class="btn btn-primary" type="button" (click)="save(true)" [disabled]="saving()">
+        @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; duyệt đạt
+      </button>
+      }
+    </div>
+    }
+  </div>
+</div>
+}
