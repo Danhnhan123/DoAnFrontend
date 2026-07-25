@@ -4,7 +4,6 @@ export type MillingOrderStatusCode =
   | 'DRAFT'
   | 'RESERVED'
   | 'IN_PROGRESS'
-  | 'AWAITING_OUTPUT'
   | 'COMPLETED'
   | 'CANCELLED';
 
@@ -85,16 +84,6 @@ export interface CreateMillingOrderPayload {
   expectedYield: number;
   targetRiceKg: number;
   expectedCompletionDate?: string | null;
-
-  // Contract tương lai: BE hiện tại bỏ qua các field chưa có trong DTO.
-  sourceType?: 'SALES_ORDER' | 'PRODUCTION_PLAN';
-  productionPlanRef?: string | null;
-  riceVarietyId?: number | null;
-  moisturePercent?: number | null;
-  configuredYieldRate?: number;
-  computedPaddyKg?: number;
-  millingCost?: number | null;
-  incidentalCost?: number | null;
 }
 
 export interface UpdateMillingOrderPayload extends CreateMillingOrderPayload {
@@ -121,9 +110,6 @@ export interface MillingOrderOutputPayload {
   bagCount?: number | null;
   isByproduct: boolean;
   unitCost?: number | null;
-
-  // Dùng để BE có thể kiểm tra quy cách bao sau khi nâng cấp.
-  bagWeightKg?: number | null;
 }
 
 export interface CompleteMillingOrderPayload {
@@ -134,13 +120,6 @@ export interface CompleteMillingOrderPayload {
   machineRef?: string | null;
   operatorId?: number | null;
   note?: string | null;
-
-  // Contract tương lai theo SRS.
-  configuredYieldRate?: number;
-  finishedRiceWeightKg?: number;
-  computedPaddyKg?: number;
-  millingCost?: number | null;
-  incidentalCost?: number | null;
 }
 
 export interface MillingOrderPagedRequest extends DTParameters {}
