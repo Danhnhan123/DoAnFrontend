@@ -63,6 +63,7 @@ export class AdminLayoutComponent implements OnInit {
     'rice-purchase': 'Lịch & Phiếu mua lúa',
     'paddy-lots': 'Quản lý lô & truy vết',
     'quality-inspections': 'Quản lý chất lượng & cách ly lô',
+    'sales-orders': 'Quản lý đơn bán',
     'inbound-orders': 'Đơn nhập kho',
     'iot-devices': 'Thiết bị IoT',
     suppliers: 'Nhà cung cấp',

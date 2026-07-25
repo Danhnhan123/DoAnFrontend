@@ -224,6 +224,12 @@ const adminChildren: Routes = [
       import('./components/quality-inspection/quality-inspection.component')
         .then(m => m.QualityInspectionComponent),
   },
+  {
+    path: 'sales-orders',
+    loadComponent: () =>
+      import('./components/sales-order/sales-order.component')
+        .then(m => m.SalesOrderComponent),
+  },
   // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
   {
     path: '**',

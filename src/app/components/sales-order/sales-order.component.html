@@ -1,0 +1,735 @@
+<div class="so-page">
+  <section class="so-hero">
+    <div>
+      <span class="so-eyebrow">SALES ORDER MANAGEMENT</span>
+      <h1>Đơn bán trực tiếp &amp; bán sỉ</h1>
+      <p>
+        Tạo đơn, xác nhận, giữ hàng, liên kết lệnh xay và chuẩn bị phiếu xuất
+        theo đúng trạng thái backend hiện tại.
+      </p>
+    </div>
+    <div class="so-hero-actions">
+      <button
+        class="so-btn so-btn-secondary"
+        type="button"
+        (click)="refresh()"
+        [disabled]="fetching()"
+      >
+        <span [class.so-spin]="fetching()">↻</span>
+        Làm mới
+      </button>
+      <button class="so-btn so-btn-primary" type="button" (click)="openCreate()">
+        <span>＋</span>
+        Tạo đơn bán
+      </button>
+    </div>
+  </section>
+
+  <section class="so-kpis">
+    <article class="so-kpi">
+      <span class="so-kpi-icon blue">▤</span>
+      <div>
+        <span class="so-kpi-label">Tổng đơn</span>
+        <strong>{{ total() }}</strong>
+        <small>Toàn bộ kết quả tìm kiếm</small>
+      </div>
+    </article>
+    <article class="so-kpi">
+      <span class="so-kpi-icon slate">＋</span>
+      <div>
+        <span class="so-kpi-label">Đơn mới trên trang</span>
+        <strong>{{ pageNewCount() }}</strong>
+        <small>Có thể sửa hoặc xác nhận</small>
+      </div>
+    </article>
+    <article class="so-kpi">
+      <span class="so-kpi-icon amber">◷</span>
+      <div>
+        <span class="so-kpi-label">Đang xử lý trên trang</span>
+        <strong>{{ pageProcessingCount() }}</strong>
+        <small>Chờ giữ hàng, xay hoặc giao</small>
+      </div>
+    </article>
+    <article class="so-kpi">
+      <span class="so-kpi-icon green">₫</span>
+      <div>
+        <span class="so-kpi-label">Giá trị trên trang</span>
+        <strong class="money">{{ fmtMoney(pageValue()) }}</strong>
+        <small>Giá trị đơn dự kiến</small>
+      </div>
+    </article>
+  </section>
+
+  <section class="so-card so-list-card">
+    <div class="so-toolbar">
+      <div class="so-tabs" role="tablist" aria-label="Lọc kênh bán">
+        <button
+          type="button"
+          [class.active]="channelFilter() === 'ALL'"
+          (click)="setChannel('ALL')"
+        >
+          Tất cả
+        </button>
+        <button
+          type="button"
+          [class.active]="channelFilter() === 'DIRECT'"
+          (click)="setChannel('DIRECT')"
+        >
+          Bán trực tiếp
+        </button>
+        <button
+          type="button"
+          [class.active]="channelFilter() === 'WHOLESALE'"
+          (click)="setChannel('WHOLESALE')"
+        >
+          Bán sỉ
+        </button>
+      </div>
+
+      <div class="so-tools">
+        <label class="so-search">
+          <span>⌕</span>
+          <input
+            type="search"
+            placeholder="Tìm mã đơn, khách hàng..."
+            [ngModel]="searchInput()"
+            (ngModelChange)="onSearchInput($event)"
+          />
+        </label>
+        <select
+          class="so-page-size"
+          aria-label="Số dòng mỗi trang"
+          [ngModel]="pageSize()"
+          (ngModelChange)="setPageSize($event)"
+        >
+          @for (size of pageSizeOptions; track size) {
+          <option [value]="size">{{ size }} / trang</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (channelFilter() !== 'ALL') {
+    <div class="so-api-note">
+      Bộ lọc kênh đang áp dụng trên trang dữ liệu hiện tại vì API chưa hỗ trợ lọc
+      kênh server-side.
+    </div>
+    }
+
+    <div class="so-workspace">
+      <div class="so-table-panel">
+        @if (loading()) {
+        <div class="so-state">
+          <span class="so-loader"></span>
+          <p>Đang tải danh sách đơn bán...</p>
+        </div>
+        } @else if (rows().length === 0) {
+        <div class="so-state">
+          <span class="so-empty-icon">▤</span>
+          <h3>Chưa có đơn phù hợp</h3>
+          <p>Đổi bộ lọc hoặc tạo đơn bán đầu tiên.</p>
+        </div>
+        } @else {
+        <div class="so-table-wrap">
+          <table class="so-table">
+            <thead>
+              <tr>
+                <th>MÃ ĐƠN</th>
+                <th>KHÁCH HÀNG</th>
+                <th>KÊNH</th>
+                <th>NGÀY GIAO</th>
+                <th class="number">TỔNG TIỀN</th>
+                <th>TRẠNG THÁI</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rows(); track row.id) {
+              <tr
+                tabindex="0"
+                [class.selected]="row.id === selectedId()"
+                (click)="selectOrder(row.id)"
+                (keydown.enter)="selectOrder(row.id)"
+              >
+                <td>
+                  <strong class="so-code">{{ row.soCode }}</strong>
+                  <span class="so-cell-sub">{{ fmtDate(row.orderDate, true) }}</span>
+                </td>
+                <td>
+                  <strong>{{ row.customerName }}</strong>
+                  <span class="so-cell-sub">{{ row.warehouseName || 'Chưa có kho' }}</span>
+                </td>
+                <td>
+                  <span
+                    class="so-channel"
+                    [class.wholesale]="row.channel === 'WHOLESALE'"
+                  >
+                    {{ channelLabel(row.channel) }}
+                  </span>
+                </td>
+                <td>
+                  <span>{{ fmtDate(row.expectedDeliveryDate, true) }}</span>
+                  @if (row.requiresMilling) {
+                  <span class="so-milling-label">Cần xay</span>
+                  }
+                </td>
+                <td class="number">
+                  <strong>{{ fmtMoney(row.totalAmount) }}</strong>
+                  @if ((row.depositAmount || 0) > 0) {
+                  <span class="so-cell-sub">Cọc {{ fmtMoney(row.depositAmount) }}</span>
+                  }
+                </td>
+                <td>
+                  <span
+                    class="so-status"
+                    [style.color]="row.statusColor || '#475569'"
+                    [style.background]="(row.statusColor || '#64748b') + '18'"
+                  >
+                    <i [style.background]="row.statusColor || '#64748b'"></i>
+                    {{ row.statusName }}
+                  </span>
+                </td>
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        }
+
+        @if (totalPages() > 1) {
+        <div class="so-pagination">
+          <span>Trang {{ page() }}/{{ totalPages() }} · {{ total() }} đơn</span>
+          <div>
+            <button
+              type="button"
+              (click)="setPage(page() - 1)"
+              [disabled]="page() === 1"
+            >
+              ‹
+            </button>
+            @for (item of visiblePages(); track item) {
+            <button
+              type="button"
+              [class.active]="item === page()"
+              (click)="setPage(item)"
+            >
+              {{ item }}
+            </button>
+            }
+            <button
+              type="button"
+              (click)="setPage(page() + 1)"
+              [disabled]="page() === totalPages()"
+            >
+              ›
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+
+      <aside class="so-detail-panel">
+        @if (detailLoading() && !detail()) {
+        <div class="so-state compact">
+          <span class="so-loader"></span>
+          <p>Đang tải chi tiết...</p>
+        </div>
+        } @else {
+        @if (detail(); as order) {
+        <div class="so-detail-head">
+          <div>
+            <span class="so-detail-label">CHI TIẾT ĐƠN</span>
+            <h2>{{ order.soCode }}</h2>
+          </div>
+          <span
+            class="so-status"
+            [style.color]="order.statusColor || '#475569'"
+            [style.background]="(order.statusColor || '#64748b') + '18'"
+          >
+            <i [style.background]="order.statusColor || '#64748b'"></i>
+            {{ order.statusName }}
+          </span>
+        </div>
+
+        @if (order.requiresMilling && order.statusId === status.PENDING_CONFIRM) {
+        <div class="so-warning">
+          <strong>Đơn này cần xay.</strong>
+          Backend chỉ cho giữ hàng sau khi có lệnh xay liên quan đã hoàn tất.
+        </div>
+        }
+
+        <div class="so-detail-grid">
+          <div>
+            <span>Khách hàng</span>
+            <strong>{{ order.customerName }}</strong>
+            <small>{{ order.customerPhone || 'Không có số điện thoại' }}</small>
+          </div>
+          <div>
+            <span>Kênh bán</span>
+            <strong>{{ channelLabel(order.channel) }}</strong>
+            <small>{{ order.channel }}</small>
+          </div>
+          <div>
+            <span>Kho xuất</span>
+            <strong>{{ order.warehouseName || '—' }}</strong>
+            <small>Kho #{{ order.warehouseId || '—' }}</small>
+          </div>
+          <div>
+            <span>Ngày giao dự kiến</span>
+            <strong>{{ fmtDate(order.expectedDeliveryDate, true) }}</strong>
+            <small>{{ order.requiresMilling ? 'Có yêu cầu xay' : 'Dùng gạo thành phẩm' }}</small>
+          </div>
+        </div>
+
+        <div class="so-section">
+          <div class="so-section-title">
+            <h3>Sản phẩm</h3>
+            <span>{{ order.items.length }} dòng</span>
+          </div>
+          <div class="so-item-list">
+            @for (item of order.items; track item.id) {
+            <article class="so-order-item">
+              <div>
+                <strong>{{ item.productVariantName }}</strong>
+                <span>{{ item.sku || ('SKU #' + item.productVariantId) }}</span>
+              </div>
+              <div class="so-item-qty">
+                <strong>{{ fmtNumber(item.quantityOrdered) }} kg</strong>
+                <span>{{ fmtMoney(item.unitSalePrice) }}/kg</span>
+              </div>
+              <strong class="so-item-amount">{{ fmtMoney(item.lineAmount) }}</strong>
+            </article>
+            }
+          </div>
+        </div>
+
+        <div class="so-payment">
+          <div><span>Tổng tiền</span><strong>{{ fmtMoney(order.totalAmount) }}</strong></div>
+          <div><span>Đã cọc</span><strong class="paid">{{ fmtMoney(order.depositAmount) }}</strong></div>
+          <div class="remaining"><span>Còn phải thu</span><strong>{{ fmtMoney(order.remainingAmount) }}</strong></div>
+        </div>
+
+        @if (order.shippingAddress || order.note) {
+        <div class="so-note-box">
+          @if (order.shippingAddress) {
+          <p><b>Giao đến:</b> {{ order.shippingAddress }}</p>
+          }
+          @if (order.note) {
+          <p><b>Ghi chú:</b> {{ order.note }}</p>
+          }
+        </div>
+        }
+
+        <div class="so-section">
+          <div class="so-section-title">
+            <h3>Lệnh xay liên quan</h3>
+            <button type="button" class="so-link" (click)="openMillingOrders(order)">
+              Mở màn lệnh xay →
+            </button>
+          </div>
+          @if (millingFetching()) {
+          <div class="so-inline-loading">Đang tải lệnh xay...</div>
+          } @else if (millingOrders().length === 0) {
+          <div class="so-empty-line">Chưa có lệnh xay gắn với đơn này.</div>
+          } @else {
+          <div class="so-related-list">
+            @for (milling of millingOrders(); track milling.id) {
+            <div>
+              <span>
+                <b>{{ milling.millingCode }}</b>
+                <small>{{ milling.statusName || milling.statusCode || '—' }}</small>
+              </span>
+              <strong>{{ fmtNumber(milling.totalRiceOutputKg) }} kg</strong>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="so-section">
+          <div class="so-section-title">
+            <h3>Phiếu xuất</h3>
+            <span>{{ order.outboundOrders.length }} phiếu</span>
+          </div>
+          @if (order.outboundOrders.length === 0) {
+          <div class="so-empty-line">Chưa tạo phiếu xuất cho đơn.</div>
+          } @else {
+          <div class="so-related-list">
+            @for (outbound of order.outboundOrders; track outbound.id) {
+            <div>
+              <span>
+                <b>Phiếu xuất #{{ outbound.id }}</b>
+                <small>{{ outbound.outboundStatusName }}</small>
+              </span>
+              <strong>{{ fmtMoney(outbound.totalDispatchedSaleValue) }}</strong>
+            </div>
+            }
+          </div>
+          }
+        </div>
+
+        <div class="so-detail-actions">
+          @if (canEdit(order)) {
+          <button class="so-btn so-btn-secondary" type="button" (click)="openEdit()">
+            Sửa đơn
+          </button>
+          }
+          @if (canConfirm(order)) {
+          <button
+            class="so-btn so-btn-primary"
+            type="button"
+            (click)="confirmOrder(order)"
+            [disabled]="acting()"
+          >
+            Xác nhận đơn
+          </button>
+          }
+          @if (canReserve(order)) {
+          <button
+            class="so-btn so-btn-purple"
+            type="button"
+            (click)="reserveOrder(order)"
+            [disabled]="acting()"
+          >
+            Kiểm tra &amp; giữ hàng
+          </button>
+          }
+          @if (canCreateOutbound(order)) {
+          <button
+            class="so-btn so-btn-primary"
+            type="button"
+            (click)="openOutbound(order)"
+            [disabled]="acting()"
+          >
+            Tạo phiếu xuất
+          </button>
+          }
+          @if (canCancel(order)) {
+          <button
+            class="so-btn so-btn-danger"
+            type="button"
+            (click)="cancelOrder(order)"
+            [disabled]="acting()"
+          >
+            Hủy đơn
+          </button>
+          }
+        </div>
+        } @else {
+        <div class="so-state compact">
+          <span class="so-empty-icon">☰</span>
+          <h3>Chọn một đơn bán</h3>
+          <p>Chi tiết và thao tác sẽ hiển thị tại đây.</p>
+        </div>
+        }
+        }
+      </aside>
+    </div>
+  </section>
+</div>
+
+@if (showFormModal()) {
+<div class="so-modal-backdrop" (click)="closeForm()">
+  <section
+    class="so-modal so-form-modal"
+    role="dialog"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="so-modal-head">
+      <div>
+        <span>{{ isEditing() ? 'CẬP NHẬT ĐƠN' : 'ĐƠN BÁN MỚI' }}</span>
+        <h2>{{ isEditing() ? 'Sửa thông tin đơn bán' : 'Tạo đơn bán' }}</h2>
+      </div>
+      <button type="button" aria-label="Đóng" (click)="closeForm()">×</button>
+    </header>
+
+    <div class="so-modal-body">
+      @if (isEditing()) {
+      <div class="so-info">
+        Backend chỉ cho đổi ngày giao, địa chỉ, tiền cọc, ghi chú và sản phẩm
+        khi đơn còn ở trạng thái Mới tạo.
+      </div>
+      }
+
+      <div class="so-form-section">
+        <div class="so-form-section-title">
+          <span>1</span>
+          <div>
+            <h3>Thông tin chung</h3>
+            <p>Khách hàng, kênh bán và kế hoạch giao hàng.</p>
+          </div>
+        </div>
+        <div class="so-form-grid">
+          <label>
+            <span>Khách hàng *</span>
+            <select
+              [disabled]="isEditing()"
+              [ngModel]="form().customerId || ''"
+              (ngModelChange)="setCustomer($event)"
+            >
+              <option value="">Chọn khách hàng</option>
+              @for (customer of customers(); track customer.id) {
+              <option [value]="customer.id">
+                {{ customer.code ? customer.code + ' · ' : '' }}{{ customer.name }}
+              </option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Kho xuất *</span>
+            <select
+              [disabled]="isEditing()"
+              [ngModel]="form().warehouseId || ''"
+              (ngModelChange)="setFormField('warehouseId', $event ? +$event : null)"
+            >
+              <option value="">Chọn kho xuất</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+              <option [value]="warehouse.id">
+                {{ warehouse.code ? warehouse.code + ' · ' : '' }}{{ warehouse.name }}
+              </option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Kênh bán *</span>
+            <select
+              [disabled]="isEditing()"
+              [ngModel]="form().channel"
+              (ngModelChange)="setFormField('channel', $event)"
+            >
+              <option value="DIRECT">Bán trực tiếp (DIRECT)</option>
+              <option value="WHOLESALE">Bán sỉ (WHOLESALE)</option>
+            </select>
+          </label>
+          <label>
+            <span>Ngày giao dự kiến</span>
+            <input
+              type="datetime-local"
+              [ngModel]="form().expectedDeliveryDate"
+              (ngModelChange)="setFormField('expectedDeliveryDate', $event)"
+            />
+          </label>
+          <label class="so-span-2">
+            <span>Địa chỉ giao hàng</span>
+            <input
+              type="text"
+              maxlength="500"
+              placeholder="Địa chỉ nhận hàng"
+              [ngModel]="form().shippingAddress"
+              (ngModelChange)="setFormField('shippingAddress', $event)"
+            />
+          </label>
+          <label class="so-check so-span-2">
+            <input
+              type="checkbox"
+              [disabled]="isEditing()"
+              [ngModel]="form().requiresMilling"
+              (ngModelChange)="setFormField('requiresMilling', $event)"
+            />
+            <span>
+              <b>Đơn cần xay mới có gạo giao</b>
+              <small>
+                Sau khi tạo và xác nhận, hãy tạo/hoàn thành lệnh xay trước khi
+                bấm giữ hàng.
+              </small>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div class="so-form-section">
+        <div class="so-form-section-head">
+          <div class="so-form-section-title">
+            <span>2</span>
+            <div>
+              <h3>Sản phẩm</h3>
+              <p>Không thêm hai dòng trùng cùng một SKU.</p>
+            </div>
+          </div>
+          <button class="so-btn so-btn-secondary small" type="button" (click)="addLine()">
+            ＋ Thêm sản phẩm
+          </button>
+        </div>
+
+        <div class="so-lines">
+          @for (line of form().items; track line.key; let index = $index) {
+          <article class="so-line">
+            <div class="so-line-number">{{ index + 1 }}</div>
+            <div class="so-line-fields">
+              <label class="product">
+                <span>Sản phẩm / SKU *</span>
+                <select
+                  [ngModel]="line.productVariantId || ''"
+                  (ngModelChange)="selectVariant(index, $event)"
+                >
+                  <option value="">Chọn sản phẩm</option>
+                  @for (variant of productVariants(); track variant.id) {
+                  <option [value]="variant.id">
+                    {{ variant.sku }} · {{ variant.name }}
+                  </option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Số lượng (kg) *</span>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  [ngModel]="line.quantityOrdered"
+                  (ngModelChange)="setLineField(index, 'quantityOrdered', $event)"
+                />
+              </label>
+              <label>
+                <span>Đơn giá *</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  [ngModel]="line.unitSalePrice"
+                  (ngModelChange)="setLineField(index, 'unitSalePrice', $event)"
+                />
+              </label>
+              <label>
+                <span>Giảm giá</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  [ngModel]="line.discountAmount"
+                  (ngModelChange)="setLineField(index, 'discountAmount', $event)"
+                />
+              </label>
+              <div class="so-line-total">
+                <span>Thành tiền</span>
+                <strong>{{ fmtMoney(lineAmount(line)) }}</strong>
+              </div>
+            </div>
+            <button
+              class="so-remove-line"
+              type="button"
+              aria-label="Xóa dòng"
+              [disabled]="form().items.length === 1"
+              (click)="removeLine(index)"
+            >
+              ×
+            </button>
+          </article>
+          }
+        </div>
+      </div>
+
+      <div class="so-form-section">
+        <div class="so-form-section-title">
+          <span>3</span>
+          <div>
+            <h3>Thanh toán &amp; ghi chú</h3>
+            <p>Backend tính lại thành tiền trước khi lưu.</p>
+          </div>
+        </div>
+        <div class="so-payment-form">
+          <div class="so-form-grid">
+            <label>
+              <span>Tiền cọc</span>
+              <input
+                type="number"
+                min="0"
+                step="1000"
+                [ngModel]="form().depositAmount"
+                (ngModelChange)="setFormField('depositAmount', $event)"
+              />
+            </label>
+            <label>
+              <span>Ghi chú</span>
+              <textarea
+                rows="3"
+                maxlength="1000"
+                placeholder="Ghi chú đơn hàng hoặc hợp đồng..."
+                [ngModel]="form().note"
+                (ngModelChange)="setFormField('note', $event)"
+              ></textarea>
+            </label>
+          </div>
+          <div class="so-form-summary">
+            <div><span>Tạm tính</span><strong>{{ fmtMoney(formSubtotal()) }}</strong></div>
+            <div><span>Tổng giảm giá</span><strong>- {{ fmtMoney(formDiscount()) }}</strong></div>
+            <div class="total"><span>Tổng tiền</span><strong>{{ fmtMoney(formTotal()) }}</strong></div>
+            <div><span>Tiền cọc</span><strong>{{ fmtMoney(form().depositAmount) }}</strong></div>
+            <div class="remaining"><span>Còn phải thu</span><strong>{{ fmtMoney(formRemaining()) }}</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="so-modal-actions">
+      <button class="so-btn so-btn-secondary" type="button" (click)="closeForm()" [disabled]="saving()">
+        Hủy
+      </button>
+      <button class="so-btn so-btn-primary" type="button" (click)="submitForm()" [disabled]="saving()">
+        @if (saving()) { <span class="so-loader small"></span> }
+        {{ isEditing() ? 'Lưu thay đổi' : 'Tạo đơn bán' }}
+      </button>
+    </footer>
+  </section>
+</div>
+}
+
+@if (showOutboundModal()) {
+@if (detail(); as order) {
+<div class="so-modal-backdrop" (click)="closeOutbound()">
+  <section
+    class="so-modal so-outbound-modal"
+    role="dialog"
+    aria-modal="true"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="so-modal-head">
+      <div>
+        <span>TẠO PHIẾU XUẤT</span>
+        <h2>{{ order.soCode }}</h2>
+      </div>
+      <button type="button" aria-label="Đóng" (click)="closeOutbound()">×</button>
+    </header>
+    <div class="so-modal-body">
+      <div class="so-warning neutral">
+        Có thể xuất một phần đơn. Nếu đơn đã có phiếu xuất, backend sẽ kiểm tra
+        tổng số lượng còn lại và trả lỗi nếu nhập vượt.
+      </div>
+      <div class="so-outbound-lines">
+        @for (line of outboundLines(); track line.productVariantId; let index = $index) {
+        <label>
+          <span>
+            <b>{{ line.productVariantName }}</b>
+            <small>{{ line.sku || ('SKU #' + line.productVariantId) }} · Đặt {{ fmtNumber(line.orderedKg) }} kg</small>
+          </span>
+          <input
+            type="number"
+            min="0"
+            [max]="line.orderedKg"
+            step="0.001"
+            placeholder="Kg xuất"
+            [ngModel]="line.quantityToDispatch"
+            (ngModelChange)="setOutboundQuantity(index, $event)"
+          />
+        </label>
+        }
+      </div>
+    </div>
+    <footer class="so-modal-actions">
+      <button class="so-btn so-btn-secondary" type="button" (click)="closeOutbound()">
+        Quay lại
+      </button>
+      <button
+        class="so-btn so-btn-primary"
+        type="button"
+        (click)="submitOutbound()"
+        [disabled]="outboundSaving()"
+      >
+        @if (outboundSaving()) { <span class="so-loader small"></span> }
+        Tạo phiếu xuất
+      </button>
+    </footer>
+  </section>
+</div>
+}
+}
