@@ -93,7 +93,6 @@ export class MillingOrderComponent {
     { code: 'DRAFT', label: 'Nháp' },
     { code: 'RESERVED', label: 'Đã giữ lúa' },
     { code: 'IN_PROGRESS', label: 'Đang xay' },
-    { code: 'AWAITING_OUTPUT', label: 'Chờ nhập thành phẩm' },
     { code: 'COMPLETED', label: 'Hoàn tất' },
     { code: 'CANCELLED', label: 'Đã hủy' },
   ];
@@ -317,7 +316,7 @@ export class MillingOrderComponent {
   inProgressCount = computed(
     () =>
       this.allRows().filter((row) =>
-        ['RESERVED', 'IN_PROGRESS', 'AWAITING_OUTPUT'].includes(
+        ['RESERVED', 'IN_PROGRESS'].includes(
           this.statusCode(row)
         )
       ).length
@@ -809,9 +808,7 @@ export class MillingOrderComponent {
 
   async openComplete(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
-    if (
-      !['IN_PROGRESS', 'AWAITING_OUTPUT'].includes(this.statusCode(row))
-    ) {
+    if (this.statusCode(row) !== 'IN_PROGRESS') {
       return;
     }
     this.actionLoadingId.set(row.id);
@@ -927,7 +924,7 @@ export class MillingOrderComponent {
         `<div>Gạo thành phẩm: <b>${this.fmtWeight(
           this.totalRiceOutputKg()
         )}</b></div>` +
-        `<div>Lúa tính ngược: <b>${this.fmtWeight(
+        `<div>Lúa tính theo yield tham chiếu: <b>${this.fmtWeight(
           this.computedPaddyToConsumeKg()
         )}</b></div>` +
         `<div>Yield thực tế: <b>${this.fmtPercent(
@@ -957,7 +954,6 @@ export class MillingOrderComponent {
           outputType: line.outputType,
           outputWeightKg: Number(line.outputWeightKg),
           bagCount: line.bagCount,
-          bagWeightKg: line.bagWeightKg,
           isByproduct: line.outputType !== 'RICE',
           unitCost: line.unitCost,
         })),
@@ -967,11 +963,6 @@ export class MillingOrderComponent {
         machineRef: form.machineRef.trim() || null,
         operatorId: form.operatorId,
         note: form.note.trim() || null,
-        configuredYieldRate: Number(form.configuredYieldRate),
-        finishedRiceWeightKg: this.totalRiceOutputKg(),
-        computedPaddyKg: this.computedPaddyToConsumeKg(),
-        millingCost: form.millingCost,
-        incidentalCost: form.incidentalCost,
       };
       const result = await lastValueFrom(
         this.service.complete(order.id, payload)
@@ -1066,7 +1057,7 @@ export class MillingOrderComponent {
   statusCode(row: MillingOrderRow): MillingOrderStatusCode {
     const raw = String(row.statusCode || '').toUpperCase();
     if (
-      ['DRAFT', 'RESERVED', 'IN_PROGRESS', 'AWAITING_OUTPUT', 'COMPLETED', 'CANCELLED'].includes(
+      ['DRAFT', 'RESERVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].includes(
         raw
       )
     ) {
@@ -1077,7 +1068,6 @@ export class MillingOrderComponent {
         1: 'DRAFT',
         2: 'RESERVED',
         3: 'IN_PROGRESS',
-        4: 'AWAITING_OUTPUT',
         5: 'COMPLETED',
         6: 'CANCELLED',
       } as Record<number, MillingOrderStatusCode>
@@ -1091,7 +1081,6 @@ export class MillingOrderComponent {
         DRAFT: 'Nháp',
         RESERVED: 'Đã giữ lúa',
         IN_PROGRESS: 'Đang xay',
-        AWAITING_OUTPUT: 'Chờ nhập thành phẩm',
         COMPLETED: 'Hoàn tất',
         CANCELLED: 'Hủy',
       }[this.statusCode(row)]
@@ -1283,17 +1272,6 @@ export class MillingOrderComponent {
       expectedCompletionDate: form.expectedCompletionDate
         ? new Date(`${form.expectedCompletionDate}T12:00:00`).toISOString()
         : null,
-      sourceType: form.sourceType,
-      productionPlanRef:
-        form.sourceType === 'PRODUCTION_PLAN'
-          ? form.productionPlanRef.trim() || null
-          : null,
-      riceVarietyId: form.riceVarietyId,
-      moisturePercent: form.moisturePercent,
-      configuredYieldRate: Number(form.expectedYield),
-      computedPaddyKg: this.createComputedPaddyKg(),
-      millingCost: form.millingCost,
-      incidentalCost: form.incidentalCost,
     };
   }
 
@@ -1435,13 +1413,10 @@ export class MillingOrderComponent {
       'ĐANG XAY',
       'DEPLETED',
       'ĐÃ DÙNG HẾT',
-      'PENDING',
-      'CHỜ NHẬP',
     ].some((text) => status.includes(text));
     return (
       (lotType === 'PADDY' || lotType === 'LUA' || lotType === 'LÚA') &&
       lot.remainingWeightKg > 0 &&
-      lot.isSellable !== false &&
       !blocked
     );
   }
@@ -1453,7 +1428,6 @@ export class MillingOrderComponent {
         DRAFT: 1,
         RESERVED: 2,
         IN_PROGRESS: 3,
-        AWAITING_OUTPUT: 4,
         COMPLETED: 5,
         CANCELLED: 6,
       } as Record<StatusFilter, number | null>

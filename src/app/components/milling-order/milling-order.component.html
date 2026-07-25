@@ -221,10 +221,7 @@
                     >
                       Hủy
                     </button>
-                  } @else if (
-                    statusCode(row) === 'IN_PROGRESS' ||
-                    statusCode(row) === 'AWAITING_OUTPUT'
-                  ) {
+                  } @else if (statusCode(row) === 'IN_PROGRESS') {
                     <button
                       class="action-primary"
                       type="button"
@@ -882,7 +879,7 @@
                   <dd>{{ fmtWeight(completeForm().lossKg) }}</dd>
                 </div>
                 <div class="emphasis">
-                  <dt>Lúa tính ngược theo SRS</dt>
+                  <dt>Lúa tham chiếu theo yield</dt>
                   <dd>{{ fmtWeight(computedPaddyToConsumeKg()) }}</dd>
                 </div>
                 <div>
