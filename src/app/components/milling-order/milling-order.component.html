@@ -508,20 +508,15 @@
                     </label>
                     <label>
                       <span>Vị trí/cột</span>
-                      <select
-                        [ngModel]="line.locationId || ''"
-                        (ngModelChange)="setCreateAllocation(i, 'locationId', $event)"
+                      <div
+                        class="readonly-field allocation-location"
+                        [class.missing]="!!line.paddyLotId && !line.locationId"
                       >
-                        <option value="">Chọn vị trí</option>
-                        @for (
-                          location of locationsForWarehouse(createForm().warehouseId);
-                          track location.id
-                        ) {
-                          <option [value]="location.id">
-                            {{ locationLabel(location) }}
-                          </option>
-                        }
-                      </select>
+                        {{ allocationLocationLabel(line) }}
+                      </div>
+                      <small class="field-help">
+                        Tự động lấy theo vị trí đang chứa lô.
+                      </small>
                     </label>
                     <label>
                       <span>Khối lượng giữ (kg)</span>
@@ -632,20 +627,15 @@
               </label>
               <label>
                 <span>Vị trí/cột</span>
-                <select
-                  [ngModel]="line.locationId || ''"
-                  (ngModelChange)="setReserveLine(i, 'locationId', $event)"
+                <div
+                  class="readonly-field allocation-location"
+                  [class.missing]="!!line.paddyLotId && !line.locationId"
                 >
-                  <option value="">Chọn vị trí</option>
-                  @for (
-                    location of locationsForWarehouse(activeOrder()?.warehouseId || null);
-                    track location.id
-                  ) {
-                    <option [value]="location.id">
-                      {{ locationLabel(location) }}
-                    </option>
-                  }
-                </select>
+                  {{ allocationLocationLabel(line) }}
+                </div>
+                <small class="field-help">
+                  Tự động lấy theo vị trí đang chứa lô.
+                </small>
               </label>
               <label>
                 <span>Khối lượng giữ (kg)</span>

@@ -1004,6 +1004,18 @@ export class MillingOrderComponent {
     );
   }
 
+  allocationLocationLabel(line: AllocationLine): string {
+    if (!line.paddyLotId) return 'Chọn lô trước';
+    if (!line.locationId) return 'Lô chưa được gán vị trí lưu kho';
+
+    const location = this.locations().find(
+      (item) => item.id === line.locationId
+    );
+    return location
+      ? this.locationLabel(location)
+      : `Vị trí #${line.locationId}`;
+  }
+
   variantsForType(type: MillingOutputType): MillingProductVariantOption[] {
     const wantsByproduct = type !== 'RICE';
     return [...this.productVariants()].sort((a, b) => {

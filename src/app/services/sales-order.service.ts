@@ -106,19 +106,31 @@ export class SalesOrderService {
     );
   }
 
-  getProductVariants(
-    keyword = ''
-  ): Observable<ApiResponse<{ items: ProductVariantSalesOption[] }>> {
-    let params = new HttpParams()
-      .set('pageIndex', 1)
-      .set('pageSize', 1000)
-      .set('isActive', true);
-    if (keyword.trim()) params = params.set('keyword', keyword.trim());
+getProductVariants(
+  keyword = ''
+): Observable<
+  ApiResponse<{
+    dataSource: ProductVariantSalesOption[];
+    total: number;
+    totalFiltered: number;
+  }>
+> {
+  let params = new HttpParams()
+    .set('pageIndex', 1)
+    .set('pageSize', 1000)
+    .set('isActive', true);
 
-    return this.http.get<ApiResponse<{ items: ProductVariantSalesOption[] }>>(
-      `${this.base}/product-variant/search`,
-      { params }
-    );
+  if (keyword.trim()) {
+    params = params.set('keyword', keyword.trim());
   }
+
+  return this.http.get<
+    ApiResponse<{
+      dataSource: ProductVariantSalesOption[];
+      total: number;
+      totalFiltered: number;
+    }>
+  >(`${this.base}/product-variant/search`, { params });
+}
 }
 

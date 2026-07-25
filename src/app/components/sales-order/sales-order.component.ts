@@ -846,11 +846,25 @@ export class SalesOrderComponent implements OnDestroy {
     return response.resources;
   }
 
-  private unwrapList<T>(response: ApiResponse<any>, fallback: string): T[] {
-    const resource = this.unwrap<any>(response, fallback);
-    if (Array.isArray(resource)) return resource as T[];
-    return (resource?.items || resource?.data || []) as T[];
+ private unwrapList<T>(
+  response: ApiResponse<any>,
+  fallback: string
+): T[] {
+  const resource = this.unwrap<any>(response, fallback);
+
+  if (Array.isArray(resource)) {
+    return resource as T[];
   }
+
+  return (
+    resource?.items ||
+    resource?.dataSource ||
+    resource?.data ||
+    resource?.Items ||
+    resource?.DataSource ||
+    []
+  ) as T[];
+}
 
   private errorText(error: unknown): string {
     const value = error as any;

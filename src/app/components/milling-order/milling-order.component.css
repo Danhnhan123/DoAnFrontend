@@ -729,6 +729,27 @@ label b {
   font-weight: 750;
 }
 
+.allocation-location {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allocation-location.missing {
+  border-color: #f0b9b4;
+  color: #b42318;
+  background: #fff6f5;
+}
+
+.field-help {
+  display: block;
+  margin-top: 5px;
+  color: #7b8981;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
 .subsection {
   padding-top: 18px;
   margin-top: 20px;
