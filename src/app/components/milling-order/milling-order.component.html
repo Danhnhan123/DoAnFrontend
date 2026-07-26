@@ -12,9 +12,11 @@
       <button class="secondary-btn" type="button" (click)="refresh()">
         <span aria-hidden="true">↻</span> Làm mới
       </button>
-      <button class="primary-btn" type="button" (click)="openCreate()">
-        <span aria-hidden="true">＋</span> Tạo lệnh xay
-      </button>
+      @if (canManageOrder()) {
+        <button class="primary-btn" type="button" (click)="openCreate()">
+          <span aria-hidden="true">＋</span> Tạo lệnh xay
+        </button>
+      }
     </div>
   </header>
 
@@ -180,56 +182,73 @@
                 </td>
                 <td class="actions" (click)="$event.stopPropagation()">
                   @if (statusCode(row) === 'DRAFT') {
-                    <button
-                      type="button"
-                      title="Sửa lệnh"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="openEdit(row, $event)"
-                    >
-                      Sửa
-                    </button>
-                    <button
-                      class="action-primary"
-                      type="button"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="openReserve(row, $event)"
-                    >
-                      Giữ lúa
-                    </button>
-                    <button
-                      class="danger-link"
-                      type="button"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="cancelOrder(row, $event)"
-                    >
-                      Hủy
-                    </button>
+                    @if (canManageOrder()) {
+                      <button
+                        type="button"
+                        title="Sửa lệnh"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openEdit(row, $event)"
+                      >
+                        Sửa
+                      </button>
+                    }
+                    @if (canReservePaddy()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openReserve(row, $event)"
+                      >
+                        Giữ lúa
+                      </button>
+                    }
+                    @if (canManageOrder()) {
+                      <button
+                        class="danger-link"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="cancelOrder(row, $event)"
+                      >
+                        Hủy
+                      </button>
+                    }
+                    @if (!canManageOrder() && !canReservePaddy()) {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
                   } @else if (statusCode(row) === 'RESERVED') {
-                    <button
-                      class="action-primary"
-                      type="button"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="startOrder(row, $event)"
-                    >
-                      Bắt đầu xay
-                    </button>
-                    <button
-                      class="danger-link"
-                      type="button"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="cancelOrder(row, $event)"
-                    >
-                      Hủy
-                    </button>
+                    @if (canManageOrder()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="startOrder(row, $event)"
+                      >
+                        Bắt đầu xay
+                      </button>
+                      <button
+                        class="danger-link"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="cancelOrder(row, $event)"
+                      >
+                        Hủy
+                      </button>
+                    } @else {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
                   } @else if (statusCode(row) === 'IN_PROGRESS') {
-                    <button
-                      class="action-primary"
-                      type="button"
-                      [disabled]="actionLoadingId() === row.id"
-                      (click)="openComplete(row, $event)"
-                    >
-                      {{ actionLoadingId() === row.id ? 'Đang tải...' : 'Nhập kết quả' }}
-                    </button>
+                    @if (canCompleteOrder()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openComplete(row, $event)"
+                      >
+                        {{ actionLoadingId() === row.id ? 'Đang tải...' : 'Nhập kết quả' }}
+                      </button>
+                    } @else {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
                   } @else {
                     <button type="button" (click)="openDetail(row)">
                       Xem
@@ -508,15 +527,24 @@
                     </label>
                     <label>
                       <span>Vị trí/cột</span>
-                      <div
-                        class="readonly-field allocation-location"
-                        [class.missing]="!!line.paddyLotId && !line.locationId"
+                      <select
+                        [ngModel]="line.locationId || ''"
+                        (ngModelChange)="setCreateAllocation(i, 'locationId', $event)"
+                        [disabled]="!line.paddyLotId"
                       >
-                        {{ allocationLocationLabel(line) }}
-                      </div>
-                      <small class="field-help">
-                        Tự động lấy theo vị trí đang chứa lô.
-                      </small>
+                        <option value="">Chọn cột đang chứa lô</option>
+                        @for (
+                          inventory of inventoryLocationsForLot(
+                            line.paddyLotId,
+                            createForm().warehouseId
+                          );
+                          track inventory.id
+                        ) {
+                          <option [value]="inventory.locationId">
+                            {{ inventoryLocationLabel(inventory) }}
+                          </option>
+                        }
+                      </select>
                     </label>
                     <label>
                       <span>Khối lượng giữ (kg)</span>
@@ -604,7 +632,6 @@
 
         <div class="notice">
           Chỉ các lô lúa còn tồn, đang lưu kho và không cách ly mới được hiển thị.
-          Danh sách được sắp theo ngày nhập cũ trước.
         </div>
 
         <div class="line-list">
@@ -627,15 +654,24 @@
               </label>
               <label>
                 <span>Vị trí/cột</span>
-                <div
-                  class="readonly-field allocation-location"
-                  [class.missing]="!!line.paddyLotId && !line.locationId"
+                <select
+                  [ngModel]="line.locationId || ''"
+                  (ngModelChange)="setReserveLine(i, 'locationId', $event)"
+                  [disabled]="!line.paddyLotId"
                 >
-                  {{ allocationLocationLabel(line) }}
-                </div>
-                <small class="field-help">
-                  Tự động lấy theo vị trí đang chứa lô.
-                </small>
+                  <option value="">Chọn cột đang chứa lô</option>
+                  @for (
+                    inventory of inventoryLocationsForLot(
+                      line.paddyLotId,
+                      activeOrder()?.warehouseId || null
+                    );
+                    track inventory.id
+                  ) {
+                    <option [value]="inventory.locationId">
+                      {{ inventoryLocationLabel(inventory) }}
+                    </option>
+                  }
+                </select>
               </label>
               <label>
                 <span>Khối lượng giữ (kg)</span>
@@ -831,17 +867,6 @@
                       />
                     </label>
 
-                    <label>
-                      <span>Đơn giá riêng (nếu có)</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="100"
-                        placeholder="Để BE phân bổ"
-                        [ngModel]="line.unitCost"
-                        (ngModelChange)="setOutputField(i, 'unitCost', $event)"
-                      />
-                    </label>
                   </div>
                 </article>
               }
@@ -869,7 +894,7 @@
                   <dd>{{ fmtWeight(completeForm().lossKg) }}</dd>
                 </div>
                 <div class="emphasis">
-                  <dt>Lúa tham chiếu theo yield</dt>
+                  <dt>Lúa sẽ trừ theo yield</dt>
                   <dd>{{ fmtWeight(computedPaddyToConsumeKg()) }}</dd>
                 </div>
                 <div>
@@ -883,29 +908,21 @@
 
             <div class="side-form">
               <label>
-                <span>Yield cấu hình</span>
-                <div class="input-suffix">
-                  <input
-                    type="number"
-                    min="0.0001"
-                    max="1"
-                    step="0.0001"
-                    [ngModel]="completeForm().configuredYieldRate"
-                    (ngModelChange)="setCompleteField('configuredYieldRate', $event)"
-                  />
-                  <span>{{ fmtPercent(completeForm().configuredYieldRate) }}</span>
+                <span>Yield đã đóng dấu</span>
+                <div class="readonly-field">
+                  {{ fmtPercent(completeForm().configuredYieldRate) }}
                 </div>
               </label>
 
               <div class="calculated-field">
-                <span>Yield thực tế</span>
+                <span>Mức đạt kế hoạch</span>
                 <strong>{{ fmtPercent(actualYieldRate()) }}</strong>
                 <small
                   [class.value-warning]="
                     yieldDeviationPercent() > 2 || yieldDeviationPercent() < -2
                   "
                 >
-                  Lệch {{ yieldDeviationPercent().toFixed(2) }}%
+                  Sản lượng lệch {{ yieldDeviationPercent().toFixed(2) }}%
                 </small>
               </div>
 
@@ -956,17 +973,11 @@
                 <span>Ghi chú / lý do sai lệch</span>
                 <textarea
                   rows="4"
-                  placeholder="Bắt buộc nếu lệch yield trên 2%"
+                  placeholder="Bắt buộc nếu sản lượng lệch kế hoạch trên 2%"
                   [ngModel]="completeForm().note"
                   (ngModelChange)="setCompleteField('note', $event)"
                 ></textarea>
               </label>
-            </div>
-
-            <div class="backend-note">
-              Giao diện đã tính lúa tiêu hao = gạo thực tế ÷ yield cấu hình.
-              Backend hiện tại vẫn trừ theo lượng đã giữ; sau khi BE sửa sẽ dùng
-              trường <code>computedPaddyKg</code> được gửi kèm.
             </div>
           </aside>
         </div>

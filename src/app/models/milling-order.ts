@@ -81,8 +81,12 @@ export interface CreateMillingOrderPayload {
   warehouseId: number;
   reason?: string | null;
   salesOrderId?: number | null;
+  riceVarietyId?: number | null;
+  moisturePercent?: number | null;
   expectedYield: number;
   targetRiceKg: number;
+  millingCost?: number | null;
+  incidentalCost?: number | null;
   expectedCompletionDate?: string | null;
 }
 
@@ -116,7 +120,10 @@ export interface CompleteMillingOrderPayload {
   outputs: MillingOrderOutputPayload[];
   lossKg?: number | null;
   byproductKg?: number | null;
-  actualYieldRate: number;
+  /** Client cũ có thể còn gửi; backend mới không tin/không ghi đè yield đã đóng dấu. */
+  actualYieldRate?: number | null;
+  millingCost?: number | null;
+  incidentalCost?: number | null;
   machineRef?: string | null;
   operatorId?: number | null;
   note?: string | null;

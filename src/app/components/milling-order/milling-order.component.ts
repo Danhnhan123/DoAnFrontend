@@ -12,6 +12,7 @@ import {
   ApiResponse,
   CompleteMillingOrderPayload,
   CreateMillingOrderPayload,
+  InventoryRow,
   MillingLocationOption,
   MillingOrderDetailDto,
   MillingOrderInputPayload,
@@ -25,6 +26,8 @@ import {
   MillingYieldOption,
   UpdateMillingOrderPayload,
 } from '../../models';
+import { AuthService } from '../../services/auth.service';
+import { InventoryService } from '../../services/inventory.service';
 import { MillingOrderService } from '../../services/milling-order.service';
 
 interface AllocationLine {
@@ -85,6 +88,8 @@ type StatusFilter = 'ALL' | MillingOrderStatusCode;
 })
 export class MillingOrderComponent {
   private readonly service = inject(MillingOrderService);
+  private readonly inventoryService = inject(InventoryService);
+  private readonly authService = inject(AuthService);
   private readonly queryClient = injectQueryClient();
   private lineSequence = 0;
 
@@ -206,6 +211,26 @@ export class MillingOrderComponent {
     staleTime: 60 * 1000,
   }));
 
+  inventoryQuery = injectQuery(() => ({
+    queryKey: ['milling-order-options', 'paddy-inventory'],
+    queryFn: () =>
+      lastValueFrom(
+        this.inventoryService.getPagedAdvanced(
+          this.inventoryService.buildPagedBody({
+            page: 1,
+            pageSize: 5000,
+            search: '',
+            sortField: 'id',
+            sortDir: 'asc',
+            colMap: { id: 0 },
+            lotType: 'PADDY',
+            withLotOnly: true,
+          })
+        )
+      ),
+    staleTime: 30 * 1000,
+  }));
+
   rows = computed<MillingOrderRow[]>(() => {
     const resource = this.resource<any>(this.listQuery.data());
     return resource?.data ?? [];
@@ -238,12 +263,75 @@ export class MillingOrderComponent {
 
   paddyLots = computed<MillingPaddyLotOption[]>(() =>
     this.resourceList<MillingPaddyLotOption>(this.paddyLotQuery.data())
-      .filter((lot) => this.isEligiblePaddyLot(lot))
+      .filter(
+        (lot) =>
+          this.isEligiblePaddyLot(lot) &&
+          this.paddyInventoryRows().some(
+            (inventory) => inventory.paddyLotId === lot.id
+          )
+      )
       .sort((a, b) => {
         const dateA = a.inboundDate ? new Date(a.inboundDate).getTime() : 0;
         const dateB = b.inboundDate ? new Date(b.inboundDate).getTime() : 0;
         return dateA - dateB;
       })
+  );
+
+  paddyInventoryRows = computed<InventoryRow[]>(() => {
+    const resource = this.resource<any>(this.inventoryQuery.data());
+    const rows: InventoryRow[] = Array.isArray(resource?.data)
+      ? resource.data
+      : Array.isArray(resource)
+        ? resource
+        : [];
+    return rows.filter((row) => {
+      const lotType = String(row.lotType || '').toUpperCase();
+      const status = String(row.lotStatusName || '').toUpperCase();
+      return (
+        lotType === 'PADDY' &&
+        !!row.paddyLotId &&
+        !!row.locationId &&
+        Number(row.quantityAvailable) > 0 &&
+        row.lotIsSellable !== false &&
+        !status.includes('CÁCH LY') &&
+        !status.includes('QUARANTINE') &&
+        !status.includes('ĐANG XAY')
+      );
+    });
+  });
+
+  readonly isAdmin = computed(() =>
+    this.hasRole(['ADMIN'], ['quản trị viên', 'system admin', 'admin'], [1001])
+  );
+  readonly isOwner = computed(() =>
+    this.hasRole(
+      ['OWNER'],
+      ['chủ kho', 'chủ cơ sở', 'chủ hộ kinh doanh', 'warehouse owner', 'owner'],
+      [1002]
+    )
+  );
+  readonly isMillingStaff = computed(() =>
+    this.hasRole(
+      ['MILLING'],
+      ['nhân viên xay xát', 'milling staff', 'milling'],
+      [1009]
+    )
+  );
+  readonly isWarehouseStaff = computed(() =>
+    this.hasRole(
+      ['WAREHOUSE'],
+      ['nhân viên kho', 'warehouse staff', 'warehouse'],
+      [1008]
+    )
+  );
+  readonly canManageOrder = computed(
+    () => this.isAdmin() || this.isOwner() || this.isMillingStaff()
+  );
+  readonly canReservePaddy = computed(
+    () => this.canManageOrder() || this.isWarehouseStaff()
+  );
+  readonly canCompleteOrder = computed(
+    () => this.canManageOrder() || this.isWarehouseStaff()
   );
 
   productVariants = computed<MillingProductVariantOption[]>(() =>
@@ -398,20 +486,22 @@ export class MillingOrderComponent {
   });
 
   actualYieldRate = computed(() => {
-    const input = this.completeInputKg();
-    return input > 0 ? this.totalRiceOutputKg() / input : 0;
+    const order = this.activeOrder();
+    const expectedRice = order ? this.targetRice(order) : 0;
+    return expectedRice > 0 ? this.totalRiceOutputKg() / expectedRice : 0;
   });
 
   yieldDeviationPercent = computed(() => {
-    const configured = Number(this.completeForm().configuredYieldRate) || 0;
-    return configured > 0
-      ? ((this.actualYieldRate() - configured) / configured) * 100
+    const order = this.activeOrder();
+    const expectedRice = order ? this.targetRice(order) : 0;
+    return expectedRice > 0
+      ? ((this.totalRiceOutputKg() - expectedRice) / expectedRice) * 100
       : 0;
   });
 
   massBalanceDeltaKg = computed(
     () =>
-      this.completeInputKg() -
+      this.computedPaddyToConsumeKg() -
       this.totalAllOutputsKg() -
       (Number(this.completeForm().lossKg) || 0)
   );
@@ -464,15 +554,26 @@ export class MillingOrderComponent {
     this.queryClient.invalidateQueries({
       queryKey: ['milling-order-options', 'locations'],
     });
+    this.queryClient.invalidateQueries({
+      queryKey: ['milling-order-options', 'paddy-inventory'],
+    });
   }
 
   openCreate(): void {
+    if (!this.canManageOrder()) {
+      void this.showPermissionDenied('Chỉ Admin, Chủ cơ sở hoặc Nhân viên xay xát được tạo lệnh.');
+      return;
+    }
     this.createForm.set(this.defaultCreateForm());
     this.showCreateModal.set(true);
   }
 
   openEdit(row: MillingOrderRow, event?: Event): void {
     event?.stopPropagation();
+    if (!this.canManageOrder()) {
+      void this.showPermissionDenied('Bạn không có quyền cập nhật lệnh xay.');
+      return;
+    }
     if (this.statusCode(row) !== 'DRAFT') return;
     this.createForm.set({
       id: row.id,
@@ -485,7 +586,7 @@ export class MillingOrderComponent {
       expectedYield: row.yieldRateUsed,
       targetRiceKg: this.targetRice(row),
       expectedCompletionDate: this.toDateInput(row.expectedCompletionDate),
-      millingCost: row.millingCost ?? null,
+      millingCost: row.millingCost ?? row.totalCost ?? null,
       incidentalCost: row.incidentalCost ?? null,
       reason: row.reason ?? '',
       allocations: [],
@@ -609,6 +710,10 @@ export class MillingOrderComponent {
   }
 
   async saveCreate(): Promise<void> {
+    if (!this.canManageOrder()) {
+      await this.showPermissionDenied('Bạn không có quyền lưu lệnh xay.');
+      return;
+    }
     const form = this.createForm();
     const error = this.validateCreateForm(form);
     if (error) {
@@ -686,6 +791,10 @@ export class MillingOrderComponent {
 
   openReserve(row: MillingOrderRow, event?: Event): void {
     event?.stopPropagation();
+    if (!this.canReservePaddy()) {
+      void this.showPermissionDenied('Bạn không có quyền giữ lúa cho lệnh xay.');
+      return;
+    }
     if (this.statusCode(row) !== 'DRAFT') return;
     this.activeOrder.set(row);
     this.reserveLines.set([this.newAllocation()]);
@@ -723,6 +832,10 @@ export class MillingOrderComponent {
   }
 
   async reservePaddy(): Promise<void> {
+    if (!this.canReservePaddy()) {
+      await this.showPermissionDenied('Bạn không có quyền giữ lúa cho lệnh xay.');
+      return;
+    }
     const order = this.activeOrder();
     if (!order) return;
     const error = this.validateAllocations(
@@ -753,6 +866,10 @@ export class MillingOrderComponent {
 
   async startOrder(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
+    if (!this.canManageOrder()) {
+      await this.showPermissionDenied('Bạn không có quyền bắt đầu lệnh xay.');
+      return;
+    }
     if (this.statusCode(row) !== 'RESERVED') return;
     const confirm = await Swal.fire({
       title: `Bắt đầu ${row.millingCode}?`,
@@ -779,6 +896,10 @@ export class MillingOrderComponent {
 
   async cancelOrder(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
+    if (!this.canManageOrder()) {
+      await this.showPermissionDenied('Bạn không có quyền hủy lệnh xay.');
+      return;
+    }
     if (!['DRAFT', 'RESERVED'].includes(this.statusCode(row))) return;
     const confirm = await Swal.fire({
       title: `Hủy ${row.millingCode}?`,
@@ -808,6 +929,10 @@ export class MillingOrderComponent {
 
   async openComplete(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
+    if (!this.canCompleteOrder()) {
+      await this.showPermissionDenied('Bạn không có quyền nhập kết quả xay.');
+      return;
+    }
     if (this.statusCode(row) !== 'IN_PROGRESS') {
       return;
     }
@@ -908,6 +1033,10 @@ export class MillingOrderComponent {
   }
 
   async completeOrder(): Promise<void> {
+    if (!this.canCompleteOrder()) {
+      await this.showPermissionDenied('Bạn không có quyền hoàn tất lệnh xay.');
+      return;
+    }
     const order = this.activeOrder();
     if (!order) return;
     const error = this.validateCompleteForm();
@@ -927,7 +1056,7 @@ export class MillingOrderComponent {
         `<div>Lúa tính theo yield tham chiếu: <b>${this.fmtWeight(
           this.computedPaddyToConsumeKg()
         )}</b></div>` +
-        `<div>Yield thực tế: <b>${this.fmtPercent(
+        `<div>Mức đạt kế hoạch: <b>${this.fmtPercent(
           this.actualYieldRate()
         )}</b></div>` +
         (deviation > 2
@@ -959,7 +1088,8 @@ export class MillingOrderComponent {
         })),
         lossKg: Number(form.lossKg) || 0,
         byproductKg: this.totalByproductKg(),
-        actualYieldRate: this.actualYieldRate(),
+        millingCost: Number(form.millingCost) || 0,
+        incidentalCost: Number(form.incidentalCost) || 0,
         machineRef: form.machineRef.trim() || null,
         operatorId: form.operatorId,
         note: form.note.trim() || null,
@@ -991,7 +1121,40 @@ export class MillingOrderComponent {
 
   eligibleLotsForWarehouse(warehouseId: number | null): MillingPaddyLotOption[] {
     if (!warehouseId) return [];
-    return this.paddyLots().filter((lot) => lot.warehouseId === warehouseId);
+    return this.paddyLots().filter(
+      (lot) =>
+        lot.warehouseId === warehouseId &&
+        this.inventoryLocationsForLot(lot.id, warehouseId).length > 0
+    );
+  }
+
+  inventoryLocationsForLot(
+    paddyLotId: number | null,
+    warehouseId: number | null
+  ): InventoryRow[] {
+    if (!paddyLotId || !warehouseId) return [];
+    return this.paddyInventoryRows()
+      .filter(
+        (row) =>
+          row.paddyLotId === paddyLotId &&
+          row.warehouseId === warehouseId &&
+          !!row.locationId
+      )
+      .sort((a, b) =>
+        this.inventoryLocationLabel(a).localeCompare(
+          this.inventoryLocationLabel(b)
+        )
+      );
+  }
+
+  inventoryLocationLabel(row: InventoryRow): string {
+    const location = this.locations().find(
+      (item) => item.id === row.locationId
+    );
+    const label = location
+      ? this.locationLabel(location)
+      : row.locationCode || `Vị trí #${row.locationId}`;
+    return `${label} · khả dụng ${this.fmtWeight(row.quantityAvailable)}`;
   }
 
   locationsForWarehouse(
@@ -1244,8 +1407,13 @@ export class MillingOrderComponent {
         const lot = this.paddyLots().find(
           (item) => item.id === updated.paddyLotId
         );
-        updated.locationId = lot?.locationId ?? null;
-        if (lot && !updated.consumedWeightKg) {
+        const inventories = lot
+          ? this.inventoryLocationsForLot(lot.id, lot.warehouseId)
+          : [];
+        updated.locationId =
+          inventories.length === 1 ? inventories[0].locationId ?? null : null;
+        updated.consumedWeightKg = null;
+        if (lot && inventories.length === 1) {
           const otherAllocated = lines.reduce(
             (sum, item, lineIndex) =>
               lineIndex === index
@@ -1255,8 +1423,32 @@ export class MillingOrderComponent {
           );
           const desired = Math.max(0, requiredKg - otherAllocated);
           updated.consumedWeightKg = Math.min(
-            lot.remainingWeightKg,
-            desired || lot.remainingWeightKg
+            Number(inventories[0].quantityAvailable) || 0,
+            desired || Number(inventories[0].quantityAvailable) || 0
+          );
+        }
+      }
+      if (field === 'locationId' && updated.paddyLotId && updated.locationId) {
+        const lot = this.paddyLots().find(
+          (item) => item.id === updated.paddyLotId
+        );
+        const inventory = this.paddyInventoryRows().find(
+          (item) =>
+            item.paddyLotId === updated.paddyLotId &&
+            item.locationId === updated.locationId
+        );
+        if (lot && inventory) {
+          const otherAllocated = lines.reduce(
+            (sum, item, lineIndex) =>
+              lineIndex === index
+                ? sum
+                : sum + (Number(item.consumedWeightKg) || 0),
+            0
+          );
+          const desired = Math.max(0, requiredKg - otherAllocated);
+          updated.consumedWeightKg = Math.min(
+            Number(inventory.quantityAvailable) || 0,
+            desired || Number(inventory.quantityAvailable) || 0
           );
         }
       }
@@ -1279,8 +1471,12 @@ export class MillingOrderComponent {
       reason: planReason || null,
       salesOrderId:
         form.sourceType === 'SALES_ORDER' ? form.salesOrderId : null,
+      riceVarietyId: form.riceVarietyId,
+      moisturePercent: form.moisturePercent,
       expectedYield: Number(form.expectedYield),
       targetRiceKg: Number(form.targetRiceKg),
+      millingCost: Number(form.millingCost) || 0,
+      incidentalCost: Number(form.incidentalCost) || 0,
       expectedCompletionDate: form.expectedCompletionDate
         ? new Date(`${form.expectedCompletionDate}T12:00:00`).toISOString()
         : null,
@@ -1326,9 +1522,17 @@ export class MillingOrderComponent {
       }
       const lot = this.paddyLots().find((item) => item.id === line.paddyLotId);
       if (!lot) return 'Có lô lúa không còn đủ điều kiện để xay.';
-      if (line.consumedWeightKg > lot.remainingWeightKg + 0.001) {
-        return `Lô ${lot.lotCode} chỉ còn ${this.fmtWeight(
-          lot.remainingWeightKg
+      const inventory = this.paddyInventoryRows().find(
+        (item) =>
+          item.paddyLotId === line.paddyLotId &&
+          item.locationId === line.locationId
+      );
+      if (!inventory) {
+        return `Lô ${lot.lotCode} không còn tồn khả dụng tại vị trí đã chọn.`;
+      }
+      if (line.consumedWeightKg > inventory.quantityAvailable + 0.001) {
+        return `Lô ${lot.lotCode} tại vị trí đã chọn chỉ còn khả dụng ${this.fmtWeight(
+          inventory.quantityAvailable
         )}.`;
       }
       const key = `${line.paddyLotId}:${line.locationId}`;
@@ -1379,18 +1583,16 @@ export class MillingOrderComponent {
     if (this.totalRiceOutputKg() <= 0) {
       return 'Khối lượng gạo thành phẩm phải lớn hơn 0.';
     }
-    if (this.computedPaddyToConsumeKg() > this.completeInputKg() + 0.01) {
-      return `Lượng lúa tính ngược ${this.fmtWeight(
-        this.computedPaddyToConsumeKg()
-      )} vượt quá lượng lúa đã giữ ${this.fmtWeight(this.completeInputKg())}.`;
-    }
-    const currentBackendLimit = this.completeInputKg() * 1.02;
+    const currentBackendLimit = this.computedPaddyToConsumeKg() * 1.02;
     const outputAndLoss =
       this.totalAllOutputsKg() + (Number(form.lossKg) || 0);
-    if (this.completeInputKg() > 0 && outputAndLoss > currentBackendLimit) {
+    if (
+      this.computedPaddyToConsumeKg() > 0 &&
+      outputAndLoss > currentBackendLimit
+    ) {
       return `Tổng đầu ra và hao hụt ${this.fmtWeight(
         outputAndLoss
-      )} vượt quá đầu vào + 2% dung sai của backend hiện tại.`;
+      )} vượt quá lượng lúa tính ngược + 2% dung sai.`;
     }
     if (
       Math.abs(this.yieldDeviationPercent()) > 2 &&
@@ -1407,10 +1609,49 @@ export class MillingOrderComponent {
     return lines.map((line) => ({
       paddyLotId: Number(line.paddyLotId),
       locationId: line.locationId,
-      consumedWeightKg: Number(line.consumedWeightKg),
+      consumedWeightKg: 0,
       reservedWeightKg: Number(line.consumedWeightKg),
       note: line.note.trim() || null,
     }));
+  }
+
+  private hasRole(
+    codes: string[],
+    names: string[],
+    fallbackIds: number[] = []
+  ): boolean {
+    const normalizedCodes = codes.map((value) => value.toUpperCase());
+    const normalizedNames = names.map((value) =>
+      this.normalizeRoleValue(value)
+    );
+    return (this.authService.currentUser()?.roles ?? []).some((role) => {
+      const roleCode = String((role as any).code ?? '').toUpperCase();
+      const roleName = this.normalizeRoleValue(role.name);
+      return (
+        fallbackIds.includes(Number(role.id)) ||
+        normalizedCodes.includes(roleCode) ||
+        normalizedNames.some(
+          (name) => roleName === name || roleName.includes(name)
+        )
+      );
+    });
+  }
+
+  private normalizeRoleValue(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private async showPermissionDenied(message: string): Promise<void> {
+    await Swal.fire({
+      icon: 'warning',
+      title: 'Không có quyền thực hiện',
+      text: message,
+      confirmButtonColor: '#16a052',
+    });
   }
 
   private isEligiblePaddyLot(lot: MillingPaddyLotOption): boolean {
