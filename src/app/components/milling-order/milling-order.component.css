@@ -564,6 +564,8 @@ td small {
 }
 
 .modal {
+  display: flex;
+  flex-direction: column;
   width: min(620px, 100%);
   max-height: calc(100vh - 48px);
   overflow: hidden;
@@ -588,6 +590,7 @@ td small {
 .modal-header,
 .modal-footer {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
@@ -623,7 +626,8 @@ td small {
 }
 
 .modal-body {
-  max-height: calc(100vh - 180px);
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 20px 22px;
   overflow-y: auto;
   background: #fbfdfb;
@@ -1237,7 +1241,6 @@ label b {
   }
 
   .modal-body {
-    max-height: calc(100vh - 150px);
     padding: 16px;
   }
 
