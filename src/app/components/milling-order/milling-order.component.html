@@ -337,16 +337,6 @@
                 }
               </select>
             </label>
-          } @else {
-            <label>
-              <span>Mã kế hoạch</span>
-              <input
-                type="text"
-                placeholder="VD: KH-XAY-2026-021"
-                [ngModel]="createForm().productionPlanRef"
-                (ngModelChange)="setCreateField('productionPlanRef', $event)"
-              />
-            </label>
           }
 
           <label>

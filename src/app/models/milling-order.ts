@@ -44,7 +44,6 @@ export interface MillingOrderRow {
   warehouseName?: string | null;
   reason?: string | null;
   sourceType?: 'SALES_ORDER' | 'PRODUCTION_PLAN' | string | null;
-  productionPlanRef?: string | null;
   salesOrderId?: number | null;
   salesOrderCode?: string | null;
   riceVarietyId?: number | null;
