@@ -42,7 +42,6 @@ interface CreateOrderForm {
   id: number | null;
   sourceType: 'SALES_ORDER' | 'PRODUCTION_PLAN';
   salesOrderId: number | null;
-  productionPlanRef: string;
   warehouseId: number | null;
   riceVarietyId: number | null;
   moisturePercent: number | null;
@@ -579,7 +578,6 @@ export class MillingOrderComponent {
       id: row.id,
       sourceType: row.salesOrderId ? 'SALES_ORDER' : 'PRODUCTION_PLAN',
       salesOrderId: row.salesOrderId ?? null,
-      productionPlanRef: row.productionPlanRef ?? '',
       warehouseId: row.warehouseId,
       riceVarietyId: row.riceVarietyId ?? null,
       moisturePercent: row.moisturePercent ?? null,
@@ -619,9 +617,6 @@ export class MillingOrderComponent {
         [field]: normalized,
       } as CreateOrderForm;
       if (field === 'warehouseId') next.allocations = [];
-      if (field === 'sourceType' && normalized === 'SALES_ORDER') {
-        next.productionPlanRef = '';
-      }
       if (field === 'sourceType' && normalized === 'PRODUCTION_PLAN') {
         next.salesOrderId = null;
       }
@@ -1212,7 +1207,6 @@ export class MillingOrderComponent {
   sourceLabel(row: MillingOrderRow): string {
     if (row.salesOrderCode) return row.salesOrderCode;
     if (row.salesOrderId) return `Đơn bán #${row.salesOrderId}`;
-    if (row.productionPlanRef) return row.productionPlanRef;
     return row.reason ? 'Kế hoạch sản xuất' : 'Kế hoạch nội bộ';
   }
 
@@ -1331,7 +1325,6 @@ export class MillingOrderComponent {
       id: null,
       sourceType: 'PRODUCTION_PLAN',
       salesOrderId: null,
-      productionPlanRef: '',
       warehouseId: null,
       riceVarietyId: null,
       moisturePercent: null,
@@ -1459,16 +1452,9 @@ export class MillingOrderComponent {
   private buildCreatePayload(
     form: CreateOrderForm
   ): CreateMillingOrderPayload {
-    const planReason =
-      form.sourceType === 'PRODUCTION_PLAN' && form.productionPlanRef.trim()
-        ? `${form.productionPlanRef.trim()}${
-            form.reason.trim() ? ` — ${form.reason.trim()}` : ''
-          }`
-        : form.reason.trim();
-
     return {
       warehouseId: Number(form.warehouseId),
-      reason: planReason || null,
+      reason: form.reason.trim() || null,
       salesOrderId:
         form.sourceType === 'SALES_ORDER' ? form.salesOrderId : null,
       riceVarietyId: form.riceVarietyId,
