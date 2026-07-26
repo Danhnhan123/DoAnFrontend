@@ -36,3 +36,5 @@ export * from './alert';
 export * from './inventory';
 export * from './paddy-lot';
 export * from './quality-inspection';
+export * from './milling-order';
+export * from './sales-order';

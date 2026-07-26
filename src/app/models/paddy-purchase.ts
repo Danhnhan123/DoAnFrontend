@@ -68,6 +68,9 @@ export interface PaddyPurchaseReceiptRow {
   receiptDate: string;
   paddyLotId?: number | null;
   isConfirmed: boolean;
+  storedWeightKg?: number;
+  remainingWeightKg?: number;
+  isFullyStored?: boolean;
   createdDate: string;
   lastModifiedDate?: string | null;
 }
@@ -145,6 +148,9 @@ export interface PutawaySuggestion {
 export interface SplitPutawaySuggestion {
   locationId: number;
   weightKg: number;
+  locationCode?: string | null;
+  zoneName?: string | null;
+  freeCapacityKg?: number | null;
 }
 
 export interface PutawaySuggestionsResponse {
@@ -167,6 +173,14 @@ export interface ConfirmStoreInRequest {
   weightKg: number;
   bagCount?: number | null;
   overrideReason?: string | null;
+}
+
+export interface ConfirmPaddyStoreInResult {
+  receiptId: number;
+  lotId: number;
+  storedWeightKg: number;
+  remainingWeightKg: number;
+  isFullyStored: boolean;
 }
 
 export interface PaddyPurchasePagedRequest extends DTParameters {}

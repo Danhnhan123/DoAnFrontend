@@ -4,6 +4,7 @@ import { Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 import {
   ApiResponse,
+  ConfirmPaddyStoreInResult,
   ConfirmStoreInRequest,
   ConfirmPaddyPurchaseReceiptResult,
   CreatePaddyPurchaseReceiptDto,
@@ -144,8 +145,8 @@ export class PaddyPurchaseService {
   confirmPaddyStoreIn(
     receiptId: number,
     payload: ConfirmStoreInRequest,
-  ): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
+  ): Observable<ApiResponse<ConfirmPaddyStoreInResult>> {
+    return this.http.post<ApiResponse<ConfirmPaddyStoreInResult>>(
       `${this.base}/store-in/PADDY_PURCHASE/${receiptId}/confirm`,
       payload,
     );

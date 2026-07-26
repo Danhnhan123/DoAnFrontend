@@ -94,8 +94,8 @@ const adminChildren: Routes = [
   {
     path: 'inbound-orders',
     loadComponent: () =>
-      import('./components/inbound-order/inbound-order.component')
-        .then(m => m.InboundOrderComponent),
+      import('./components/inbound-putaway/inbound-putaway.component')
+        .then(m => m.InboundPutawayComponent),
   },
   {
     path: 'iot-devices',
@@ -213,10 +213,22 @@ const adminChildren: Routes = [
         .then(m => m.PaddyLotComponent),
   },
   {
+    path: 'milling-orders',
+    loadComponent: () =>
+      import('./components/milling-order/milling-order.component')
+        .then(m => m.MillingOrderComponent),
+  },
+  {
     path: 'quality-inspections',
     loadComponent: () =>
       import('./components/quality-inspection/quality-inspection.component')
         .then(m => m.QualityInspectionComponent),
+  },
+  {
+    path: 'sales-orders',
+    loadComponent: () =>
+      import('./components/sales-order/sales-order.component')
+        .then(m => m.SalesOrderComponent),
   },
   // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
   {

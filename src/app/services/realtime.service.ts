@@ -41,6 +41,11 @@ const REALTIME_MAP: Record<string, string[]> = {
   AuditLog: ['audit-log'],
   ActivityLog: ['activity-log'],
   PaddyLot: ['paddy-lots'],
+  SalesOrder: ['sales-orders'],
+  SalesOrderItem: ['sales-orders'],
+  OutboundOrder: ['sales-orders', 'outbound-orders'],
+  OutboundOrderItem: ['sales-orders', 'outbound-orders'],
+  MillingOrder: ['milling-orders', 'sales-orders'],
 };
 
 @Injectable({ providedIn: 'root' })

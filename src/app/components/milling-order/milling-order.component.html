@@ -1,0 +1,1117 @@
+<section class="milling-page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow"><span aria-hidden="true">▧</span> Sản xuất</span>
+      <h1>Quản lý lệnh xay xát</h1>
+      <p>
+        Theo dõi lúa đã giữ theo lô/cột, yield áp dụng, gạo dự kiến,
+        thành phẩm thực tế, phụ phẩm, hao hụt và giá vốn của từng mẻ xay.
+      </p>
+    </div>
+    <div class="hero-actions">
+      <button class="secondary-btn" type="button" (click)="refresh()">
+        <span aria-hidden="true">↻</span> Làm mới
+      </button>
+      @if (canManageOrder()) {
+        <button class="primary-btn" type="button" (click)="openCreate()">
+          <span aria-hidden="true">＋</span> Tạo lệnh xay
+        </button>
+      }
+    </div>
+  </header>
+
+  <nav class="status-tabs" aria-label="Lọc theo trạng thái">
+    @for (tab of statusTabs; track tab.code) {
+      <button
+        type="button"
+        [class.active]="statusFilter() === tab.code"
+        (click)="setStatusFilter(tab.code)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
+
+  <div class="kpi-grid">
+    <article class="kpi-card">
+      <span>Gạo dự kiến tháng</span>
+      <strong>{{ fmtTon(expectedRiceThisMonth()) }}</strong>
+      <small>Từ các lệnh chưa hủy</small>
+    </article>
+    <article class="kpi-card">
+      <span>Đang xử lý</span>
+      <strong>{{ inProgressCount() }}</strong>
+      <small>Đã giữ lúa / đang xay / chờ nhập</small>
+    </article>
+    <article class="kpi-card">
+      <span>Yield trung bình</span>
+      <strong>{{ fmtPercent(averageYield7Days()) }}</strong>
+      <small>7 ngày gần nhất</small>
+    </article>
+  </div>
+
+  <div class="toolbar">
+    <form class="search-box" (submit)="$event.preventDefault(); applySearch()">
+      <span aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        placeholder="Tìm mã lệnh, kho, máy xay..."
+        [ngModel]="searchInput()"
+        (ngModelChange)="searchInput.set($event)"
+        name="millingSearch"
+      />
+      @if (searchInput()) {
+        <button
+          class="clear-search"
+          type="button"
+          title="Xóa từ khóa"
+          (click)="clearSearch()"
+        >
+          ×
+        </button>
+      }
+    </form>
+
+    <select
+      aria-label="Lọc theo kho"
+      [ngModel]="warehouseFilter() || ''"
+      (ngModelChange)="setWarehouseFilter($event)"
+    >
+      <option value="">Tất cả kho</option>
+      @for (warehouse of warehouses(); track warehouse.id) {
+        <option [value]="warehouse.id">{{ warehouse.name }}</option>
+      }
+    </select>
+
+    <button class="filter-btn" type="button" (click)="applySearch()">
+      Tìm kiếm
+    </button>
+  </div>
+
+  <article class="panel">
+    <div class="panel-heading">
+      <div>
+        <h2>Danh sách lệnh xay</h2>
+        <p>{{ total() }} lệnh phù hợp bộ lọc</p>
+      </div>
+      @if (loading()) {
+        <span class="loading-label">Đang cập nhật...</span>
+      }
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="sortable" (click)="sortBy('millingCode')">Mã lệnh</th>
+            <th>Nguồn</th>
+            <th>Kho / đầu vào</th>
+            <th class="number">Gạo dự kiến</th>
+            <th class="number">Yield dùng</th>
+            <th class="number">Gạo thực tế</th>
+            <th class="sortable" (click)="sortBy('statusId')">Trạng thái</th>
+            <th class="sortable" (click)="sortBy('createdDate')">Ngày tạo</th>
+            <th class="action-column">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (loading() && !rows().length) {
+            @for (item of [1, 2, 3, 4, 5]; track item) {
+              <tr class="skeleton-row">
+                <td colspan="9"><span></span></td>
+              </tr>
+            }
+          } @else if (errorMessage()) {
+            <tr>
+              <td colspan="9" class="state-cell error-state">
+                <strong>Không tải được danh sách lệnh xay</strong>
+                <span>{{ errorMessage() }}</span>
+                <button type="button" (click)="refresh()">Thử lại</button>
+              </td>
+            </tr>
+          } @else if (!rows().length) {
+            <tr>
+              <td colspan="9" class="state-cell">
+                <strong>Chưa có lệnh xay phù hợp</strong>
+                <span>Hãy đổi bộ lọc hoặc tạo lệnh xay mới.</span>
+              </td>
+            </tr>
+          } @else {
+            @for (row of rows(); track row.id) {
+              <tr class="data-row" (click)="openDetail(row)">
+                <td>
+                  <button class="code-link" type="button">
+                    {{ row.millingCode }}
+                  </button>
+                  <small>#{{ row.id }}</small>
+                </td>
+                <td>
+                  <strong>{{ sourceLabel(row) }}</strong>
+                  <small>{{ row.riceVarietyName || row.reason || 'Kế hoạch nội bộ' }}</small>
+                </td>
+                <td>
+                  <strong>{{ row.warehouseName || 'Kho #' + row.warehouseId }}</strong>
+                  <small>{{ inputLabel(row) }}</small>
+                </td>
+                <td class="number">
+                  <strong>{{ fmtWeight(targetRice(row)) }}</strong>
+                </td>
+                <td class="number">
+                  <strong>{{ fmtPercent(row.yieldRateUsed) }}</strong>
+                </td>
+                <td class="number">
+                  @if (statusCode(row) === 'COMPLETED') {
+                    <strong>{{ fmtWeight(row.totalRiceOutputKg) }}</strong>
+                    @if (row.lossKg != null) {
+                      <small>Hao hụt {{ fmtWeight(row.lossKg) }}</small>
+                    }
+                  } @else {
+                    <span class="muted-value">—</span>
+                  }
+                </td>
+                <td>
+                  <span class="status-badge" [ngClass]="statusClass(row)">
+                    {{ statusLabel(row) }}
+                  </span>
+                </td>
+                <td>
+                  <span>{{ fmtDate(row.createdDate) }}</span>
+                  <small>
+                    {{ row.completedAt ? 'Xong ' + fmtDate(row.completedAt) : '' }}
+                  </small>
+                </td>
+                <td class="actions" (click)="$event.stopPropagation()">
+                  @if (statusCode(row) === 'DRAFT') {
+                    @if (canManageOrder()) {
+                      <button
+                        type="button"
+                        title="Sửa lệnh"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openEdit(row, $event)"
+                      >
+                        Sửa
+                      </button>
+                    }
+                    @if (canReservePaddy()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openReserve(row, $event)"
+                      >
+                        Giữ lúa
+                      </button>
+                    }
+                    @if (canManageOrder()) {
+                      <button
+                        class="danger-link"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="cancelOrder(row, $event)"
+                      >
+                        Hủy
+                      </button>
+                    }
+                    @if (!canManageOrder() && !canReservePaddy()) {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
+                  } @else if (statusCode(row) === 'RESERVED') {
+                    @if (canManageOrder()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="startOrder(row, $event)"
+                      >
+                        Bắt đầu xay
+                      </button>
+                      <button
+                        class="danger-link"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="cancelOrder(row, $event)"
+                      >
+                        Hủy
+                      </button>
+                    } @else {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
+                  } @else if (statusCode(row) === 'IN_PROGRESS') {
+                    @if (canCompleteOrder()) {
+                      <button
+                        class="action-primary"
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openComplete(row, $event)"
+                      >
+                        {{ actionLoadingId() === row.id ? 'Đang tải...' : 'Nhập kết quả' }}
+                      </button>
+                    } @else {
+                      <button type="button" (click)="openDetail(row)">Xem</button>
+                    }
+                  } @else {
+                    <button type="button" (click)="openDetail(row)">
+                      Xem
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pagination">
+      <span>Trang {{ page() }}/{{ totalPages() }} · {{ total() }} bản ghi</span>
+      <div>
+        <button
+          type="button"
+          [disabled]="page() <= 1 || loading()"
+          (click)="setPage(page() - 1)"
+        >
+          ‹
+        </button>
+        <strong>{{ page() }}</strong>
+        <button
+          type="button"
+          [disabled]="page() >= totalPages() || loading()"
+          (click)="setPage(page() + 1)"
+        >
+          ›
+        </button>
+      </div>
+    </footer>
+  </article>
+</section>
+
+<!-- TẠO / SỬA LỆNH -->
+@if (showCreateModal()) {
+  <div class="modal-backdrop" (mousedown)="closeCreate()">
+    <section
+      class="modal modal-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-milling-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="create-milling-title">
+            {{ createForm().id ? 'Cập nhật lệnh xay' : 'Tạo lệnh xay' }}
+          </h2>
+          <p>
+            Yield được gợi ý theo giống và độ ẩm; lượng lúa dự kiến được tính tự động.
+          </p>
+        </div>
+        <button class="icon-close" type="button" (click)="closeCreate()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <label>
+            <span>Nguồn lệnh <b>*</b></span>
+            <select
+              [ngModel]="createForm().sourceType"
+              (ngModelChange)="setCreateField('sourceType', $event)"
+              [disabled]="!!createForm().id"
+            >
+              <option value="PRODUCTION_PLAN">Kế hoạch sản xuất</option>
+              <option value="SALES_ORDER">Đơn bán cần xay</option>
+            </select>
+          </label>
+
+          @if (createForm().sourceType === 'SALES_ORDER') {
+            <label>
+              <span>Đơn bán <b>*</b></span>
+              <select
+                [ngModel]="createForm().salesOrderId || ''"
+                (ngModelChange)="selectSalesOrder($event)"
+                [disabled]="!!createForm().id"
+              >
+                <option value="">Chọn đơn bán</option>
+                @for (order of salesOrders(); track order.id) {
+                  <option [value]="order.id">
+                    {{ order.soCode }} — {{ order.customerName || 'Khách hàng' }}
+                  </option>
+                }
+              </select>
+            </label>
+          } @else {
+            <label>
+              <span>Mã kế hoạch</span>
+              <input
+                type="text"
+                placeholder="VD: KH-XAY-2026-021"
+                [ngModel]="createForm().productionPlanRef"
+                (ngModelChange)="setCreateField('productionPlanRef', $event)"
+              />
+            </label>
+          }
+
+          <label>
+            <span>Kho thực hiện <b>*</b></span>
+            <select
+              [ngModel]="createForm().warehouseId || ''"
+              (ngModelChange)="setCreateField('warehouseId', $event)"
+            >
+              <option value="">Chọn kho</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id">{{ warehouse.name }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Giống lúa</span>
+            <select
+              [ngModel]="createForm().riceVarietyId || ''"
+              (ngModelChange)="setCreateField('riceVarietyId', $event)"
+            >
+              <option value="">Chọn giống lúa</option>
+              @for (variety of varietyOptions(); track variety.id) {
+                <option [value]="variety.id">
+                  {{ variety.code ? variety.code + ' — ' : '' }}{{ variety.name }}
+                </option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Độ ẩm lúa (%)</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              placeholder="VD: 14.5"
+              [ngModel]="createForm().moisturePercent"
+              (ngModelChange)="setCreateField('moisturePercent', $event)"
+            />
+          </label>
+
+          <label>
+            <span>Yield áp dụng <b>*</b></span>
+            <div class="input-suffix">
+              <input
+                type="number"
+                min="0.0001"
+                max="1"
+                step="0.0001"
+                [ngModel]="createForm().expectedYield"
+                (ngModelChange)="setCreateField('expectedYield', $event)"
+              />
+              <span>{{ fmtPercent(createForm().expectedYield) }}</span>
+            </div>
+          </label>
+
+          <label>
+            <span>Gạo dự kiến (kg) <b>*</b></span>
+            <input
+              type="number"
+              min="0.001"
+              step="0.001"
+              placeholder="VD: 3100"
+              [ngModel]="createForm().targetRiceKg"
+              (ngModelChange)="setCreateField('targetRiceKg', $event)"
+            />
+          </label>
+
+          <label>
+            <span>Lúa dự kiến tính ngược</span>
+            <div class="readonly-field">
+              {{ fmtWeight(createComputedPaddyKg()) }}
+            </div>
+          </label>
+
+          <label>
+            <span>Ngày dự kiến hoàn thành</span>
+            <input
+              type="date"
+              [ngModel]="createForm().expectedCompletionDate"
+              (ngModelChange)="setCreateField('expectedCompletionDate', $event)"
+            />
+          </label>
+
+          <label>
+            <span>Chi phí xay dự kiến</span>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              placeholder="0"
+              [ngModel]="createForm().millingCost"
+              (ngModelChange)="setCreateField('millingCost', $event)"
+            />
+          </label>
+
+          <label>
+            <span>Chi phí phát sinh dự kiến</span>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              placeholder="0"
+              [ngModel]="createForm().incidentalCost"
+              (ngModelChange)="setCreateField('incidentalCost', $event)"
+            />
+          </label>
+
+          <label class="span-2">
+            <span>Ghi chú</span>
+            <textarea
+              rows="3"
+              placeholder="Máy xay, yêu cầu sản xuất, lý do..."
+              [ngModel]="createForm().reason"
+              (ngModelChange)="setCreateField('reason', $event)"
+            ></textarea>
+          </label>
+        </div>
+
+        @if (!createForm().id) {
+          <section class="subsection">
+            <div class="subsection-heading">
+              <div>
+                <h3>Phân bổ lô/cột đầu vào</h3>
+                <p>
+                  Có thể giữ lúa ngay hoặc để trống và thực hiện sau khi tạo lệnh Nháp.
+                </p>
+              </div>
+              <button
+                class="small-add-btn"
+                type="button"
+                [disabled]="!createForm().warehouseId"
+                (click)="addCreateAllocation()"
+              >
+                ＋ Thêm lô
+              </button>
+            </div>
+
+            @if (createForm().allocations.length) {
+              <div class="allocation-summary">
+                <span>Cần giữ: <strong>{{ fmtWeight(createComputedPaddyKg()) }}</strong></span>
+                <span>Đã phân bổ: <strong>{{ fmtWeight(createAllocatedKg()) }}</strong></span>
+                <span
+                  [class.balance-ok]="
+                    createComputedPaddyKg() > 0 &&
+                    (createAllocatedKg() - createComputedPaddyKg() < 0.01) &&
+                    (createComputedPaddyKg() - createAllocatedKg() < 0.01)
+                  "
+                >
+                  Còn lại:
+                  <strong>{{ fmtWeight(createComputedPaddyKg() - createAllocatedKg()) }}</strong>
+                </span>
+              </div>
+
+              <div class="line-list">
+                @for (
+                  line of createForm().allocations;
+                  track line.key;
+                  let i = $index
+                ) {
+                  <div class="allocation-line">
+                    <label>
+                      <span>Lô lúa</span>
+                      <select
+                        [ngModel]="line.paddyLotId || ''"
+                        (ngModelChange)="setCreateAllocation(i, 'paddyLotId', $event)"
+                      >
+                        <option value="">Chọn lô đủ điều kiện</option>
+                        @for (
+                          lot of eligibleLotsForWarehouse(createForm().warehouseId);
+                          track lot.id
+                        ) {
+                          <option [value]="lot.id">{{ lotLabel(lot) }}</option>
+                        }
+                      </select>
+                    </label>
+                    <label>
+                      <span>Vị trí/cột</span>
+                      <select
+                        [ngModel]="line.locationId || ''"
+                        (ngModelChange)="setCreateAllocation(i, 'locationId', $event)"
+                        [disabled]="!line.paddyLotId"
+                      >
+                        <option value="">Chọn cột đang chứa lô</option>
+                        @for (
+                          inventory of inventoryLocationsForLot(
+                            line.paddyLotId,
+                            createForm().warehouseId
+                          );
+                          track inventory.id
+                        ) {
+                          <option [value]="inventory.locationId">
+                            {{ inventoryLocationLabel(inventory) }}
+                          </option>
+                        }
+                      </select>
+                    </label>
+                    <label>
+                      <span>Khối lượng giữ (kg)</span>
+                      <input
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        [ngModel]="line.consumedWeightKg"
+                        (ngModelChange)="setCreateAllocation(i, 'consumedWeightKg', $event)"
+                      />
+                    </label>
+                    <button
+                      class="remove-line"
+                      type="button"
+                      title="Xóa dòng"
+                      (click)="removeCreateAllocation(i)"
+                    >
+                      ×
+                    </button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="empty-inline">
+                Chưa phân bổ lô. Lệnh sẽ được lưu ở trạng thái Nháp.
+              </div>
+            }
+          </section>
+        }
+      </div>
+
+      <footer class="modal-footer">
+        <button class="secondary-btn" type="button" (click)="closeCreate()">
+          Hủy
+        </button>
+        <button
+          class="primary-btn"
+          type="button"
+          [disabled]="saving()"
+          (click)="saveCreate()"
+        >
+          {{ saving() ? 'Đang lưu...' : createForm().id ? 'Cập nhật' : 'Tạo lệnh' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+<!-- GIỮ LÚA -->
+@if (showReserveModal()) {
+  <div class="modal-backdrop" (mousedown)="closeReserve()">
+    <section
+      class="modal modal-wide"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reserve-milling-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="reserve-milling-title">Chọn lô/cột và giữ lúa</h2>
+          <p>
+            {{ activeOrder()?.millingCode }} ·
+            {{ activeOrder()?.warehouseName || 'Kho #' + activeOrder()?.warehouseId }}
+          </p>
+        </div>
+        <button class="icon-close" type="button" (click)="closeReserve()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="allocation-summary large">
+          <span>Cần giữ: <strong>{{ fmtWeight(reserveRequiredKg()) }}</strong></span>
+          <span>Đã phân bổ: <strong>{{ fmtWeight(reserveAllocatedKg()) }}</strong></span>
+          <span
+            [class.balance-ok]="
+              reserveRequiredKg() > 0 &&
+              (reserveAllocatedKg() - reserveRequiredKg() < 0.01) &&
+              (reserveRequiredKg() - reserveAllocatedKg() < 0.01)
+            "
+          >
+            Còn lại:
+            <strong>{{ fmtWeight(reserveRequiredKg() - reserveAllocatedKg()) }}</strong>
+          </span>
+        </div>
+
+        <div class="notice">
+          Chỉ các lô lúa còn tồn, đang lưu kho và không cách ly mới được hiển thị.
+        </div>
+
+        <div class="line-list">
+          @for (line of reserveLines(); track line.key; let i = $index) {
+            <div class="allocation-line reserve-line">
+              <label>
+                <span>Lô lúa</span>
+                <select
+                  [ngModel]="line.paddyLotId || ''"
+                  (ngModelChange)="setReserveLine(i, 'paddyLotId', $event)"
+                >
+                  <option value="">Chọn lô đủ điều kiện</option>
+                  @for (
+                    lot of eligibleLotsForWarehouse(activeOrder()?.warehouseId || null);
+                    track lot.id
+                  ) {
+                    <option [value]="lot.id">{{ lotLabel(lot) }}</option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Vị trí/cột</span>
+                <select
+                  [ngModel]="line.locationId || ''"
+                  (ngModelChange)="setReserveLine(i, 'locationId', $event)"
+                  [disabled]="!line.paddyLotId"
+                >
+                  <option value="">Chọn cột đang chứa lô</option>
+                  @for (
+                    inventory of inventoryLocationsForLot(
+                      line.paddyLotId,
+                      activeOrder()?.warehouseId || null
+                    );
+                    track inventory.id
+                  ) {
+                    <option [value]="inventory.locationId">
+                      {{ inventoryLocationLabel(inventory) }}
+                    </option>
+                  }
+                </select>
+              </label>
+              <label>
+                <span>Khối lượng giữ (kg)</span>
+                <input
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  [ngModel]="line.consumedWeightKg"
+                  (ngModelChange)="setReserveLine(i, 'consumedWeightKg', $event)"
+                />
+              </label>
+              <label>
+                <span>Ghi chú</span>
+                <input
+                  type="text"
+                  placeholder="Không bắt buộc"
+                  [ngModel]="line.note"
+                  (ngModelChange)="setReserveLine(i, 'note', $event)"
+                />
+              </label>
+              <button
+                class="remove-line"
+                type="button"
+                title="Xóa dòng"
+                [disabled]="reserveLines().length === 1"
+                (click)="removeReserveLine(i)"
+              >
+                ×
+              </button>
+            </div>
+          }
+        </div>
+
+        <button class="small-add-btn standalone" type="button" (click)="addReserveLine()">
+          ＋ Thêm lô/cột đầu vào
+        </button>
+      </div>
+
+      <footer class="modal-footer">
+        <button class="secondary-btn" type="button" (click)="closeReserve()">
+          Để sau
+        </button>
+        <button
+          class="primary-btn"
+          type="button"
+          [disabled]="saving()"
+          (click)="reservePaddy()"
+        >
+          {{ saving() ? 'Đang giữ lúa...' : 'Xác nhận giữ lúa' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+<!-- NHẬP KẾT QUẢ VÀ HOÀN TẤT -->
+@if (showCompleteModal()) {
+  <div class="modal-backdrop" (mousedown)="closeComplete()">
+    <section
+      class="modal modal-xl"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="complete-milling-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="complete-milling-title">Nhập kết quả xay và thành phẩm</h2>
+          <p>
+            {{ activeOrder()?.millingCode }} · Lúa đã giữ
+            {{ fmtWeight(completeInputKg()) }}
+          </p>
+        </div>
+        <button class="icon-close" type="button" (click)="closeComplete()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="completion-grid">
+          <section class="completion-main">
+            <div class="subsection-heading">
+              <div>
+                <h3>Gạo thành phẩm và phụ phẩm</h3>
+                <p>Mỗi dòng đầu ra sẽ tạo một lô và nhập vào vị trí đã chọn.</p>
+              </div>
+              <div class="add-output-menu">
+                @for (type of outputTypes; track type.value) {
+                  <button
+                    class="small-add-btn"
+                    type="button"
+                    (click)="addOutput(type.value)"
+                  >
+                    ＋ {{ type.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <div class="output-list">
+              @for (
+                line of completeForm().outputs;
+                track line.key;
+                let i = $index
+              ) {
+                <article class="output-card">
+                  <div class="output-card-head">
+                    <select
+                      class="type-select"
+                      [ngModel]="line.outputType"
+                      (ngModelChange)="setOutputField(i, 'outputType', $event)"
+                    >
+                      @for (type of outputTypes; track type.value) {
+                        <option [value]="type.value">{{ type.label }}</option>
+                      }
+                    </select>
+                    <button
+                      class="remove-line"
+                      type="button"
+                      title="Xóa dòng đầu ra"
+                      [disabled]="completeForm().outputs.length === 1"
+                      (click)="removeOutput(i)"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <div class="output-fields">
+                    <label class="wide-field">
+                      <span>SKU đầu ra <b>*</b></span>
+                      <select
+                        [ngModel]="line.productVariantId || ''"
+                        (ngModelChange)="setOutputField(i, 'productVariantId', $event)"
+                      >
+                        <option value="">Chọn SKU</option>
+                        @for (
+                          variant of variantsForType(line.outputType);
+                          track variant.id
+                        ) {
+                          <option [value]="variant.id">
+                            {{ variantLabel(variant) }}
+                          </option>
+                        }
+                      </select>
+                    </label>
+
+                    <label class="wide-field">
+                      <span>Vị trí nhập kho <b>*</b></span>
+                      <select
+                        [ngModel]="line.locationId || ''"
+                        (ngModelChange)="setOutputField(i, 'locationId', $event)"
+                      >
+                        <option value="">Chọn vị trí không cách ly</option>
+                        @for (
+                          location of locationsForWarehouse(activeOrder()?.warehouseId || null);
+                          track location.id
+                        ) {
+                          <option [value]="location.id">
+                            {{ locationLabel(location) }}
+                          </option>
+                        }
+                      </select>
+                    </label>
+
+                    <label>
+                      <span>Số bao</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        [ngModel]="line.bagCount"
+                        (ngModelChange)="setOutputField(i, 'bagCount', $event)"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Kg/bao</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.001"
+                        [ngModel]="line.bagWeightKg"
+                        (ngModelChange)="setOutputField(i, 'bagWeightKg', $event)"
+                      />
+                    </label>
+
+                    <label>
+                      <span>Khối lượng thực tế (kg) <b>*</b></span>
+                      <input
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        [ngModel]="line.outputWeightKg"
+                        (ngModelChange)="setOutputField(i, 'outputWeightKg', $event)"
+                      />
+                    </label>
+
+                  </div>
+                </article>
+              }
+            </div>
+          </section>
+
+          <aside class="completion-side">
+            <section class="summary-box">
+              <h3>Đối chiếu mẻ xay</h3>
+              <dl>
+                <div>
+                  <dt>Lúa đã giữ</dt>
+                  <dd>{{ fmtWeight(completeInputKg()) }}</dd>
+                </div>
+                <div>
+                  <dt>Gạo thành phẩm</dt>
+                  <dd>{{ fmtWeight(totalRiceOutputKg()) }}</dd>
+                </div>
+                <div>
+                  <dt>Phụ phẩm</dt>
+                  <dd>{{ fmtWeight(totalByproductKg()) }}</dd>
+                </div>
+                <div>
+                  <dt>Hao hụt</dt>
+                  <dd>{{ fmtWeight(completeForm().lossKg) }}</dd>
+                </div>
+                <div class="emphasis">
+                  <dt>Lúa sẽ trừ theo yield</dt>
+                  <dd>{{ fmtWeight(computedPaddyToConsumeKg()) }}</dd>
+                </div>
+                <div>
+                  <dt>Chênh cân bằng</dt>
+                  <dd [class.value-warning]="massBalanceDeltaKg() < -0.01">
+                    {{ fmtWeight(massBalanceDeltaKg()) }}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <div class="side-form">
+              <label>
+                <span>Yield đã đóng dấu</span>
+                <div class="readonly-field">
+                  {{ fmtPercent(completeForm().configuredYieldRate) }}
+                </div>
+              </label>
+
+              <div class="calculated-field">
+                <span>Mức đạt kế hoạch</span>
+                <strong>{{ fmtPercent(actualYieldRate()) }}</strong>
+                <small
+                  [class.value-warning]="
+                    yieldDeviationPercent() > 2 || yieldDeviationPercent() < -2
+                  "
+                >
+                  Sản lượng lệch {{ yieldDeviationPercent().toFixed(2) }}%
+                </small>
+              </div>
+
+              <label>
+                <span>Hao hụt (kg)</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  [ngModel]="completeForm().lossKg"
+                  (ngModelChange)="setCompleteField('lossKg', $event)"
+                />
+              </label>
+
+              <label>
+                <span>Mã máy xay</span>
+                <input
+                  type="text"
+                  placeholder="VD: MAY-XAY-01"
+                  [ngModel]="completeForm().machineRef"
+                  (ngModelChange)="setCompleteField('machineRef', $event)"
+                />
+              </label>
+
+              <label>
+                <span>Chi phí xay</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  [ngModel]="completeForm().millingCost"
+                  (ngModelChange)="setCompleteField('millingCost', $event)"
+                />
+              </label>
+
+              <label>
+                <span>Chi phí phát sinh</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  [ngModel]="completeForm().incidentalCost"
+                  (ngModelChange)="setCompleteField('incidentalCost', $event)"
+                />
+              </label>
+
+              <label>
+                <span>Ghi chú / lý do sai lệch</span>
+                <textarea
+                  rows="4"
+                  placeholder="Bắt buộc nếu sản lượng lệch kế hoạch trên 2%"
+                  [ngModel]="completeForm().note"
+                  (ngModelChange)="setCompleteField('note', $event)"
+                ></textarea>
+              </label>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button class="secondary-btn" type="button" (click)="closeComplete()">
+          Đóng
+        </button>
+        <button
+          class="primary-btn"
+          type="button"
+          [disabled]="saving()"
+          (click)="completeOrder()"
+        >
+          {{ saving() ? 'Đang hoàn tất...' : 'Nhập kho & hoàn tất' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+<!-- CHI TIẾT -->
+@if (showDetailModal()) {
+  <div class="modal-backdrop" (mousedown)="closeDetail()">
+    <section
+      class="modal detail-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="milling-detail-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="milling-detail-title">Chi tiết lệnh xay</h2>
+          <p>Nguồn, đầu vào, đầu ra, thời gian và giá vốn</p>
+        </div>
+        <button class="icon-close" type="button" (click)="closeDetail()">×</button>
+      </header>
+
+      <div class="modal-body">
+        @if (loadingDetail()) {
+          <div class="detail-loading">
+            @for (item of [1, 2, 3, 4, 5]; track item) {
+              <span></span>
+            }
+          </div>
+        } @else {
+          @if (detail(); as item) {
+          <div class="detail-title-row">
+            <div>
+              <small>Mã lệnh</small>
+              <strong>{{ item.millingCode }}</strong>
+            </div>
+            <span class="status-badge" [ngClass]="statusClass(item)">
+              {{ statusLabel(item) }}
+            </span>
+          </div>
+
+          <dl class="detail-grid">
+            <div><dt>Nguồn</dt><dd>{{ sourceLabel(item) }}</dd></div>
+            <div><dt>Kho</dt><dd>{{ item.warehouseName || 'Kho #' + item.warehouseId }}</dd></div>
+            <div><dt>Yield dùng</dt><dd>{{ fmtPercent(item.yieldRateUsed) }}</dd></div>
+            <div><dt>Lúa tính toán</dt><dd>{{ fmtWeight(item.computedPaddyKg) }}</dd></div>
+            <div><dt>Gạo thực tế</dt><dd>{{ fmtWeight(item.totalRiceOutputKg) }}</dd></div>
+            <div><dt>Phụ phẩm</dt><dd>{{ fmtWeight(item.byproductKg) }}</dd></div>
+            <div><dt>Hao hụt</dt><dd>{{ fmtWeight(item.lossKg) }}</dd></div>
+            <div><dt>Tổng giá vốn</dt><dd>{{ item.totalCost != null ? fmtMoney(item.totalCost) : '—' }}</dd></div>
+            <div><dt>Bắt đầu</dt><dd>{{ fmtDateTime(item.startedAt) }}</dd></div>
+            <div><dt>Hoàn tất</dt><dd>{{ fmtDateTime(item.completedAt) }}</dd></div>
+          </dl>
+
+          <section class="detail-section">
+            <h3>Lô/cột đầu vào</h3>
+            @if (item.inputs.length) {
+              <div class="mini-table">
+                <div class="mini-table-head">
+                  <span>Lô</span><span>Vị trí</span><span>Đã giữ</span><span>Tiêu hao</span>
+                </div>
+                @for (input of item.inputs; track input.id) {
+                  <div class="mini-table-row">
+                    <span>{{ input.lotCode || 'Lô #' + input.paddyLotId }}</span>
+                    <span>{{ input.locationId ? '#' + input.locationId : '—' }}</span>
+                    <span>{{ fmtWeight(input.reservedWeightKg) }}</span>
+                    <span>{{ fmtWeight(input.consumedWeightKg) }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="empty-inline">Chưa giữ lô/cột đầu vào.</p>
+            }
+          </section>
+
+          <section class="detail-section">
+            <h3>Thành phẩm và phụ phẩm</h3>
+            @if (item.outputs.length) {
+              <div class="mini-table">
+                <div class="mini-table-head output-detail-head">
+                  <span>Loại</span><span>SKU</span><span>Lô mới</span><span>Khối lượng</span>
+                </div>
+                @for (output of item.outputs; track output.id) {
+                  <div class="mini-table-row output-detail-head">
+                    <span>{{ outputTypeLabel(output.outputType) }}</span>
+                    <span>{{ output.sku || '#' + output.productVariantId }}</span>
+                    <span>{{ output.outputLotId ? '#' + output.outputLotId : '—' }}</span>
+                    <span>{{ fmtWeight(output.outputWeightKg) }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="empty-inline">Chưa ghi nhận đầu ra.</p>
+            }
+          </section>
+
+          @if (item.reason) {
+            <section class="detail-section">
+              <h3>Ghi chú</h3>
+              <p>{{ item.reason }}</p>
+            </section>
+          }
+          } @else {
+            <div class="state-cell">
+              <strong>Không tải được chi tiết lệnh</strong>
+              <span>Hãy đóng cửa sổ và thử lại.</span>
+            </div>
+          }
+        }
+      </div>
+
+      <footer class="modal-footer">
+        <button class="secondary-btn" type="button" (click)="closeDetail()">
+          Đóng
+        </button>
+      </footer>
+    </section>
+  </div>
+}
