@@ -2,6 +2,7 @@ import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { lastValueFrom } from "rxjs";
+import { Router } from "@angular/router";
 import {
   injectMutation,
   injectQuery,
@@ -105,6 +106,7 @@ export class RicePurchaseComponent implements OnDestroy {
   private readonly purchaseService = inject(PaddyPurchaseService);
   private readonly paddyLotService = inject(PaddyLotService);
   private readonly queryClient = inject(QueryClient);
+  private readonly router = inject(Router);
 
   readonly statuses: PaddyScheduleStatusOption[] = [
     { id: 1, code: "NEW", name: "Mới tạo", color: "#6B7280" },
@@ -865,29 +867,26 @@ export class RicePurchaseComponent implements OnDestroy {
     }
 
     if (row.isConfirmed) {
-      await this.openPutawayForReceipt(row);
+      await this.router.navigate(["/admin/inbound-orders"]);
       return;
     }
 
     const accepted = await this.askConfirm(
-      "Chọn vị trí lưu lúa?",
-      "Hệ thống sẽ chốt phiếu để sinh lô và ghi công nợ, sau đó mới mở danh sách vị trí. Tồn kho thực tế chỉ tăng khi bạn xác nhận vị trí.",
+      "Chốt phiếu mua lúa?",
+      "Hệ thống sẽ sinh lô và phiếu nhập kho dạng Nháp. Việc duyệt, nhận hàng và xếp vị trí được tiếp tục tại trang Nhập kho.",
     );
     if (!accepted) return;
 
     this.confirmingReceiptId.set(row.id);
     try {
       const response = await this.confirmReceiptMutation.mutateAsync(row.id);
-      const result = response.resources;
-      if (!result?.lotId) {
-        throw new Error(
-          "Phiếu đã chốt nhưng API không trả về mã lô để chọn vị trí.",
-        );
+      if (!response.isSucceeded) {
+        throw new Error(response.message || "Không thể chốt phiếu mua lúa.");
       }
-      await this.loadLotAndOpenPutaway(row, result);
+      await this.router.navigate(["/admin/inbound-orders"]);
     } catch (err) {
       this.showError(
-        this.apiError(err, "Không thể chuẩn bị dữ liệu chọn vị trí."),
+        this.apiError(err, "Không thể tạo phiếu nhập kho."),
       );
     } finally {
       this.confirmingReceiptId.set(null);

@@ -13,6 +13,9 @@ export interface InboundOrderListDto {
   expectedDate?: string | null;
   completedDate?: string | null;
   note?: string | null;
+  sourceType?: string | null;
+  paddyPurchaseReceiptId?: number | null;
+  paddyPurchaseReceiptCode?: string | null;
   createdDate: string;
 }
 
@@ -20,6 +23,9 @@ export interface InboundOrderItemDto {
   id: number;
   inboundOrderId: number;
   productVariantId?: number | null;
+  paddyLotId?: number | null;
+  paddyLotCode?: string | null;
+  paddyQualityStatus?: string | null;
   productVariantName?: string | null;
   sku?: string | null;
   quantityOrdered: number;
@@ -116,4 +122,28 @@ export interface ProductVariantOption {
   sku: string;
   costPrice: number;
   isActive: boolean;
+}
+
+export interface PutawaySuggestionDto {
+  locationId: number;
+  zoneName?: string | null;
+  shelfRow?: string | null;
+  shelfLevel?: string | null;
+  slotCode?: string | null;
+  score: number;
+  availableCapacity: number;
+  currentOccupancy: number;
+  priority: number;
+  categoryMatch: boolean;
+  recommendedWeightKg: number;
+  canFitWhole: boolean;
+  isQuarantine: boolean;
+  scoreBreakdown: Record<string, number>;
+}
+
+export interface SelectInboundPutawayDto {
+  locationId: number;
+  isOverride: boolean;
+  overrideReason?: string | null;
+  weightKg?: number | null;
 }

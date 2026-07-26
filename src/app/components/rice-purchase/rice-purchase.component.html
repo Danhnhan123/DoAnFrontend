@@ -496,8 +496,8 @@
                           class="location-action"
                           [title]="
                             row.isConfirmed
-                              ? 'Tiếp tục chọn vị trí cho lô lúa'
-                              : 'Chốt phiếu rồi chọn vị trí'
+                              ? 'Mở phiếu nhập kho'
+                              : 'Chốt phiếu và tạo phiếu nhập kho'
                           "
                           [disabled]="confirmingReceiptId() === row.id"
                           (click)="chooseLocationForReceipt(row)"
@@ -520,8 +520,8 @@
                             </svg>
                             {{
                               row.isConfirmed
-                                ? "Tiếp tục chọn vị trí"
-                                : "Chọn vị trí"
+                                ? "Mở phiếu nhập kho"
+                                : "Chốt & tạo phiếu nhập"
                             }}
                           }
                         </button>
@@ -1003,7 +1003,7 @@
   </div>
 }
 
-@if (showPutawayModal()) {
+@if (false && showPutawayModal()) {
   @if (putawayForm(); as form) {
     <div class="modal-backdrop" (mousedown)="closePutawayModal()">
       <section

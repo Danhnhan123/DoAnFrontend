@@ -94,8 +94,8 @@ const adminChildren: Routes = [
   {
     path: 'inbound-orders',
     loadComponent: () =>
-      import('./components/inbound-order/inbound-order.component')
-        .then(m => m.InboundOrderComponent),
+      import('./components/inbound-putaway/inbound-putaway.component')
+        .then(m => m.InboundPutawayComponent),
   },
   {
     path: 'iot-devices',

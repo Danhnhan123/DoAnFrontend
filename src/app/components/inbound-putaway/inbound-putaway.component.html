@@ -1,0 +1,464 @@
+<section class="putaway-page">
+  <header class="page-head">
+    <div class="page-head-left">
+      <div class="screen-code">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 9 12 4l9 5-9 5-9-5Z"></path>
+          <path d="m3 14 9 5 9-5"></path>
+        </svg>
+        SCR-08 · Store-in &amp; Put-away
+      </div>
+      <h1>Nhập kho &amp; gợi ý xếp vị trí</h1>
+      <p>
+        Xác nhận lô lúa sau thu mua, kiểm tra điều kiện kho và chọn
+        khu/cột/lớp lưu trữ thực tế.
+      </p>
+    </div>
+    <button
+      class="page-action"
+      type="button"
+      [disabled]="loading()"
+      (click)="loadOrders()"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20 11a8.1 8.1 0 1 0 .5 4"></path>
+        <path d="M20 4v7h-7"></path>
+      </svg>
+      {{ loading() ? "Đang tải..." : "Làm mới dữ liệu" }}
+    </button>
+  </header>
+
+  @if (loadWarning()) {
+    <div class="load-warning">{{ loadWarning() }}</div>
+  }
+
+  <div class="metric-grid">
+    <article class="metric-card green">
+      <div class="metric-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4Z"></path>
+          <path d="m3.3 7 8.7 5 8.7-5M12 22V12"></path>
+        </svg>
+      </div>
+      <div class="metric-body">
+        <span>Lô chờ nhập</span>
+        <strong>{{ pendingLines().length }}</strong>
+        <small>{{ formatKg(pendingWeightKg()) }}</small>
+      </div>
+    </article>
+    <article class="metric-card blue">
+      <div class="metric-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path>
+          <circle cx="12" cy="10" r="2.5"></circle>
+        </svg>
+      </div>
+      <div class="metric-body">
+        <span>Vị trí còn chỗ</span>
+        <strong>{{ availableLocationCount() }}</strong>
+        <small>Đúng điều kiện kho</small>
+      </div>
+    </article>
+    <article class="metric-card orange">
+      <div class="metric-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3 2.5 20h19L12 3Z"></path>
+          <path d="M12 9v4M12 17h.01"></path>
+        </svg>
+      </div>
+      <div class="metric-body">
+        <span>Lô cần cách ly</span>
+        <strong>{{ quarantineCount() }}</strong>
+        <small>{{ quarantineCount() ? "Chỉ xếp khu cách ly" : "Không có cảnh báo" }}</small>
+      </div>
+    </article>
+    <article class="metric-card purple">
+      <div class="metric-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 19V9M10 19V5M16 19v-7M22 19H2"></path>
+        </svg>
+      </div>
+      <div class="metric-body">
+        <span>Sức chứa còn lại</span>
+        <strong>{{ 100 - proposedOccupancy() }}%</strong>
+        <small>
+          @if (selectedSuggestion()) {
+            {{ locationLabel(selectedSuggestion()!) }}
+          } @else {
+            Chưa chọn vị trí
+          }
+        </small>
+      </div>
+    </article>
+  </div>
+
+  <div class="workspace-grid">
+    <article class="panel lot-panel">
+      <header class="panel-header">
+        <div>
+          <h2>Lô chờ nhập kho</h2>
+          <p>{{ pendingLines().length }} lô đang chờ xử lý</p>
+        </div>
+      </header>
+
+      <div class="lot-list">
+        @if (loading()) {
+          <div class="empty-state">
+            <span class="spinner"></span>
+            Đang tải phiếu nhập...
+          </div>
+        } @else if (!pendingLines().length) {
+          <div class="empty-state">
+            <span class="empty-icon">✓</span>
+            Hiện không có lô nào đang chờ nhập kho.
+          </div>
+        } @else {
+          @for (line of pendingLines(); track line.item.id) {
+            <button
+              type="button"
+              class="lot-row"
+              [class.selected]="selectedLine()?.item?.id === line.item.id"
+              (click)="selectLine(line)"
+            >
+              <div class="lot-top">
+                <strong>{{ lineTitle(line) }}</strong>
+                <span
+                  class="lot-state"
+                  [class.completed]="remaining(line.item) <= 0"
+                >
+                  {{
+                    remaining(line.item) <= 0
+                      ? "Hoàn tất"
+                      : line.item.receiptStatus === "PartiallyReceived"
+                        ? "Nhập một phần"
+                        : "Chờ nhập"
+                  }}
+                </span>
+              </div>
+              <b>
+                {{ formatKg(remaining(line.item)) }} còn lại
+              </b>
+              <span>
+                {{ line.order.paddyPurchaseReceiptCode || line.order.poCode }}
+                · {{ line.order.supplierName || "Không rõ nông dân" }}
+              </span>
+              <span
+                class="quality"
+                [class.failed]="line.item.paddyQualityStatus === 'FAILED'"
+              >
+                QC:
+                {{
+                  line.item.paddyQualityStatus === "FAILED"
+                    ? "Cần cách ly"
+                    : "Đạt sơ bộ"
+                }}
+              </span>
+            </button>
+          }
+        }
+      </div>
+    </article>
+
+    <article class="panel suggestion-panel">
+      @if (!selectedLine()) {
+        <div class="empty-state large">
+          Chọn một lô bên trái để bắt đầu xử lý nhập kho.
+        </div>
+      } @else {
+        <header class="panel-header suggestion-header">
+          <div>
+            <h2>
+              Gợi ý xếp vị trí cho
+              {{ selectedLine()!.item.paddyLotCode || selectedLine()!.order.poCode }}
+            </h2>
+            <p>
+              Chỉ hiển thị vị trí đang hoạt động, đúng điều kiện cách ly và còn
+              sức chứa.
+            </p>
+          </div>
+          <span
+            class="eligibility"
+            [class.warning]="activeStatus() === 'split'"
+            [class.error]="activeStatus() === 'capacity' || activeStatus() === 'error'"
+          >
+            {{
+              activeStatus() === "split"
+                ? "Cần tách lô"
+                : activeStatus() === "capacity"
+                  ? "Hết sức chứa"
+                  : activeStatus() === "error"
+                    ? "Cần kiểm tra"
+                    : "Đủ điều kiện"
+            }}
+          </span>
+        </header>
+
+        @if (message()) {
+          <div
+            class="notice"
+            [class.warning]="activeStatus() === 'split' || activeStatus() === 'capacity'"
+            [class.error]="activeStatus() === 'error' || activeStatus() === 'conflict'"
+          >
+            {{ message() }}
+          </div>
+        }
+
+        @if (actionLabel()) {
+          <div class="lifecycle-card">
+            <div>
+              <strong>Phiếu {{ selectedLine()!.order.poCode }}</strong>
+              <span>
+                Trạng thái: {{ selectedLine()!.order.inboundOrderStatusName }}
+              </span>
+            </div>
+            @if (canAdvanceOrder()) {
+              <button
+                type="button"
+                class="primary-button"
+                [disabled]="actionPending()"
+                (click)="advanceOrder()"
+              >
+                {{ actionPending() ? "Đang xử lý..." : actionLabel() }}
+              </button>
+            } @else {
+              <span class="eligibility warning">
+                {{ transitionPermissionMessage() }}
+              </span>
+            }
+          </div>
+        } @else if (
+          canPrepare() &&
+          canOperateInbound() &&
+          remaining(selectedLine()!.item) > 0
+        ) {
+          <div class="receive-toolbar">
+            <label>
+              Khối lượng xếp đợt này (kg)
+              <input
+                type="number"
+                min="0.001"
+                step="0.1"
+                [max]="remaining(selectedLine()!.item)"
+                [ngModel]="placementWeightKg()"
+                (ngModelChange)="placementWeightKg.set(+$event)"
+              />
+            </label>
+            <button
+              type="button"
+              class="primary-button"
+              [disabled]="actionPending()"
+              (click)="prepareSuggestions()"
+            >
+              {{ actionPending() ? "Đang tải..." : "Tải gợi ý vị trí" }}
+            </button>
+          </div>
+        }
+
+        <div class="suggestion-list">
+          @if (suggestions().length) {
+            @for (suggestion of suggestions(); track suggestion.locationId; let index = $index) {
+              <button
+                type="button"
+                class="suggestion-card"
+                [class.selected]="selectedLocationId() === suggestion.locationId"
+                [class.quarantine]="suggestion.isQuarantine"
+                [disabled]="actionPending() || !canOperateInbound()"
+                (click)="chooseSuggestion(suggestion)"
+              >
+                <div
+                  class="pin"
+                  [class.blue]="index === 1"
+                  [class.orange]="index > 1"
+                >
+                  ⦿
+                </div>
+                <div class="suggestion-content">
+                  <div class="suggestion-title">
+                    <strong>
+                      @if (index === 0) { Ưu tiên 1 · }
+                      {{ locationLabel(suggestion) }}
+                    </strong>
+                    @if (selectedLocationId() === suggestion.locationId) {
+                      <span class="selected-mark">✓</span>
+                    }
+                  </div>
+                  <p>
+                    {{
+                      suggestion.isQuarantine
+                        ? "Khu cách ly phù hợp chất lượng lô"
+                        : suggestion.categoryMatch
+                          ? "Đúng nhóm hàng"
+                          : "Vị trí dùng chung"
+                    }}
+                    · còn {{ formatKg(suggestion.availableCapacity) }}
+                    @if (!suggestion.canFitWhole) {
+                      · đề xuất xếp {{ formatKg(suggestion.recommendedWeightKg) }}
+                    }
+                  </p>
+                  <div class="progress-track">
+                    <span
+                      [class.blue]="index === 1"
+                      [class.orange]="index > 1"
+                      [style.width.%]="occupancyPercent(suggestion)"
+                    ></span>
+                  </div>
+                  <small>{{ occupancyPercent(suggestion) }}% đã dùng</small>
+                </div>
+              </button>
+            }
+          } @else if (warehouseLocations().length) {
+            <div class="location-preview-label">
+              Các khu/cột còn chỗ trong {{ selectedLine()!.order.warehouseName }}
+            </div>
+            @for (location of warehouseLocations(); track location.id; let index = $index) {
+              <button
+                type="button"
+                class="suggestion-card location-preview"
+                [class.selected]="selectedLocationId() === location.id"
+                [class.quarantine]="location.isQuarantine"
+                [disabled]="actionPending() || !canOperateInbound()"
+                (click)="chooseWarehouseLocation(location)"
+              >
+                <div
+                  class="pin"
+                  [class.blue]="index === 1"
+                  [class.orange]="index > 1"
+                >
+                  ⦿
+                </div>
+                <div class="suggestion-content">
+                  <div class="suggestion-title">
+                    <strong>
+                      Khu {{ location.zoneName }}
+                      @if (location.shelfRow) { / Cột {{ location.shelfRow }} }
+                      @if (location.shelfLevel) { / Lớp {{ location.shelfLevel }} }
+                      @if (location.slotCode) { / Ô {{ location.slotCode }} }
+                    </strong>
+                  </div>
+                  <p>
+                    {{ location.isQuarantine ? "Khu cách ly" : "Khu lưu trữ thường" }}
+                    · còn
+                    {{
+                      formatKg(
+                        (location.maxCapacity || 0) -
+                          (location.currentOccupancy || 0)
+                      )
+                    }}
+                  </p>
+                  <div class="progress-track">
+                    <span
+                      [class.blue]="index === 1"
+                      [class.orange]="index > 1"
+                      [style.width.%]="
+                        location.maxCapacity
+                          ? ((location.currentOccupancy || 0) /
+                              location.maxCapacity) *
+                            100
+                          : 0
+                      "
+                    ></span>
+                  </div>
+                  <small>
+                    Đây là danh sách vị trí còn chỗ; tải gợi ý để hệ thống kiểm
+                    tra đầy đủ trước khi xác nhận.
+                  </small>
+                </div>
+              </button>
+            }
+          } @else {
+            <div class="empty-state">
+              Kho này hiện không có khu/cột phù hợp còn sức chứa.
+            </div>
+          }
+        </div>
+
+        @if (suggestions().length) {
+          <div class="confirm-area">
+            @if (canManageInbound()) {
+              <button
+                class="override-toggle"
+                type="button"
+                (click)="toggleManualOverride()"
+              >
+                {{ manualOverride() ? "Dùng vị trí đề xuất" : "Ghi đè thủ công" }}
+              </button>
+            }
+
+            @if (manualOverride()) {
+              <div class="override-fields">
+                <label>
+                  Vị trí khác trong kho
+                  <select
+                    [ngModel]="manualLocationId()"
+                    (ngModelChange)="selectManualLocation($event)"
+                  >
+                    <option [ngValue]="null">Chọn khu / cột / lớp / ô</option>
+                    @for (location of manualOverrideLocations(); track location.id) {
+                      <option [ngValue]="location.id">
+                        {{ manualLocationLabel(location) }}
+                        · còn
+                        {{
+                          formatKg(
+                            (location.maxCapacity || 0) -
+                              (location.currentOccupancy || 0)
+                          )
+                        }}
+                        · ưu tiên {{ location.priority }}
+                      </option>
+                    }
+                  </select>
+                  @if (!manualOverrideLocations().length) {
+                    <small>Không còn vị trí khác phù hợp trong kho này.</small>
+                  }
+                </label>
+                <label class="reason-field">
+                  Lý do ghi đè
+                  <input
+                    type="text"
+                    maxlength="250"
+                    [ngModel]="overrideReason()"
+                    (ngModelChange)="overrideReason.set($event)"
+                    placeholder="Nhập lý do chọn ngoài đề xuất"
+                  />
+                </label>
+              </div>
+            }
+
+            @if (canOperateInbound()) {
+              <button
+                class="primary-button confirm-button"
+                type="button"
+                [disabled]="actionPending()"
+                (click)="confirmPutaway()"
+              >
+                {{
+                  actionPending()
+                    ? "Đang xác nhận..."
+                    : "Xác nhận xếp " + formatKg(placementWeightKg())
+                }}
+              </button>
+            } @else {
+              <span class="eligibility warning">
+                Vai trò hiện tại chỉ được xem thông tin nhập kho.
+              </span>
+            }
+          </div>
+        }
+      }
+    </article>
+  </div>
+</section>

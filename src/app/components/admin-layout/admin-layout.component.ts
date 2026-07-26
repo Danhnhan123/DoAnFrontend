@@ -64,7 +64,7 @@ export class AdminLayoutComponent implements OnInit {
     'paddy-lots': 'Quản lý lô & truy vết',
     'quality-inspections': 'Quản lý chất lượng & cách ly lô',
     'sales-orders': 'Quản lý đơn bán',
-    'inbound-orders': 'Đơn nhập kho',
+    'inbound-orders': 'Nhập kho & Gợi ý xếp vị trí',
     'iot-devices': 'Thiết bị IoT',
     suppliers: 'Nhà cung cấp',
     'unit-of-measures': 'Đơn vị tính',

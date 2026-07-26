@@ -689,9 +689,45 @@
   padding-top: 10px;
 }
 
+.putaway-progress {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.putaway-progress > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.putaway-progress span {
+  color: #64748b;
+  font-size: 0.7rem;
+}
+
+.putaway-progress strong {
+  color: #1e293b;
+  font-size: 0.86rem;
+}
+
+.putaway-progress .remaining {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.putaway-progress .remaining strong {
+  color: #15803d;
+}
+
 .putaway-settings {
   display: grid;
-  grid-template-columns: 1.25fr 1fr 0.75fr auto;
+  grid-template-columns: 1.25fr 1fr auto;
   align-items: end;
   gap: 12px;
   margin-bottom: 18px;
@@ -1190,6 +1226,10 @@
     grid-template-columns: 1fr;
   }
 
+  .putaway-progress {
+    grid-template-columns: 1fr;
+  }
+
   .location-card {
     grid-template-columns: 34px minmax(0, 1fr) 23px;
   }
@@ -1272,6 +1312,7 @@
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 700;
+  margin-top: 4px;
 }
 
 .receipt-status-badge.receipt-confirmed {
@@ -1285,6 +1326,14 @@
 .receipt-status-badge.receipt-cancelled {
   background: #fee2e2;
   color: #b91c1c;
+}
+.receipt-status-badge.receipt-partial {
+  background: #cffafe;
+  color: #0e7490;
+}
+.receipt-status-badge.receipt-stocked {
+  background: #dcfce7;
+  color: #15803d;
 }
 .stocked-row td {
   background: #f0fdf4;

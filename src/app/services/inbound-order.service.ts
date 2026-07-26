@@ -5,14 +5,15 @@ import { environment } from '../../environments/environment';
 import { ApiResponse } from '../models';
 import {
   InboundOrderDetailDto,
+  InboundOrderItemDto,
   InboundOrderPagedAdvancedRequest,
+  PutawaySuggestionDto,
+  SelectInboundPutawayDto,
 } from '../models/inbound-order';
 import { buildDateRange } from '../utils/date.utils';
 
 /**
- * Dịch vụ phiếu nhập kho cho màn web admin (SCR-05).
- * Web admin chỉ quản lý vòng đời chứng từ: xem danh sách/chi tiết, duyệt/từ chối/hủy phiếu Submitted.
- * Việc tạo phiếu và nhận hàng (QR/cân/put-away) thuộc luồng khác (mobile/staff), không nằm ở đây.
+ * Dịch vụ phiếu nhập kho và Store-in/Put-away.
  */
 @Injectable({ providedIn: 'root' })
 export class InboundOrderService {
@@ -33,6 +34,13 @@ export class InboundOrderService {
   getById(id: number): Observable<ApiResponse<InboundOrderDetailDto>> {
     return this.http.get<ApiResponse<InboundOrderDetailDto>>(
       `${this.base}/inbound-orders/${id}`
+    );
+  }
+
+  submit(id: number): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(
+      `${this.base}/inbound-orders/${id}/submit`,
+      {}
     );
   }
 
@@ -58,6 +66,59 @@ export class InboundOrderService {
     return this.http.post<ApiResponse<unknown>>(
       `${this.base}/inbound-orders/${id}/cancel`,
       {}
+    );
+  }
+
+  startReceipt(
+    orderId: number,
+    inboundOrderItemId: number
+  ): Observable<ApiResponse<InboundOrderItemDto>> {
+    return this.http.post<ApiResponse<InboundOrderItemDto>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/start`,
+      { inboundOrderItemId }
+    );
+  }
+
+  recordQuantity(
+    orderId: number,
+    receiptId: number,
+    quantityReceived: number,
+    note?: string
+  ): Observable<ApiResponse<InboundOrderItemDto>> {
+    return this.http.post<ApiResponse<InboundOrderItemDto>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/record-quantity`,
+      { quantityReceived, note: note?.trim() || null }
+    );
+  }
+
+  getPutawaySuggestions(
+    orderId: number,
+    receiptId: number
+  ): Observable<ApiResponse<PutawaySuggestionDto[]>> {
+    return this.http.get<ApiResponse<PutawaySuggestionDto[]>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/putaway-suggestions`
+    );
+  }
+
+  selectPutaway(
+    orderId: number,
+    receiptId: number,
+    payload: SelectInboundPutawayDto
+  ): Observable<ApiResponse<InboundOrderItemDto>> {
+    return this.http.post<ApiResponse<InboundOrderItemDto>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/select-putaway`,
+      payload
+    );
+  }
+
+  confirmReceipt(
+    orderId: number,
+    receiptId: number,
+    operationKey: string
+  ): Observable<ApiResponse<InboundOrderItemDto>> {
+    return this.http.post<ApiResponse<InboundOrderItemDto>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/confirm`,
+      { operationKey }
     );
   }
 
