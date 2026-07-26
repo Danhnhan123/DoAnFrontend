@@ -239,7 +239,7 @@
                   <td class="num">
                     <div class="qty-main">{{ onHandKg(r) }}</div>
                   </td>
-                  <td class="num green-txt">{{ qtyKg(r.quantityAvailable, r) }}</td>
+                  <td class="num green-txt">{{ fmtNum(r.quantityAvailable) }} kg</td>
                   <td>
                     <div class="mix">
                       Giữ {{ fmtNum(r.quantityReserved) }} ·
