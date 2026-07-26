@@ -13,27 +13,20 @@ import Swal from "sweetalert2";
 
 import {
   ApiResponse,
-  ConfirmPaddyPurchaseReceiptResult,
-  ConfirmStoreInRequest,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
   DTResponse,
   FarmerDetailDto,
   PaddyPurchaseReceiptRow,
   PaddyPurchaseScheduleRow,
-  PaddyLotDetailDto,
   PaddyQualitySnapshot,
   PaddyScheduleStatusCode,
   PaddyScheduleStatusOption,
-  PutawayPlacementMode,
-  PutawaySuggestion,
-  PutawaySuggestionsResponse,
   RiceVarietyDetailDto,
   UpdatePaddyPurchaseReceiptDto,
   UpdatePaddyPurchaseScheduleDto,
   WarehouseDetailDto,
 } from "../../models";
-import { PaddyLotService } from "../../services/paddy-lot.service";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
 
 type PurchaseTab = "schedule" | "receipt";
@@ -79,22 +72,6 @@ interface ReceiptFormState {
   isConfirmed: boolean;
 }
 
-interface PutawayFormState {
-  receiptId: number;
-  lotId: number;
-  lotCode: string;
-  productVariantId: number;
-  warehouseId: number;
-  warehouseName: string;
-  placementMode: PutawayPlacementMode;
-  selectedLocationId: number | null;
-  suggestedLocationId: number | null;
-  weightKg: number;
-  bufferRemainingKg: number;
-  bagCount: number | null;
-  overrideReason: string;
-}
-
 @Component({
   selector: "app-rice-purchase",
   standalone: true,
@@ -104,7 +81,6 @@ interface PutawayFormState {
 })
 export class RicePurchaseComponent implements OnDestroy {
   private readonly purchaseService = inject(PaddyPurchaseService);
-  private readonly paddyLotService = inject(PaddyLotService);
   private readonly queryClient = inject(QueryClient);
   private readonly router = inject(Router);
 
@@ -141,11 +117,6 @@ export class RicePurchaseComponent implements OnDestroy {
   editingReceipt = signal<PaddyPurchaseReceiptRow | null>(null);
   scheduleForm = signal<ScheduleFormState>(this.defaultScheduleForm());
   receiptForm = signal<ReceiptFormState>(this.defaultReceiptForm());
-  showPutawayModal = signal(false);
-  putawayForm = signal<PutawayFormState | null>(null);
-  putawaySuggestions = signal<PutawaySuggestionsResponse | null>(null);
-  loadingPutaway = signal(false);
-  savingPutaway = signal(false);
 
   private scheduleSearchTimer?: ReturnType<typeof setTimeout>;
   private receiptSearchTimer?: ReturnType<typeof setTimeout>;
@@ -891,321 +862,6 @@ export class RicePurchaseComponent implements OnDestroy {
     } finally {
       this.confirmingReceiptId.set(null);
     }
-  }
-
-  async openPutawayForReceipt(row: PaddyPurchaseReceiptRow): Promise<void> {
-    if (this.confirmingReceiptId() === row.id) return;
-
-    this.confirmingReceiptId.set(row.id);
-    try {
-      const receipt: PaddyPurchaseReceiptRow = this.unwrap(
-        await lastValueFrom(this.purchaseService.getReceiptById(row.id)),
-        "Không tải được chi tiết phiếu mua lúa.",
-      );
-      if (!receipt.paddyLotId) {
-        throw new Error(
-          "Phiếu đã chốt nhưng chưa có lô lúa. Vui lòng tải lại trang hoặc liên hệ quản trị viên.",
-        );
-      }
-      await this.loadLotAndOpenPutaway(receipt, {
-        lotId: receipt.paddyLotId,
-        lotCode: "",
-        inboundOrderId: 0,
-      });
-    } catch (err) {
-      this.showError(this.apiError(err, "Không thể mở danh sách vị trí."));
-    } finally {
-      this.confirmingReceiptId.set(null);
-    }
-  }
-
-  setPutawayField<K extends keyof PutawayFormState>(
-    field: K,
-    value: PutawayFormState[K],
-  ): void {
-    this.putawayForm.update((current) =>
-      current ? { ...current, [field]: value } : current,
-    );
-  }
-
-  async changePutawayMode(
-    value: PutawayPlacementMode | number | string,
-  ): Promise<void> {
-    this.setPutawayField("placementMode", Number(value) === 2 ? 2 : 1);
-    this.setPutawayField("selectedLocationId", null);
-    this.setPutawayField("suggestedLocationId", null);
-    await this.reloadPutawaySuggestions();
-  }
-
-  selectPutawaySuggestion(suggestion: PutawaySuggestion): void {
-    this.putawayForm.update((current) =>
-      current
-        ? {
-            ...current,
-            selectedLocationId: suggestion.locationId,
-            weightKg: Math.min(current.weightKg, suggestion.freeCapacityKg),
-            overrideReason:
-              current.suggestedLocationId === suggestion.locationId
-                ? ""
-                : current.overrideReason,
-          }
-        : current,
-    );
-  }
-
-  selectSplitSuggestion(
-    locationId: number,
-    weightKg: number,
-    suggestedLocationId: number,
-  ): void {
-    this.putawayForm.update((current) =>
-      current
-        ? {
-            ...current,
-            selectedLocationId: locationId,
-            suggestedLocationId,
-            weightKg: Math.min(current.bufferRemainingKg, Number(weightKg)),
-            overrideReason:
-              suggestedLocationId === locationId ? "" : current.overrideReason,
-          }
-        : current,
-    );
-  }
-
-  closePutawayModal(): void {
-    if (this.savingPutaway()) return;
-    this.showPutawayModal.set(false);
-    this.putawayForm.set(null);
-    this.putawaySuggestions.set(null);
-  }
-
-  async reloadPutawaySuggestions(): Promise<void> {
-    const form = this.putawayForm();
-    if (!form || form.bufferRemainingKg <= 0) return;
-
-    this.loadingPutaway.set(true);
-    this.putawaySuggestions.set(null);
-    try {
-      const response = await lastValueFrom(
-        this.purchaseService.getPutawaySuggestions({
-          warehouseId: form.warehouseId,
-          productVariantId: form.productVariantId,
-          paddyLotId: form.lotId,
-          requiredWeightKg: form.bufferRemainingKg,
-          placementMode: form.placementMode,
-          top: 10,
-        }),
-      );
-      const suggestions: PutawaySuggestionsResponse = this.unwrap(
-        response,
-        "Không tải được vị trí gợi ý.",
-      );
-      this.putawaySuggestions.set(suggestions);
-      const first = suggestions.suggestions?.[0];
-      if (first) {
-        this.setPutawayField("suggestedLocationId", first.locationId);
-        this.selectPutawaySuggestion(first);
-      } else {
-        const firstSplit = suggestions.splitSuggestions?.[0];
-        if (firstSplit) {
-          this.selectSplitSuggestion(
-            firstSplit.locationId,
-            firstSplit.weightKg,
-            firstSplit.locationId,
-          );
-        }
-      }
-    } catch (err) {
-      const bufferWeight = this.bufferWeightFromApiError(err);
-      if (
-        bufferWeight != null &&
-        bufferWeight > 0 &&
-        bufferWeight < form.bufferRemainingKg
-      ) {
-        this.putawayForm.update((current) =>
-          current
-            ? {
-                ...current,
-                weightKg: bufferWeight,
-                bufferRemainingKg: bufferWeight,
-                selectedLocationId: null,
-                suggestedLocationId: null,
-              }
-            : current,
-        );
-        this.loadingPutaway.set(false);
-        await this.reloadPutawaySuggestions();
-        return;
-      }
-      if (bufferWeight === 0) {
-        this.closePutawayModalAfterSave();
-        this.showError(
-          "Lô này không còn khối lượng chờ xếp vị trí; hàng có thể đã được nhập kho đầy đủ.",
-        );
-        return;
-      }
-      this.showError(this.apiError(err, "Không tải được vị trí gợi ý."));
-    } finally {
-      this.loadingPutaway.set(false);
-    }
-  }
-
-  async confirmStoreIn(): Promise<void> {
-    const form = this.putawayForm();
-    if (!form) return;
-    if (!form.selectedLocationId) {
-      this.showError("Vui lòng chọn một vị trí lưu.");
-      return;
-    }
-
-    const weightKg = this.roundWeight(Number(form.weightKg));
-    if (!weightKg || weightKg <= 0) {
-      this.showError("Khối lượng nhập vị trí phải lớn hơn 0 kg.");
-      return;
-    }
-    if (weightKg > form.bufferRemainingKg) {
-      this.showError(
-        `Khối lượng không được vượt quá ${this.formatWeightKg(form.bufferRemainingKg)} còn chờ xếp vị trí.`,
-      );
-      return;
-    }
-    if (
-      form.suggestedLocationId &&
-      form.selectedLocationId !== form.suggestedLocationId &&
-      !form.overrideReason.trim()
-    ) {
-      this.showError("Vui lòng nhập lý do khi chọn vị trí khác gợi ý.");
-      return;
-    }
-
-    const selected = this.putawaySuggestions()?.suggestions?.find(
-      (item) => item.locationId === form.selectedLocationId,
-    );
-    if (selected && weightKg > selected.freeCapacityKg) {
-      this.showError(
-        `Vị trí ${selected.locationCode} chỉ còn ${this.formatWeightKg(selected.freeCapacityKg)}.`,
-      );
-      return;
-    }
-
-    const payload: ConfirmStoreInRequest = {
-      productVariantId: form.productVariantId,
-      paddyLotId: form.lotId,
-      selectedLocationId: form.selectedLocationId,
-      suggestedLocationId: form.suggestedLocationId,
-      weightKg,
-      bagCount: form.bagCount,
-      overrideReason: form.overrideReason.trim() || null,
-    };
-
-    this.savingPutaway.set(true);
-    try {
-      const response = this.ensureSucceeded(
-        await lastValueFrom(
-          this.purchaseService.confirmPaddyStoreIn(form.receiptId, payload),
-        ),
-        "Không lưu được vị trí nhập kho.",
-      );
-      const remaining = this.roundWeight(
-        Math.max(0, form.bufferRemainingKg - weightKg),
-      );
-      await Promise.all([
-        this.invalidateReceiptQueries(),
-        this.invalidateScheduleQueries(),
-      ]);
-
-      if (remaining > 0) {
-        this.putawayForm.update((current) =>
-          current
-            ? {
-                ...current,
-                selectedLocationId: null,
-                suggestedLocationId: null,
-                weightKg: remaining,
-                bufferRemainingKg: remaining,
-                bagCount: null,
-                overrideReason: "",
-              }
-            : current,
-        );
-        await this.showSuccess(
-          `${response.message || "Đã lưu vị trí."} Còn ${this.formatWeightKg(remaining)} cần chọn vị trí tiếp theo.`,
-        );
-        await this.reloadPutawaySuggestions();
-        return;
-      }
-
-      this.closePutawayModalAfterSave();
-      await this.showSuccess(
-        response.message || "Đã chọn vị trí và nhập kho thành công.",
-      );
-    } catch (err) {
-      this.showError(this.apiError(err, "Không lưu được vị trí nhập kho."));
-    } finally {
-      this.savingPutaway.set(false);
-    }
-  }
-
-  private async loadLotAndOpenPutaway(
-    receipt: PaddyPurchaseReceiptRow,
-    confirmation: ConfirmPaddyPurchaseReceiptResult,
-  ): Promise<void> {
-    const lot: PaddyLotDetailDto = this.unwrap(
-      await lastValueFrom(this.paddyLotService.getById(confirmation.lotId)),
-      "Không tải được thông tin lô lúa.",
-    );
-    this.preparePutawayForm(receipt, lot, confirmation.lotCode);
-    this.showPutawayModal.set(true);
-    await this.reloadPutawaySuggestions();
-  }
-
-  private preparePutawayForm(
-    receipt: PaddyPurchaseReceiptRow,
-    lot: PaddyLotDetailDto,
-    confirmedLotCode?: string,
-  ): void {
-    const qualityGrade = (
-      this.parseQuality(receipt.qualityJson).grade || ""
-    ).toLocaleLowerCase("vi");
-    const placementMode: PutawayPlacementMode =
-      qualityGrade.includes("cần xử lý") || qualityGrade.includes("cách ly")
-        ? 2
-        : 1;
-    const weightKg = this.roundWeight(
-      Number(receipt.actualWeightKg || lot.initialWeightKg || 0),
-    );
-
-    this.putawayForm.set({
-      receiptId: receipt.id,
-      lotId: lot.id,
-      lotCode: confirmedLotCode || lot.lotCode,
-      productVariantId: lot.productVariantId,
-      warehouseId: lot.warehouseId,
-      warehouseName: lot.warehouseName || receipt.warehouseName || "",
-      placementMode,
-      selectedLocationId: null,
-      suggestedLocationId: null,
-      weightKg,
-      bufferRemainingKg: weightKg,
-      bagCount: receipt.bagCount ?? null,
-      overrideReason: "",
-    });
-  }
-
-  private closePutawayModalAfterSave(): void {
-    this.showPutawayModal.set(false);
-    this.putawayForm.set(null);
-    this.putawaySuggestions.set(null);
-  }
-
-  private bufferWeightFromApiError(error: any): number | null {
-    const api = error?.error;
-    if (api?.code !== "PUTAWAY_WEIGHT_EXCEEDS_BUFFER") return null;
-    const message = String(api?.message || "");
-    const match = message.match(/khu vực đệm\s*\(([\d.,\s]+)\s*kg\)/i);
-    if (!match?.[1]) return null;
-    const value = Number(match[1].replace(/[.,\s]/g, ""));
-    return Number.isFinite(value) ? value : null;
   }
 
   // ───────────────────────── HIỂN THỊ / TIỆN ÍCH ─────────────────

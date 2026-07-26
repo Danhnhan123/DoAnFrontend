@@ -597,10 +597,6 @@
   width: min(720px, 100%);
 }
 
-.putaway-modal {
-  width: min(830px, 100%);
-}
-
 @keyframes modalIn {
   from {
     opacity: 0;
@@ -670,69 +666,6 @@
   font-weight: 600;
 }
 
-.putaway-flow-note {
-  margin: 3px 24px 8px;
-  padding: 10px 12px;
-  border: 1px solid #bae6fd;
-  border-radius: 9px;
-  background: #f0f9ff;
-  color: #075985;
-  font-size: 0.76rem;
-  line-height: 1.5;
-}
-
-.putaway-flow-note strong {
-  font-weight: 800;
-}
-
-.putaway-body {
-  padding-top: 10px;
-}
-
-.putaway-progress {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.putaway-progress > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-}
-
-.putaway-progress span {
-  color: #64748b;
-  font-size: 0.7rem;
-}
-
-.putaway-progress strong {
-  color: #1e293b;
-  font-size: 0.86rem;
-}
-
-.putaway-progress .remaining {
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-}
-
-.putaway-progress .remaining strong {
-  color: #15803d;
-}
-
-.putaway-settings {
-  display: grid;
-  grid-template-columns: 1.25fr 1fr auto;
-  align-items: end;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-
 .reload-suggestions {
   display: inline-flex;
   align-items: center;
@@ -758,51 +691,6 @@
 .reload-suggestions:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-
-.putaway-section-title {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 9px;
-}
-
-.putaway-section-title strong,
-.putaway-section-title span {
-  display: block;
-}
-
-.putaway-section-title strong {
-  color: #1e293b;
-  font-size: 0.85rem;
-}
-
-.putaway-section-title span {
-  margin-top: 2px;
-  color: #84909e;
-  font-size: 0.72rem;
-}
-
-.putaway-loading,
-.putaway-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 150px;
-  padding: 20px;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
-  background: #f8fafc;
-  color: #64748b;
-  font-size: 0.78rem;
-  text-align: center;
-}
-
-.putaway-spinner {
-  border-color: var(--purchase-green) transparent var(--purchase-green)
-    var(--purchase-green);
 }
 
 .location-list {
@@ -927,19 +815,6 @@
 
 .override-reason {
   margin-top: 13px;
-}
-
-.putaway-footer {
-  grid-template-columns: 1fr auto auto;
-}
-
-.putaway-remaining {
-  color: #64748b;
-  font-size: 0.76rem;
-}
-
-.putaway-remaining strong {
-  color: #0f7f3a;
 }
 
 .status-partially_stocked {
@@ -1162,10 +1037,6 @@
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-
-  .putaway-settings {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 768px) {
@@ -1222,14 +1093,6 @@
     grid-template-columns: 1fr;
   }
 
-  .putaway-settings {
-    grid-template-columns: 1fr;
-  }
-
-  .putaway-progress {
-    grid-template-columns: 1fr;
-  }
-
   .location-card {
     grid-template-columns: 34px minmax(0, 1fr) 23px;
   }
@@ -1261,14 +1124,6 @@
     grid-column: span 2;
   }
 
-  .putaway-footer {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .putaway-remaining {
-    grid-column: span 2;
-  }
-
   .secondary-button,
   .save-button {
     min-width: 0;
@@ -1290,14 +1145,6 @@
   }
 
   .footer-danger-zone {
-    grid-column: auto;
-  }
-
-  .putaway-footer {
-    grid-template-columns: 1fr;
-  }
-
-  .putaway-remaining {
     grid-column: auto;
   }
 }
