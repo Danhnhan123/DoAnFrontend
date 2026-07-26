@@ -198,6 +198,12 @@
   opacity: 0.85;
 }
 
+.nav-icon i {
+  font-size: 15px;
+  line-height: 1;
+  color: inherit;
+}
+
 .nav-item.active .nav-icon,
 .nav-item:hover .nav-icon {
   opacity: 1;

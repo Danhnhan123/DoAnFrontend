@@ -1,0 +1,502 @@
+<section class="ob-page">
+  <!-- Hero -->
+  <header class="ob-hero">
+    <div>
+      <span class="ob-eyebrow">CƠ SỞ KINH DOANH TUẤN MÂY · LÚA GẠO</span>
+      <h1>Xuất kho / Giao hàng</h1>
+      <p>
+        Phiếu xuất phát sinh từ đơn bán đã xác nhận. Mỗi phiếu tham chiếu đơn bán
+        nguồn để truy vết khách hàng, hàng hóa, vị trí lấy hàng, cân đóng bao,
+        người giao, thanh toán và công nợ.
+      </p>
+    </div>
+    <div class="ob-hero-actions">
+      <button type="button" class="btn ghost" (click)="refresh()" [disabled]="fetching()">
+        <svg class="ico" [class.spin]="fetching()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" />
+          <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" />
+        </svg>
+        Làm mới
+      </button>
+    </div>
+  </header>
+
+  <!-- Pipeline stepper -->
+  <div class="ob-stepper">
+    <ng-container *ngFor="let step of pipelineSteps; let i = index">
+      <div
+        class="ob-step"
+        [class.done]="activeStep() >= 0 && i < activeStep()"
+        [class.active]="i === activeStep()"
+      >
+        <span class="ob-step-dot">{{ i + 1 }}</span>
+        <span class="ob-step-label">{{ step }}</span>
+      </div>
+      <span class="ob-step-arrow" *ngIf="i < pipelineSteps.length - 1">→</span>
+    </ng-container>
+  </div>
+
+  <div class="ob-grid">
+    <!-- LEFT: list -->
+    <div class="ob-card ob-list-card">
+      <div class="ob-list-head">
+        <div>
+          <h2>Danh sách đơn chờ giao</h2>
+          <p class="ob-muted">
+            Phiếu xuất tham chiếu đơn bán nguồn — theo dõi từ lấy hàng đến khi thu công nợ.
+          </p>
+        </div>
+        <div class="ob-badges">
+          <span class="chip amber">{{ pageWaitingCount() }} chờ xử lý</span>
+          <span class="chip blue">{{ pageDeliveringCount() }} đang giao</span>
+        </div>
+      </div>
+
+      <!-- Tools -->
+      <div class="ob-tools">
+        <div class="ob-search">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="text"
+            placeholder="Tìm theo mã đơn bán, khách hàng, kho…"
+            [ngModel]="searchInput()"
+            (ngModelChange)="onSearchInput($event)"
+          />
+        </div>
+        <div class="ob-status-tabs">
+          <button
+            *ngFor="let tab of statusTabs"
+            type="button"
+            class="ob-tab"
+            [class.active]="statusFilter() === tab.key"
+            (click)="setStatusFilter(tab.key)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="ob-table-wrap">
+        <table class="ob-table">
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sort('soCode')">
+                ĐƠN BÁN <span class="sort">{{ sortIcon('soCode') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('customerName')">
+                KHÁCH HÀNG <span class="sort">{{ sortIcon('customerName') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('warehouseName')">
+                KHO XUẤT <span class="sort">{{ sortIcon('warehouseName') }}</span>
+              </th>
+              <th class="num sortable" (click)="sort('value')">
+                GIÁ TRỊ XUẤT <span class="sort">{{ sortIcon('value') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('status')">
+                TRẠNG THÁI <span class="sort">{{ sortIcon('status') }}</span>
+              </th>
+              <th class="sortable" (click)="sort('createdDate')">
+                NGÀY TẠO <span class="sort">{{ sortIcon('createdDate') }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngIf="loading()">
+              <td colspan="6" class="ob-empty">Đang tải danh sách phiếu xuất…</td>
+            </tr>
+            <tr *ngIf="!loading() && rows().length === 0">
+              <td colspan="6" class="ob-empty">Chưa có phiếu xuất nào phù hợp.</td>
+            </tr>
+            <tr
+              *ngFor="let row of rows()"
+              class="ob-row"
+              [class.selected]="row.id === selectedId()"
+              (click)="selectOrder(row.id)"
+            >
+              <td>
+                <div class="ob-strong">{{ row.soCode }}</div>
+                <div class="ob-muted sm">#PX-{{ row.id }}</div>
+              </td>
+              <td>{{ row.customerName || '—' }}</td>
+              <td>{{ row.warehouseName || '—' }}</td>
+              <td class="num">
+                <div class="ob-strong">{{ fmtMoney(row.totalDispatchedSaleValue) }}</div>
+                <div class="ob-muted sm">Vốn {{ fmtMoney(row.totalDispatchedValue) }}</div>
+              </td>
+              <td>
+                <span
+                  class="ob-status"
+                  [style.color]="row.outboundStatusColor"
+                  [style.background]="row.outboundStatusColor + '1f'"
+                >
+                  {{ statusLabel(row.outboundStatusId, row.outboundStatusName) }}
+                </span>
+              </td>
+              <td>{{ fmtDate(row.createdDate) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="ob-pager">
+        <div class="ob-pager-left">
+          <span>Hiển thị</span>
+          <select
+            [ngModel]="pageSize()"
+            (ngModelChange)="setPageSize($event)"
+          >
+            <option *ngFor="let opt of pageSizeOptions" [ngValue]="opt">{{ opt }}</option>
+          </select>
+          <span>/ {{ total() }} phiếu</span>
+        </div>
+        <div class="ob-pager-right">
+          <button class="pg" [disabled]="page() <= 1" (click)="setPage(page() - 1)">‹</button>
+          <button
+            *ngFor="let p of visiblePages()"
+            class="pg"
+            [class.active]="p === page()"
+            (click)="setPage(p)"
+          >
+            {{ p }}
+          </button>
+          <button class="pg" [disabled]="page() >= totalPages()" (click)="setPage(page() + 1)">›</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: detail -->
+    <div class="ob-card ob-detail-card">
+      <ng-container *ngIf="detail() as d; else noDetail">
+        <div class="ob-detail-head">
+          <div>
+            <h2>Chi tiết giao {{ d.soCode }}</h2>
+            <p class="ob-muted sm">
+              #PX-{{ d.id }} · Tạo {{ fmtDate(d.createdDate, true) }}
+            </p>
+          </div>
+          <span
+            class="ob-status"
+            [style.color]="d.outboundStatusColor"
+            [style.background]="d.outboundStatusColor + '1f'"
+          >
+            {{ statusLabel(d.outboundStatusId, d.outboundStatusName) }}
+          </span>
+        </div>
+
+        <div class="ob-detail-loading" *ngIf="detailLoading()">Đang cập nhật…</div>
+
+        <ul class="ob-info">
+          <li>
+            <span class="ob-info-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+              </svg>
+            </span>
+            <div>
+              <span class="ob-info-k">Khách hàng</span>
+              <span class="ob-info-v">{{ d.customerName || '—' }}</span>
+            </div>
+          </li>
+          <li>
+            <span class="ob-info-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z" />
+                <path d="M6 18h12" /><path d="M6 14h12" /><path d="M6 10h12" />
+              </svg>
+            </span>
+            <div>
+              <span class="ob-info-k">Kho xuất</span>
+              <span class="ob-info-v">{{ d.warehouseName || '—' }}</span>
+            </div>
+          </li>
+          <li>
+            <span class="ob-info-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            </span>
+            <div>
+              <span class="ob-info-k">Đơn bán nguồn</span>
+              <span class="ob-info-v link" (click)="openSalesOrder(d)">{{ d.soCode }}</span>
+            </div>
+          </li>
+          <li>
+            <span class="ob-info-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+              </svg>
+            </span>
+            <div>
+              <span class="ob-info-k">Giá trị xuất (bán)</span>
+              <span class="ob-info-v">{{ fmtMoney(d.totalDispatchedSaleValue) }}</span>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Items + allocations -->
+        <div class="ob-items">
+          <div class="ob-items-title">Hàng cần xuất &amp; nguồn lô</div>
+          <div class="ob-item" *ngFor="let it of d.items">
+            <div class="ob-item-head">
+              <div>
+                <div class="ob-strong">{{ it.productVariantName }}</div>
+                <div class="ob-muted sm" *ngIf="it.sku">{{ it.sku }}</div>
+              </div>
+              <div class="ob-item-qty">
+                <span class="ob-strong">{{ fmtKg(it.quantityOrdered) }}</span>
+                <span class="ob-muted sm">Đã lấy {{ fmtKg(it.quantityPicked) }}</span>
+              </div>
+            </div>
+            <div class="ob-alloc" *ngIf="it.allocations.length; else noAlloc">
+              <div class="ob-alloc-row" *ngFor="let a of it.allocations">
+                <span class="ob-tag">{{ a.paddyLotCode || 'INV-' + a.inventoryId }}</span>
+                <span class="ob-muted sm">{{ a.locationCode || '—' }}</span>
+                <span class="ob-alloc-kg">
+                  {{ fmtKg(a.quantityAllocated) }}
+                  <em *ngIf="a.quantityPicked">· lấy {{ fmtKg(a.quantityPicked) }}</em>
+                </span>
+              </div>
+            </div>
+            <ng-template #noAlloc>
+              <div class="ob-muted sm ob-noalloc">Chưa phân bổ lô nguồn.</div>
+            </ng-template>
+          </div>
+        </div>
+
+        <!-- Cân & đóng bao -->
+        <div class="ob-weigh">
+          <div class="ob-weigh-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+              <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+              <path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+            </svg>
+            Cân &amp; đóng bao
+          </div>
+          <div class="ob-weigh-grid">
+            <div>
+              <span class="ob-info-k">Kế hoạch</span>
+              <span class="ob-strong">{{ fmtKg(plannedKg()) }}</span>
+            </div>
+            <div>
+              <span class="ob-info-k">Đã lấy</span>
+              <span class="ob-strong">{{ fmtKg(pickedKg()) }}</span>
+            </div>
+            <div>
+              <span class="ob-info-k">Lệch</span>
+              <span class="ob-strong" [class.neg]="weightDiff() < 0" [class.pos]="weightDiff() > 0">
+                {{ weightDiff() > 0 ? '+' : '' }}{{ fmtKg(weightDiff()) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="ob-detail-actions">
+          <button
+            type="button"
+            class="btn primary"
+            *ngIf="canAllocate(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="openAllocate(d)"
+          >
+            Phân bổ lô hàng
+          </button>
+          <button
+            type="button"
+            class="btn info"
+            *ngIf="canPick(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="openPick(d)"
+          >
+            Cập nhật lấy hàng
+          </button>
+          <button
+            type="button"
+            class="btn violet"
+            *ngIf="canPack(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="openPacking(d)"
+          >
+            Xác nhận đóng gói
+          </button>
+          <button
+            type="button"
+            class="btn primary"
+            *ngIf="canDispatch(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="confirmDispatch(d)"
+          >
+            Xác nhận xuất kho
+          </button>
+          <button
+            type="button"
+            class="btn primary"
+            *ngIf="canDeliver(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="completeDelivery(d)"
+          >
+            Đã giao thành công
+          </button>
+          <button
+            type="button"
+            class="btn danger-ghost"
+            *ngIf="canDeliver(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="failDelivery(d)"
+          >
+            Giao thất bại
+          </button>
+          <button
+            type="button"
+            class="btn danger-ghost"
+            *ngIf="canCancel(d.outboundStatusId)"
+            [disabled]="saving()"
+            (click)="cancelOrder(d)"
+          >
+            Hủy phiếu
+          </button>
+        </div>
+      </ng-container>
+      <ng-template #noDetail>
+        <div class="ob-empty tall">Chọn một phiếu xuất ở danh sách để xem chi tiết.</div>
+      </ng-template>
+    </div>
+  </div>
+
+</section>
+
+<!-- ═══════════ Modal: Phân bổ lô hàng ═══════════ -->
+<div class="ob-modal-backdrop" *ngIf="showAllocateModal()" (click)="closeAllocate()">
+  <div class="ob-modal wide" (click)="$event.stopPropagation()">
+    <div class="ob-modal-head">
+      <h3>Phân bổ lô / vị trí lấy hàng</h3>
+      <button class="ob-x" (click)="closeAllocate()" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
+    </div>
+    <div class="ob-modal-body">
+      <div class="ob-muted" *ngIf="loadingLots()">Đang tải tồn kho khả dụng…</div>
+      <div class="ob-alloc-item" *ngFor="let item of allocateForm(); let ii = index">
+        <div class="ob-alloc-item-head">
+          <div class="ob-strong">{{ item.productVariantName }}</div>
+          <div class="ob-muted sm">
+            Cần {{ fmtKg(item.orderedKg) }} · còn lại
+            <b [class.neg]="allocateRemaining(item) < 0">{{ fmtKg(allocateRemaining(item)) }}</b>
+          </div>
+        </div>
+        <table class="ob-lot-table" *ngIf="item.lots.length; else noLot">
+          <thead>
+            <tr><th>Lô</th><th>Vị trí</th><th class="num">Khả dụng</th><th class="num">Phân bổ (kg)</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let lot of item.lots; let jj = index">
+              <td>{{ lot.lotCode }}</td>
+              <td>{{ lot.locationCode }}</td>
+              <td class="num">{{ fmtKg(lot.availableKg) }}</td>
+              <td class="num">
+                <input
+                  type="number"
+                  min="0"
+                  [max]="lot.availableKg"
+                  [ngModel]="lot.qty"
+                  (ngModelChange)="setAllocateQty(ii, jj, $event)"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <ng-template #noLot>
+          <div class="ob-muted sm">Không có lô khả dụng cho sản phẩm này trong kho.</div>
+        </ng-template>
+      </div>
+    </div>
+    <div class="ob-modal-actions">
+      <button class="btn ghost" (click)="closeAllocate()" [disabled]="saving()">Đóng</button>
+      <button class="btn primary" (click)="submitAllocate()" [disabled]="saving() || loadingLots()">
+        Phân bổ &amp; chuyển lấy hàng
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ Modal: Cập nhật lấy hàng ═══════════ -->
+<div class="ob-modal-backdrop" *ngIf="showPickModal()" (click)="closePick()">
+  <div class="ob-modal" (click)="$event.stopPropagation()">
+    <div class="ob-modal-head">
+      <h3>Cập nhật số lượng lấy hàng</h3>
+      <button class="ob-x" (click)="closePick()" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
+    </div>
+    <div class="ob-modal-body">
+      <table class="ob-lot-table">
+        <thead>
+          <tr><th>Sản phẩm</th><th>Lô / vị trí</th><th class="num">Đã giữ</th><th class="num">Thực lấy (kg)</th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of pickForm(); let i = index">
+            <td>{{ r.productVariantName }}</td>
+            <td>{{ r.lotCode }} · {{ r.locationCode }}</td>
+            <td class="num">{{ fmtKg(r.allocatedKg) }}</td>
+            <td class="num">
+              <input
+                type="number"
+                min="0"
+                [max]="r.allocatedKg"
+                [ngModel]="r.pickedKg"
+                (ngModelChange)="setPickQty(i, $event)"
+              />
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="ob-modal-actions">
+      <button class="btn ghost" (click)="closePick()" [disabled]="saving()">Đóng</button>
+      <button class="btn primary" (click)="submitPick()" [disabled]="saving()">Lưu số lượng lấy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ Modal: Đóng gói ═══════════ -->
+<div class="ob-modal-backdrop" *ngIf="showPackingModal()" (click)="closePacking()">
+  <div class="ob-modal" (click)="$event.stopPropagation()">
+    <div class="ob-modal-head">
+      <h3>Xác nhận cân &amp; đóng bao</h3>
+      <button class="ob-x" (click)="closePacking()" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
+    </div>
+    <div class="ob-modal-body">
+      <label class="ob-field">
+        <span>Mã QR đóng gói</span>
+        <input type="text" [ngModel]="packingQr()" (ngModelChange)="packingQr.set($event)" />
+      </label>
+      <label class="ob-field">
+        <span>Khối lượng cân thực tế (kg)</span>
+        <input
+          type="number"
+          min="0"
+          [ngModel]="packingActualKg()"
+          (ngModelChange)="packingActualKg.set($event === '' ? null : +$event)"
+        />
+      </label>
+      <label class="ob-field">
+        <span>Thiết bị cân (không bắt buộc)</span>
+        <input type="text" [ngModel]="packingScale()" (ngModelChange)="packingScale.set($event)" placeholder="VD: Cân BLE-01" />
+      </label>
+      <p class="ob-muted sm">Kế hoạch {{ fmtKg(plannedKg()) }} · đã lấy {{ fmtKg(pickedKg()) }}.</p>
+    </div>
+    <div class="ob-modal-actions">
+      <button class="btn ghost" (click)="closePacking()" [disabled]="saving()">Đóng</button>
+      <button class="btn violet" (click)="submitPacking()" [disabled]="saving()">Xác nhận đóng gói</button>
+    </div>
+  </div>
+</div>
