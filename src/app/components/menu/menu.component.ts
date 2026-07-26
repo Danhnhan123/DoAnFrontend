@@ -191,6 +191,15 @@ export class MenuComponent {
     return !!m.child?.length;
   }
 
+  /** Icon dạng font-class (vd "fa fa-truck"); rỗng nếu là emoji/ký tự. */
+  iconClass(icon?: string | null): string {
+    const val = (icon || '').trim();
+    if (!val) return '';
+    const isFontClass =
+      val.includes(' ') || /^(fa|fas|far|fab|bi|glyphicon)-/.test(val);
+    return isFontClass ? val : '';
+  }
+
   renderParentOptions(
     items: MenuAggregate[],
     depth = 0

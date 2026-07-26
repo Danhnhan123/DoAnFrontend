@@ -43,7 +43,9 @@
               (click)="closeMobileMenu()"
             >
               <span class="nav-icon">
-                @if (displayIcon(child)) {
+                @if (iconClass(child)) {
+                <i [class]="iconClass(child)" aria-hidden="true"></i>
+                } @else if (displayIcon(child)) {
                 <span class="nav-icon-text">{{ displayIcon(child) }}</span>
                 } @else {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -68,7 +70,9 @@
             (click)="closeMobileMenu()"
           >
             <span class="nav-icon">
-              @if (displayIcon(menu)) {
+              @if (iconClass(menu)) {
+              <i [class]="iconClass(menu)" aria-hidden="true"></i>
+              } @else if (displayIcon(menu)) {
               <span class="nav-icon-text">{{ displayIcon(menu) }}</span>
               } @else {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"

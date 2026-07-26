@@ -186,6 +186,37 @@
   font-size: 0.82rem;
 }
 
+.tree-icon-badge i {
+  font-size: 15px;
+  color: #16a34a;
+}
+.tree-icon-badge.sm i {
+  font-size: 13px;
+}
+
+.icon-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.icon-input-wrap .form-control {
+  flex: 1;
+}
+.icon-preview {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(22, 163, 74, 0.1);
+  font-size: 1rem;
+}
+.icon-preview i {
+  font-size: 16px;
+  color: #16a34a;
+}
+
 .tree-names {
   display: flex;
   flex-direction: column;

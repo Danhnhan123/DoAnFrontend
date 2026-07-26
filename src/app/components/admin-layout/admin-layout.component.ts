@@ -223,9 +223,22 @@ export class AdminLayoutComponent implements OnInit {
     this.mobileOpen.set(false);
   }
 
+  /**
+   * Icon dạng font-class (FontAwesome/Bootstrap Icons...), vd "fa fa-truck".
+   * Nhận diện bằng việc có dấu cách hoặc tiền tố class icon phổ biến.
+   */
+  iconClass(menu: MenuAggregate): string {
+    const icon = (menu.icon || '').trim();
+    if (!icon) return '';
+    const isFontClass =
+      icon.includes(' ') || /^(fa|fas|far|fab|bi|glyphicon)-/.test(icon);
+    return isFontClass ? icon : '';
+  }
+
+  /** Icon dạng emoji/1 ký tự (không phải class). */
   displayIcon(menu: MenuAggregate): string {
     const icon = (menu.icon || '').trim();
-    if (!icon || icon.includes(' ')) return '';
+    if (!icon || this.iconClass(menu)) return '';
     return icon;
   }
 

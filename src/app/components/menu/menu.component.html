@@ -24,7 +24,11 @@
       <div class="tree-item root-item">
         <div class="tree-row">
           <div class="tree-info">
-            <span class="tree-icon-badge">{{ root.icon || '📁' }}</span>
+            <span class="tree-icon-badge">
+              @if (iconClass(root.icon)) {
+              <i [class]="iconClass(root.icon)" aria-hidden="true"></i>
+              } @else { {{ root.icon || '📁' }} }
+            </span>
             <div class="tree-names">
               <span class="tree-name">{{ root.name }}</span>
               @if (root.code) { <span class="tree-url" style="opacity:.8">Mã: {{ root.code }}</span> }
@@ -62,7 +66,11 @@
             <div class="tree-row">
               <div class="tree-info">
                 <span class="tree-connector">└─</span>
-                <span class="tree-icon-badge sm">{{ child.icon || '📄' }}</span>
+                <span class="tree-icon-badge sm">
+                  @if (iconClass(child.icon)) {
+                  <i [class]="iconClass(child.icon)" aria-hidden="true"></i>
+                  } @else { {{ child.icon || '📄' }} }
+                </span>
                 <div class="tree-names">
                   <span class="tree-name">{{ child.name }}</span>
                   @if (child.code) { <span class="tree-url" style="opacity:.8">Mã: {{ child.code }}</span> }
@@ -98,7 +106,11 @@
                 <div class="tree-row">
                   <div class="tree-info">
                     <span class="tree-connector" style="margin-left:16px">└─</span>
-                    <span class="tree-icon-badge sm">{{ gc.icon || '📄' }}</span>
+                    <span class="tree-icon-badge sm">
+                      @if (iconClass(gc.icon)) {
+                      <i [class]="iconClass(gc.icon)" aria-hidden="true"></i>
+                      } @else { {{ gc.icon || '📄' }} }
+                    </span>
                     <div class="tree-names">
                       <span class="tree-name">{{ gc.name }}</span>
                       @if (gc.code) { <span class="tree-url" style="opacity:.8">Mã: {{ gc.code }}</span> }
@@ -182,8 +194,15 @@
           </div>
           <div class="form-group">
             <label class="form-label">Icon (emoji hoặc class)</label>
-            <input class="form-control" [ngModel]="form().icon" (ngModelChange)="setField('icon',$event)"
-              placeholder="👥 hoặc bi bi-people" />
+            <div class="icon-input-wrap">
+              <span class="icon-preview">
+                @if (iconClass(form().icon)) {
+                <i [class]="iconClass(form().icon)" aria-hidden="true"></i>
+                } @else { {{ form().icon || '📄' }} }
+              </span>
+              <input class="form-control" [ngModel]="form().icon" (ngModelChange)="setField('icon',$event)"
+                placeholder="fa fa-truck hoặc 👥" />
+            </div>
           </div>
         </div>
 
