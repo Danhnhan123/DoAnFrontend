@@ -593,7 +593,9 @@ export class MillingOrderComponent {
   }
 
   closeCreate(): void {
-    if (!this.saving()) this.showCreateModal.set(false);
+    if (this.saving()) return;
+    this.showCreateModal.set(false);
+    this.createForm.set(this.defaultCreateForm());
   }
 
   setCreateField(field: keyof CreateOrderForm, value: unknown): void {
@@ -742,6 +744,7 @@ export class MillingOrderComponent {
         );
         this.assertSucceeded(result);
         this.showCreateModal.set(false);
+        this.createForm.set(this.defaultCreateForm());
         await this.afterCommand('Cập nhật lệnh xay thành công.');
         return;
       }
@@ -758,6 +761,7 @@ export class MillingOrderComponent {
         );
         if (!reserved?.isSucceeded) {
           this.showCreateModal.set(false);
+          this.createForm.set(this.defaultCreateForm());
           await this.afterCommand();
           await Swal.fire({
             icon: 'warning',
@@ -772,6 +776,7 @@ export class MillingOrderComponent {
       }
 
       this.showCreateModal.set(false);
+      this.createForm.set(this.defaultCreateForm());
       await this.afterCommand(
         form.allocations.length
           ? 'Đã tạo lệnh và giữ lúa thành công.'
@@ -797,7 +802,10 @@ export class MillingOrderComponent {
   }
 
   closeReserve(): void {
-    if (!this.saving()) this.showReserveModal.set(false);
+    if (this.saving()) return;
+    this.showReserveModal.set(false);
+    this.activeOrder.set(null);
+    this.reserveLines.set([this.newAllocation()]);
   }
 
   addReserveLine(): void {
@@ -851,6 +859,8 @@ export class MillingOrderComponent {
       );
       this.assertSucceeded(result);
       this.showReserveModal.set(false);
+      this.activeOrder.set(null);
+      this.reserveLines.set([this.newAllocation()]);
       await this.afterCommand('Giữ lúa cho lệnh xay thành công.');
     } catch (error) {
       this.showError(this.errorText(error, 'Không thể giữ lúa.'));
@@ -955,7 +965,10 @@ export class MillingOrderComponent {
   }
 
   closeComplete(): void {
-    if (!this.saving()) this.showCompleteModal.set(false);
+    if (this.saving()) return;
+    this.showCompleteModal.set(false);
+    this.activeOrder.set(null);
+    this.completeForm.set(this.defaultCompleteForm());
   }
 
   setCompleteField(field: keyof CompleteOrderForm, value: unknown): void {
@@ -1094,6 +1107,8 @@ export class MillingOrderComponent {
       );
       this.assertSucceeded(result);
       this.showCompleteModal.set(false);
+      this.activeOrder.set(null);
+      this.completeForm.set(this.defaultCompleteForm());
       await this.afterCommand(
         'Đã hoàn tất lệnh, tạo lô đầu ra và nhập kho thành phẩm.'
       );

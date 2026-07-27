@@ -295,7 +295,11 @@ export class SalesOrderComponent implements OnDestroy {
       const createdId = Number(
         response.resources?.id ?? response.resources?.Id ?? 0
       );
-      this.closeForm();
+      // onSuccess vẫn có thể chạy khi mutation còn isPending, vì vậy không gọi
+      // closeForm() (hàm này cố ý chặn người dùng đóng modal lúc đang lưu).
+      this.showFormModal.set(false);
+      this.editingId.set(null);
+      this.form.set(this.blankForm());
       if (createdId > 0) this.selectedId.set(createdId);
       this.refreshAfterWrite();
       this.alert(
@@ -347,7 +351,10 @@ export class SalesOrderComponent implements OnDestroy {
           response.resources?.OutboundOrderId ??
           0
       );
-      this.closeOutbound();
+      // Đóng trực tiếp sau success để không bị closeOutbound() chặn bởi
+      // trạng thái isPending của mutation.
+      this.showOutboundModal.set(false);
+      this.outboundLines.set([]);
       this.refreshAfterWrite();
       this.alert(
         outboundId
@@ -442,6 +449,7 @@ export class SalesOrderComponent implements OnDestroy {
     if (this.saving()) return;
     this.showFormModal.set(false);
     this.editingId.set(null);
+    this.form.set(this.blankForm());
   }
 
   setFormField(field: keyof SalesOrderForm, value: unknown): void {

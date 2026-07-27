@@ -569,6 +569,7 @@ export class RicePurchaseComponent implements OnDestroy {
     if (this.savingSchedule()) return;
     this.showScheduleModal.set(false);
     this.editingSchedule.set(null);
+    this.scheduleForm.set(this.defaultScheduleForm());
   }
 
   setScheduleField<K extends keyof ScheduleFormState>(
@@ -632,6 +633,7 @@ export class RicePurchaseComponent implements OnDestroy {
       );
       this.showScheduleModal.set(false);
       this.editingSchedule.set(null);
+      this.scheduleForm.set(this.defaultScheduleForm());
       await this.showSuccess(
         wasEditing
           ? "Cập nhật lịch thu mua thành công."
@@ -687,6 +689,8 @@ export class RicePurchaseComponent implements OnDestroy {
       });
       if (!response.isSucceeded) throw new Error(response.message);
       this.showScheduleModal.set(false);
+      this.editingSchedule.set(null);
+      this.scheduleForm.set(this.defaultScheduleForm());
       await this.showSuccess("Đã hủy lịch thu mua.");
     } catch (err) {
       this.showError(this.apiError(err, "Không hủy được lịch thu mua."));
@@ -745,6 +749,7 @@ export class RicePurchaseComponent implements OnDestroy {
     if (this.savingReceipt()) return;
     this.showReceiptModal.set(false);
     this.editingReceipt.set(null);
+    this.receiptForm.set(this.defaultReceiptForm());
   }
 
   setReceiptField<K extends keyof ReceiptFormState>(
@@ -843,6 +848,7 @@ export class RicePurchaseComponent implements OnDestroy {
       );
       this.showReceiptModal.set(false);
       this.editingReceipt.set(null);
+      this.receiptForm.set(this.defaultReceiptForm());
       await this.showSuccess(response.message || "Đã lưu phiếu mua lúa.");
     } catch (err) {
       this.showError(this.apiError(err, "Không lưu được phiếu mua lúa."));
