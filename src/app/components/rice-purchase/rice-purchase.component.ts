@@ -30,6 +30,7 @@ import {
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
 
 type PurchaseTab = "schedule" | "receipt";
+type WeightUnit = "ton" | "quintal" | "yen" | "kg";
 
 type SaveScheduleVariables =
   | { mode: "create"; payload: CreatePaddyPurchaseScheduleDto }
@@ -47,7 +48,8 @@ interface ScheduleFormState {
   riceVarietyId: number | null;
   scheduleDate: string;
   location: string;
-  estimatedQtyTon: number | null;
+  estimatedWeight: number | null;
+  estimatedWeightUnit: WeightUnit;
   expectedPrice: number | null;
   assignedUserId: number | null;
   note: string;
@@ -60,7 +62,8 @@ interface ReceiptFormState {
   farmerId: number | null;
   riceVarietyId: number | null;
   warehouseId: number | null;
-  actualWeightKg: number | null;
+  actualWeight: number | null;
+  actualWeightUnit: WeightUnit;
   bagCount: number | null;
   agreedPrice: number | null;
   paidAmount: number | null;
@@ -97,6 +100,16 @@ export class RicePurchaseComponent implements OnDestroy {
     },
     { id: 5, code: "STOCKED", name: "Đã nhập kho", color: "#10B981" },
     { id: 6, code: "CANCELLED", name: "Hủy", color: "#EF4444" },
+  ];
+  readonly weightUnits: ReadonlyArray<{
+    value: WeightUnit;
+    label: string;
+    multiplierToKg: number;
+  }> = [
+    { value: "ton", label: "Tấn", multiplierToKg: 1000 },
+    { value: "quintal", label: "Tạ", multiplierToKg: 100 },
+    { value: "yen", label: "Yến", multiplierToKg: 10 },
+    { value: "kg", label: "kg", multiplierToKg: 1 },
   ];
 
   activeTab = signal<PurchaseTab>("schedule");
@@ -423,7 +436,10 @@ export class RicePurchaseComponent implements OnDestroy {
 
   readonly receiptTotalAmount = computed(() =>
     this.roundMoney(
-      Number(this.receiptForm().actualWeightKg || 0) *
+      this.toKilograms(
+        this.receiptForm().actualWeight,
+        this.receiptForm().actualWeightUnit,
+      ) *
         Number(this.receiptForm().agreedPrice || 0),
     ),
   );
@@ -530,6 +546,7 @@ export class RicePurchaseComponent implements OnDestroy {
   }
 
   openEditSchedule(row: PaddyPurchaseScheduleRow): void {
+    const estimatedWeight = this.fromKilograms(row.estimatedQtyKg, "ton");
     this.editingSchedule.set(row);
     this.scheduleForm.set({
       id: row.id,
@@ -539,8 +556,8 @@ export class RicePurchaseComponent implements OnDestroy {
       riceVarietyId: row.riceVarietyId ?? null,
       scheduleDate: this.toDateInput(row.scheduleDate),
       location: row.location || "",
-      estimatedQtyTon:
-        row.estimatedQtyKg != null ? Number(row.estimatedQtyKg) / 1000 : null,
+      estimatedWeight: estimatedWeight.value,
+      estimatedWeightUnit: estimatedWeight.unit,
       expectedPrice: row.expectedPrice ?? null,
       assignedUserId: row.assignedUserId ?? null,
       note: row.note || "",
@@ -593,8 +610,11 @@ export class RicePurchaseComponent implements OnDestroy {
       scheduleDate: this.toApiDate(form.scheduleDate),
       location: form.location.trim(),
       estimatedQtyKg:
-        form.estimatedQtyTon != null
-          ? this.roundWeight(Number(form.estimatedQtyTon) * 1000)
+        form.estimatedWeight != null
+          ? this.toKilograms(
+              form.estimatedWeight,
+              form.estimatedWeightUnit,
+            )
           : null,
       expectedPrice: form.expectedPrice ?? null,
       assignedUserId: form.assignedUserId ?? null,
@@ -706,7 +726,8 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: row.farmerId,
       riceVarietyId: row.riceVarietyId ?? null,
       warehouseId: row.warehouseId,
-      actualWeightKg: Number(row.actualWeightKg),
+      actualWeight: Number(row.actualWeightKg),
+      actualWeightUnit: "kg",
       bagCount: row.bagCount ?? null,
       agreedPrice: Number(row.agreedPrice),
       paidAmount: Number(row.paidAmount),
@@ -797,7 +818,10 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: Number(form.farmerId),
       riceVarietyId: form.riceVarietyId || null,
       warehouseId: Number(form.warehouseId),
-      actualWeightKg: this.roundWeight(Number(form.actualWeightKg)),
+      actualWeightKg: this.toKilograms(
+        form.actualWeight,
+        form.actualWeightUnit,
+      ),
       bagCount: form.bagCount ?? null,
       agreedPrice: this.roundMoney(Number(form.agreedPrice)),
       totalAmount: this.receiptTotalAmount(),
@@ -1042,7 +1066,8 @@ export class RicePurchaseComponent implements OnDestroy {
       riceVarietyId: null,
       scheduleDate: this.todayInput(),
       location: "",
-      estimatedQtyTon: null,
+      estimatedWeight: null,
+      estimatedWeightUnit: "ton",
       expectedPrice: null,
       assignedUserId: null,
       note: "",
@@ -1055,7 +1080,8 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: null,
       riceVarietyId: null,
       warehouseId: null,
-      actualWeightKg: null,
+      actualWeight: null,
+      actualWeightUnit: "kg",
       bagCount: null,
       agreedPrice: null,
       paidAmount: 0,
@@ -1072,7 +1098,14 @@ export class RicePurchaseComponent implements OnDestroy {
     if (!form.farmerId) return "Vui lòng chọn nông dân.";
     if (!form.location.trim()) return "Vui lòng nhập khu vực ruộng/điểm hẹn.";
     if (!form.scheduleDate) return "Vui lòng chọn ngày hẹn.";
-    if (form.estimatedQtyTon != null && Number(form.estimatedQtyTon) <= 0) {
+    if (
+      form.estimatedWeight != null &&
+      (!Number.isFinite(Number(form.estimatedWeight)) ||
+        this.toKilograms(
+          form.estimatedWeight,
+          form.estimatedWeightUnit,
+        ) <= 0)
+    ) {
       return "Sản lượng dự kiến phải lớn hơn 0.";
     }
     return null;
@@ -1082,8 +1115,12 @@ export class RicePurchaseComponent implements OnDestroy {
     if (!form.farmerId) return "Vui lòng chọn nông dân.";
     if (!form.warehouseId) return "Vui lòng chọn kho nhập.";
     if (!form.receiptDate) return "Vui lòng chọn ngày mua thực tế.";
-    if (!form.actualWeightKg || Number(form.actualWeightKg) <= 0) {
-      return "Thực cân phải lớn hơn 0 kg.";
+    if (
+      !form.actualWeight ||
+      !Number.isFinite(Number(form.actualWeight)) ||
+      this.toKilograms(form.actualWeight, form.actualWeightUnit) <= 0
+    ) {
+      return "Thực cân phải lớn hơn 0.";
     }
     if (!form.agreedPrice || Number(form.agreedPrice) <= 0) {
       return "Giá mua phải lớn hơn 0 đồng/kg.";
@@ -1169,6 +1206,40 @@ export class RicePurchaseComponent implements OnDestroy {
 
   private roundWeight(value: number): number {
     return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  private toKilograms(value: number | null, unit: WeightUnit): number {
+    const multiplier =
+      this.weightUnits.find((item) => item.value === unit)?.multiplierToKg ?? 1;
+
+    return this.roundWeight(Number(value || 0) * multiplier);
+  }
+
+  private fromKilograms(
+    value: number | null | undefined,
+    fallbackUnit: WeightUnit,
+  ): { value: number | null; unit: WeightUnit } {
+    if (value == null || !Number.isFinite(Number(value))) {
+      return { value: null, unit: fallbackUnit };
+    }
+
+    const kilograms = Number(value);
+    const absoluteKilograms = Math.abs(kilograms);
+    const unit: WeightUnit =
+      absoluteKilograms >= 1000
+        ? "ton"
+        : absoluteKilograms >= 100
+          ? "quintal"
+          : absoluteKilograms >= 10
+            ? "yen"
+            : "kg";
+    const multiplier =
+      this.weightUnits.find((item) => item.value === unit)?.multiplierToKg ?? 1;
+
+    return {
+      value: kilograms / multiplier,
+      unit,
+    };
   }
 
   private roundMoney(value: number): number {
