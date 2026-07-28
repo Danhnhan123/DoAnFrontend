@@ -1,0 +1,155 @@
+<section class="debt-page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow">TÀI CHÍNH VẬN HÀNH</span>
+      <h2>Quản lý công nợ</h2>
+      <p>Theo dõi phải trả nông dân, phải thu khách hàng và thanh toán theo từng chứng từ.</p>
+    </div>
+    <button class="btn btn-light" type="button" (click)="reload()" [disabled]="loading()">
+      <span [class.spinning]="loading()">↻</span> Làm mới
+    </button>
+  </header>
+
+  @if (successMessage()) {
+    <div class="notice success" role="status">{{ successMessage() }}</div>
+  }
+
+  <div class="summary-grid" [class.loading]="summaryLoading()">
+    <article class="summary-card payable">
+      <span class="summary-icon">↗</span>
+      <div><small>Tổng phải trả nông dân</small><strong>{{ formatMoney(summary().totalPayable) }}</strong><span>{{ summary().openDocumentCount }} chứng từ còn mở</span></div>
+    </article>
+    <article class="summary-card overdue">
+      <span class="summary-icon">!</span>
+      <div><small>Phải trả quá hạn</small><strong>{{ formatMoney(summary().totalOverduePayable) }}</strong><span>Cần ưu tiên thanh toán</span></div>
+    </article>
+    <article class="summary-card receivable">
+      <span class="summary-icon">↙</span>
+      <div><small>Tổng phải thu khách hàng</small><strong>{{ formatMoney(summary().totalReceivable) }}</strong><span>{{ summary().activeDebtCount }} sổ còn dư nợ</span></div>
+    </article>
+    <article class="summary-card overdue">
+      <span class="summary-icon">!</span>
+      <div><small>Phải thu quá hạn</small><strong>{{ formatMoney(summary().totalOverdueReceivable) }}</strong><span>{{ summary().overdueDocumentCount }} chứng từ quá hạn</span></div>
+    </article>
+  </div>
+
+  <section class="data-card">
+    <nav class="tabs" aria-label="Các màn hình công nợ">
+      <button type="button" [class.active]="activeTab() === 'OVERVIEW'" (click)="selectTab('OVERVIEW')">Tổng quan</button>
+      <button type="button" [class.active]="activeTab() === 'PAYABLE'" (click)="selectTab('PAYABLE')">Phải trả nông dân</button>
+      <button type="button" [class.active]="activeTab() === 'RECEIVABLE'" (click)="selectTab('RECEIVABLE')">Phải thu khách hàng</button>
+      <button type="button" [class.active]="activeTab() === 'HISTORY'" (click)="selectTab('HISTORY')">Lịch sử giao dịch</button>
+      <button type="button" [class.active]="activeTab() === 'OVERDUE'" (click)="selectTab('OVERDUE')">Cảnh báo quá hạn</button>
+      <button type="button" [class.active]="activeTab() === 'REPORT'" (click)="selectTab('REPORT')">Báo cáo hai chiều</button>
+    </nav>
+
+    @if (documentTab() || activeTab() === 'HISTORY') {
+      <div class="toolbar">
+        <label class="search">
+          <span>⌕</span>
+          <input type="search" placeholder="Tìm đối tác, mã chứng từ hoặc ghi chú"
+            [ngModel]="keywordDraft()" (ngModelChange)="keywordDraft.set($event)" (keyup.enter)="applySearch()" />
+          @if (keywordDraft()) { <button type="button" aria-label="Xóa từ khóa" (click)="clearSearch()">×</button> }
+        </label>
+        <button class="btn btn-primary" type="button" (click)="applySearch()">Tìm kiếm</button>
+        <span class="result-count">{{ total() }} kết quả</span>
+      </div>
+    }
+
+    @if (errorMessage()) {
+      <div class="notice error"><span>{{ errorMessage() }}</span><button type="button" (click)="loadCurrentTab()">Thử lại</button></div>
+    }
+
+    @if (activeTab() === 'OVERVIEW') {
+      <div class="overview-grid">
+        <section>
+          <header><div><h3>Khoản phải trả nổi bật</h3><p>Các chứng từ nông dân cần xử lý</p></div><button type="button" (click)="selectTab('PAYABLE')">Xem tất cả</button></header>
+          @for (row of payableTop(); track row.chargeTransactionId) {
+            <article class="overview-row">
+              <div><strong>{{ row.partyName }}</strong><small>{{ row.documentCode }} · {{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : 'Chưa có hạn' }}</small></div>
+              <div><strong>{{ formatMoney(row.outstandingAmount) }}</strong><span class="badge" [attr.data-status]="row.status">{{ statusLabel(row.status) }}</span></div>
+            </article>
+          } @empty { <div class="empty compact">Không có khoản phải trả.</div> }
+        </section>
+        <section>
+          <header><div><h3>Khoản phải thu nổi bật</h3><p>Các chứng từ khách hàng còn nợ</p></div><button type="button" (click)="selectTab('RECEIVABLE')">Xem tất cả</button></header>
+          @for (row of receivableTop(); track row.chargeTransactionId) {
+            <article class="overview-row">
+              <div><strong>{{ row.partyName }}</strong><small>{{ row.documentCode }} · {{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : 'Chưa có hạn' }}</small></div>
+              <div><strong>{{ formatMoney(row.outstandingAmount) }}</strong><span class="badge" [attr.data-status]="row.status">{{ statusLabel(row.status) }}</span></div>
+            </article>
+          } @empty { <div class="empty compact">Không có khoản phải thu.</div> }
+        </section>
+      </div>
+    } @else if (documentTab()) {
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Đối tác</th><th>Chứng từ</th><th class="number">Tổng tiền</th><th class="number">Đã thanh toán</th><th class="number">Còn lại</th><th>Hạn thanh toán</th><th>Trạng thái</th><th class="actions">Thao tác</th></tr></thead>
+          <tbody>
+            @if (loading()) {
+              @for (row of [1,2,3,4,5]; track row) { <tr class="skeleton-row">@for (cell of [1,2,3,4,5,6,7,8]; track cell) { <td><span></span></td> }</tr> }
+            } @else {
+              @for (row of documents(); track row.partyDebtId + '-' + row.chargeTransactionId) {
+                <tr>
+                  <td><div class="party-cell"><span class="avatar">{{ row.partyName.charAt(0) || '?' }}</span><div><strong>{{ row.partyName }}</strong><small>{{ row.partyCode }}{{ row.partyPhone ? ' · ' + row.partyPhone : '' }}</small></div></div></td>
+                  <td><button class="document-link" type="button" [disabled]="!row.documentUrl" (click)="openDocument(row)">{{ row.documentCode }}</button><small>{{ row.transactionDate | date:'dd/MM/yyyy' }}</small></td>
+                  <td class="number">{{ formatMoney(row.totalAmount) }}</td>
+                  <td class="number paid">{{ formatMoney(row.paidAmount) }}</td>
+                  <td class="number balance">{{ formatMoney(row.outstandingAmount) }}</td>
+                  <td><span [class.danger]="row.daysOverdue > 0">{{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : 'Chưa thiết lập' }}</span>@if (row.daysOverdue > 0) { <small class="danger">Quá hạn {{ row.daysOverdue }} ngày</small> }</td>
+                  <td><span class="badge" [attr.data-status]="row.status">{{ statusLabel(row.status) }}</span></td>
+                  <td class="actions"><button class="icon-btn primary" type="button" [disabled]="row.outstandingAmount <= 0" (click)="openPayment(row)">Thanh toán</button></td>
+                </tr>
+              } @empty { <tr><td colspan="8"><div class="empty"><strong>Không có chứng từ phù hợp</strong><p>Hãy thử thay đổi từ khóa tìm kiếm.</p></div></td></tr> }
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else if (activeTab() === 'HISTORY') {
+      <div class="table-wrap">
+        <table class="history-table">
+          <thead><tr><th>Thời gian</th><th>Đối tác</th><th>Loại giao dịch</th><th>Chứng từ</th><th class="number">Số tiền</th><th class="number">Dư nợ sau GD</th><th>Người ghi nhận</th></tr></thead>
+          <tbody>
+            @for (row of transactions(); track row.id) {
+              <tr><td>{{ row.transactionDate | date:'dd/MM/yyyy HH:mm' }}</td><td><strong>{{ row.partyName }}</strong><small>{{ directionLabel(row.direction) }}</small></td><td>{{ transactionLabel(row.transactionType) }}<small>{{ row.note }}</small></td><td>{{ row.documentCode || '—' }}</td><td class="number">{{ formatMoney(row.amount) }}</td><td class="number balance">{{ formatMoney(row.balanceAfter) }}</td><td>{{ row.createdByName || 'Hệ thống' }}</td></tr>
+            } @empty { <tr><td colspan="7"><div class="empty">Chưa có giao dịch phù hợp.</div></td></tr> }
+          </tbody>
+        </table>
+      </div>
+    } @else if (activeTab() === 'REPORT') {
+      <div class="report">
+        <header><h3>Báo cáo công nợ hai chiều</h3><p>Ảnh chụp số dư hiện tại từ dữ liệu giao dịch công nợ.</p></header>
+        <div class="report-grid">
+          <article><small>Phải thu khách hàng</small><strong>{{ formatMoney(summary().totalReceivable) }}</strong></article>
+          <article><small>Phải trả nông dân</small><strong>{{ formatMoney(summary().totalPayable) }}</strong></article>
+          <article [class.negative]="summary().netProjectedCashFlow < 0"><small>Chênh lệch dòng tiền dự kiến</small><strong>{{ formatMoney(summary().netProjectedCashFlow) }}</strong></article>
+          <article><small>Tổng quá hạn hai chiều</small><strong>{{ formatMoney(summary().totalOverduePayable + summary().totalOverdueReceivable) }}</strong></article>
+        </div>
+        <p class="report-note">Chênh lệch dòng tiền = tổng phải thu − tổng phải trả. Đây là số liệu công nợ, không thay thế báo cáo dòng tiền kế toán.</p>
+      </div>
+    }
+
+    @if ((documentTab() || activeTab() === 'HISTORY') && !loading() && total() > 0) {
+      <footer class="pagination">
+        <span>Hiển thị {{ (page() - 1) * pageSize() + 1 }}–{{ Math.min(page() * pageSize(), total()) }} trong {{ total() }}</span>
+        <div><button type="button" [disabled]="page() === 1" (click)="setPage(page() - 1)">‹</button>@for (item of visiblePages(); track item) { <button type="button" [class.active]="item === page()" (click)="setPage(item)">{{ item }}</button> }<button type="button" [disabled]="page() === totalPages()" (click)="setPage(page() + 1)">›</button></div>
+      </footer>
+    }
+  </section>
+</section>
+
+@if (paymentOpen()) {
+  <div class="modal-backdrop" (click)="closePayment()">
+    <section class="modal payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title" (click)="$event.stopPropagation()">
+      <header><div><span>GHI NHẬN THANH TOÁN</span><h3 id="payment-title">{{ selectedDocument()?.documentCode }}</h3><p>{{ selectedDocument()?.partyName }} · Còn lại {{ formatMoney(selectedDocument()?.outstandingAmount) }}</p></div><button type="button" aria-label="Đóng" [disabled]="paymentSaving()" (click)="closePayment()">×</button></header>
+      <form (ngSubmit)="savePayment()">
+        <label><span>Số tiền thanh toán <b>*</b></span><div class="money-input"><input type="number" min="1" step="1000" name="amount" autocomplete="off" placeholder="0" [max]="selectedDocument()?.outstandingAmount ?? 0" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" /><span>VNĐ</span></div></label>
+        <button class="fill-balance" type="button" (click)="paymentAmount.set(selectedDocument()?.outstandingAmount ?? null)">Thanh toán toàn bộ chứng từ</button>
+        <label><span>Ngày thanh toán <b>*</b></span><input type="date" name="paymentDate" [ngModel]="paymentDate()" (ngModelChange)="paymentDate.set($event)" /></label>
+        <label><span>Ghi chú</span><textarea rows="3" maxlength="500" name="note" placeholder="Ví dụ: Thanh toán tiền mặt tại quầy" [ngModel]="paymentNote()" (ngModelChange)="paymentNote.set($event)"></textarea><small>{{ paymentNote().length }}/500 ký tự</small></label>
+        @if (paymentError()) { <div class="notice error">{{ paymentError() }}</div> }
+        <footer><button class="btn btn-light" type="button" [disabled]="paymentSaving()" (click)="closePayment()">Hủy</button><button class="btn btn-primary" type="submit" [disabled]="paymentSaving()">{{ paymentSaving() ? 'Đang lưu…' : 'Xác nhận thanh toán' }}</button></footer>
+      </form>
+    </section>
+  </div>
+}

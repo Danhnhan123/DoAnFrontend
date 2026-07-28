@@ -64,6 +64,7 @@ export class AdminLayoutComponent implements OnInit {
     'paddy-lots': 'Quản lý lô & truy vết',
     'quality-inspections': 'Quản lý chất lượng & cách ly lô',
     'sales-orders': 'Quản lý đơn bán',
+    'party-debts': 'Công nợ 2 chiều',
     'inbound-orders': 'Nhập kho & Gợi ý xếp vị trí',
     'iot-devices': 'Thiết bị IoT',
     suppliers: 'Nhà cung cấp',
@@ -94,10 +95,34 @@ export class AdminLayoutComponent implements OnInit {
     const res = this.sidebarQuery.data() as any;
     const raw: MenuAggregate[] =
       res?.resources ?? res?.data ?? this.authService.getMenus() ?? [];
-    if (!raw?.length) return [];
-    return raw.some((m) => m.child?.length)
-      ? this.sortedMenus(raw)
-      : this.menuService.buildMenuTree(raw);
+    const menus = raw?.length
+      ? raw.some((m) => m.child?.length)
+        ? this.sortedMenus(raw)
+        : this.menuService.buildMenuTree(raw)
+      : [];
+
+    // Thêm lối vào cục bộ để màn công nợ không phụ thuộc migration/seed menu mới.
+    // Phân quyền cho menu sẽ được bổ sung ở một hạng mục riêng.
+    if (
+      !this.hasMenuUrl(menus, '/admin/party-debts')
+    ) {
+      return [
+        ...menus,
+        {
+          id: -1701,
+          code: 'PARTY_DEBT',
+          treeIds: '-1701',
+          menuType: 'ADMIN',
+          name: 'Công nợ 2 chiều',
+          url: '/admin/party-debts',
+          icon: '💳',
+          sortOrder: 90,
+          child: [],
+        },
+      ];
+    }
+
+    return menus;
   });
 
   menuLoading = computed(
@@ -265,6 +290,14 @@ export class AdminLayoutComponent implements OnInit {
 
     walk(this.sidebarMenus());
     this.expandedMenus.update((current) => new Set([...current, ...parents]));
+  }
+
+  private hasMenuUrl(items: MenuAggregate[], expectedUrl: string): boolean {
+    return items.some(
+      (item) =>
+        this.routerLinkFor(item) === expectedUrl ||
+        this.hasMenuUrl(item.child ?? [], expectedUrl)
+    );
   }
 
   logout(): void {

@@ -39,3 +39,4 @@ export * from './quality-inspection';
 export * from './milling-order';
 export * from './sales-order';
 export * from './outbound-order';
+export * from './party-debt';

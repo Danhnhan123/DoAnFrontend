@@ -236,6 +236,12 @@ const adminChildren: Routes = [
       import('./components/outbound-order/outbound-order.component')
         .then(m => m.OutboundOrderComponent),
   },
+  {
+    path: 'party-debts',
+    loadComponent: () =>
+      import('./components/party-debt/party-debt.component')
+        .then(m => m.PartyDebtComponent),
+  },
   // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
   {
     path: '**',
