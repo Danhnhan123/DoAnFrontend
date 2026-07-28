@@ -893,6 +893,16 @@
   box-shadow: 0 0 0 3px rgba(21, 153, 71, 0.09);
 }
 
+.weight-input-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 8px;
+}
+
+.weight-input-group select {
+  cursor: pointer;
+}
+
 .field-group input[readonly],
 .field-group input:disabled,
 .field-group select:disabled,
