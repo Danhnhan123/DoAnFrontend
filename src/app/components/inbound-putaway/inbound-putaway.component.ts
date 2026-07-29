@@ -174,52 +174,26 @@ export class InboundPutawayComponent implements OnInit {
     this.loadWarning.set('');
 
     try {
-      const body = this.inboundService.buildPagedBody({
-        page: 1,
-        pageSize: 100,
-        search: '',
-        sortField: 'createdDate',
-        sortDir: 'desc',
-        colMap: {
-          poCode: 0,
-          supplierName: 1,
-          warehouseName: 2,
-          inboundOrderStatusName: 3,
-          expectedDate: 4,
-          totalAssetValue: 5,
-          createdDate: 6,
-        },
-      });
-      const response = await lastValueFrom(
-        this.inboundService.getPagedAdvanced(body)
-      );
-      const page = this.unwrap<any>(response);
-      const orderRows = page?.data ?? [];
-      try {
-        const locationsResponse = await lastValueFrom(
-          this.locationService.getAll()
-        );
-        this.locations.set(
-          this.unwrap<LocationDetailDto[]>(locationsResponse) ?? []
-        );
-      } catch {
-        this.locations.set([]);
-      }
-
-      const detailResults = await Promise.all(
-        orderRows.map(async (order: any) => {
+      // 1 request gộp: BE trả sẵn phiếu lúa/gạo chờ xếp kho + item đã hydrate.
+      // Chạy song song với load danh sách vị trí kho.
+      const [ordersResponse] = await Promise.all([
+        lastValueFrom(this.inboundService.getPutawayPending()),
+        (async () => {
           try {
-            return this.unwrap<InboundOrderDetailDto>(
-              await lastValueFrom(this.inboundService.getById(order.id))
+            const locationsResponse = await lastValueFrom(
+              this.locationService.getAll()
+            );
+            this.locations.set(
+              this.unwrap<LocationDetailDto[]>(locationsResponse) ?? []
             );
           } catch {
-            return null;
+            this.locations.set([]);
           }
-        })
-      );
-      const details = detailResults.filter(
-        (order): order is InboundOrderDetailDto => order !== null
-      );
+        })(),
+      ]);
+
+      const details =
+        this.unwrap<InboundOrderDetailDto[]>(ordersResponse) ?? [];
 
       const allLines = details.flatMap((order: InboundOrderDetailDto) =>
         order.items.map((item: InboundOrderItemDto) => ({ order, item }))

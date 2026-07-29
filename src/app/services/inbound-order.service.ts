@@ -30,6 +30,16 @@ export class InboundOrderService {
     );
   }
 
+  /**
+   * Danh sách phiếu nhập lúa/gạo đang chờ xếp kho (put-away) cho màn Store-in.
+   * Gộp 1 request (thay cho list + N getById) — backend đã hydrate sẵn item.
+   */
+  getPutawayPending(): Observable<ApiResponse<InboundOrderDetailDto[]>> {
+    return this.http.get<ApiResponse<InboundOrderDetailDto[]>>(
+      `${this.base}/inbound-orders/putaway-pending`
+    );
+  }
+
   /** Chi tiết phiếu nhập (header + dòng hàng + chứng từ). */
   getById(id: number): Observable<ApiResponse<InboundOrderDetailDto>> {
     return this.http.get<ApiResponse<InboundOrderDetailDto>>(
