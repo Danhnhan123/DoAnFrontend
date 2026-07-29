@@ -40,3 +40,4 @@ export * from './milling-order';
 export * from './sales-order';
 export * from './outbound-order';
 export * from './party-debt';
+export * from './stock-transfer';

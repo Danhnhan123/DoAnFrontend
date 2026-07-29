@@ -207,6 +207,12 @@ const adminChildren: Routes = [
         .then(m => m.InventoryMonitoringComponent),
   },
   {
+    path: 'stock-transfers',
+    loadComponent: () =>
+      import('./components/stock-transfer/stock-transfer.component')
+        .then(m => m.StockTransferComponent),
+  },
+  {
     path: 'paddy-lots',
     loadComponent: () =>
       import('./components/paddy-lot/paddy-lot.component')
