@@ -321,8 +321,59 @@ export class InboundPutawayComponent {
   );
 
   async loadOrders(): Promise<void> {
-    this.message.set("");
-    await this.inboundQuery.refetch();
+    this.loading.set(true);
+    this.activeStatus.set('loading');
+    this.message.set('');
+    this.loadWarning.set('');
+
+    try {
+      // 1 request gộp: BE trả sẵn phiếu lúa/gạo chờ xếp kho + item đã hydrate.
+      // Chạy song song với load danh sách vị trí kho.
+      const [ordersResponse] = await Promise.all([
+        lastValueFrom(this.inboundService.getPutawayPending()),
+        (async () => {
+          try {
+            const locationsResponse = await lastValueFrom(
+              this.locationService.getAll()
+            );
+            this.locations.set(
+              this.unwrap<LocationDetailDto[]>(locationsResponse) ?? []
+            );
+          } catch {
+            this.locations.set([]);
+          }
+        })(),
+      ]);
+
+      const details =
+        this.unwrap<InboundOrderDetailDto[]>(ordersResponse) ?? [];
+
+      const allLines = details.flatMap((order: InboundOrderDetailDto) =>
+        order.items.map((item: InboundOrderItemDto) => ({ order, item }))
+      );
+      const paddyLines = allLines.filter((line) => this.isPaddyLine(line));
+      this.lines.set(paddyLines);
+
+      const selected =
+        paddyLines.find((line) => this.remaining(line.item) > 0) ??
+        null;
+
+      if (!selected && paddyLines.length > 0) {
+        this.loadWarning.set(
+          `Tìm thấy ${paddyLines.length} dòng lúa/gạo nhưng backend đã đánh dấu ` +
+            'đã nhận đủ hoặc hoàn tất. Hãy kiểm tra backend đang chạy đúng bản mới: ' +
+            'phiếu sinh từ Rice Purchase phải là Draft và QuantityReceived phải bằng 0.'
+        );
+      }
+
+      this.activeStatus.set('waiting');
+      await this.selectLine(selected);
+    } catch (error) {
+      this.activeStatus.set('error');
+      this.message.set(this.apiError(error, 'Không tải được phiếu nhập kho.'));
+    } finally {
+      this.loading.set(false);
+    }
   }
 
   async selectLine(line: InboundPutawayLine | null): Promise<void> {
