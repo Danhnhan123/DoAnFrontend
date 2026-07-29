@@ -320,60 +320,12 @@ export class InboundPutawayComponent {
     this.normalizedStatus(this.selectedLine()?.order.inboundOrderStatusName),
   );
 
+  /**
+   * Nút "Làm mới": dữ liệu nạp qua TanStack Query (fetchInboundPutawayData),
+   * nên chỉ cần invalidate để query tự refetch — không thao tác trực tiếp signal.
+   */
   async loadOrders(): Promise<void> {
-    this.loading.set(true);
-    this.activeStatus.set('loading');
-    this.message.set('');
-    this.loadWarning.set('');
-
-    try {
-      // 1 request gộp: BE trả sẵn phiếu lúa/gạo chờ xếp kho + item đã hydrate.
-      // Chạy song song với load danh sách vị trí kho.
-      const [ordersResponse] = await Promise.all([
-        lastValueFrom(this.inboundService.getPutawayPending()),
-        (async () => {
-          try {
-            const locationsResponse = await lastValueFrom(
-              this.locationService.getAll()
-            );
-            this.locations.set(
-              this.unwrap<LocationDetailDto[]>(locationsResponse) ?? []
-            );
-          } catch {
-            this.locations.set([]);
-          }
-        })(),
-      ]);
-
-      const details =
-        this.unwrap<InboundOrderDetailDto[]>(ordersResponse) ?? [];
-
-      const allLines = details.flatMap((order: InboundOrderDetailDto) =>
-        order.items.map((item: InboundOrderItemDto) => ({ order, item }))
-      );
-      const paddyLines = allLines.filter((line) => this.isPaddyLine(line));
-      this.lines.set(paddyLines);
-
-      const selected =
-        paddyLines.find((line) => this.remaining(line.item) > 0) ??
-        null;
-
-      if (!selected && paddyLines.length > 0) {
-        this.loadWarning.set(
-          `Tìm thấy ${paddyLines.length} dòng lúa/gạo nhưng backend đã đánh dấu ` +
-            'đã nhận đủ hoặc hoàn tất. Hãy kiểm tra backend đang chạy đúng bản mới: ' +
-            'phiếu sinh từ Rice Purchase phải là Draft và QuantityReceived phải bằng 0.'
-        );
-      }
-
-      this.activeStatus.set('waiting');
-      await this.selectLine(selected);
-    } catch (error) {
-      this.activeStatus.set('error');
-      this.message.set(this.apiError(error, 'Không tải được phiếu nhập kho.'));
-    } finally {
-      this.loading.set(false);
-    }
+    await this.invalidateInboundData();
   }
 
   async selectLine(line: InboundPutawayLine | null): Promise<void> {
@@ -731,55 +683,24 @@ export class InboundPutawayComponent {
   }
 
   private async fetchInboundPutawayData(): Promise<InboundPutawayData> {
-    const body = this.inboundService.buildPagedBody({
-      page: 1,
-      pageSize: 100,
-      search: "",
-      sortField: "createdDate",
-      sortDir: "desc",
-      colMap: {
-        poCode: 0,
-        supplierName: 1,
-        warehouseName: 2,
-        inboundOrderStatusName: 3,
-        expectedDate: 4,
-        totalAssetValue: 5,
-        createdDate: 6,
-      },
-    });
-
-    const response = await lastValueFrom(
-      this.inboundService.getPagedAdvanced(body),
-    );
-    const page = this.unwrap<any>(response);
-    const orderRows = page?.data ?? [];
-
-    let locations: LocationDetailDto[] = [];
-    try {
-      const locationsResponse = await lastValueFrom(
-        this.locationService.getAll(),
-      );
-      locations = this.unwrap<LocationDetailDto[]>(locationsResponse) ?? [];
-    } catch {
-      locations = [];
-    }
-
-    const detailResults = await Promise.all(
-      orderRows.map(async (order: any) => {
+    // 1 request gộp: BE trả sẵn phiếu lúa/gạo chờ xếp kho + item đã hydrate,
+    // chạy song song với load vị trí kho (thay list 100 phiếu + N getById gây N+1).
+    const [ordersResponse, locations] = await Promise.all([
+      lastValueFrom(this.inboundService.getPutawayPending()),
+      (async (): Promise<LocationDetailDto[]> => {
         try {
-          const detailResponse = await lastValueFrom(
-            this.inboundService.getById(order.id),
+          const locationsResponse = await lastValueFrom(
+            this.locationService.getAll(),
           );
-          return this.unwrap<InboundOrderDetailDto>(detailResponse);
+          return this.unwrap<LocationDetailDto[]>(locationsResponse) ?? [];
         } catch {
-          return null;
+          return [];
         }
-      }),
-    );
+      })(),
+    ]);
 
-    const details = detailResults.filter(
-      (order): order is InboundOrderDetailDto => order !== null,
-    );
+    const details =
+      this.unwrap<InboundOrderDetailDto[]>(ordersResponse) ?? [];
     const allLines = details.flatMap((order: InboundOrderDetailDto) =>
       order.items.map((item: InboundOrderItemDto) => ({ order, item })),
     );
