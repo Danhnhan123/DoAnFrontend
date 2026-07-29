@@ -68,7 +68,8 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "DoAnFrontend:build:production"
+              "buildTarget": "DoAnFrontend:build:production",
+              "hmr": true
             },
             "development": {
               "buildTarget": "DoAnFrontend:build:development",

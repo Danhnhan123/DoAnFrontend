@@ -678,18 +678,31 @@
             </select>
           </label>
 
-          <label class="field-group">
-            <span>Dự kiến (tấn)</span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              [ngModel]="scheduleForm().estimatedQtyTon"
-              (ngModelChange)="setScheduleField('estimatedQtyTon', $event)"
-              [disabled]="scheduleFormLocked()"
-              placeholder="5.0"
-            />
-          </label>
+          <div class="field-group">
+            <span>Sản lượng dự kiến</span>
+            <div class="weight-input-group">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                [ngModel]="scheduleForm().estimatedWeight"
+                (ngModelChange)="setScheduleField('estimatedWeight', $event)"
+                [disabled]="scheduleFormLocked()"
+                placeholder="Nhập khối lượng"
+                aria-label="Sản lượng dự kiến"
+              />
+              <select
+                [ngModel]="scheduleForm().estimatedWeightUnit"
+                (ngModelChange)="setScheduleField('estimatedWeightUnit', $event)"
+                [disabled]="scheduleFormLocked()"
+                aria-label="Đơn vị sản lượng dự kiến"
+              >
+                @for (unit of weightUnits; track unit.value) {
+                  <option [ngValue]="unit.value">{{ unit.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
 
           <label class="field-group span-2">
             <span>Ghi chú lịch hẹn</span>
@@ -862,18 +875,31 @@
             </select>
           </label>
 
-          <label class="field-group">
-            <span>Thực cân (kg) <b>*</b></span>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              [ngModel]="receiptForm().actualWeightKg"
-              (ngModelChange)="setReceiptField('actualWeightKg', $event)"
-              placeholder="4.120"
-              [disabled]="receiptFormLocked()"
-            />
-          </label>
+          <div class="field-group">
+            <span>Thực cân <b>*</b></span>
+            <div class="weight-input-group">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                [ngModel]="receiptForm().actualWeight"
+                (ngModelChange)="setReceiptField('actualWeight', $event)"
+                placeholder="Nhập khối lượng"
+                aria-label="Khối lượng thực cân"
+                [disabled]="receiptFormLocked()"
+              />
+              <select
+                [ngModel]="receiptForm().actualWeightUnit"
+                (ngModelChange)="setReceiptField('actualWeightUnit', $event)"
+                aria-label="Đơn vị khối lượng"
+                [disabled]="receiptFormLocked()"
+              >
+                @for (unit of weightUnits; track unit.value) {
+                  <option [ngValue]="unit.value">{{ unit.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
 
           <label class="field-group">
             <span>Giá mua/kg <b>*</b></span>
