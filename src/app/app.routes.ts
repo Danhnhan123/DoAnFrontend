@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard, firstLoginGuard } from './guards/auth.guard';
+import { menuReadGuard } from './guards/permission.guard';
 
 const adminChildren: Routes = [
   {
@@ -21,78 +22,104 @@ const adminChildren: Routes = [
   },
   {
     path: 'products',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PRODUCT' },
     loadComponent: () =>
       import('./components/product/product.component')
     .then(m => m.ProductComponent),
   },
   {
     path: 'users',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'USER' },
     loadComponent: () =>
       import('./components/user/user.component')
     .then(m => m.UserComponent),
   },
   {
     path: 'roles',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'ROLE' },
     loadComponent: () =>
       import('./components/role/role.component')
     .then(m => m.RoleComponent),
   },
   {
     path: 'menus',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'MENU_LIST' },
     loadComponent: () =>
       import('./components/menu/menu.component')
     .then(m => m.MenuComponent),
   },
   {
     path: 'system-config',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'SYSTEM_SETTINGS' },
     loadComponent: () =>
       import('./components/system-config/system-config.component')
     .then(m => m.SystemConfigComponent),
   },
   {
     path: 'audit-log',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'AUDIT_LOGS' },
     loadComponent: () =>
       import('./components/audit-log/audit-log.component')
     .then(m => m.AuditLogComponent),
   },
   {
     path: 'activity-log',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'ACTIVITY_LOGS' },
     loadComponent: () =>
       import('./components/activity-log/activity-log.component')
     .then(m => m.ActivityLogComponent),
   },
   {
     path: 'actions',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'ACTIONS' },
     loadComponent: () =>
       import('./components/action/action.component')
     .then(m => m.ActionComponent),
   },
   {
     path: 'user-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'USER_STATUS' },
     loadComponent: () =>
       import('./components/user-status/user-status.component')
     .then(m => m.UserStatusComponent),
   },
   {
     path: 'product-categories',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PRODUCT_CATEGORIES' },
     loadComponent: () =>
       import('./components/product-category/product-category.component')
         .then(m => m.ProductCategoryComponent),
   },
   {
   path: 'product-variants',
+  canMatch: [menuReadGuard],
+  data: { menuCode: 'PRODUCT_VARIANTS' },
   loadComponent: () =>
     import('./components/product-variant/product-variant.component')
       .then(m => m.ProductVariantComponent),
   },
   {
     path: 'product-attributes',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PRODUCT_ATTRIBUTES' },
     loadComponent: () =>
       import('./components/product-attribute/product-attribute.component')
         .then(m => m.ProductAttributeComponent),
   },
   {
     path: 'inbound-orders',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'INBOUND_ORDERS' },
     loadComponent: () =>
       import('./components/inbound-putaway/inbound-putaway.component')
         .then(m => m.InboundPutawayComponent),
@@ -105,42 +132,56 @@ const adminChildren: Routes = [
   },
   {
     path: 'suppliers',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'SUPPLIERS' },
     loadComponent: () =>
       import('./components/supplier/supplier.component')
         .then(m => m.SupplierComponent),
   },
   {
     path: 'rice-varieties',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'RICE_VARIETIES' },
     loadComponent: () =>
       import('./components/rice-variety/rice-variety.component')
         .then(m => m.RiceVarietyComponent),
   },
   {
     path: 'farmers',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'FARMERS' },
     loadComponent: () =>
       import('./components/farmer/farmer.component')
         .then(m => m.FarmerComponent),
   },
   {
     path: 'customers',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'CUSTOMERS' },
     loadComponent: () =>
       import('./components/customer/customer.component')
         .then(m => m.CustomerComponent),
   },
   {
     path: 'organizations',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'ORGANIZATIONS' },
     loadComponent: () =>
       import('./components/organization/organization.component')
         .then(m => m.OrganizationComponent),
   },
   {
     path: 'unit-of-measures',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'UNIT_OF_MEASURES' },
     loadComponent: () =>
       import('./components/unit-of-measure/unit-of-measure.component')
         .then(m => m.UnitOfMeasureComponent),
   },
   {
     path: 'warehouses',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'WAREHOUSES' },
     loadComponent: () =>
       import('./components/warehouse/warehouse.component')
         .then(m => m.WarehouseComponent),
@@ -154,54 +195,72 @@ const adminChildren: Routes = [
   {
     // Bản đồ khu/cột (sơ đồ mặt phẳng nhìn từ trên xuống của kho).
     path: 'warehouse-map',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'WAREHOUSE_MAP' },
     loadComponent: () =>
       import('./components/warehouse-map/warehouse-map.component')
         .then(m => m.WarehouseMapComponent),
   },
   {
     path: 'notifications',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'NOTIFICATION' },
     loadComponent: () =>
       import('./components/notification/notification.component')
         .then(m => m.NotificationComponent),
   },
   {
     path: 'notification-categories',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'NOTIFICATION_CATEGORY' },
     loadComponent: () =>
       import('./components/notification-category/notification-category.component')
         .then(m => m.NotificationCategoryComponent),
   },
   {
     path: 'notification-types',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'NOTIFICATION_TYPE' },
     loadComponent: () =>
       import('./components/notification-type/notification-type.component')
         .then(m => m.NotificationTypeComponent),
   },
   {
     path: 'rice-purchase',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'RICE_PURCHASE' },
     loadComponent: () =>
       import('./components/rice-purchase/rice-purchase.component')
         .then(m => m.RicePurchaseComponent),
   },
   {
     path: 'milling-yield-configs',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'MILLING_YIELD_CONFIGS' },
     loadComponent: () =>
       import('./components/milling-yield-config/milling-yield-config.component')
         .then(m => m.MillingYieldConfigComponent),
   },
   {
     path: 'stock-alert-configs',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'STOCK_ALERT_CONFIGS' },
     loadComponent: () =>
       import('./components/stock-alert-config/stock-alert-config.component')
         .then(m => m.StockAlertConfigComponent),
   },
   {
     path: 'alerts',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'ALERTS' },
     loadComponent: () =>
       import('./components/alert/alert.component')
         .then(m => m.AlertComponent),
   },
   {
     path: 'inventory-monitoring',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'INVENTORIES' },
     loadComponent: () =>
       import('./components/inventory-monitoring/inventory-monitoring.component')
         .then(m => m.InventoryMonitoringComponent),
@@ -214,30 +273,40 @@ const adminChildren: Routes = [
   },
   {
     path: 'paddy-lots',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PADDY_LOTS' },
     loadComponent: () =>
       import('./components/paddy-lot/paddy-lot.component')
         .then(m => m.PaddyLotComponent),
   },
   {
     path: 'milling-orders',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'MILLING_ORDERS' },
     loadComponent: () =>
       import('./components/milling-order/milling-order.component')
         .then(m => m.MillingOrderComponent),
   },
   {
     path: 'quality-inspections',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'QUALITY_INSPECTIONS' },
     loadComponent: () =>
       import('./components/quality-inspection/quality-inspection.component')
         .then(m => m.QualityInspectionComponent),
   },
   {
     path: 'sales-orders',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'SALE_ORDERS' },
     loadComponent: () =>
       import('./components/sales-order/sales-order.component')
         .then(m => m.SalesOrderComponent),
   },
   {
     path: 'outbound-orders',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'OUTBOUND_ORDERS' },
     loadComponent: () =>
       import('./components/outbound-order/outbound-order.component')
         .then(m => m.OutboundOrderComponent),
@@ -248,9 +317,11 @@ const adminChildren: Routes = [
       import('./components/party-debt/party-debt.component')
         .then(m => m.PartyDebtComponent),
   },
-  // 404 cho các đường dẫn con /admin/* không tồn tại (giữ nguyên layout admin).
+  // 404 cho các đường dẫn con /admin/* không tồn tại hoặc không đủ quyền READ (giữ layout admin).
+  // data.notFound = true -> layout ẩn tiêu đề/phụ đề màn, chỉ hiện nội dung 404.
   {
     path: '**',
+    data: { notFound: true },
     loadComponent: () =>
       import('./components/not-found/not-found.component').then(m => m.NotFoundComponent),
   },

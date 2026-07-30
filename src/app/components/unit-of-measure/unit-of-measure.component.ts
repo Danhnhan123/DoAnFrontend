@@ -18,15 +18,20 @@ import {
 import { UnitOfMeasureService } from '../../services/unit-of-measure.service';
 
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-unit-of-measure',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './unit-of-measure.component.html',
   styleUrl: './unit-of-measure.component.css',
 })
 export class UnitOfMeasureComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('UNIT_OF_MEASURES'));
   private uomService = inject(UnitOfMeasureService);
   private queryClient = injectQueryClient();
 

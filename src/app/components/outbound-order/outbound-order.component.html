@@ -145,12 +145,13 @@
       <div class="ob-pager">
         <div class="ob-pager-left">
           <span>Hiển thị</span>
-          <select
-            [ngModel]="pageSize()"
-            (ngModelChange)="setPageSize($event)"
-          >
-            <option *ngFor="let opt of pageSizeOptions" [ngValue]="opt">{{ opt }}</option>
-          </select>
+          <app-filter-select
+            class="ob-pagesize"
+            [clearable]="false"
+            [options]="pageSizeSelectOptions"
+            [value]="pageSize()"
+            (valueChange)="setPageSize($event)"
+          ></app-filter-select>
           <span>/ {{ total() }} phiếu</span>
         </div>
         <div class="ob-pager-right">
@@ -304,7 +305,7 @@
             class="btn primary"
             *ngIf="canAllocate(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="openAllocate(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openAllocate(d)"
           >
             Phân bổ lô hàng
           </button>
@@ -313,7 +314,7 @@
             class="btn info"
             *ngIf="canPick(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="openPick(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPick(d)"
           >
             Cập nhật lấy hàng
           </button>
@@ -322,7 +323,7 @@
             class="btn violet"
             *ngIf="canPack(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="openPacking(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPacking(d)"
           >
             Xác nhận đóng gói
           </button>
@@ -331,7 +332,7 @@
             class="btn primary"
             *ngIf="canDispatch(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="confirmDispatch(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="confirmDispatch(d)"
           >
             Xác nhận xuất kho
           </button>
@@ -340,7 +341,7 @@
             class="btn primary"
             *ngIf="canDeliver(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="completeDelivery(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="completeDelivery(d)"
           >
             Đã giao thành công
           </button>
@@ -349,7 +350,7 @@
             class="btn danger-ghost"
             *ngIf="canDeliver(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="failDelivery(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="failDelivery(d)"
           >
             Giao thất bại
           </button>
@@ -358,7 +359,7 @@
             class="btn danger-ghost"
             *ngIf="canCancel(d.outboundStatusId)"
             [disabled]="saving()"
-            (click)="cancelOrder(d)"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="cancelOrder(d)"
           >
             Hủy phiếu
           </button>
@@ -419,7 +420,7 @@
     </div>
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closeAllocate()" [disabled]="saving()">Đóng</button>
-      <button class="btn primary" (click)="submitAllocate()" [disabled]="saving() || loadingLots()">
+      <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitAllocate()" [disabled]="saving() || loadingLots()">
         Phân bổ &amp; chuyển lấy hàng
       </button>
     </div>
@@ -460,7 +461,7 @@
     </div>
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closePick()" [disabled]="saving()">Đóng</button>
-      <button class="btn primary" (click)="submitPick()" [disabled]="saving()">Lưu số lượng lấy</button>
+      <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPick()" [disabled]="saving()">Lưu số lượng lấy</button>
     </div>
   </div>
 </div>
@@ -496,7 +497,7 @@
     </div>
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closePacking()" [disabled]="saving()">Đóng</button>
-      <button class="btn violet" (click)="submitPacking()" [disabled]="saving()">Xác nhận đóng gói</button>
+      <button class="btn violet" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPacking()" [disabled]="saving()">Xác nhận đóng gói</button>
     </div>
   </div>
 </div>

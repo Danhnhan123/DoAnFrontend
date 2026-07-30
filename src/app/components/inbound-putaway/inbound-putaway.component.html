@@ -230,7 +230,7 @@
                 type="button"
                 class="primary-button"
                 [disabled]="actionPending()"
-                (click)="advanceOrder()"
+                [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="advanceOrder()"
               >
                 {{ actionPending() ? "Đang xử lý..." : actionLabel() }}
               </button>
@@ -261,7 +261,7 @@
               type="button"
               class="primary-button"
               [disabled]="actionPending()"
-              (click)="prepareSuggestions()"
+              [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="prepareSuggestions()"
             >
               {{ actionPending() ? "Đang tải..." : "Tải gợi ý vị trí" }}
             </button>
@@ -402,25 +402,13 @@
               <div class="override-fields">
                 <label>
                   Vị trí khác trong kho
-                  <select
-                    [ngModel]="manualLocationId()"
-                    (ngModelChange)="selectManualLocation($event)"
-                  >
-                    <option [ngValue]="null">Chọn khu / cột / lớp / ô</option>
-                    @for (location of manualOverrideLocations(); track location.id) {
-                      <option [ngValue]="location.id">
-                        {{ manualLocationLabel(location) }}
-                        · còn
-                        {{
-                          formatKg(
-                            (location.maxCapacity || 0) -
-                              (location.currentOccupancy || 0)
-                          )
-                        }}
-                        · ưu tiên {{ location.priority }}
-                      </option>
-                    }
-                  </select>
+                  <app-filter-select
+                    [clearable]="false"
+                    placeholder="Chọn khu / cột / lớp / ô"
+                    [options]="manualLocationSelectOptions()"
+                    [value]="manualLocationId()"
+                    (valueChange)="selectManualLocation($event)"
+                  ></app-filter-select>
                   @if (!manualOverrideLocations().length) {
                     <small>Không còn vị trí khác phù hợp trong kho này.</small>
                   }
@@ -443,7 +431,7 @@
                 class="primary-button confirm-button"
                 type="button"
                 [disabled]="actionPending()"
-                (click)="confirmPutaway()"
+                [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="confirmPutaway()"
               >
                 {{
                   actionPending()

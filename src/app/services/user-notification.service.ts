@@ -21,6 +21,13 @@ export class UserNotificationService {
     );
   }
 
+  markAllRead(): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.base}/notification/me/mark-all-read`,
+      {}
+    );
+  }
+
   markUnread(userNotificationId: number): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(
       `${this.base}/notification/me/${userNotificationId}/mark-unread`,

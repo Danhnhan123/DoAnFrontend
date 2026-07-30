@@ -6,6 +6,20 @@ export interface SearchQuery {
   orderBy?: string;
 }
 
+// ── Tìm kiếm toàn cục (thanh tìm kiếm trên header) ─────────────────────────
+export interface GlobalSearchItem {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+}
+
+export interface GlobalSearchGroup {
+  type: string; // PRODUCT | PRODUCT_VARIANT | PADDY_LOT | SALES_ORDER | INBOUND_ORDER | CUSTOMER | FARMER | SUPPLIER
+  label: string; // nhãn tiếng Việt
+  url: string; // đường dẫn màn danh sách (FE điều hướng kèm ?q=)
+  items: GlobalSearchItem[];
+}
+
 export interface DTColumn {
   data: string;
   name: string;

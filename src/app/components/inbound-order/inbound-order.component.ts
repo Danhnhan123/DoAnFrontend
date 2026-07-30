@@ -17,11 +17,12 @@ import {
 import { InboundOrderService } from '../../services/inbound-order.service';
 import { AuthService } from '../../services/auth.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-inbound-order',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './inbound-order.component.html',
   styleUrl: './inbound-order.component.css',
 })

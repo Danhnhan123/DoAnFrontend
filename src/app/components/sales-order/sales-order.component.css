@@ -262,14 +262,8 @@
 }
 
 .so-page-size {
-  height: 38px;
-  padding: 0 9px;
-  border: 1px solid var(--border, #dfe5eb);
-  border-radius: 8px;
-  color: var(--text-secondary, #475569);
-  background: var(--card-bg, #fff);
-  font: inherit;
-  font-size: 0.76rem;
+  width: 130px;
+  flex: 0 0 auto;
 }
 
 .so-api-note {

@@ -290,7 +290,18 @@
   <div class="card">
     <div class="noti-tab-head">
       <h3 class="noti-tab-title">Thông báo của tôi</h3>
-      <span class="noti-tab-total">{{ notiTotal() }} thông báo</span>
+      <div class="noti-tab-head-right">
+        <span class="noti-tab-total">{{ notiTotal() }} thông báo</span>
+        <button type="button" class="noti-tab-markall" [disabled]="notiUnreadCount() === 0 || notiMarkingAll()"
+          (click)="notiMarkAllRead()">
+          @if (notiMarkingAll()) { <span class="spinner sm"></span> } @else {
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+          }
+          Đánh dấu tất cả đã đọc
+          @if (notiUnreadCount() > 0) { <span class="noti-tab-markall-count">{{ notiUnreadCount() }}</span> }
+        </button>
+      </div>
     </div>
 
     @if (notiLoading()) {
@@ -320,9 +331,25 @@
 
     @if (notiTotalPages() > 1) {
     <div class="noti-pagination">
-      <button class="page-btn" (click)="notiSetPage(notiPage()-1)" [disabled]="notiPage()===1">‹ Trước</button>
-      <span class="page-info">Trang {{ notiPage() }}/{{ notiTotalPages() }}</span>
-      <button class="page-btn" (click)="notiSetPage(notiPage()+1)" [disabled]="notiPage()===notiTotalPages()">Sau ›</button>
+      <button type="button" class="noti-page-nav" (click)="notiSetPage(notiPage()-1)" [disabled]="notiPage()===1"
+        aria-label="Trang trước">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+      </button>
+      @for (p of notiPages(); track $index) {
+        @if (p === '…') {
+        <span class="noti-page-ellipsis">…</span>
+        } @else {
+        <button type="button" class="noti-page-num" [class.active]="p === notiPage()" (click)="notiSetPage(p)">
+          {{ p }}
+        </button>
+        }
+      }
+      <button type="button" class="noti-page-nav" (click)="notiSetPage(notiPage()+1)"
+        [disabled]="notiPage()===notiTotalPages()" aria-label="Trang sau">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
     </div>
     }
     }

@@ -17,15 +17,20 @@ import {
 } from '../../models';
 import { FarmerService } from '../../services/farmer.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-farmer',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './farmer.component.html',
   styleUrl: '../supplier/supplier.component.css',
 })
 export class FarmerComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('FARMERS'));
   private farmerService = inject(FarmerService);
   private queryClient = injectQueryClient();
 

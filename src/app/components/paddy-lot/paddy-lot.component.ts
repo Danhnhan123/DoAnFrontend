@@ -20,11 +20,15 @@ import { WarehouseRow } from '../../models/warehouse';
 import { LocationService } from '../../services/location.service';
 import { PaddyLotService } from '../../services/paddy-lot.service';
 import { WarehouseService } from '../../services/warehouse.service';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 @Component({
   selector: 'app-paddy-lot',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './paddy-lot.component.html',
   styleUrl: './paddy-lot.component.css',
 })
@@ -181,6 +185,19 @@ export class PaddyLotComponent implements OnDestroy {
     };
   });
   readonly warehouses = computed(() => this.warehousesQuery.data() || []);
+
+  // ---- Options cho dropdown dùng chung (app-filter-select) ----
+  readonly lotTypeOptions: FilterSelectOption[] = this.lotTypes.map((t) => ({
+    id: t.value,
+    name: t.label,
+  }));
+  readonly statusOptions: FilterSelectOption[] = this.statuses.map((s) => ({
+    id: s.id,
+    name: s.name,
+  }));
+  readonly warehouseOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({ id: w.id, name: w.name }))
+  );
   readonly locations = computed(() => this.locationsQuery.data() || []);
   readonly loading = computed(() => this.lotsQuery.isPending());
   readonly loadingDetail = computed(() => this.detailQuery.isPending());

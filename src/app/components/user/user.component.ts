@@ -1,4 +1,6 @@
 import { Component, signal, inject, computed, effect } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -20,15 +22,18 @@ import {
 import { UserService } from '../../services/user.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import { UserBulkCreateComponent } from '../user-bulk-create/user-bulk-create.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-user',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent, UserBulkCreateComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent, UserBulkCreateComponent],
   templateUrl: './user.component.html',
   styleUrl: './user.component.css',
 })
 export class UserComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('USER'));
   private userService = inject(UserService);
   private queryClient = injectQueryClient();
 

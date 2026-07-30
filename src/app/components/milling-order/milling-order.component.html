@@ -72,16 +72,14 @@
       }
     </form>
 
-    <select
-      aria-label="Lọc theo kho"
-      [ngModel]="warehouseFilter() || ''"
-      (ngModelChange)="setWarehouseFilter($event)"
-    >
-      <option value="">Tất cả kho</option>
-      @for (warehouse of warehouses(); track warehouse.id) {
-        <option [value]="warehouse.id">{{ warehouse.name }}</option>
-      }
-    </select>
+    <app-filter-select
+      class="mo-warehouse-filter"
+      [options]="warehouseSelectOptions()"
+      [value]="warehouseFilter()"
+      (valueChange)="setWarehouseFilter($event)"
+      allLabel="Tất cả kho"
+      placeholder="Tất cả kho"
+    ></app-filter-select>
 
     <button class="filter-btn" type="button" (click)="applySearch()">
       Tìm kiếm
@@ -182,16 +180,14 @@
                 </td>
                 <td class="actions" (click)="$event.stopPropagation()">
                   @if (statusCode(row) === 'DRAFT') {
-                    @if (canManageOrder()) {
-                      <button
-                        type="button"
-                        title="Sửa lệnh"
-                        [disabled]="actionLoadingId() === row.id"
-                        (click)="openEdit(row, $event)"
-                      >
-                        Sửa
-                      </button>
-                    }
+                    <button
+                      type="button"
+                      [title]="perm.canUpdate('MILLING_ORDERS') ? 'Sửa lệnh' : 'Xem chi tiết'"
+                      [disabled]="actionLoadingId() === row.id"
+                      (click)="openEdit(row, $event)"
+                    >
+                      {{ perm.canUpdate('MILLING_ORDERS') ? 'Sửa' : 'Xem' }}
+                    </button>
                     @if (canReservePaddy()) {
                       <button
                         class="action-primary"
@@ -298,7 +294,7 @@
       <header class="modal-header">
         <div>
           <h2 id="create-milling-title">
-            {{ createForm().id ? 'Cập nhật lệnh xay' : 'Tạo lệnh xay' }}
+            {{ viewOnly() ? 'Chi tiết lệnh xay' : createForm().id ? 'Cập nhật lệnh xay' : 'Tạo lệnh xay' }}
           </h2>
           <p>
             Yield được gợi ý theo giống và độ ẩm; lượng lúa dự kiến được tính tự động.
@@ -307,64 +303,53 @@
         <button class="icon-close" type="button" (click)="closeCreate()">×</button>
       </header>
 
-      <div class="modal-body">
+      <div class="modal-body" [appReadonlyIf]="viewOnly()">
         <div class="form-grid">
           <label>
             <span>Nguồn lệnh <b>*</b></span>
-            <select
-              [ngModel]="createForm().sourceType"
-              (ngModelChange)="setCreateField('sourceType', $event)"
+            <app-filter-select
+              [clearable]="false"
               [disabled]="!!createForm().id"
-            >
-              <option value="PRODUCTION_PLAN">Kế hoạch sản xuất</option>
-              <option value="SALES_ORDER">Đơn bán cần xay</option>
-            </select>
+              [options]="sourceTypeSelectOptions"
+              [value]="createForm().sourceType"
+              (valueChange)="setCreateField('sourceType', $event)"
+            ></app-filter-select>
           </label>
 
           @if (createForm().sourceType === 'SALES_ORDER') {
             <label>
               <span>Đơn bán <b>*</b></span>
-              <select
-                [ngModel]="createForm().salesOrderId || ''"
-                (ngModelChange)="selectSalesOrder($event)"
+              <app-filter-select
+                [clearable]="false"
                 [disabled]="!!createForm().id"
-              >
-                <option value="">Chọn đơn bán</option>
-                @for (order of salesOrders(); track order.id) {
-                  <option [value]="order.id">
-                    {{ order.soCode }} — {{ order.customerName || 'Khách hàng' }}
-                  </option>
-                }
-              </select>
+                placeholder="Chọn đơn bán"
+                [options]="salesOrderSelectOptions()"
+                [value]="createForm().salesOrderId"
+                (valueChange)="selectSalesOrder($event)"
+              ></app-filter-select>
             </label>
           }
 
           <label>
             <span>Kho thực hiện <b>*</b></span>
-            <select
-              [ngModel]="createForm().warehouseId || ''"
-              (ngModelChange)="setCreateField('warehouseId', $event)"
-            >
-              <option value="">Chọn kho</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-                <option [value]="warehouse.id">{{ warehouse.name }}</option>
-              }
-            </select>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn kho"
+              [options]="warehouseSelectOptions()"
+              [value]="createForm().warehouseId"
+              (valueChange)="setCreateField('warehouseId', $event)"
+            ></app-filter-select>
           </label>
 
           <label>
             <span>Giống lúa</span>
-            <select
-              [ngModel]="createForm().riceVarietyId || ''"
-              (ngModelChange)="setCreateField('riceVarietyId', $event)"
-            >
-              <option value="">Chọn giống lúa</option>
-              @for (variety of varietyOptions(); track variety.id) {
-                <option [value]="variety.id">
-                  {{ variety.code ? variety.code + ' — ' : '' }}{{ variety.name }}
-                </option>
-              }
-            </select>
+            <app-filter-select
+              placeholder="Chọn giống lúa"
+              allLabel="Chọn giống lúa"
+              [options]="varietySelectOptions()"
+              [value]="createForm().riceVarietyId"
+              (valueChange)="setCreateField('riceVarietyId', $event)"
+            ></app-filter-select>
           </label>
 
           <label>
@@ -467,7 +452,7 @@
                   Có thể giữ lúa ngay hoặc để trống và thực hiện sau khi tạo lệnh Nháp.
                 </p>
               </div>
-              <button
+              <button [appHasPerm]="'MILLING_ORDERS:CREATE'"
                 class="small-add-btn"
                 type="button"
                 [disabled]="!createForm().warehouseId"
@@ -502,39 +487,24 @@
                   <div class="allocation-line">
                     <label>
                       <span>Lô lúa</span>
-                      <select
-                        [ngModel]="line.paddyLotId || ''"
-                        (ngModelChange)="setCreateAllocation(i, 'paddyLotId', $event)"
-                      >
-                        <option value="">Chọn lô đủ điều kiện</option>
-                        @for (
-                          lot of eligibleLotsForWarehouse(createForm().warehouseId);
-                          track lot.id
-                        ) {
-                          <option [value]="lot.id">{{ lotLabel(lot) }}</option>
-                        }
-                      </select>
+                      <app-filter-select
+                        [clearable]="false"
+                        placeholder="Chọn lô đủ điều kiện"
+                        [options]="lotSelectOptions(createForm().warehouseId)"
+                        [value]="line.paddyLotId"
+                        (valueChange)="setCreateAllocation(i, 'paddyLotId', $event)"
+                      ></app-filter-select>
                     </label>
                     <label>
                       <span>Vị trí/cột</span>
-                      <select
-                        [ngModel]="line.locationId || ''"
-                        (ngModelChange)="setCreateAllocation(i, 'locationId', $event)"
+                      <app-filter-select
+                        [clearable]="false"
                         [disabled]="!line.paddyLotId"
-                      >
-                        <option value="">Chọn cột đang chứa lô</option>
-                        @for (
-                          inventory of inventoryLocationsForLot(
-                            line.paddyLotId,
-                            createForm().warehouseId
-                          );
-                          track inventory.id
-                        ) {
-                          <option [value]="inventory.locationId">
-                            {{ inventoryLocationLabel(inventory) }}
-                          </option>
-                        }
-                      </select>
+                        placeholder="Chọn cột đang chứa lô"
+                        [options]="inventoryLocationSelectOptions(line.paddyLotId, createForm().warehouseId)"
+                        [value]="line.locationId"
+                        (valueChange)="setCreateAllocation(i, 'locationId', $event)"
+                      ></app-filter-select>
                     </label>
                     <label>
                       <span>Khối lượng giữ (kg)</span>
@@ -568,9 +538,10 @@
 
       <footer class="modal-footer">
         <button class="secondary-btn" type="button" (click)="closeCreate()">
-          Hủy
+          {{ viewOnly() ? 'Đóng' : 'Hủy' }}
         </button>
         <button
+          [hidden]="viewOnly()"
           class="primary-btn"
           type="button"
           [disabled]="saving()"
@@ -629,39 +600,24 @@
             <div class="allocation-line reserve-line">
               <label>
                 <span>Lô lúa</span>
-                <select
-                  [ngModel]="line.paddyLotId || ''"
-                  (ngModelChange)="setReserveLine(i, 'paddyLotId', $event)"
-                >
-                  <option value="">Chọn lô đủ điều kiện</option>
-                  @for (
-                    lot of eligibleLotsForWarehouse(activeOrder()?.warehouseId || null);
-                    track lot.id
-                  ) {
-                    <option [value]="lot.id">{{ lotLabel(lot) }}</option>
-                  }
-                </select>
+                <app-filter-select
+                  [clearable]="false"
+                  placeholder="Chọn lô đủ điều kiện"
+                  [options]="lotSelectOptions(activeOrder()?.warehouseId || null)"
+                  [value]="line.paddyLotId"
+                  (valueChange)="setReserveLine(i, 'paddyLotId', $event)"
+                ></app-filter-select>
               </label>
               <label>
                 <span>Vị trí/cột</span>
-                <select
-                  [ngModel]="line.locationId || ''"
-                  (ngModelChange)="setReserveLine(i, 'locationId', $event)"
+                <app-filter-select
+                  [clearable]="false"
                   [disabled]="!line.paddyLotId"
-                >
-                  <option value="">Chọn cột đang chứa lô</option>
-                  @for (
-                    inventory of inventoryLocationsForLot(
-                      line.paddyLotId,
-                      activeOrder()?.warehouseId || null
-                    );
-                    track inventory.id
-                  ) {
-                    <option [value]="inventory.locationId">
-                      {{ inventoryLocationLabel(inventory) }}
-                    </option>
-                  }
-                </select>
+                  placeholder="Chọn cột đang chứa lô"
+                  [options]="inventoryLocationSelectOptions(line.paddyLotId, activeOrder()?.warehouseId || null)"
+                  [value]="line.locationId"
+                  (valueChange)="setReserveLine(i, 'locationId', $event)"
+                ></app-filter-select>
               </label>
               <label>
                 <span>Khối lượng giữ (kg)</span>
@@ -695,7 +651,7 @@
           }
         </div>
 
-        <button class="small-add-btn standalone" type="button" (click)="addReserveLine()">
+        <button [appHasPerm]="'MILLING_ORDERS:CREATE'" class="small-add-btn standalone" type="button" (click)="addReserveLine()">
           ＋ Thêm lô/cột đầu vào
         </button>
       </div>
@@ -748,7 +704,7 @@
               </div>
               <div class="add-output-menu">
                 @for (type of outputTypes; track type.value) {
-                  <button
+                  <button [appHasPerm]="'MILLING_ORDERS:CREATE'"
                     class="small-add-btn"
                     type="button"
                     (click)="addOutput(type.value)"
@@ -767,15 +723,13 @@
               ) {
                 <article class="output-card">
                   <div class="output-card-head">
-                    <select
+                    <app-filter-select
                       class="type-select"
-                      [ngModel]="line.outputType"
-                      (ngModelChange)="setOutputField(i, 'outputType', $event)"
-                    >
-                      @for (type of outputTypes; track type.value) {
-                        <option [value]="type.value">{{ type.label }}</option>
-                      }
-                    </select>
+                      [clearable]="false"
+                      [options]="outputTypeSelectOptions"
+                      [value]="line.outputType"
+                      (valueChange)="setOutputField(i, 'outputType', $event)"
+                    ></app-filter-select>
                     <button
                       class="remove-line"
                       type="button"
@@ -790,38 +744,24 @@
                   <div class="output-fields">
                     <label class="wide-field">
                       <span>SKU đầu ra <b>*</b></span>
-                      <select
-                        [ngModel]="line.productVariantId || ''"
-                        (ngModelChange)="setOutputField(i, 'productVariantId', $event)"
-                      >
-                        <option value="">Chọn SKU</option>
-                        @for (
-                          variant of variantsForType(line.outputType);
-                          track variant.id
-                        ) {
-                          <option [value]="variant.id">
-                            {{ variantLabel(variant) }}
-                          </option>
-                        }
-                      </select>
+                      <app-filter-select
+                        [clearable]="false"
+                        placeholder="Chọn SKU"
+                        [options]="variantSelectOptions(line.outputType)"
+                        [value]="line.productVariantId"
+                        (valueChange)="setOutputField(i, 'productVariantId', $event)"
+                      ></app-filter-select>
                     </label>
 
                     <label class="wide-field">
                       <span>Vị trí nhập kho <b>*</b></span>
-                      <select
-                        [ngModel]="line.locationId || ''"
-                        (ngModelChange)="setOutputField(i, 'locationId', $event)"
-                      >
-                        <option value="">Chọn vị trí không cách ly</option>
-                        @for (
-                          location of locationsForWarehouse(activeOrder()?.warehouseId || null);
-                          track location.id
-                        ) {
-                          <option [value]="location.id">
-                            {{ locationLabel(location) }}
-                          </option>
-                        }
-                      </select>
+                      <app-filter-select
+                        [clearable]="false"
+                        placeholder="Chọn vị trí không cách ly"
+                        [options]="locationSelectOptions(activeOrder()?.warehouseId || null)"
+                        [value]="line.locationId"
+                        (valueChange)="setOutputField(i, 'locationId', $event)"
+                      ></app-filter-select>
                     </label>
 
                     <label>

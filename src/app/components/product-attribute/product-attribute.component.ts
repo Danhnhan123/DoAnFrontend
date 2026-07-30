@@ -18,15 +18,20 @@ import {
 import { ProductAttributeService } from '../../services/product-attribute.service';
 
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-product-attribute',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './product-attribute.component.html',
   styleUrl: './product-attribute.component.css',
 })
 export class ProductAttributeComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('PRODUCT_ATTRIBUTES'));
   private attributeService = inject(ProductAttributeService);
   private queryClient = injectQueryClient();
 

@@ -922,12 +922,41 @@
 /* ===== Tab Thông báo của tôi ===== */
 .noti-tab-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 14px;
+  flex-wrap: wrap;
 }
 .noti-tab-title { margin: 0; font-size: 16px; font-weight: 700; color: #14532d; }
+.noti-tab-head-right { display: inline-flex; align-items: center; gap: 12px; }
 .noti-tab-total { font-size: 13px; color: #64748b; }
+.noti-tab-markall {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #16a34a;
+  border: 1px solid #16a34a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.noti-tab-markall:hover:not(:disabled) { background: #15803d; border-color: #15803d; }
+.noti-tab-markall:disabled { opacity: 0.45; cursor: not-allowed; }
+.noti-tab-markall svg { flex: 0 0 auto; }
+.noti-tab-markall-count {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 12px;
+  line-height: 18px;
+  min-width: 18px;
+  text-align: center;
+}
 
 .noti-tab-list { display: flex; flex-direction: column; }
 .noti-tab-item {
@@ -971,17 +1000,41 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  margin-top: 16px;
+  gap: 6px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
 }
-.noti-pagination .page-btn {
-  border: 1px solid #d1d5db;
+.noti-page-nav,
+.noti-page-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
   background: #fff;
   border-radius: 8px;
-  padding: 6px 12px;
   font-size: 13px;
+  font-weight: 600;
+  color: #334155;
   cursor: pointer;
-  color: #374151;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.noti-pagination .page-btn:disabled { opacity: .5; cursor: not-allowed; }
-.noti-pagination .page-info { font-size: 13px; color: #64748b; }
+.noti-page-nav:hover:not(:disabled),
+.noti-page-num:hover:not(.active) { background: #f0fdf4; border-color: #86efac; color: #166534; }
+.noti-page-nav:disabled { opacity: 0.4; cursor: not-allowed; }
+.noti-page-num.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  cursor: default;
+}
+.noti-page-ellipsis {
+  min-width: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+  user-select: none;
+}

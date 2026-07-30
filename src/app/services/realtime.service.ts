@@ -48,6 +48,19 @@ const REALTIME_MAP: Record<string, string[]> = {
   MillingOrder: ['milling-orders', 'sales-orders'],
 };
 
+/**
+ * Các entity khi thay đổi có thể ảnh hưởng PHÂN QUYỀN của user đang đăng nhập.
+ * Khi nhận được -> nạp lại phiên (permissions + menus) vào bộ nhớ để guard/route
+ * và directive [appHasPerm] tự cập nhật ngay, không cần tải lại trang.
+ */
+const PERMISSION_AFFECTING = new Set<string>([
+  'Role',
+  'Permission',
+  'UserRole',
+  'Menu',
+  'Action',
+]);
+
 @Injectable({ providedIn: 'root' })
 export class RealtimeService {
   private queryClient = injectQueryClient();
@@ -58,6 +71,7 @@ export class RealtimeService {
 
   private pendingKeys = new Set<string>();
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private sessionReloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** Mở kết nối realtime (gọi 1 lần sau khi đăng nhập). */
   start(): void {
@@ -100,6 +114,10 @@ export class RealtimeService {
       clearTimeout(this.debounceTimer);
       this.debounceTimer = null;
     }
+    if (this.sessionReloadTimer) {
+      clearTimeout(this.sessionReloadTimer);
+      this.sessionReloadTimer = null;
+    }
   }
 
   private onEntitiesChanged(names: string[]): void {
@@ -108,11 +126,28 @@ export class RealtimeService {
     for (const name of names) {
       (REALTIME_MAP[name] ?? []).forEach((k) => this.pendingKeys.add(k));
     }
+
+    // Nếu có thay đổi ảnh hưởng phân quyền -> nạp lại phiên (permissions + menus)
+    // để guard/route + directive [appHasPerm] tự cập nhật cho MỌI phiên đang mở.
+    if (names.some((n) => PERMISSION_AFFECTING.has(n))) {
+      this.scheduleSessionReload();
+    }
+
     if (this.pendingKeys.size === 0) return;
 
     // Gom nhiều sự kiện liên tiếp (vd import nhiều dòng) -> chỉ refetch 1 lần.
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => this.flush(), 300);
+  }
+
+  /** Debounce nạp lại phiên (tránh gọi nhiều lần khi có chùm sự kiện). */
+  private scheduleSessionReload(): void {
+    if (!this.auth.getToken()) return;
+    if (this.sessionReloadTimer) clearTimeout(this.sessionReloadTimer);
+    this.sessionReloadTimer = setTimeout(() => {
+      this.sessionReloadTimer = null;
+      this.auth.loadSession().subscribe();
+    }, 300);
   }
 
   private flush(): void {
