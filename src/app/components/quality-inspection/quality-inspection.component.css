@@ -43,6 +43,8 @@
   color: var(--text-muted, #64748b);
 }
 .qc-create-btn { flex: 0 0 auto; white-space: nowrap; }
+.qc-banner-actions { display: flex; gap: 10px; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
+.qc-recheck-btn { flex: 0 0 auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ---- KPI ---- */
 .qc-kpis {

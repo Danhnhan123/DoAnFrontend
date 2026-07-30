@@ -925,13 +925,13 @@ export class RicePurchaseComponent implements OnDestroy {
     }
 
     if (row.isConfirmed) {
-      await this.router.navigate(["/admin/inbound-orders"]);
+      await this.router.navigate(["/admin/quality-inspections"]);
       return;
     }
 
     const accepted = await this.askConfirm(
       "Chốt phiếu mua lúa?",
-      "Hệ thống sẽ sinh lô và phiếu nhập kho dạng Nháp. Việc duyệt, nhận hàng và xếp vị trí được tiếp tục tại trang Nhập kho.",
+      "Hệ thống sẽ sinh lô và phiếu kiểm định chất lượng (chờ kiểm định). Sau khi kiểm định Đạt/Cách ly ở màn Chất lượng & cách ly mới sinh phiếu nhập kho.",
     );
     if (!accepted) return;
 
@@ -941,10 +941,10 @@ export class RicePurchaseComponent implements OnDestroy {
       if (!response.isSucceeded) {
         throw new Error(response.message || "Không thể chốt phiếu mua lúa.");
       }
-      await this.router.navigate(["/admin/inbound-orders"]);
+      await this.router.navigate(["/admin/quality-inspections"]);
     } catch (err) {
       this.showError(
-        this.apiError(err, "Không thể tạo phiếu nhập kho."),
+        this.apiError(err, "Không thể tạo phiếu kiểm định chất lượng."),
       );
     } finally {
       this.confirmingReceiptId.set(null);

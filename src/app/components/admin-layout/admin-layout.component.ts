@@ -85,6 +85,17 @@ export class AdminLayoutComponent implements OnInit {
     'notification-categories': 'Danh mục thông báo',
     'notification-types': 'Loại thông báo',
     alerts: 'Cảnh báo hệ thống',
+    'inbound-order-status': 'Trạng thái đơn nhập kho',
+    'outbound-order-status': 'Trạng thái đơn xuất kho',
+    'stock-take-status': 'Trạng thái phiếu kiểm kê',
+    'customer-return-order-status': 'Trạng thái đơn hoàn khách',
+    'return-to-supplier-order-status': 'Trạng thái đơn trả NCC',
+    'paddy-purchase-schedule-status': 'Trạng thái lịch thu mua lúa',
+    'lot-status': 'Trạng thái lô hàng',
+    'milling-order-status': 'Trạng thái lệnh xay xát',
+    'stock-transfer-status': 'Trạng thái phiếu điều chuyển',
+    'sales-order-status': 'Trạng thái đơn bán',
+    'purchase-order-status': 'Trạng thái đơn mua',
   };
 
   /**

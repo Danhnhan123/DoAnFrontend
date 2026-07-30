@@ -60,6 +60,17 @@ export class QualityInspectionService {
     );
   }
 
+  /**
+   * Kiểm tra LẠI chất lượng lô đang CÁCH LY. Nếu passedInspection=true, BE rút toàn bộ tồn
+   * khỏi ô cách ly và sinh phiếu nhập kho để xếp lại vào ô thường (màn Store-in).
+   */
+  recheck(payload: CreateQualityInspectionDto): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/quality-inspections/recheck`,
+      payload
+    );
+  }
+
   update(payload: UpdateQualityInspectionDto): Observable<ApiResponse<any>> {
     return this.http.put<ApiResponse<any>>(
       `${this.base}/quality-inspections`,

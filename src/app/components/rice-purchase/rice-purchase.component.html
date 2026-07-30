@@ -496,8 +496,8 @@
                           class="location-action"
                           [title]="
                             row.isConfirmed
-                              ? 'Mở phiếu nhập kho'
-                              : 'Chốt phiếu và tạo phiếu nhập kho'
+                              ? 'Mở màn Chất lượng & cách ly'
+                              : 'Chốt phiếu và tạo phiếu kiểm định chất lượng'
                           "
                           [disabled]="confirmingReceiptId() === row.id"
                           (click)="chooseLocationForReceipt(row)"
@@ -520,8 +520,8 @@
                             </svg>
                             {{
                               row.isConfirmed
-                                ? "Mở phiếu nhập kho"
-                                : "Chốt & tạo phiếu nhập"
+                                ? "Mở kiểm định"
+                                : "Chốt & tạo phiếu kiểm định"
                             }}
                           }
                         </button>
