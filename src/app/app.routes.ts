@@ -15,6 +15,14 @@ const adminChildren: Routes = [
     .then(m => m.DashboardComponent),
   },
   {
+    path: 'reports',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'REPORTS' },
+    loadComponent: () =>
+      import('./components/report/report.component')
+        .then(m => m.ReportComponent),
+  },
+  {
     path: 'profile',
     loadComponent: () =>
       import('./components/profile/profile.component')

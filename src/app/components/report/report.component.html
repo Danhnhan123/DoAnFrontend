@@ -1,0 +1,326 @@
+<div class="report-page">
+  <section class="report-hero">
+    <div>
+      <span class="report-code">SCR-RPT-01 · Báo cáo & phân tích quản trị</span>
+      <h1>Báo cáo & phân tích quản trị lúa/gạo</h1>
+      <p>
+        Báo cáo vận hành từ giao dịch đã xác nhận: tồn kho, thu mua, xay xát,
+        bán hàng, công nợ, chất lượng và lãi/lỗ tương đối.
+      </p>
+    </div>
+    <div class="export-actions">
+      <button
+        type="button"
+        class="export-primary"
+        [disabled]="exporting() || activeTab() === 'overview'"
+        (click)="export('xlsx')"
+      >
+        @if (exporting()) { <span class="spinner"></span> }
+        Xuất Excel
+      </button>
+      <button
+        type="button"
+        class="export-secondary"
+        [disabled]="exporting() || activeTab() === 'overview'"
+        (click)="export('csv')"
+      >
+        CSV
+      </button>
+    </div>
+  </section>
+
+  <section class="filter-card">
+    <div class="filter-grid">
+      <label class="filter-field">
+        <span>Kho</span>
+        <app-filter-select
+          [options]="options().warehouses"
+          [value]="filters().warehouseId"
+          (valueChange)="setFilter('warehouseId', $event)"
+          allLabel="Tất cả kho"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field date-field">
+        <span>Từ ngày</span>
+        <input
+          class="filter-input"
+          type="date"
+          [ngModel]="filters().fromDate"
+          (ngModelChange)="setFilter('fromDate', $event)"
+        />
+      </label>
+
+      <label class="filter-field date-field">
+        <span>Đến ngày</span>
+        <input
+          class="filter-input"
+          type="date"
+          [ngModel]="filters().toDate"
+          (ngModelChange)="setFilter('toDate', $event)"
+        />
+      </label>
+
+      <label class="filter-field">
+        <span>Loại hàng</span>
+        <app-filter-select
+          [options]="productTypes"
+          [value]="filters().productType"
+          (valueChange)="setFilter('productType', $event)"
+          allLabel="Lúa/gạo/tấm/cám"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>Giống lúa</span>
+        <app-filter-select
+          [options]="options().riceVarieties"
+          [value]="filters().riceVarietyId"
+          (valueChange)="setFilter('riceVarietyId', $event)"
+          allLabel="Tất cả giống"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>SKU</span>
+        <app-filter-select
+          [options]="options().productVariants"
+          [value]="filters().productVariantId"
+          (valueChange)="setFilter('productVariantId', $event)"
+          allLabel="Tất cả SKU"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>Lô</span>
+        <app-filter-select
+          [options]="options().paddyLots"
+          [value]="filters().paddyLotId"
+          (valueChange)="setFilter('paddyLotId', $event)"
+          allLabel="Tất cả lô"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>Khu/cột</span>
+        <app-filter-select
+          [options]="options().locations"
+          [value]="filters().locationId"
+          (valueChange)="setFilter('locationId', $event)"
+          allLabel="Tất cả khu/cột"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>Nông dân</span>
+        <app-filter-select
+          [options]="options().farmers"
+          [value]="filters().farmerId"
+          (valueChange)="setFilter('farmerId', $event)"
+          allLabel="Tất cả nông dân"
+        ></app-filter-select>
+      </label>
+
+      <label class="filter-field">
+        <span>Khách hàng</span>
+        <app-filter-select
+          [options]="options().customers"
+          [value]="filters().customerId"
+          (valueChange)="setFilter('customerId', $event)"
+          allLabel="Tất cả khách"
+        ></app-filter-select>
+      </label>
+
+      @if (activeTab() === 'sales' || activeTab() === 'relative-profit') {
+      <label class="filter-field">
+        <span>Kênh bán</span>
+        <app-filter-select
+          [options]="channels"
+          [value]="filters().channel"
+          (valueChange)="setFilter('channel', $event)"
+          allLabel="Tất cả kênh"
+        ></app-filter-select>
+      </label>
+      }
+
+      @if (activeTab() === 'two-way-debt') {
+      <label class="filter-field">
+        <span>Trạng thái nợ</span>
+        <app-filter-select
+          [options]="debtStatuses"
+          [value]="filters().status"
+          (valueChange)="setFilter('status', $event)"
+          allLabel="Tất cả trạng thái"
+        ></app-filter-select>
+      </label>
+      }
+    </div>
+
+    <div class="filter-footer">
+      <div>
+        @if (dateError()) {
+        <span class="date-error">{{ dateError() }}</span>
+        } @else {
+        <span class="filter-note">
+          Tồn kho là số dư hiện tại; khoảng ngày áp dụng cho các báo cáo giao dịch.
+        </span>
+        }
+      </div>
+      <button type="button" class="clear-filter" (click)="clearFilters()">Đặt lại bộ lọc</button>
+    </div>
+  </section>
+
+  <nav class="report-tabs" aria-label="Loại báo cáo">
+    @for (tab of tabs; track tab.id) {
+    <button
+      type="button"
+      [class.active]="activeTab() === tab.id"
+      (click)="selectTab(tab.id)"
+    >
+      {{ tab.label }}
+    </button>
+    }
+  </nav>
+
+  @if (loading()) {
+  <section class="state-card loading-state">
+    <span class="spinner large"></span>
+    <p>Đang tổng hợp dữ liệu báo cáo...</p>
+  </section>
+  } @else if (loadError()) {
+  <section class="state-card error-state">
+    <strong>Không thể tải dữ liệu báo cáo.</strong>
+    <p>Bộ lọc của bạn vẫn được giữ nguyên.</p>
+    <button type="button" (click)="retry()">Thử lại</button>
+  </section>
+  } @else if (activeTab() === 'overview') {
+  <section class="overview-content">
+    <div class="overview-grid">
+      @for (card of overviewCards(); track card.label) {
+      <article class="metric-card" [ngClass]="'tone-' + card.tone">
+        <span>{{ card.label }}</span>
+        <strong>{{ card.value }}</strong>
+      </article>
+      }
+    </div>
+
+    <div class="overview-panels">
+      <article class="overview-panel">
+        <h3>Top công nợ cần chú ý</h3>
+        @if ((overview()?.topOverdueDebts?.length ?? 0) === 0) {
+        <p class="empty-line">Không có công nợ quá hạn trong kỳ.</p>
+        } @else {
+        <ul>
+          @for (item of (overview()?.topOverdueDebts ?? []); track item) {
+          <li><span class="warn-dot">!</span>{{ item }}</li>
+          }
+        </ul>
+        }
+      </article>
+
+      <article class="overview-panel">
+        <h3>Cảnh báo vận hành</h3>
+        @if ((overview()?.operationalAlerts?.length ?? 0) === 0) {
+        <p class="empty-line">Không có cảnh báo đang hoạt động.</p>
+        } @else {
+        <ul>
+          @for (item of (overview()?.operationalAlerts ?? []); track item) {
+          <li><span class="warn-dot">!</span>{{ item }}</li>
+          }
+        </ul>
+        }
+      </article>
+    </div>
+  </section>
+  } @else {
+  <section class="report-result-card">
+    <header class="result-header">
+      <div>
+        <h2>{{ currentTab().title }}</h2>
+        <p>{{ reportPage().totalFiltered }} dòng dữ liệu phù hợp bộ lọc</p>
+      </div>
+      @if (chartBars().length > 0) {
+      <button
+        type="button"
+        class="chart-toggle"
+        (click)="chartExpanded.set(!chartExpanded())"
+      >
+        {{ chartExpanded() ? 'Thu gọn biểu đồ' : 'Mở biểu đồ' }}
+      </button>
+      }
+    </header>
+
+    @if (chartExpanded() && chartBars().length > 0) {
+    <div class="chart-panel">
+      @for (point of chartBars(); track point.label) {
+      <div class="chart-row">
+        <span class="chart-label">{{ point.label }}</span>
+        <div class="chart-track">
+          <span class="chart-fill" [style.width.%]="point.width"></span>
+        </div>
+        <strong>{{ point.value | number:'1.0-1' }}</strong>
+      </div>
+      }
+    </div>
+    }
+
+    @if (rows().length === 0) {
+    <div class="empty-report">
+      <span>⌕</span>
+      <strong>Không tìm thấy dữ liệu theo bộ lọc đã chọn.</strong>
+      <button type="button" (click)="clearFilters()">Xóa bộ lọc</button>
+    </div>
+    } @else {
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            @for (column of currentTab().columns; track column.key) {
+            <th>{{ column.label }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track $index) {
+          <tr
+            [class.clickable]="isRowClickable(row)"
+            (click)="isRowClickable(row) && openSource(row)"
+          >
+            @for (column of currentTab().columns; track column.key) {
+            <td [class.strong-cell]="column.strong">
+              @if (column.kind === 'status') {
+              <span class="status-pill" [ngClass]="statusClass(row[column.key])">
+                {{ displayCell(row, column) }}
+              </span>
+              } @else {
+              {{ displayCell(row, column) }}
+              }
+            </td>
+            }
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pagination">
+      <span>
+        Trang {{ reportPage().currentPage }} / {{ reportPage().totalPages || 1 }}
+      </span>
+      <div>
+        <button type="button" [disabled]="page() <= 1" (click)="setPage(page() - 1)">
+          Trước
+        </button>
+        <button
+          type="button"
+          [disabled]="page() >= (reportPage().totalPages || 1)"
+          (click)="setPage(page() + 1)"
+        >
+          Sau
+        </button>
+      </div>
+    </footer>
+    }
+  </section>
+  }
+</div>

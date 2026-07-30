@@ -59,6 +59,7 @@ export class AdminLayoutComponent implements OnInit {
   /** Tiêu đề từng màn theo segment route (góc trái vùng nội dung). */
   private readonly titleMap: Record<string, string> = {
     dashboard: 'Tổng quan vận hành',
+    reports: 'Báo cáo & Phân tích',
     profile: 'Tài khoản của tôi',
     products: 'Quản lý sản phẩm',
     'product-categories': 'Danh mục sản phẩm',
