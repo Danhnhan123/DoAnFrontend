@@ -128,14 +128,14 @@
         </div>
         <span class="wh-badge" [ngClass]="whStatus(w).cls">{{ whStatus(w).label }}</span>
         <div class="wh-actions" (click)="$event.stopPropagation()">
-          <button class="icon-btn edit-btn" type="button" (click)="openEditWarehouse(w)" title="Sửa kho">
+          <button [class.perm-view-only]="!perm.canUpdate('WAREHOUSES')" [title]="perm.canUpdate('WAREHOUSES') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" type="button" (click)="openEditWarehouse(w)" >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button class="icon-btn delete-btn" type="button" (click)="deleteWarehouse(w)" title="Xóa kho">
+          <button [appHasPerm]="'WAREHOUSES:DELETE'" class="icon-btn delete-btn" type="button" (click)="deleteWarehouse(w)" title="Xóa kho">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6" />
@@ -336,14 +336,14 @@
               </span>
             </td>
             <td class="action-cell" data-label="Thao tác">
-              <button class="icon-btn edit-btn" type="button" (click)="openLocEdit(row)" title="Cập nhật vị trí này">
+              <button [class.perm-view-only]="!perm.canUpdate('WAREHOUSES')" [title]="perm.canUpdate('WAREHOUSES') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" type="button" (click)="openLocEdit(row)" >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-              <button class="icon-btn delete-btn" type="button" (click)="deleteLocation(row)" title="Xóa vị trí">
+              <button [appHasPerm]="'WAREHOUSES:DELETE'" class="icon-btn delete-btn" type="button" (click)="deleteLocation(row)" title="Xóa vị trí">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6" />
@@ -382,14 +382,14 @@
 <div class="modal-backdrop" (click)="closeModal()">
   <div class="modal-box wh-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ isEdit() ? 'Cập nhật kho hàng' : 'Thêm kho hàng mới' }}</h3>
+      <h3>{{ viewOnly() ? 'Chi tiết kho hàng' : isEdit() ? 'Cập nhật kho hàng' : 'Thêm kho hàng mới' }}</h3>
       <button class="modal-close" type="button" (click)="closeModal()">×</button>
     </div>
 
     @if (loadingDetail()) {
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
     } @else {
-    <div class="modal-body">
+    <div [appReadonlyIf]="viewOnly()" class="modal-body">
       <!-- Thông tin kho -->
       <div class="section-label">Thông tin kho</div>
       <div class="form-row-2">
@@ -445,7 +445,7 @@
         <div class="loc-card">
           <div class="loc-card-head">
             <span class="loc-card-title">Vị trí {{ $index + 1 }}</span>
-            <button class="icon-btn delete-btn line-del" type="button" (click)="removeLine($index)" title="Xóa vị trí">
+            <button [appHasPerm]="'WAREHOUSES:DELETE'" class="icon-btn delete-btn line-del" type="button" (click)="removeLine($index)" title="Xóa vị trí">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6" />
@@ -533,8 +533,8 @@
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
-      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+      <button class="btn btn-outline" type="button" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Hủy' }}</button>
+      <button [hidden]="viewOnly()" class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> }
         {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Lưu kho + vị trí' }}
       </button>
@@ -549,14 +549,14 @@
 <div class="modal-backdrop" (click)="closeLocModal()">
   <div class="modal-box wide" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ isLocEdit() ? 'Cập nhật vị trí lưu trữ' : 'Thêm vị trí lưu trữ mới' }}</h3>
+      <h3>{{ locViewOnly() ? 'Chi tiết vị trí lưu trữ' : isLocEdit() ? 'Cập nhật vị trí lưu trữ' : 'Thêm vị trí lưu trữ mới' }}</h3>
       <button class="modal-close" type="button" (click)="closeLocModal()">×</button>
     </div>
 
     @if (loadingLocDetail()) {
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
     } @else {
-    <div class="modal-body">
+    <div [appReadonlyIf]="locViewOnly()" class="modal-body">
       <div class="form-row-2">
         <div class="form-group">
           <label class="form-label">Kho hàng *</label>
@@ -638,8 +638,8 @@
     </div>
 
     <div class="modal-footer">
-      <button class="btn btn-outline" type="button" (click)="closeLocModal()">Hủy</button>
-      <button class="btn btn-primary" type="button" (click)="saveLoc()" [disabled]="savingLoc()">
+      <button class="btn btn-outline" type="button" (click)="closeLocModal()">{{ locViewOnly() ? 'Đóng' : 'Hủy' }}</button>
+      <button [hidden]="locViewOnly()" class="btn btn-primary" type="button" (click)="saveLoc()" [disabled]="savingLoc()">
         @if (savingLoc()) { <span class="spin-sm"></span> }
         {{ savingLoc() ? 'Đang lưu...' : isLocEdit() ? 'Cập nhật' : 'Thêm mới' }}
       </button>

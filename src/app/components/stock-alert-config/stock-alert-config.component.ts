@@ -19,15 +19,20 @@ import {
 } from '../../models';
 import { StockAlertConfigService } from '../../services/stock-alert-config.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-stock-alert-config',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './stock-alert-config.component.html',
   styleUrl: '../supplier/supplier.component.css',
 })
 export class StockAlertConfigComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('STOCK_ALERT_CONFIGS'));
   private service = inject(StockAlertConfigService);
   private queryClient = injectQueryClient();
 

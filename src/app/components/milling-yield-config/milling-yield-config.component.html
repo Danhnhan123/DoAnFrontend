@@ -66,7 +66,7 @@
     <app-filter-select class="page-size-select" [clearable]="false" style="width:132px;flex:0 0 auto"
       [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
       (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
-    <button class="icon-btn add-btn" type="button" (click)="openCreate()">
+    <button [appHasPerm]="'MILLING_YIELD_CONFIGS:CREATE'" class="icon-btn add-btn" type="button" (click)="openCreate()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
       </svg>
@@ -150,12 +150,12 @@
             </td>
             <td class="text-muted small" data-label="Ngày tạo">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
             <td class="action-cell" data-label="Thao tác">
-              <button class="icon-btn edit-btn" type="button" (click)="openEdit(row)" title="Sửa">
+              <button [class.perm-view-only]="!perm.canUpdate('MILLING_YIELD_CONFIGS')" [title]="perm.canUpdate('MILLING_YIELD_CONFIGS') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" type="button" (click)="openEdit(row)" >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
               </button>
-              <button class="icon-btn delete-btn" type="button" (click)="delete(row)" title="Xóa">
+              <button [appHasPerm]="'MILLING_YIELD_CONFIGS:DELETE'" class="icon-btn delete-btn" type="button" (click)="delete(row)" title="Xóa">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                 </svg>
@@ -189,13 +189,13 @@
 <div class="modal-backdrop" (click)="closeModal()">
   <div class="modal-box wide" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>{{ isEdit() ? 'Cập nhật cấu hình yield' : 'Thêm cấu hình yield mới' }}</h3>
+      <h3>{{ viewOnly() ? 'Chi tiết cấu hình yield' : isEdit() ? 'Cập nhật cấu hình yield' : 'Thêm cấu hình yield mới' }}</h3>
       <button class="modal-close" type="button" (click)="closeModal()">×</button>
     </div>
     @if (loadingDetail()) {
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
     } @else {
-    <div class="modal-body">
+    <div [appReadonlyIf]="viewOnly()" class="modal-body">
       <div class="form-row-2">
         <div class="form-group">
           <label class="form-label">Giống lúa</label>
@@ -247,8 +247,8 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
-      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+      <button class="btn btn-outline" type="button" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Hủy' }}</button>
+      <button [hidden]="viewOnly()" class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> }
         <span class="btn-label">{{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Thêm mới' }}</span>
       </button>

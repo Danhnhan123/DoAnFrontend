@@ -18,15 +18,20 @@ import {
 } from '../../models';
 import { ProductVariantService } from '../../services/product-variant.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-product-variant',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './product-variant.component.html',
   styleUrl: './product-variant.component.css',
 })
 export class ProductVariantComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('PRODUCT_VARIANTS'));
     private variantService = inject(ProductVariantService);
     private queryClient = injectQueryClient();
 

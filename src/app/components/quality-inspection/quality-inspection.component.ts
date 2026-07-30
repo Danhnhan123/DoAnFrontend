@@ -1,4 +1,6 @@
 import { Component, signal, inject, computed, effect } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -23,6 +25,7 @@ import { PaddyLotService } from '../../services/paddy-lot.service';
 import { UserService } from '../../services/user.service';
 import { RoleService } from '../../services/role.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 interface QcForm {
   paddyLotId: number | null;
@@ -46,7 +49,7 @@ interface QcForm {
 @Component({
   selector: 'app-quality-inspection',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [HasPermissionDirective, ReadonlyIfDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './quality-inspection.component.html',
   styleUrls: [
     '../supplier/supplier.component.css',
@@ -102,6 +105,8 @@ export class QualityInspectionComponent {
   showModal = signal(false);
   editItem = signal<QualityInspectionRow | null>(null);
   isEdit = computed(() => !!this.editItem());
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('QUALITY_INSPECTIONS'));
   form = signal<QcForm>(this.blankForm());
 
   private readonly colMap: Record<string, number> = {

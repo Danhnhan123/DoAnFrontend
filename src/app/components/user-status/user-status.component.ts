@@ -17,15 +17,20 @@ import {
 import { UserStatusService } from '../../services/user-status.service';
 
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-user-status',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './user-status.component.html',
   styleUrl: './user-status.component.css',
 })
 export class UserStatusComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('USER_STATUS'));
   private userStatusService = inject(UserStatusService);
   private queryClient = injectQueryClient();
 

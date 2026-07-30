@@ -61,10 +61,8 @@
               <td><input class="cell-input" [ngModel]="row.lastName" (ngModelChange)="setCell(i,'lastName',$event)" placeholder="A" /></td>
               <td><input class="cell-input" [ngModel]="row.phoneNumber" (ngModelChange)="setCell(i,'phoneNumber',$event)" placeholder="0901234567" /></td>
               <td>
-                <select class="cell-input" [ngModel]="row.gender" (ngModelChange)="setCell(i,'gender', +$event)">
-                  <option [ngValue]="1">Nam</option>
-                  <option [ngValue]="0">Nữ</option>
-                </select>
+                <app-filter-select [clearable]="false" [options]="genderOptions"
+                  [value]="row.gender" (valueChange)="setCell(i,'gender', $event)"></app-filter-select>
               </td>
               <td>
                 <app-filter-select [options]="roleOptions" [multiple]="true" placeholder="Vai trò"

@@ -11,6 +11,7 @@ import {
 
 import { AlertRow, AlertRule, AlertSummaryDto } from '../../models';
 import { AlertService } from '../../services/alert.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 const DEFAULT_RULES: AlertRule[] = [
   { code: 'LOW_STOCK', title: 'Tồn kho thấp', description: 'Khi tồn kho < ngưỡng cảnh báo', enabled: true },
@@ -21,7 +22,7 @@ const DEFAULT_RULES: AlertRule[] = [
 @Component({
   selector: 'app-alert',
   standalone: true,
-  imports: [CommonModule],
+  imports: [HasPermissionDirective, CommonModule],
   templateUrl: './alert.component.html',
   styleUrls: ['../supplier/supplier.component.css', './alert.component.css'],
 })

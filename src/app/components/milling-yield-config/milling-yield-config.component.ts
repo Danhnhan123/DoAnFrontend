@@ -18,15 +18,20 @@ import {
 } from '../../models';
 import { MillingYieldConfigService } from '../../services/milling-yield-config.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-milling-yield-config',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './milling-yield-config.component.html',
   styleUrl: '../supplier/supplier.component.css',
 })
 export class MillingYieldConfigComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('MILLING_YIELD_CONFIGS'));
   private service = inject(MillingYieldConfigService);
   private queryClient = injectQueryClient();
 

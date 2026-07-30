@@ -61,6 +61,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   // ------- Tab thông báo của tôi (realtime TanStack Query) -------
   notiPage = signal(1);
   readonly notiPageSize = 20;
+  notiMarkingAll = signal(false);
   notiQuery = injectQuery(() => ({
     queryKey: ['profile-notifications', this.notiPage()],
     enabled: this.activeTab() === 'notifications',
@@ -87,6 +88,35 @@ export class ProfileComponent implements OnInit, OnDestroy {
   });
   notiTotalPages = computed<number>(() => Math.max(1, Math.ceil(this.notiTotal() / this.notiPageSize)));
   notiLoading = computed(() => this.notiQuery.isPending());
+
+  notiUnreadQuery = injectQuery(() => ({
+    queryKey: ['profile-notifications-unread'],
+    enabled: this.activeTab() === 'notifications',
+    queryFn: () =>
+      lastValueFrom(
+        this.notiService.getMyNotifications({ pageIndex: 1, pageSize: 1, isRead: false })
+      ),
+  }));
+  notiUnreadCount = computed<number>(() => {
+    const r: any = this.notiUnreadQuery.data();
+    const p = r?.resources ?? r?.data ?? null;
+    return p?.totalFiltered ?? p?.total ?? 0;
+  });
+
+  // Danh sách trang hiển thị (rút gọn với dấu … khi nhiều trang).
+  notiPages = computed<(number | '…')[]>(() => {
+    const total = this.notiTotalPages();
+    const cur = this.notiPage();
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: (number | '…')[] = [1];
+    const start = Math.max(2, cur - 1);
+    const end = Math.min(total - 1, cur + 1);
+    if (start > 2) pages.push('…');
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < total - 1) pages.push('…');
+    pages.push(total);
+    return pages;
+  });
 
   // Dùng TanStack Query giống các màn danh sách khác: realtime chỉ cần invalidate ->
   // tự refetch ở nền và render lại tối thiểu (không hiện lại spinner cả bảng).
@@ -235,13 +265,28 @@ export class ProfileComponent implements OnInit, OnDestroy {
   // ------- Tab thông báo của tôi -------
   private invalidateNotifications(): void {
     this.queryClient.invalidateQueries({ queryKey: ['profile-notifications'] });
+    this.queryClient.invalidateQueries({ queryKey: ['profile-notifications-unread'] });
     this.queryClient.invalidateQueries({ queryKey: ['my-notifications'] });
     this.queryClient.invalidateQueries({ queryKey: ['my-notifications-unread'] });
   }
 
-  notiSetPage(p: number): void {
-    if (p < 1 || p > this.notiTotalPages()) return;
+  notiSetPage(p: number | '…'): void {
+    if (p === '…') return;
+    if (p < 1 || p > this.notiTotalPages() || p === this.notiPage()) return;
     this.notiPage.set(p);
+  }
+
+  async notiMarkAllRead(): Promise<void> {
+    if (this.notiMarkingAll() || this.notiUnreadCount() === 0) return;
+    this.notiMarkingAll.set(true);
+    try {
+      await lastValueFrom(this.notiService.markAllRead());
+      this.invalidateNotifications();
+    } catch {
+      /* ignore */
+    } finally {
+      this.notiMarkingAll.set(false);
+    }
   }
 
   async onNotiClick(n: MyNotification): Promise<void> {

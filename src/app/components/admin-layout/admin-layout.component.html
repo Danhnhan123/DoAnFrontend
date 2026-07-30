@@ -139,13 +139,45 @@
       </div>
 
       <div class="topbar-right">
-        <div class="topbar-search">
+        <div class="topbar-search" (click)="$event.stopPropagation()">
           <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
-          <input class="search-input" type="text" placeholder="Tìm kiếm..." />
+          <input
+            class="search-input"
+            type="text"
+            placeholder="Tìm kiếm sản phẩm, lô, đơn, khách hàng…"
+            [value]="searchTerm()"
+            (input)="onSearchInput($event)"
+            (focus)="onSearchFocus()"
+            (keydown.enter)="onSearchEnter()"
+          />
+
+          @if (searchOpen()) {
+          <div class="search-dropdown">
+            @if (searchLoading()) {
+            <div class="search-hint">Đang tìm…</div>
+            } @else if (searchResults().length === 0) {
+            <div class="search-hint">Không tìm thấy kết quả</div>
+            } @else {
+            @for (g of searchResults(); track g.type) {
+            <div class="search-group">
+              <div class="search-group-label">{{ g.label }}</div>
+              @for (it of g.items; track it.id) {
+              <button type="button" class="search-item" (click)="goToResult(g, it)">
+                <span class="search-item-title">{{ it.title }}</span>
+                @if (it.subtitle) {
+                <span class="search-item-sub">{{ it.subtitle }}</span>
+                }
+              </button>
+              }
+            </div>
+            }
+            }
+          </div>
+          }
         </div>
 
         <app-notification-bell></app-notification-bell>

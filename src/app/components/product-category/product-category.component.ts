@@ -17,15 +17,20 @@ import {
 } from '../../models';
 import { ProductCategoryService } from '../../services/product-category.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-product-category',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './product-category.component.html',
   styleUrl: './product-category.component.css',
 })
 export class ProductCategoryComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('PRODUCT_CATEGORIES'));
   private categoryService = inject(ProductCategoryService);
   private queryClient = injectQueryClient();
 

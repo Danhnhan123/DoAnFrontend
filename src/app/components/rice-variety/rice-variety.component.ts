@@ -17,15 +17,20 @@ import {
 } from '../../models';
 import { RiceVarietyService } from '../../services/rice-variety.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-rice-variety',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './rice-variety.component.html',
   styleUrl: '../supplier/supplier.component.css',
 })
 export class RiceVarietyComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('RICE_VARIETIES'));
   private riceVarietyService = inject(RiceVarietyService);
   private queryClient = injectQueryClient();
 

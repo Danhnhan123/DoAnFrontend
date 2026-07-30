@@ -83,7 +83,7 @@
   <div class="card rules-card">
     <div class="card-head">
       <h3 class="card-title">Quy tắc cảnh báo</h3>
-      <button class="link-btn" type="button" (click)="goAddRule()">Thêm quy tắc</button>
+      <button class="link-btn" type="button" [appHasPerm]="'ALERTS:CREATE'" (click)="goAddRule()">Thêm quy tắc</button>
     </div>
     <div class="rules-grid">
       @for (rule of rules(); track rule.code) {
@@ -124,7 +124,7 @@
   <div class="card list-card">
     <div class="card-head">
       <h3 class="card-title">Danh sách cảnh báo</h3>
-      <button class="link-btn" type="button" (click)="markAllRead()"
+      <button class="link-btn" type="button" [appHasPerm]="'ALERTS:UPDATE'" (click)="markAllRead()"
         [disabled]="summary().totalOpen === 0 || markAllReadMutation.isPending()">
         Đánh dấu tất cả đã đọc
       </button>
@@ -133,7 +133,7 @@
     <div class="alert-list">
       @for (row of rows(); track row.id) {
       <div class="alert-item" [class.row-critical]="row.severity === 'CRITICAL' && isUnread(row)"
-        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)" (click)="markRead(row)">
+        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)" [appHasPerm]="'ALERTS:UPDATE'" (click)="markRead(row)">
         <span class="ai-icon {{ iconClass(row) }}">
           @switch (iconKind(row)) {
           @case ('alert') {
@@ -175,7 +175,7 @@
 
         <div class="ai-meta">
           <span class="ai-time">{{ relativeTime(row.createdDate) }}</span>
-          <button class="ai-x" type="button" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
+          <button class="ai-x" type="button" [appHasPerm]="'ALERTS:UPDATE'" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
         </div>
       </div>
       }

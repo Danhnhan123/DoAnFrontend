@@ -14,7 +14,19 @@
   <div class="noti-dropdown">
     <div class="noti-head">
       <span class="noti-title-head">Thông báo</span>
-      <button type="button" class="noti-viewall" (click)="viewAll()">Xem tất cả</button>
+      <div class="noti-head-actions">
+        <button type="button" class="noti-markall" [disabled]="unreadCount() === 0 || markingAll()"
+          (click)="markAllRead($event)" title="Đánh dấu tất cả đã đọc">
+          @if (markingAll()) { <span class="spin-sm"></span> } @else {
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          }
+          Đọc tất cả
+        </button>
+        <button type="button" class="noti-viewall" (click)="viewAll()">Xem tất cả</button>
+      </div>
     </div>
 
     @if (notifState() === 'default') {
@@ -49,6 +61,22 @@
       }
       }
     </div>
+
+    @if (totalPages() > 1) {
+    <div class="noti-pager">
+      <button type="button" class="noti-pg" [disabled]="page() <= 1" (click)="setPage(page() - 1)"
+        aria-label="Trang trước">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+      </button>
+      <span class="noti-pg-info">Trang {{ page() }}/{{ totalPages() }}</span>
+      <button type="button" class="noti-pg" [disabled]="page() >= totalPages()" (click)="setPage(page() + 1)"
+        aria-label="Trang sau">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
+    </div>
+    }
   </div>
   }
 </div>

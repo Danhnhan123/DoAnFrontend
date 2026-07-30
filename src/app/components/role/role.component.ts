@@ -20,6 +20,10 @@ import {
   FlatMenu,
 } from '../../models';
 import { RoleService, flattenMenus } from '../../services/role.service';
+import { AuthService } from '../../services/auth.service';
+import { PermissionService } from '../../services/permission.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 const ACTION_PROP_MAP: Record<string, string> = {
   Xem: 'hasRead',
@@ -33,12 +37,15 @@ const ACTION_PROP_MAP: Record<string, string> = {
 @Component({
   selector: 'app-role',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgTemplateOutlet],
+  imports: [HasPermissionDirective, ReadonlyIfDirective, CommonModule, FormsModule, NgTemplateOutlet],
   templateUrl: './role.component.html',
   styleUrl: './role.component.css',
 })
 export class RoleComponent {
   private roleService = inject(RoleService);
+  private auth = inject(AuthService);
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('ROLE'));
   private queryClient = injectQueryClient();
 
   page = signal(1);
@@ -181,6 +188,9 @@ export class RoleComponent {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
         // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
         this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Thêm thành công!');
       } else this.showAlert(r.message || 'Thêm mới thất bại', false);
     },
@@ -196,6 +206,9 @@ export class RoleComponent {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
         // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
         this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(r.message || 'Cập nhật thất bại', false);
     },
@@ -210,6 +223,9 @@ export class RoleComponent {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
         // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
         this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(r.message || 'Xóa thất bại', false);
     },

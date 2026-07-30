@@ -18,15 +18,20 @@ import {
 import { NotificationTypeService } from '../../services/notification-type.service';
 
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-notification-type',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './notification-type.component.html',
   styleUrl: './notification-type.component.css',
 })
 export class NotificationTypeComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('NOTIFICATION_TYPE'));
   private service = inject(NotificationTypeService);
   private queryClient = injectQueryClient();
 

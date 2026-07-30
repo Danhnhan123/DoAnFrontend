@@ -95,9 +95,9 @@
             <td class="action-cell" data-label="Thao tác">
               @if (canAct(order)) {
               <button class="action-btn approve" type="button" [disabled]="actionPending()"
-                (click)="approve(order); $event.stopPropagation()">Duyệt</button>
+                [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="approve(order); $event.stopPropagation()">Duyệt</button>
               <button class="action-btn reject" type="button" [disabled]="actionPending()"
-                (click)="reject(order); $event.stopPropagation()">Từ chối</button>
+                [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="reject(order); $event.stopPropagation()">Từ chối</button>
               <button class="action-btn danger" type="button" [disabled]="actionPending()"
                 (click)="cancel(order); $event.stopPropagation()">Hủy</button>
               } @else {
@@ -226,9 +226,9 @@
       <button class="btn btn-outline danger-outline" type="button" [disabled]="actionPending()"
         (click)="cancel(order)">Hủy phiếu</button>
       <button class="btn btn-outline danger-outline" type="button" [disabled]="actionPending()"
-        (click)="reject(order)">Từ chối</button>
+        [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="reject(order)">Từ chối</button>
       <button class="btn btn-primary" type="button" [disabled]="actionPending()"
-        (click)="approve(order)">Duyệt phiếu</button>
+        [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="approve(order)">Duyệt phiếu</button>
       }
     </div>
     } @else {

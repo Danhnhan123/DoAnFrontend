@@ -23,6 +23,10 @@ export class UserBulkCreateComponent {
   private userService = inject(UserService);
 
   @Input() roleOptions: DataItem[] = [];
+  readonly genderOptions = [
+    { id: 1, name: 'Nam' },
+    { id: 0, name: 'Nữ' },
+  ];
   @Output() saved = new EventEmitter<void>();
   @Output() closed = new EventEmitter<void>();
 
@@ -33,11 +37,6 @@ export class UserBulkCreateComponent {
   generalError = signal('');
   importing = signal(false);
   saving = signal(false);
-
-  readonly genderOptions = [
-    { id: 1, name: 'Nam' },
-    { id: 0, name: 'Nữ' },
-  ];
 
   private emptyRow(): UserBulkRow {
     return { username: '', email: '', firstName: '', lastName: '', phoneNumber: '', gender: 1, roles: [] };

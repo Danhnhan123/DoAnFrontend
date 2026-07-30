@@ -18,7 +18,7 @@
         <span [class.so-spin]="fetching()">↻</span>
         Làm mới
       </button>
-      <button class="so-btn so-btn-primary" type="button" (click)="openCreate()">
+      <button class="so-btn so-btn-primary" type="button" [appHasPerm]="'SALE_ORDERS:CREATE'" (click)="openCreate()">
         <span>＋</span>
         Tạo đơn bán
       </button>
@@ -96,16 +96,13 @@
             (ngModelChange)="onSearchInput($event)"
           />
         </label>
-        <select
+        <app-filter-select
           class="so-page-size"
-          aria-label="Số dòng mỗi trang"
-          [ngModel]="pageSize()"
-          (ngModelChange)="setPageSize($event)"
-        >
-          @for (size of pageSizeOptions; track size) {
-          <option [value]="size">{{ size }} / trang</option>
-          }
-        </select>
+          [clearable]="false"
+          [options]="pageSizeSelectOptions"
+          [value]="pageSize()"
+          (valueChange)="setPageSize($event)"
+        ></app-filter-select>
       </div>
     </div>
 
@@ -370,14 +367,14 @@
         <div class="so-detail-actions">
           @if (canEdit(order)) {
           <button class="so-btn so-btn-secondary" type="button" (click)="openEdit()">
-            Sửa đơn
+            {{ perm.canUpdate('SALE_ORDERS') ? 'Sửa đơn' : 'Xem đơn' }}
           </button>
           }
           @if (canConfirm(order)) {
           <button
             class="so-btn so-btn-primary"
             type="button"
-            (click)="confirmOrder(order)"
+            [appHasPerm]="'SALE_ORDERS:UPDATE'" (click)="confirmOrder(order)"
             [disabled]="acting()"
           >
             Xác nhận đơn
@@ -387,7 +384,7 @@
           <button
             class="so-btn so-btn-purple"
             type="button"
-            (click)="reserveOrder(order)"
+            [appHasPerm]="'SALE_ORDERS:UPDATE'" (click)="reserveOrder(order)"
             [disabled]="acting()"
           >
             Kiểm tra &amp; giữ hàng
@@ -397,7 +394,7 @@
           <button
             class="so-btn so-btn-primary"
             type="button"
-            (click)="openOutbound(order)"
+            [appHasPerm]="'SALE_ORDERS:UPDATE'" (click)="openOutbound(order)"
             [disabled]="acting()"
           >
             Tạo phiếu xuất
@@ -407,7 +404,7 @@
           <button
             class="so-btn so-btn-danger"
             type="button"
-            (click)="cancelOrder(order)"
+            [appHasPerm]="'SALE_ORDERS:UPDATE'" (click)="cancelOrder(order)"
             [disabled]="acting()"
           >
             Hủy đơn
@@ -437,13 +434,13 @@
   >
     <header class="so-modal-head">
       <div>
-        <span>{{ isEditing() ? 'CẬP NHẬT ĐƠN' : 'ĐƠN BÁN MỚI' }}</span>
-        <h2>{{ isEditing() ? 'Sửa thông tin đơn bán' : 'Tạo đơn bán' }}</h2>
+        <span>{{ viewOnly() ? 'CHI TIẾT ĐƠN' : isEditing() ? 'CẬP NHẬT ĐƠN' : 'ĐƠN BÁN MỚI' }}</span>
+        <h2>{{ viewOnly() ? 'Chi tiết đơn bán' : isEditing() ? 'Sửa thông tin đơn bán' : 'Tạo đơn bán' }}</h2>
       </div>
       <button type="button" aria-label="Đóng" (click)="closeForm()">×</button>
     </header>
 
-    <div class="so-modal-body">
+    <div class="so-modal-body" [appReadonlyIf]="viewOnly()">
       @if (isEditing()) {
       <div class="so-info">
         Backend chỉ cho đổi ngày giao, địa chỉ, tiền cọc, ghi chú và sản phẩm
@@ -462,44 +459,35 @@
         <div class="so-form-grid">
           <label>
             <span>Khách hàng *</span>
-            <select
+            <app-filter-select
               [disabled]="isEditing()"
-              [ngModel]="form().customerId || ''"
-              (ngModelChange)="setCustomer($event)"
-            >
-              <option value="">Chọn khách hàng</option>
-              @for (customer of customers(); track customer.id) {
-              <option [value]="customer.id">
-                {{ customer.code ? customer.code + ' · ' : '' }}{{ customer.name }}
-              </option>
-              }
-            </select>
+              [clearable]="false"
+              placeholder="Chọn khách hàng"
+              [options]="customerSelectOptions()"
+              [value]="form().customerId"
+              (valueChange)="setCustomer($event)"
+            ></app-filter-select>
           </label>
           <label>
             <span>Kho xuất *</span>
-            <select
+            <app-filter-select
               [disabled]="isEditing()"
-              [ngModel]="form().warehouseId || ''"
-              (ngModelChange)="setFormField('warehouseId', $event ? +$event : null)"
-            >
-              <option value="">Chọn kho xuất</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-              <option [value]="warehouse.id">
-                {{ warehouse.code ? warehouse.code + ' · ' : '' }}{{ warehouse.name }}
-              </option>
-              }
-            </select>
+              [clearable]="false"
+              placeholder="Chọn kho xuất"
+              [options]="warehouseSelectOptions()"
+              [value]="form().warehouseId"
+              (valueChange)="setFormField('warehouseId', $event ?? null)"
+            ></app-filter-select>
           </label>
           <label>
             <span>Kênh bán *</span>
-            <select
+            <app-filter-select
               [disabled]="isEditing()"
-              [ngModel]="form().channel"
-              (ngModelChange)="setFormField('channel', $event)"
-            >
-              <option value="DIRECT">Bán trực tiếp (DIRECT)</option>
-              <option value="WHOLESALE">Bán sỉ (WHOLESALE)</option>
-            </select>
+              [clearable]="false"
+              [options]="channelSelectOptions"
+              [value]="form().channel"
+              (valueChange)="setFormField('channel', $event)"
+            ></app-filter-select>
           </label>
           <label>
             <span>Ngày giao dự kiến</span>
@@ -558,17 +546,13 @@
             <div class="so-line-fields">
               <label class="product">
                 <span>Sản phẩm / SKU *</span>
-                <select
-                  [ngModel]="line.productVariantId || ''"
-                  (ngModelChange)="selectVariant(index, $event)"
-                >
-                  <option value="">Chọn sản phẩm</option>
-                  @for (variant of productVariants(); track variant.id) {
-                  <option [value]="variant.id">
-                    {{ variant.sku }} · {{ variant.name }}
-                  </option>
-                  }
-                </select>
+                <app-filter-select
+                  [clearable]="false"
+                  placeholder="Chọn sản phẩm"
+                  [options]="variantSelectOptions()"
+                  [value]="line.productVariantId"
+                  (valueChange)="selectVariant(index, $event)"
+                ></app-filter-select>
               </label>
               <label>
                 <span>Số lượng (kg) *</span>
@@ -663,9 +647,9 @@
 
     <footer class="so-modal-actions">
       <button class="so-btn so-btn-secondary" type="button" (click)="closeForm()" [disabled]="saving()">
-        Hủy
+        {{ viewOnly() ? 'Đóng' : 'Hủy' }}
       </button>
-      <button class="so-btn so-btn-primary" type="button" (click)="submitForm()" [disabled]="saving()">
+      <button [hidden]="viewOnly()" class="so-btn so-btn-primary" type="button" (click)="submitForm()" [disabled]="saving()">
         @if (saving()) { <span class="so-loader small"></span> }
         {{ isEditing() ? 'Lưu thay đổi' : 'Tạo đơn bán' }}
       </button>

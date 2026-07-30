@@ -569,3 +569,19 @@ app-admin-layout .skeleton-item:nth-child(3n) .skeleton-line {
 .toolbar.card .page-size-select .ms-toggle {
   font-size: 0.84rem;
 }
+
+/* ===== RBAC: nút "Sửa" chuyển thành "Xem chi tiết" khi không có quyền UPDATE ===== */
+/* Ẩn icon bút gốc, thay bằng icon con mắt (giữ nguyên currentColor của nút). */
+.icon-btn.edit-btn.perm-view-only svg { display: none; }
+.icon-btn.edit-btn.perm-view-only::before {
+  content: "";
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>') center / contain no-repeat;
+          mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>') center / contain no-repeat;
+}
+
+/* Đảm bảo [hidden]="viewOnly()" luôn ẩn (một số nút có display:flex lấn át hidden mặc định). */
+[hidden] { display: none !important; }

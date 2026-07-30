@@ -215,6 +215,51 @@
   white-space: nowrap;
 }
 
+/* ── Phân trang panel (công việc / cảnh báo) ── */
+.dash-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.pg-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card-bg, #fff);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.pg-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pg-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pg-info {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.panel-empty {
+  padding: 18px 4px;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 /* ===================== TASK LIST ===================== */
 .task-list {
   display: flex;
@@ -416,6 +461,23 @@
   gap: 5px;
   width: 100%;
   min-height: 0;
+}
+.bar-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+}
+.bar-val {
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 3px;
+  white-space: nowrap;
+}
+.bar-val-vol {
+  color: #16a34a;
 }
 .bar {
   width: 12px;

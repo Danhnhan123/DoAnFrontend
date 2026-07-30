@@ -17,15 +17,20 @@ import {
 } from '../../models';
 import { OrganizationService } from '../../services/organization.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-organization',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './organization.component.html',
   styleUrl: '../supplier/supplier.component.css',
 })
 export class OrganizationComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('ORGANIZATIONS'));
   private organizationService = inject(OrganizationService);
   private queryClient = injectQueryClient();
 

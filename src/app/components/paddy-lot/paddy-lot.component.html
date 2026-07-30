@@ -46,35 +46,35 @@
 
     <label>
       <span class="sr-only">Loại lô</span>
-      <select [ngModel]="lotType() || ''" (ngModelChange)="setLotType($event)">
-        <option value="">Tất cả loại lô</option>
-        @for (type of lotTypes; track type.value) {
-          <option [value]="type.value">{{ type.label }}</option>
-        }
-      </select>
+      <app-filter-select
+        [options]="lotTypeOptions"
+        [value]="lotType()"
+        (valueChange)="setLotType($event)"
+        allLabel="Tất cả loại lô"
+        placeholder="Tất cả loại lô"
+      ></app-filter-select>
     </label>
 
     <label>
       <span class="sr-only">Kho</span>
-      <select
-        [ngModel]="warehouseId() || ''"
-        (ngModelChange)="setWarehouse($event)"
-      >
-        <option value="">Tất cả kho</option>
-        @for (warehouse of warehouses(); track warehouse.id) {
-          <option [value]="warehouse.id">{{ warehouse.name }}</option>
-        }
-      </select>
+      <app-filter-select
+        [options]="warehouseOptions()"
+        [value]="warehouseId()"
+        (valueChange)="setWarehouse($event)"
+        allLabel="Tất cả kho"
+        placeholder="Tất cả kho"
+      ></app-filter-select>
     </label>
 
     <label>
       <span class="sr-only">Trạng thái</span>
-      <select [ngModel]="statusId() || ''" (ngModelChange)="setStatus($event)">
-        <option value="">Tất cả trạng thái</option>
-        @for (status of statuses; track status.id) {
-          <option [value]="status.id">{{ status.name }}</option>
-        }
-      </select>
+      <app-filter-select
+        [options]="statusOptions"
+        [value]="statusId()"
+        (valueChange)="setStatus($event)"
+        allLabel="Tất cả trạng thái"
+        placeholder="Tất cả trạng thái"
+      ></app-filter-select>
     </label>
   </div>
 

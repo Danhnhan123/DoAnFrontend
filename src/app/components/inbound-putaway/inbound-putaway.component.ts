@@ -18,6 +18,11 @@ import { LocationDetailDto } from "../../models/location";
 import { AuthService } from "../../services/auth.service";
 import { InboundOrderService } from "../../services/inbound-order.service";
 import { LocationService } from "../../services/location.service";
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 interface InboundPutawayLine {
   order: InboundOrderDetailDto;
@@ -57,7 +62,7 @@ type ScreenStatus =
 @Component({
   selector: "app-inbound-putaway",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: "./inbound-putaway.component.html",
   styleUrl: "./inbound-putaway.component.css",
 })
@@ -282,6 +287,16 @@ export class InboundPutawayComponent {
       (location) => location.id !== selectedSuggestionId,
     );
   });
+
+  readonly manualLocationSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.manualOverrideLocations().map((location) => ({
+      id: location.id,
+      name:
+        `${this.manualLocationLabel(location)} · còn ` +
+        `${this.formatKg((location.maxCapacity || 0) - (location.currentOccupancy || 0))}` +
+        ` · ưu tiên ${location.priority}`,
+    }))
+  );
 
   readonly pendingWeightKg = computed(() =>
     this.pendingLines().reduce(
