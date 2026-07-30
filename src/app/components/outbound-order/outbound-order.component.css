@@ -253,6 +253,8 @@
 }
 .ob-pager-left { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; color: #64748b; }
 .ob-pager-left select { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 8px; }
+.ob-pager-left .ob-pagesize { width: 120px; }
+.ob-pager-left .ob-pagesize .form-control { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 8px; }
 .ob-pager-right { display: flex; gap: 4px; }
 .pg {
   min-width: 32px;

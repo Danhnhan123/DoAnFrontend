@@ -17,15 +17,20 @@ import {
 } from '../../models';
 import { SupplierService } from '../../services/supplier.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-supplier',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './supplier.component.html',
   styleUrl: './supplier.component.css',
 })
 export class SupplierComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('SUPPLIERS'));
   private supplierService = inject(SupplierService);
   private queryClient = injectQueryClient();
 

@@ -4,11 +4,11 @@
     <div class="dash-toolbar-left">
       <div class="wh-select">
         <app-filter-select
-          [options]="warehouses"
+          [options]="warehouses()"
           [value]="selectedWarehouse()"
           (valueChange)="setWarehouse($event)"
-          [clearable]="false"
-          placeholder="Chọn kho"
+          allLabel="Tất cả kho"
+          placeholder="Tất cả kho"
         ></app-filter-select>
       </div>
       <p class="dash-date">{{ dateLabel() }} · <strong>{{ warehouseName() }}</strong></p>
@@ -30,7 +30,7 @@
 
   <!-- Thẻ thống kê -->
   <div class="stats-grid">
-    @for (s of periodData().stats; track s.label) {
+    @for (s of stats(); track s.label) {
     <div class="stat-card">
       <div class="stat-top">
         <span class="stat-icon" [ngClass]="'ic-' + s.icon">
@@ -88,11 +88,11 @@
           </svg>
           <span>Lịch công việc hôm nay</span>
         </div>
-        <span class="pill-count">{{ warehouse().tasks.length }} việc</span>
+        <span class="pill-count">{{ tasks().length }} việc</span>
       </div>
 
       <div class="task-list">
-        @for (t of warehouse().tasks; track t.time + t.title) {
+        @for (t of pagedTasks(); track t.time + t.title) {
         <div class="task-row">
           <span class="task-time">{{ t.time }}</span>
           <span class="task-ic" [ngClass]="'tic-' + t.icon">
@@ -135,8 +135,18 @@
             <span class="dot"></span>{{ t.status === 'confirmed' ? 'Đã xác nhận' : 'Chờ xử lý' }}
           </span>
         </div>
+        } @empty {
+        <div class="panel-empty">Không có công việc hôm nay</div>
         }
       </div>
+
+      @if (taskTotalPages() > 1) {
+      <div class="dash-pager">
+        <button type="button" class="pg-btn" [disabled]="taskPageSafe() <= 1" (click)="setTaskPage(taskPageSafe() - 1)" aria-label="Trang trước">‹</button>
+        <span class="pg-info">Trang {{ taskPageSafe() }}/{{ taskTotalPages() }}</span>
+        <button type="button" class="pg-btn" [disabled]="taskPageSafe() >= taskTotalPages()" (click)="setTaskPage(taskPageSafe() + 1)" aria-label="Trang sau">›</button>
+      </div>
+      }
     </section>
 
     <section class="panel alerts-panel">
@@ -151,7 +161,7 @@
       </div>
 
       <div class="alert-list">
-        @for (a of warehouse().alerts; track a.text) {
+        @for (a of pagedAlerts(); track a.text) {
         <div class="alert-row">
           <span class="alert-dot" [ngClass]="'lvl-' + a.level"></span>
           <div class="alert-main">
@@ -168,6 +178,14 @@
         <div class="alert-empty">Không có cảnh báo</div>
         }
       </div>
+
+      @if (alertTotalPages() > 1) {
+      <div class="dash-pager">
+        <button type="button" class="pg-btn" [disabled]="alertPageSafe() <= 1" (click)="setAlertPage(alertPageSafe() - 1)" aria-label="Trang trước">‹</button>
+        <span class="pg-info">Trang {{ alertPageSafe() }}/{{ alertTotalPages() }}</span>
+        <button type="button" class="pg-btn" [disabled]="alertPageSafe() >= alertTotalPages()" (click)="setAlertPage(alertPageSafe() + 1)" aria-label="Trang sau">›</button>
+      </div>
+      }
     </section>
   </div>
 
@@ -175,7 +193,7 @@
   <div class="bottom-grid">
     <section class="panel chart-panel">
       <div class="panel-head">
-        <div class="panel-title"><span>{{ periodData().chartTitle }}</span></div>
+        <div class="panel-title"><span>{{ chartTitle() }}</span></div>
         <div class="legend">
           <span class="lg lg-vol">Sản lượng (tấn)</span>
           <span class="lg lg-price">Giá (đ/kg)</span>
@@ -184,10 +202,15 @@
 
       <div class="chart">
         @for (b of chartBars(); track b.label) {
-        <div class="chart-col">
+        <div class="chart-col" [title]="b.tip">
           <div class="bars">
-            <span class="bar bar-vol" [style.height.%]="b.volPct"></span>
-            <span class="bar bar-price" [style.height.%]="b.pricePct"></span>
+            <span class="bar-wrap">
+              <span class="bar-val bar-val-vol">{{ b.volLabel }}</span>
+              <span class="bar bar-vol" [style.height.%]="b.volPct"></span>
+            </span>
+            <span class="bar-wrap">
+              <span class="bar bar-price" [style.height.%]="b.pricePct"></span>
+            </span>
           </div>
           <span class="chart-label">{{ b.label }}</span>
         </div>
@@ -201,7 +224,7 @@
       </div>
 
       <div class="perf-list">
-        @for (p of warehouse().perf; track p.label) {
+        @for (p of perf(); track p.label) {
         <div class="perf-row">
           <div class="perf-top">
             <span class="perf-label">{{ p.label }}</span>

@@ -1,4 +1,6 @@
 import { Component, signal, inject, computed, effect } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -23,6 +25,7 @@ import {
 import { WarehouseService } from '../../services/warehouse.service';
 import { LocationService } from '../../services/location.service';
 import { ProductCategoryService } from '../../services/product-category.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
   FilterSelectOption,
@@ -46,7 +49,7 @@ interface WhStat {
 @Component({
   selector: 'app-warehouse',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [HasPermissionDirective, ReadonlyIfDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './warehouse.component.html',
   styleUrl: './warehouse.component.css',
 })
@@ -446,6 +449,9 @@ export class WarehouseComponent {
   showModal = signal(false);
   editItem = signal<WarehouseRow | null>(null);
   isEdit = computed(() => !!this.editItem());
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('WAREHOUSES'));
+  locViewOnly = computed(() => this.isLocEdit() && !this.perm.canUpdate('WAREHOUSES'));
   saving = signal(false);
 
   form = signal<{

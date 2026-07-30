@@ -31,11 +31,19 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   open = signal(false);
   private fcmSub?: Subscription;
 
+  page = signal(1);
+  readonly pageSize = 6;
+  markingAll = signal(false);
+
   listQuery = injectQuery(() => ({
-    queryKey: ['my-notifications'],
+    queryKey: ['my-notifications', this.page()],
     queryFn: () =>
       lastValueFrom(
-        this.notiService.getMyNotifications({ pageIndex: 1, pageSize: 10, isRead: null })
+        this.notiService.getMyNotifications({
+          pageIndex: this.page(),
+          pageSize: this.pageSize,
+          isRead: null,
+        })
       ),
   }));
 
@@ -47,11 +55,21 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
       ),
   }));
 
-  notifications = computed<MyNotification[]>(() => {
+  private listPaging = computed<any>(() => {
     const r: any = this.listQuery.data();
-    const p = r?.resources ?? r?.data;
+    return r?.resources ?? r?.data ?? null;
+  });
+  notifications = computed<MyNotification[]>(() => {
+    const p = this.listPaging();
     return p?.dataSource ?? p?.items ?? [];
   });
+  total = computed<number>(() => {
+    const p = this.listPaging();
+    return p?.totalFiltered ?? p?.total ?? 0;
+  });
+  totalPages = computed<number>(() =>
+    Math.max(1, Math.ceil(this.total() / this.pageSize))
+  );
   unreadCount = computed<number>(() => {
     const r: any = this.unreadQuery.data();
     const p = r?.resources ?? r?.data;
@@ -94,6 +112,26 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   private refresh(): void {
     this.queryClient.invalidateQueries({ queryKey: ['my-notifications'] });
     this.queryClient.invalidateQueries({ queryKey: ['my-notifications-unread'] });
+    this.queryClient.invalidateQueries({ queryKey: ['profile-notifications'] });
+  }
+
+  setPage(p: number): void {
+    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    this.page.set(p);
+  }
+
+  async markAllRead(event: Event): Promise<void> {
+    event.stopPropagation();
+    if (this.markingAll() || this.unreadCount() === 0) return;
+    this.markingAll.set(true);
+    try {
+      await lastValueFrom(this.notiService.markAllRead());
+      this.refresh();
+    } catch {
+      /* ignore */
+    } finally {
+      this.markingAll.set(false);
+    }
   }
 
   async onClick(n: MyNotification): Promise<void> {

@@ -52,7 +52,7 @@
       <button
         type="button"
         class="primary-action"
-        (click)="openCreateSchedule()"
+        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateSchedule()"
       >
         <svg
           width="16"
@@ -70,7 +70,7 @@
       <button
         type="button"
         class="primary-action"
-        (click)="openCreateReceipt()"
+        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt()"
       >
         <svg
           width="16"
@@ -166,7 +166,7 @@
                     <button
                       type="button"
                       class="code-link"
-                      (click)="openEditSchedule(row)"
+                      [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditSchedule(row)"
                     >
                       {{ row.scheduleCode }}
                     </button>
@@ -224,7 +224,7 @@
                           ? 'Chuyển tiếp sang ' + nextStatus(row.statusId)?.name
                           : statusOf(row.statusId).name
                       "
-                      (click)="advanceSchedule(row)"
+                      [appHasPerm]="'RICE_PURCHASE:UPDATE'" (click)="advanceSchedule(row)"
                     >
                       @if (updatingScheduleId() === row.id) {
                         <span class="mini-spinner"></span>
@@ -240,7 +240,7 @@
                         type="button"
                         class="icon-action view"
                         title="Xem và sửa lịch"
-                        (click)="openEditSchedule(row)"
+                        [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditSchedule(row)"
                       >
                         <svg
                           width="16"
@@ -261,7 +261,7 @@
                         class="icon-action receipt"
                         title="Tạo phiếu mua từ lịch này"
                         [disabled]="isScheduleLocked(row)"
-                        (click)="openCreateReceipt(row)"
+                        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt(row)"
                       >
                         <svg
                           width="16"
@@ -407,7 +407,7 @@
                     <button
                       type="button"
                       class="code-link"
-                      (click)="openEditReceipt(row)"
+                      [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditReceipt(row)"
                     >
                       {{ row.receiptCode }}
                     </button>
@@ -469,7 +469,7 @@
                         type="button"
                         class="icon-action view"
                         title="Xem phiếu"
-                        (click)="openEditReceipt(row)"
+                        [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditReceipt(row)"
                       >
                         <svg
                           width="16"
@@ -573,7 +573,9 @@
         <div>
           <h2 id="schedule-modal-title">
             {{
-              editingSchedule()
+              scheduleViewOnly()
+                ? "Chi tiết lịch thu mua lúa"
+                : editingSchedule()
                 ? "Cập nhật lịch thu mua lúa"
                 : "Tạo lịch thu mua lúa"
             }}
@@ -613,22 +615,18 @@
         </div>
       }
 
-      <div class="modal-body">
+      <div class="modal-body" [appReadonlyIf]="scheduleViewOnly()">
         <div class="form-grid two-columns">
           <label class="field-group span-2">
             <span>Nông dân <b>*</b></span>
-            <select
-              [ngModel]="scheduleForm().farmerId"
-              (ngModelChange)="setScheduleField('farmerId', $event)"
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn nông dân..."
               [disabled]="scheduleFormLocked() || loadingReference()"
-            >
-              <option [ngValue]="null">Chọn nông dân...</option>
-              @for (farmer of farmers(); track farmer.id) {
-                <option [ngValue]="farmer.id">
-                  {{ farmer.name }} · {{ farmer.code }}
-                </option>
-              }
-            </select>
+              [options]="farmerScheduleSelectOptions()"
+              [value]="scheduleForm().farmerId"
+              (valueChange)="setScheduleField('farmerId', $event)"
+            ></app-filter-select>
           </label>
 
           <label class="field-group">
@@ -664,18 +662,14 @@
 
           <label class="field-group">
             <span>Giống lúa</span>
-            <select
-              [ngModel]="scheduleForm().riceVarietyId"
-              (ngModelChange)="setScheduleField('riceVarietyId', $event)"
+            <app-filter-select
+              allLabel="Chưa xác định"
+              placeholder="Chưa xác định"
               [disabled]="scheduleFormLocked()"
-            >
-              <option [ngValue]="null">Chưa xác định</option>
-              @for (variety of riceVarieties(); track variety.id) {
-                <option [ngValue]="variety.id">
-                  {{ variety.name }} · {{ variety.code }}
-                </option>
-              }
-            </select>
+              [options]="varietySelectOptions()"
+              [value]="scheduleForm().riceVarietyId"
+              (valueChange)="setScheduleField('riceVarietyId', $event)"
+            ></app-filter-select>
           </label>
 
           <div class="field-group">
@@ -691,16 +685,14 @@
                 placeholder="Nhập khối lượng"
                 aria-label="Sản lượng dự kiến"
               />
-              <select
-                [ngModel]="scheduleForm().estimatedWeightUnit"
-                (ngModelChange)="setScheduleField('estimatedWeightUnit', $event)"
+              <app-filter-select
+                class="unit-select"
+                [clearable]="false"
                 [disabled]="scheduleFormLocked()"
-                aria-label="Đơn vị sản lượng dự kiến"
-              >
-                @for (unit of weightUnits; track unit.value) {
-                  <option [ngValue]="unit.value">{{ unit.label }}</option>
-                }
-              </select>
+                [options]="weightUnitSelectOptions"
+                [value]="scheduleForm().estimatedWeightUnit"
+                (valueChange)="setScheduleField('estimatedWeightUnit', $event)"
+              ></app-filter-select>
             </div>
           </div>
 
@@ -723,7 +715,7 @@
             <button
               type="button"
               class="danger-link"
-              (click)="cancelSchedule(editingSchedule()!)"
+              [appHasPerm]="'RICE_PURCHASE:UPDATE'" (click)="cancelSchedule(editingSchedule()!)"
             >
               Hủy lịch
             </button>
@@ -812,25 +804,18 @@
         </div>
       }
 
-      <div class="modal-body">
+      <div class="modal-body" [appReadonlyIf]="receiptViewOnly()">
         <div class="form-grid receipt-form-grid">
           <label class="field-group span-2">
             <span>Mã lịch / Nông dân</span>
-            <select
-              [ngModel]="receiptForm().scheduleId"
-              (ngModelChange)="onReceiptScheduleChange($event)"
+            <app-filter-select
+              allLabel="Không gắn lịch — chọn nông dân trực tiếp"
+              placeholder="Không gắn lịch — chọn nông dân trực tiếp"
               [disabled]="receiptFormLocked()"
-            >
-              <option [ngValue]="null">
-                Không gắn lịch — chọn nông dân trực tiếp
-              </option>
-              @for (schedule of receiptScheduleOptions(); track schedule.id) {
-                <option [ngValue]="schedule.id">
-                  {{ schedule.scheduleCode }} · {{ schedule.farmerName }} ·
-                  {{ formatDate(schedule.scheduleDate) }}
-                </option>
-              }
-            </select>
+              [options]="scheduleSelectOptions()"
+              [value]="receiptForm().scheduleId"
+              (valueChange)="onReceiptScheduleChange($event)"
+            ></app-filter-select>
           </label>
 
           <label class="field-group">
@@ -845,34 +830,26 @@
 
           <label class="field-group">
             <span>Nông dân <b>*</b></span>
-            <select
-              [ngModel]="receiptForm().farmerId"
-              (ngModelChange)="setReceiptField('farmerId', $event)"
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn nông dân..."
               [disabled]="receiptFormLocked() || !!receiptForm().scheduleId"
-            >
-              <option [ngValue]="null">Chọn nông dân...</option>
-              @for (farmer of farmers(); track farmer.id) {
-                <option [ngValue]="farmer.id">
-                  {{ farmer.name }} · {{ farmer.phone || farmer.code }}
-                </option>
-              }
-            </select>
+              [options]="farmerReceiptSelectOptions()"
+              [value]="receiptForm().farmerId"
+              (valueChange)="setReceiptField('farmerId', $event)"
+            ></app-filter-select>
           </label>
 
           <label class="field-group">
             <span>Giống lúa</span>
-            <select
-              [ngModel]="receiptForm().riceVarietyId"
-              (ngModelChange)="setReceiptField('riceVarietyId', $event)"
+            <app-filter-select
+              allLabel="Chưa xác định"
+              placeholder="Chưa xác định"
               [disabled]="receiptFormLocked()"
-            >
-              <option [ngValue]="null">Chưa xác định</option>
-              @for (variety of riceVarieties(); track variety.id) {
-                <option [ngValue]="variety.id">
-                  {{ variety.name }} · {{ variety.code }}
-                </option>
-              }
-            </select>
+              [options]="varietySelectOptions()"
+              [value]="receiptForm().riceVarietyId"
+              (valueChange)="setReceiptField('riceVarietyId', $event)"
+            ></app-filter-select>
           </label>
 
           <div class="field-group">
@@ -888,16 +865,14 @@
                 aria-label="Khối lượng thực cân"
                 [disabled]="receiptFormLocked()"
               />
-              <select
-                [ngModel]="receiptForm().actualWeightUnit"
-                (ngModelChange)="setReceiptField('actualWeightUnit', $event)"
-                aria-label="Đơn vị khối lượng"
+              <app-filter-select
+                class="unit-select"
+                [clearable]="false"
                 [disabled]="receiptFormLocked()"
-              >
-                @for (unit of weightUnits; track unit.value) {
-                  <option [ngValue]="unit.value">{{ unit.label }}</option>
-                }
-              </select>
+                [options]="weightUnitSelectOptions"
+                [value]="receiptForm().actualWeightUnit"
+                (valueChange)="setReceiptField('actualWeightUnit', $event)"
+              ></app-filter-select>
             </div>
           </div>
 
@@ -930,18 +905,14 @@
 
           <label class="field-group">
             <span>Chất lượng</span>
-            <select
-              [ngModel]="receiptForm().qualityGrade"
-              (ngModelChange)="setReceiptField('qualityGrade', $event)"
+            <app-filter-select
+              allLabel="Chưa đánh giá"
+              placeholder="Chưa đánh giá"
               [disabled]="receiptFormLocked()"
-            >
-              <option value="">Chưa đánh giá</option>
-              <option value="Xuất sắc">Xuất sắc</option>
-              <option value="Tốt">Tốt</option>
-              <option value="Đạt">Đạt</option>
-              <option value="Cần xử lý">Cần xử lý</option>
-              <option value="Cách ly">Cách ly</option>
-            </select>
+              [options]="qualityGradeSelectOptions"
+              [value]="receiptForm().qualityGrade"
+              (valueChange)="setReceiptField('qualityGrade', $event)"
+            ></app-filter-select>
           </label>
 
           <label class="field-group">
@@ -959,18 +930,14 @@
 
           <label class="field-group">
             <span>Nhập vào kho <b>*</b></span>
-            <select
-              [ngModel]="receiptForm().warehouseId"
-              (ngModelChange)="setReceiptField('warehouseId', $event)"
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn kho nhập..."
               [disabled]="receiptFormLocked()"
-            >
-              <option [ngValue]="null">Chọn kho nhập...</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-                <option [ngValue]="warehouse.id">
-                  {{ warehouse.name }} · {{ warehouse.code }}
-                </option>
-              }
-            </select>
+              [options]="warehouseSelectOptions()"
+              [value]="receiptForm().warehouseId"
+              (valueChange)="setReceiptField('warehouseId', $event)"
+            ></app-filter-select>
           </label>
 
           <div class="calculation-card span-2">

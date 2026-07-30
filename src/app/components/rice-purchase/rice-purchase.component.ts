@@ -28,6 +28,13 @@ import {
   WarehouseDetailDto,
 } from "../../models";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 type PurchaseTab = "schedule" | "receipt";
 type WeightUnit = "ton" | "quintal" | "yen" | "kg";
@@ -78,12 +85,22 @@ interface ReceiptFormState {
 @Component({
   selector: "app-rice-purchase",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    HasPermissionDirective,
+    ReadonlyIfDirective,
+    CommonModule,
+    FormsModule,
+    FilterSelectComponent,
+  ],
   templateUrl: "./rice-purchase.component.html",
   styleUrl: "./rice-purchase.component.css",
 })
 export class RicePurchaseComponent implements OnDestroy {
   private readonly purchaseService = inject(PaddyPurchaseService);
+  readonly perm = inject(PermissionService);
+  // Chỉ-xem khi đang sửa mà không có quyền UPDATE (RICE_PURCHASE).
+  readonly scheduleViewOnly = computed(() => !!this.editingSchedule() && !this.perm.canUpdate('RICE_PURCHASE'));
+  readonly receiptViewOnly = computed(() => !!this.editingReceipt() && !this.perm.canUpdate('RICE_PURCHASE'));
   private readonly queryClient = inject(QueryClient);
   private readonly router = inject(Router);
 
@@ -365,6 +382,45 @@ export class RicePurchaseComponent implements OnDestroy {
       .filter((x) => x.isActive !== false)
       .sort((a, b) => a.name.localeCompare(b.name, "vi")),
   );
+
+  // ---- Options cho dropdown dùng chung (app-filter-select) ----
+  readonly weightUnitSelectOptions: FilterSelectOption[] = this.weightUnits.map(
+    (u) => ({ id: u.value, name: u.label }),
+  );
+  readonly qualityGradeSelectOptions: FilterSelectOption[] = [
+    { id: "Xuất sắc", name: "Xuất sắc" },
+    { id: "Tốt", name: "Tốt" },
+    { id: "Đạt", name: "Đạt" },
+    { id: "Cần xử lý", name: "Cần xử lý" },
+    { id: "Cách ly", name: "Cách ly" },
+  ];
+  readonly farmerScheduleSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.farmers().map((f) => ({ id: f.id, name: `${f.name} · ${f.code}` })),
+  );
+  readonly farmerReceiptSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.farmers().map((f) => ({
+      id: f.id,
+      name: `${f.name} · ${f.phone || f.code}`,
+    })),
+  );
+  readonly varietySelectOptions = computed<FilterSelectOption[]>(() =>
+    this.riceVarieties().map((v) => ({
+      id: v.id,
+      name: `${v.name} · ${v.code}`,
+    })),
+  );
+  readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({
+      id: w.id,
+      name: `${w.name} · ${w.code}`,
+    })),
+  );
+  readonly scheduleSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.receiptScheduleOptions().map((s) => ({
+      id: s.id,
+      name: `${s.scheduleCode} · ${s.farmerName} · ${this.formatDate(s.scheduleDate)}`,
+    })),
+  );
   readonly scheduleOptions = computed(() =>
     [...(this.scheduleOptionsQuery.data() || [])].sort(
       (a, b) =>
@@ -422,7 +478,7 @@ export class RicePurchaseComponent implements OnDestroy {
     this.scheduleOptionsQuery.isSuccess(),
   );
   readonly scheduleFormLocked = computed(() =>
-    this.isScheduleLocked(this.editingSchedule()),
+    this.isScheduleLocked(this.editingSchedule()) || this.scheduleViewOnly(),
   );
   readonly receiptFormCancelled = computed(() =>
     this.isScheduleCancelled(this.receiptForm().scheduleId),
@@ -431,7 +487,8 @@ export class RicePurchaseComponent implements OnDestroy {
     () =>
       this.receiptForm().isConfirmed ||
       this.receiptFormCancelled() ||
-      (!!this.receiptForm().scheduleId && !this.scheduleStateReady()),
+      (!!this.receiptForm().scheduleId && !this.scheduleStateReady()) ||
+      this.receiptViewOnly(),
   );
 
   readonly receiptTotalAmount = computed(() =>

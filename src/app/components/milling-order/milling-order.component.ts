@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { FormsModule } from '@angular/forms';
 import {
   injectQuery,
@@ -29,6 +31,11 @@ import {
 import { AuthService } from '../../services/auth.service';
 import { InventoryService } from '../../services/inventory.service';
 import { MillingOrderService } from '../../services/milling-order.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 interface AllocationLine {
   key: number;
@@ -81,12 +88,21 @@ type StatusFilter = 'ALL' | MillingOrderStatusCode;
 @Component({
   selector: 'app-milling-order',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    HasPermissionDirective,
+    ReadonlyIfDirective,
+    CommonModule,
+    FormsModule,
+    FilterSelectComponent,
+  ],
   templateUrl: './milling-order.component.html',
   styleUrl: './milling-order.component.css',
 })
 export class MillingOrderComponent {
   private readonly service = inject(MillingOrderService);
+  readonly perm = inject(PermissionService);
+  // Xem chi tiết lệnh (đang sửa) khi không có quyền UPDATE.
+  readonly viewOnly = computed(() => !!this.createForm().id && !this.perm.canUpdate('MILLING_ORDERS'));
   private readonly inventoryService = inject(InventoryService);
   private readonly authService = inject(AuthService);
   private readonly queryClient = injectQueryClient();
@@ -378,6 +394,58 @@ export class MillingOrderComponent {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   });
 
+  // ---- Options cho dropdown dùng chung (app-filter-select) ----
+  readonly sourceTypeSelectOptions: FilterSelectOption[] = [
+    { id: 'PRODUCTION_PLAN', name: 'Kế hoạch sản xuất' },
+    { id: 'SALES_ORDER', name: 'Đơn bán cần xay' },
+  ];
+  readonly outputTypeSelectOptions: FilterSelectOption[] = this.outputTypes.map(
+    (t) => ({ id: t.value, name: t.label })
+  );
+  readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({ id: w.id, name: w.name }))
+  );
+  readonly salesOrderSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.salesOrders().map((o) => ({
+      id: o.id,
+      name: `${o.soCode} — ${o.customerName || 'Khách hàng'}`,
+    }))
+  );
+  readonly varietySelectOptions = computed<FilterSelectOption[]>(() =>
+    this.varietyOptions().map((v) => ({
+      id: v.id,
+      name: `${v.code ? v.code + ' — ' : ''}${v.name}`,
+    }))
+  );
+
+  lotSelectOptions(warehouseId: number | null): FilterSelectOption[] {
+    return this.eligibleLotsForWarehouse(warehouseId).map((lot) => ({
+      id: lot.id,
+      name: this.lotLabel(lot),
+    }));
+  }
+  inventoryLocationSelectOptions(
+    paddyLotId: number | null,
+    warehouseId: number | null
+  ): FilterSelectOption[] {
+    return this.inventoryLocationsForLot(paddyLotId, warehouseId).map((inv) => ({
+      id: inv.locationId,
+      name: this.inventoryLocationLabel(inv),
+    }));
+  }
+  variantSelectOptions(type: MillingOutputType): FilterSelectOption[] {
+    return this.variantsForType(type).map((v) => ({
+      id: v.id,
+      name: this.variantLabel(v),
+    }));
+  }
+  locationSelectOptions(warehouseId: number | null): FilterSelectOption[] {
+    return this.locationsForWarehouse(warehouseId).map((l) => ({
+      id: l.id,
+      name: this.locationLabel(l),
+    }));
+  }
+
   loading = computed(() => this.listQuery.isPending() || this.listQuery.isFetching());
   loadingDetail = computed(() => this.detailQuery.isPending());
   errorMessage = computed(() =>
@@ -569,10 +637,8 @@ export class MillingOrderComponent {
 
   openEdit(row: MillingOrderRow, event?: Event): void {
     event?.stopPropagation();
-    if (!this.canManageOrder()) {
-      void this.showPermissionDenied('Bạn không có quyền cập nhật lệnh xay.');
-      return;
-    }
+    // Cho phép mở để XEM (READ). Nếu không có quyền UPDATE, popup mở ở chế độ chỉ xem
+    // (input khoá, ẩn nút lưu — xem viewOnly()). Chỉ đơn DRAFT mới mở form này.
     if (this.statusCode(row) !== 'DRAFT') return;
     this.createForm.set({
       id: row.id,

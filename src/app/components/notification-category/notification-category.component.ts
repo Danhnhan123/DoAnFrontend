@@ -18,15 +18,20 @@ import {
 import { NotificationCategoryService } from '../../services/notification-category.service';
 
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
 @Component({
   selector: 'app-notification-category',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './notification-category.component.html',
   styleUrl: './notification-category.component.css',
 })
 export class NotificationCategoryComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('NOTIFICATION_CATEGORY'));
   private service = inject(NotificationCategoryService);
   private queryClient = injectQueryClient();
 

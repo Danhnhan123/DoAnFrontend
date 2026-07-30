@@ -9,6 +9,9 @@ import {
   injectQueryClient,
 } from '@tanstack/angular-query-experimental';
 import { SystemConfigDetailDto } from '../../models';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import {
   SystemConfigService,
   CreateSystemConfigDto,
@@ -18,11 +21,13 @@ import {
 @Component({
   selector: 'app-system-config',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule],
   templateUrl: './system-config.component.html',
   styleUrl: './system-config.component.css',
 })
 export class SystemConfigComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('SYSTEM_SETTINGS'));
   private systemConfigService = inject(SystemConfigService);
   private queryClient = injectQueryClient();
 

@@ -4,6 +4,7 @@ import {
   RouterLink,
   RouterLinkActive,
   Router,
+  ActivatedRoute,
   NavigationEnd,
 } from '@angular/router';
 import { CommonModule } from '@angular/common';
@@ -16,8 +17,9 @@ import { MenuService } from '../../services/menu.service';
 import { RealtimeService } from '../../services/realtime.service';
 import { DevicePresenceService } from '../../services/device-presence.service';
 import { FcmService } from '../../services/fcm.service';
+import { SearchService } from '../../services/search.service';
 import { NotificationBellComponent } from '../notification-bell/notification-bell.component';
-import { MenuAggregate } from '../../models';
+import { MenuAggregate, GlobalSearchGroup, GlobalSearchItem } from '../../models';
 
 @Component({
   selector: 'app-admin-layout',
@@ -33,13 +35,23 @@ export class AdminLayoutComponent implements OnInit {
   realtimeService = inject(RealtimeService);
   devicePresenceService = inject(DevicePresenceService);
   fcmService = inject(FcmService);
+  searchService = inject(SearchService);
   router = inject(Router);
+  private activatedRoute = inject(ActivatedRoute);
   destroyRef = inject(DestroyRef);
 
   mobileOpen = signal(false);
   userMenuOpen = signal(false);
   expandedMenus = signal<Set<string>>(new Set());
   pageTitle = signal('');
+
+  // ── Thanh tìm kiếm toàn cục trên header ──────────────────────────────────
+  searchTerm = signal('');
+  searchResults = signal<GlobalSearchGroup[]>([]);
+  searchOpen = signal(false);
+  searchLoading = signal(false);
+  private searchTimer: any = null;
+  private searchSeq = 0; // chống race: chỉ nhận kết quả của lần gõ mới nhất
 
   user = computed(() => this.authService.currentUser());
   isDark = computed(() => this.themeService.theme() === 'dark');
@@ -132,11 +144,24 @@ export class AdminLayoutComponent implements OnInit {
 
   /** Cập nhật tiêu đề màn theo URL hiện tại (ưu tiên map tĩnh, fallback tên menu). */
   private updatePageTitle(): void {
+    // Trang 404 (không tồn tại hoặc không đủ quyền READ): KHÔNG hiện tiêu đề/phụ đề màn,
+    // chỉ hiện nội dung 404.
+    if (this.isNotFoundRoute()) {
+      this.pageTitle.set('');
+      return;
+    }
     const path = this.router.url.split('?')[0].split('#')[0];
     const segment = path.replace(/^\/admin\//, '').split('/')[0] || 'dashboard';
     this.pageTitle.set(
       this.titleMap[segment] || this.menuTitleForPath(path) || ''
     );
+  }
+
+  /** Route đang kích hoạt có phải trang 404 hay không (đọc data.notFound của leaf route). */
+  private isNotFoundRoute(): boolean {
+    let r: ActivatedRoute | null = this.activatedRoute;
+    while (r?.firstChild) r = r.firstChild;
+    return !!r?.snapshot.data?.['notFound'];
   }
 
   private menuTitleForPath(activePath: string): string {
@@ -170,6 +195,58 @@ export class AdminLayoutComponent implements OnInit {
   @HostListener('document:click')
   onDocumentClick(): void {
     this.closeUserMenu();
+    this.searchOpen.set(false);
+  }
+
+  // ── Tìm kiếm toàn cục ─────────────────────────────────────────────────────
+  onSearchInput(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.searchTerm.set(value);
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+
+    const kw = value.trim();
+    if (kw.length < 2) {
+      this.searchResults.set([]);
+      this.searchLoading.set(false);
+      this.searchOpen.set(false);
+      return;
+    }
+
+    this.searchOpen.set(true);
+    this.searchLoading.set(true);
+    this.searchTimer = setTimeout(() => this.runSearch(kw), 300);
+  }
+
+  private runSearch(kw: string): void {
+    const seq = ++this.searchSeq;
+    this.searchService.globalSearch(kw, 5).subscribe({
+      next: (res) => {
+        if (seq !== this.searchSeq) return; // đã có lần gõ mới hơn
+        this.searchResults.set((res as any)?.resources ?? []);
+        this.searchLoading.set(false);
+      },
+      error: () => {
+        if (seq !== this.searchSeq) return;
+        this.searchResults.set([]);
+        this.searchLoading.set(false);
+      },
+    });
+  }
+
+  onSearchFocus(): void {
+    if (this.searchTerm().trim().length >= 2) this.searchOpen.set(true);
+  }
+
+  onSearchEnter(): void {
+    const first = this.searchResults()[0];
+    if (first?.items?.length) this.goToResult(first, first.items[0]);
+  }
+
+  goToResult(group: GlobalSearchGroup, item: GlobalSearchItem): void {
+    this.searchOpen.set(false);
+    this.searchTerm.set('');
+    this.searchResults.set([]);
+    this.router.navigate([group.url], { queryParams: { q: item.title } });
   }
 
   toggleExpand(id: string, event?: Event): void {

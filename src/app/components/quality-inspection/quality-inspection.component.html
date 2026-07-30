@@ -14,7 +14,7 @@
         được chuyển sang cảnh báo, chờ kiểm tra hoặc cách ly.
       </p>
     </div>
-    <button class="btn btn-primary qc-create-btn" type="button" (click)="openCreate()">
+    <button class="btn btn-primary qc-create-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openCreate()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
       </svg>
@@ -150,10 +150,10 @@
           <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
         </div>
         <div class="qc-detail-actions">
-          <button class="btn btn-danger-soft" type="button" (click)="deleteSelected()"
+          <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
             [disabled]="wasSplit(sel)"
             [title]="wasSplit(sel) ? 'Phiếu đã tách lô cách ly — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
-          <button class="btn btn-primary" type="button" (click)="openEditSelected()">Sửa phiếu</button>
+          <button class="btn btn-primary" type="button" (click)="openEditSelected()">{{ perm.canUpdate('QUALITY_INSPECTIONS') ? 'Sửa phiếu' : 'Xem phiếu' }}</button>
         </div>
         } @else {
         <div class="state-box"><span style="font-size:2rem">☰</span><p>Chọn một dòng để xem chi tiết xử lý</p></div>
@@ -192,7 +192,7 @@
   <div class="modal-box wide qc-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <div class="qc-modal-title">
-        <h3>{{ isEdit() ? 'Cập nhật phiếu kiểm tra chất lượng' : 'Tạo phiếu kiểm tra chất lượng' }}</h3>
+        <h3>{{ viewOnly() ? 'Chi tiết phiếu kiểm tra chất lượng' : isEdit() ? 'Cập nhật phiếu kiểm tra chất lượng' : 'Tạo phiếu kiểm tra chất lượng' }}</h3>
         <span class="qc-modal-badge">Lô + Chỉ số + Quyết định</span>
       </div>
       <button class="modal-close" type="button" (click)="closeModal()">×</button>
@@ -201,7 +201,7 @@
     @if (loadingDetail()) {
     <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
     } @else {
-    <div class="modal-body">
+    <div class="modal-body" [appReadonlyIf]="viewOnly()">
       <!-- 1 -->
       <div class="qc-section">
         <div class="qc-section-title">1. Lô được kiểm tra &amp; phạm vi ảnh hưởng</div>
@@ -301,12 +301,12 @@
     </div>
 
     <div class="modal-footer qc-modal-footer">
-      <button class="btn btn-outline" type="button" (click)="closeModal()">Hủy</button>
-      <button class="btn btn-amber" type="button" (click)="save(false)" [disabled]="saving()">
+      <button class="btn btn-outline" type="button" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Hủy' }}</button>
+      <button class="btn btn-amber" type="button" [hidden]="viewOnly()" (click)="save(false)" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; cách ly lô
       </button>
       @if (!editLockedSplit()) {
-      <button class="btn btn-primary" type="button" (click)="save(true)" [disabled]="saving()">
+      <button class="btn btn-primary" type="button" [hidden]="viewOnly()" (click)="save(true)" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; duyệt đạt
       </button>
       }

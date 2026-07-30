@@ -25,6 +25,11 @@ import {
 } from '../../models';
 import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 type StatusFilter = 'ALL' | number;
 type SortDir = 'asc' | 'desc';
@@ -76,7 +81,7 @@ const PIPELINE_STEPS = [
 @Component({
   selector: 'app-outbound-order',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './outbound-order.component.html',
   styleUrl: './outbound-order.component.css',
 })
@@ -89,6 +94,11 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly status = OUTBOUND_STATUS;
   readonly pipelineSteps = PIPELINE_STEPS;
   readonly pageSizeOptions = [10, 20, 50];
+  readonly pageSizeSelectOptions: FilterSelectOption[] = [
+    { id: 10, name: '10 / trang' },
+    { id: 20, name: '20 / trang' },
+    { id: 50, name: '50 / trang' },
+  ];
 
   /** Nhãn trạng thái tiếng Việt theo id (khớp OutboundOrderStatusSeed). */
   private readonly statusLabels: Record<number, string> = {

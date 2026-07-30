@@ -1,4 +1,6 @@
 import { CommonModule } from '@angular/common';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import {
   Component,
   OnDestroy,
@@ -34,6 +36,11 @@ import {
   WarehouseSalesOption,
 } from '../../models';
 import { SalesOrderService } from '../../services/sales-order.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from '../shared/filter-select.component';
 
 type ChannelFilter = 'ALL' | SalesOrderChannel;
 type SalesOrderAction = 'CONFIRM' | 'RESERVE' | 'CANCEL';
@@ -71,7 +78,13 @@ interface OutboundLine {
 @Component({
   selector: 'app-sales-order',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    HasPermissionDirective,
+    ReadonlyIfDirective,
+    CommonModule,
+    FormsModule,
+    FilterSelectComponent,
+  ],
   templateUrl: './sales-order.component.html',
   styleUrl: './sales-order.component.css',
 })
@@ -211,6 +224,32 @@ export class SalesOrderComponent implements OnDestroy {
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
+  // ---- Options cho dropdown dùng chung (app-filter-select) ----
+  readonly pageSizeSelectOptions: FilterSelectOption[] = [
+    { id: 10, name: '10 / trang' },
+    { id: 20, name: '20 / trang' },
+    { id: 50, name: '50 / trang' },
+  ];
+  readonly channelSelectOptions: FilterSelectOption[] = [
+    { id: 'DIRECT', name: 'Bán trực tiếp (DIRECT)' },
+    { id: 'WHOLESALE', name: 'Bán sỉ (WHOLESALE)' },
+  ];
+  readonly customerSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.customers().map((c) => ({
+      id: c.id,
+      name: `${c.code ? c.code + ' · ' : ''}${c.name}`,
+    }))
+  );
+  readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({
+      id: w.id,
+      name: `${w.code ? w.code + ' · ' : ''}${w.name}`,
+    }))
+  );
+  readonly variantSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.productVariants().map((v) => ({ id: v.id, name: `${v.sku} · ${v.name}` }))
+  );
+
   readonly formSubtotal = computed(() =>
     this.form().items.reduce(
       (sum, item) =>
@@ -236,6 +275,8 @@ export class SalesOrderComponent implements OnDestroy {
     Math.max(0, this.formTotal() - Number(this.form().depositAmount || 0))
   );
   readonly isEditing = computed(() => this.editingId() != null);
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEditing() && !this.perm.canUpdate('SALE_ORDERS'));
   readonly saving = computed(() => this.saveMutation.isPending());
   readonly acting = computed(
     () => this.actionMutation.isPending() || this.outboundMutation.isPending()
