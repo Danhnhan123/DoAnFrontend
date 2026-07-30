@@ -30,6 +30,20 @@ export class PaddyLotService {
     );
   }
 
+  /** Lô đang CHỜ KIỂM ĐỊNH (AWAITING_QC) — nguồn ô chọn lô ở màn Chất lượng & cách ly. */
+  getAwaitingQc(): Observable<ApiResponse<PaddyLotDetailDto[]>> {
+    return this.http.get<ApiResponse<PaddyLotDetailDto[]>>(
+      `${this.base}/paddy-lots/awaiting-qc`
+    );
+  }
+
+  /** Lô đang CÁCH LY (QUARANTINE) — nguồn ô chọn lô khi KIỂM TRA LẠI chất lượng. */
+  getQuarantined(): Observable<ApiResponse<PaddyLotDetailDto[]>> {
+    return this.http.get<ApiResponse<PaddyLotDetailDto[]>>(
+      `${this.base}/paddy-lots/quarantined`
+    );
+  }
+
   buildPagedBody(params: {
     page: number;
     pageSize: number;

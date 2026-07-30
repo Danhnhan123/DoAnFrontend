@@ -1,4 +1,5 @@
 import { Component, signal, inject, computed, effect } from '@angular/core';
+import { Router } from '@angular/router';
 import { PermissionService } from '../../services/permission.service';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
@@ -61,6 +62,7 @@ export class QualityInspectionComponent {
   private paddyLotService = inject(PaddyLotService);
   private userService = inject(UserService);
   private roleService = inject(RoleService);
+  private router = inject(Router);
   private queryClient = injectQueryClient();
 
   /**
@@ -103,6 +105,8 @@ export class QualityInspectionComponent {
 
   // ----- Modal -----
   showModal = signal(false);
+  // Chế độ KIỂM TRA LẠI lô đang cách ly (khác luồng kiểm định lần đầu).
+  recheckMode = signal(false);
   editItem = signal<QualityInspectionRow | null>(null);
   isEdit = computed(() => !!this.editItem());
   perm = inject(PermissionService);
@@ -150,6 +154,8 @@ export class QualityInspectionComponent {
       ),
   }));
 
+  // Danh sách toàn bộ lô (chỉ dùng để hiển thị loại hàng/vị trí/tồn ở bảng & chi tiết
+  // cho các phiếu kiểm định đã tạo — kể cả lô đã nhập kho).
   lotsQuery = injectQuery(() => ({
     queryKey: ['qc-lot-options'],
     queryFn: () =>
@@ -163,6 +169,22 @@ export class QualityInspectionComponent {
           })
         )
       ),
+  }));
+
+  // Ô "Chọn lô kiểm tra" chỉ đưa ra các lô đang CHỜ KIỂM ĐỊNH (status AWAITING_QC) — đúng
+  // luồng chính: tạo phiếu mua lúa → duyệt tạo lô (trạng thái Chờ kiểm định) → kiểm tra chất
+  // lượng → mới hiện ở màn Nhập kho. Trọng lượng lấy ở initialWeightKg (lô chưa nhập kho nên
+  // remainingWeightKg = 0). Nguồn: GET /paddy-lots/awaiting-qc.
+  pendingLotsQuery = injectQuery(() => ({
+    queryKey: ['qc-awaiting-qc-lots'],
+    queryFn: () => lastValueFrom(this.paddyLotService.getAwaitingQc()),
+  }));
+
+  // Lô đang CÁCH LY (QUARANTINE) — nguồn ô chọn lô khi KIỂM TRA LẠI chất lượng.
+  // Nguồn: GET /paddy-lots/quarantined.
+  quarantinedLotsQuery = injectQuery(() => ({
+    queryKey: ['qc-quarantined-lots'],
+    queryFn: () => lastValueFrom(this.paddyLotService.getQuarantined()),
   }));
 
   usersQuery = injectQuery(() => ({
@@ -197,18 +219,62 @@ export class QualityInspectionComponent {
   lotList = computed<PaddyLotRow[]>(() => this.unwrapDT(this.lotsQuery.data()));
   userList = computed<UserAdvancedRow[]>(() => this.unwrapDT(this.usersQuery.data()));
 
+  /**
+   * Danh sách lô đang CHỜ KIỂM ĐỊNH (AWAITING_QC) — đã là PaddyLotRow đầy đủ:
+   * initialWeightKg (trọng lượng lô để kiểm định), productVariantName, warehouseName...
+   * Lô chưa nhập kho nên remainingWeightKg = 0 → hiển thị/validate lấy theo initialWeightKg.
+   */
+  pendingLots = computed<PaddyLotRow[]>(() => {
+    const res: any = this.pendingLotsQuery.data();
+    const d = res?.resources ?? res?.data;
+    return Array.isArray(d) ? d : [];
+  });
+
+  /** Lô đang CÁCH LY — nguồn ô chọn lô khi kiểm tra lại. */
+  quarantinedLots = computed<PaddyLotRow[]>(() => {
+    const res: any = this.quarantinedLotsQuery.data();
+    const d = res?.resources ?? res?.data;
+    return Array.isArray(d) ? d : [];
+  });
+
+  /** Trọng lượng lô để hiển thị/validate: đã nhập kho dùng tồn còn lại, chưa nhập dùng trọng lượng ban đầu. */
+  private lotBasisWeight(lot: PaddyLotRow | null | undefined): number | null {
+    if (!lot) return null;
+    return (lot.remainingWeightKg ?? 0) > 0
+      ? lot.remainingWeightKg
+      : lot.initialWeightKg ?? null;
+  }
+
+  /** Trọng lượng của lô đang chọn trong form (dùng cho ô "Tổng tồn" và validate kg ảnh hưởng). */
+  formLotWeight = computed<number | null>(() => this.lotBasisWeight(this.formLot()));
+
+  // lotMap ưu tiên dữ liệu lô đầy đủ (đã tồn kho) để hiển thị bảng/chi tiết; bổ sung
+  // fallback từ lô chưa nhập kho để formLot tự điền được khi tạo phiếu trong luồng chính.
   lotMap = computed<Map<number, PaddyLotRow>>(() => {
     const m = new Map<number, PaddyLotRow>();
     for (const l of this.lotList()) m.set(l.id, l);
+    for (const p of this.pendingLots()) if (!m.has(p.id)) m.set(p.id, p);
+    for (const q of this.quarantinedLots()) if (!m.has(q.id)) m.set(q.id, q);
     return m;
   });
 
-  lotOptions = computed(() =>
-    this.lotList().map((x) => ({
+  // Ô chọn lô chỉ liệt kê lô chưa nhập kho. Khi đang SỬA phiếu của một lô đã nhập kho
+  // (không còn trong danh sách chờ), vẫn thêm lô đang chọn vào để hiển thị đúng.
+  lotOptions = computed(() => {
+    const toOpt = (x: PaddyLotRow) => ({
       id: x.id,
       name: `${x.lotCode}${x.productVariantName ? ' · ' + x.productVariantName : ''}`,
-    }))
-  );
+    });
+    // Kiểm tra lại: chọn từ lô đang CÁCH LY; kiểm định lần đầu: chọn từ lô CHỜ KIỂM ĐỊNH.
+    const base = this.recheckMode() ? this.quarantinedLots() : this.pendingLots();
+    const opts = base.map(toOpt);
+    const curId = this.form().paddyLotId;
+    if (curId != null && !opts.some((o) => o.id === Number(curId))) {
+      const lot = this.lotMap().get(Number(curId));
+      if (lot) opts.unshift(toOpt(lot));
+    }
+    return opts;
+  });
 
   /** Danh sách vai trò (để lọc người kiểm theo Code vai trò). */
   rolesList = computed<any[]>(() => {
@@ -253,7 +319,10 @@ export class QualityInspectionComponent {
   loading = computed(() => this.listQuery.isPending());
   loadingDetail = computed(() => this.detailQuery.isFetching());
   saving = computed(
-    () => this.createMutation.isPending() || this.updateMutation.isPending()
+    () =>
+      this.createMutation.isPending() ||
+      this.updateMutation.isPending() ||
+      this.recheckMutation.isPending()
   );
 
   selectedRow = computed<QualityInspectionRow | null>(
@@ -263,13 +332,14 @@ export class QualityInspectionComponent {
     () => this.selectedRow()?.paddyLotId ?? null
   );
 
-  // KPI (đồng bộ bộ lọc/trang hiện tại)
+  // KPI (đồng bộ bộ lọc/trang hiện tại). Phiếu nháp (chờ kiểm định) không tính vào Đạt/Cách ly.
   kpiTotal = computed(() => this.totalRecords());
+  kpiDraft = computed(() => this.rows().filter((r) => this.isDraft(r)).length);
   kpiQuarantine = computed(
-    () => this.rows().filter((r) => !r.passedInspection).length
+    () => this.rows().filter((r) => !this.isDraft(r) && !r.passedInspection).length
   );
   kpiPassed = computed(
-    () => this.rows().filter((r) => r.passedInspection).length
+    () => this.rows().filter((r) => !this.isDraft(r) && r.passedInspection).length
   );
   kpiHandling = computed(
     () =>
@@ -323,6 +393,15 @@ export class QualityInspectionComponent {
       this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
   }));
 
+  recheckMutation = injectMutation(() => ({
+    mutationFn: (payload: CreateQualityInspectionDto) =>
+      lastValueFrom(this.qcService.recheck(payload)),
+    onSuccess: (res: any, vars: CreateQualityInspectionDto) =>
+      this.afterRecheck(res, vars.passedInspection),
+    onError: (err: any) =>
+      this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
+  }));
+
   deleteMutation = injectMutation(() => ({
     mutationFn: (id: number) => lastValueFrom(this.qcService.delete(id)),
     onSuccess: (res: any) => {
@@ -361,11 +440,22 @@ export class QualityInspectionComponent {
   }
 
   openCreate(): void {
+    this.recheckMode.set(false);
     this.editItem.set(null);
     this.form.set(this.blankForm());
     this.showModal.set(true);
   }
+
+  /** Mở modal KIỂM TRA LẠI cho lô đang cách ly (nguồn lô = danh sách QUARANTINE). */
+  openRecheck(): void {
+    this.recheckMode.set(true);
+    this.editItem.set(null);
+    this.form.set(this.blankForm());
+    this.showModal.set(true);
+  }
+
   openEditSelected(): void {
+    this.recheckMode.set(false);
     const row = this.selectedRow();
     if (!row) return;
     this.editItem.set(row);
@@ -381,6 +471,7 @@ export class QualityInspectionComponent {
   closeModal(): void {
     this.showModal.set(false);
     this.editItem.set(null);
+    this.recheckMode.set(false);
   }
   setField(field: keyof QcForm, value: any): void {
     this.form.update((x) => ({ ...x, [field]: value }));
@@ -398,17 +489,23 @@ export class QualityInspectionComponent {
       return;
     }
 
+    // Luồng KIỂM TRA LẠI lô cách ly — xử lý toàn bộ lô, không tách một phần.
+    if (this.recheckMode()) {
+      this.saveRecheck(passed, f);
+      return;
+    }
+
     // Kg ảnh hưởng chỉ áp dụng khi CÁCH LY (không đạt) và có nhập giá trị.
     const affected = !passed ? this.num(f.affectedWeightKg) : null;
     if (affected != null) {
-      const remaining = this.formLot()?.remainingWeightKg ?? null;
+      const basis = this.formLotWeight();
       if (affected <= 0) {
         this.showAlert('Kg ảnh hưởng phải lớn hơn 0.', false);
         return;
       }
-      if (remaining != null && affected >= remaining) {
+      if (basis != null && affected >= basis) {
         this.showAlert(
-          `Kg ảnh hưởng (${affected} kg) phải nhỏ hơn tồn còn lại của lô (${remaining} kg). Để trống nếu cách ly toàn bộ lô.`,
+          `Kg ảnh hưởng (${affected} kg) phải nhỏ hơn trọng lượng của lô (${basis} kg). Để trống nếu cách ly toàn bộ lô.`,
           false
         );
         return;
@@ -456,6 +553,64 @@ export class QualityInspectionComponent {
     });
   }
 
+  /** Gửi phiếu KIỂM TRA LẠI cho lô đang cách ly (toàn bộ lô). */
+  private saveRecheck(passed: boolean, f: QcForm): void {
+    Swal.fire({
+      title: passed ? 'Kiểm tra lại đạt — xếp lại?' : 'Vẫn giữ cách ly?',
+      text: passed
+        ? 'Toàn bộ hàng sẽ được rút khỏi ô cách ly và tạo phiếu nhập kho để xếp lại vào ô thường.'
+        : 'Lô vẫn ở trạng thái CÁCH LY, chỉ ghi nhận kết quả kiểm tra lại.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: passed ? '#15803d' : '#d97706',
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      const payload: CreateQualityInspectionDto = {
+        paddyLotId: Number(f.paddyLotId),
+        inspectorId: f.inspectorId != null ? Number(f.inspectorId) : null,
+        inspectedAt: new Date(f.inspectedAt).toISOString(),
+        moisturePercent: this.num(f.moisturePercent),
+        impurityPercent: this.num(f.impurityPercent),
+        moldLevel: f.moldLevel || null,
+        pestLevel: f.pestLevel || null,
+        packagingStatus: f.packagingStatus || null,
+        passedInspection: passed,
+        handling: f.handling || null,
+        note: f.note?.trim() || null,
+        affectedWeightKg: null,
+      };
+      this.recheckMutation.mutate(payload);
+    });
+  }
+
+  private afterRecheck(res: any, passed: boolean): void {
+    if (!res?.isSucceeded) {
+      this.showAlert(res?.message || 'Thao tác thất bại', false);
+      return;
+    }
+    this.closeModal();
+    this.queryClient.invalidateQueries({ queryKey: ['quality-inspections'] });
+    this.queryClient.invalidateQueries({ queryKey: ['qc-history'] });
+    this.queryClient.invalidateQueries({ queryKey: ['qc-quarantined-lots'] });
+    if (!passed) {
+      this.showAlert('Đã ghi nhận kết quả kiểm tra lại. Lô vẫn ở trạng thái cách ly.');
+      return;
+    }
+    Swal.fire({
+      title: 'Kiểm tra lại đạt',
+      text: 'Đã rút hàng khỏi ô cách ly và tạo phiếu nhập kho — sang màn Nhập kho để xếp lại vị trí.',
+      icon: 'success',
+      confirmButtonText: 'Sang Nhập kho',
+      confirmButtonColor: '#15803d',
+      showCancelButton: true,
+      cancelButtonText: 'Ở lại',
+    }).then((result) => {
+      if (result.isConfirmed) this.router.navigate(['/admin/inbound-orders']);
+    });
+  }
+
   deleteSelected(): void {
     const row = this.selectedRow();
     if (!row) return;
@@ -485,7 +640,7 @@ export class QualityInspectionComponent {
     return lot.warehouseName || `Kho #${lot.warehouseId}`;
   }
   lotWeightKg(row: QualityInspectionRow): number | null {
-    return this.lotInfo(row.paddyLotId)?.remainingWeightKg ?? null;
+    return this.lotBasisWeight(this.lotInfo(row.paddyLotId));
   }
   fmtKg(kg?: number | null): string {
     if (kg == null) return '—';
@@ -509,8 +664,14 @@ export class QualityInspectionComponent {
     return parts.join(' · ');
   }
 
+  /** Phiếu kiểm định nháp (chờ nhập kết quả) — lô đang ở trạng thái AWAITING_QC. */
+  isDraft(row: QualityInspectionRow | null | undefined): boolean {
+    return (row?.lotStatusCode ?? '').toUpperCase() === 'AWAITING_QC';
+  }
+
   /** Mức độ: {label, cls} — Cao/Trung bình/Thấp. */
   severity(row: QualityInspectionRow): { label: string; cls: string } {
+    if (this.isDraft(row)) return { label: 'Chờ kiểm định', cls: 'lvl-mid' };
     if (!row.passedInspection) return { label: 'Cao', cls: 'lvl-high' };
     const risky =
       (row.moldLevel && row.moldLevel !== 'Không') ||
@@ -522,6 +683,7 @@ export class QualityInspectionComponent {
       : { label: 'Thấp', cls: 'lvl-low' };
   }
   statusText(row: QualityInspectionRow): string {
+    if (this.isDraft(row)) return 'Chờ kiểm định';
     return row.passedInspection ? 'Đạt' : 'Cách ly';
   }
 
@@ -547,7 +709,21 @@ export class QualityInspectionComponent {
       this.closeModal();
       this.queryClient.invalidateQueries({ queryKey: ['quality-inspections'] });
       this.queryClient.invalidateQueries({ queryKey: ['qc-history'] });
-      this.showAlert(okMsg);
+      // Lô vừa kiểm định rời khỏi danh sách "chờ kiểm định" và đã sinh phiếu nhập kho.
+      this.queryClient.invalidateQueries({ queryKey: ['qc-awaiting-qc-lots'] });
+      Swal.fire({
+        title: 'Thành công',
+        text: `${okMsg} Đã tạo phiếu nhập kho — chuyển sang màn Nhập kho để xếp vị trí.`,
+        icon: 'success',
+        confirmButtonText: 'Sang Nhập kho',
+        confirmButtonColor: '#15803d',
+        showCancelButton: true,
+        cancelButtonText: 'Ở lại',
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.router.navigate(['/admin/inbound-orders']);
+        }
+      });
     } else {
       this.showAlert(res.message || 'Thao tác thất bại', false);
     }

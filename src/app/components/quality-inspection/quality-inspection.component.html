@@ -14,12 +14,20 @@
         được chuyển sang cảnh báo, chờ kiểm tra hoặc cách ly.
       </p>
     </div>
-    <button class="btn btn-primary qc-create-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openCreate()">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-      </svg>
-      Tạo phiếu kiểm tra
-    </button>
+    <div class="qc-banner-actions">
+      <button class="btn btn-outline qc-recheck-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openRecheck()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" />
+        </svg>
+        Kiểm tra lại (cách ly)
+      </button>
+      <button class="btn btn-primary qc-create-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openCreate()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+        Tạo phiếu kiểm tra
+      </button>
+    </div>
   </div>
 
   <!-- ===== KPI ===== -->
@@ -37,8 +45,8 @@
       <span class="qc-kpi-value green">{{ kpiPassed() }}</span>
     </div>
     <div class="qc-kpi">
-      <span class="qc-kpi-label">Đang xử lý (phơi/sấy/đảo)</span>
-      <span class="qc-kpi-value amber">{{ kpiHandling() }}</span>
+      <span class="qc-kpi-label">Chờ kiểm định</span>
+      <span class="qc-kpi-value amber">{{ kpiDraft() }}</span>
     </div>
   </div>
 
@@ -153,7 +161,7 @@
           <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
             [disabled]="wasSplit(sel)"
             [title]="wasSplit(sel) ? 'Phiếu đã tách lô cách ly — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
-          <button class="btn btn-primary" type="button" (click)="openEditSelected()">{{ perm.canUpdate('QUALITY_INSPECTIONS') ? 'Sửa phiếu' : 'Xem phiếu' }}</button>
+          <button class="btn btn-primary" type="button" (click)="openEditSelected()">{{ isDraft(sel) ? 'Kiểm định ngay' : (perm.canUpdate('QUALITY_INSPECTIONS') ? 'Sửa phiếu' : 'Xem phiếu') }}</button>
         </div>
         } @else {
         <div class="state-box"><span style="font-size:2rem">☰</span><p>Chọn một dòng để xem chi tiết xử lý</p></div>
@@ -192,8 +200,8 @@
   <div class="modal-box wide qc-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <div class="qc-modal-title">
-        <h3>{{ viewOnly() ? 'Chi tiết phiếu kiểm tra chất lượng' : isEdit() ? 'Cập nhật phiếu kiểm tra chất lượng' : 'Tạo phiếu kiểm tra chất lượng' }}</h3>
-        <span class="qc-modal-badge">Lô + Chỉ số + Quyết định</span>
+        <h3>{{ recheckMode() ? 'Kiểm tra lại chất lượng (lô cách ly)' : viewOnly() ? 'Chi tiết phiếu kiểm tra chất lượng' : isEdit() ? 'Cập nhật phiếu kiểm tra chất lượng' : 'Tạo phiếu kiểm tra chất lượng' }}</h3>
+        <span class="qc-modal-badge">{{ recheckMode() ? 'Tái kiểm · Rút khỏi ô cách ly' : 'Lô + Chỉ số + Quyết định' }}</span>
       </div>
       <button class="modal-close" type="button" (click)="closeModal()">×</button>
     </div>
@@ -204,9 +212,12 @@
     <div class="modal-body" [appReadonlyIf]="viewOnly()">
       <!-- 1 -->
       <div class="qc-section">
-        <div class="qc-section-title">1. Lô được kiểm tra &amp; phạm vi ảnh hưởng</div>
+        <div class="qc-section-title">1. Lô được kiểm tra{{ recheckMode() ? '' : ' & phạm vi ảnh hưởng' }}</div>
         @if (editLockedSplit()) {
         <div class="qc-lock-note">Phiếu này đã tách lô cách ly — không thể đổi Lô, Kết quả hay Kg ảnh hưởng, và không thể xóa.</div>
+        }
+        @if (recheckMode()) {
+        <div class="qc-lock-note">Kiểm tra lại áp dụng cho TOÀN BỘ lô cách ly. Nếu đạt, hệ thống rút hết tồn khỏi ô cách ly và tạo phiếu nhập kho để xếp lại vào ô thường.</div>
         }
         <div class="form-row-2">
           <div class="form-group">
@@ -227,19 +238,21 @@
           </div>
           <div class="form-group">
             <label class="form-label">Tổng tồn của lô</label>
-            <div class="qc-readonly">{{ formLot() ? fmtKg(formLot()?.remainingWeightKg) : '—' }}</div>
+            <div class="qc-readonly">{{ formLot() ? fmtKg(formLotWeight()) : '—' }}</div>
           </div>
         </div>
+        @if (!recheckMode()) {
         <div class="form-row-2">
           <div class="form-group">
             <label class="form-label">Kg ảnh hưởng (tách sang cách ly)</label>
             <input class="form-control" type="number" step="0.1" min="0" [disabled]="editLockedSplit()"
               [ngModel]="form().affectedWeightKg" (ngModelChange)="setField('affectedWeightKg', $event)"
               placeholder="VD: 500 — để trống nếu cách ly toàn bộ" />
-            <div class="qc-hint">Chỉ áp dụng khi bấm “Lưu &amp; cách ly”. Phải nhỏ hơn tồn còn lại{{ formLot() ? ' (' + fmtKg(formLot()?.remainingWeightKg) + ')' : '' }}.</div>
+            <div class="qc-hint">Chỉ áp dụng khi bấm “Lưu &amp; cách ly”. Phải nhỏ hơn trọng lượng lô{{ formLot() ? ' (' + fmtKg(formLotWeight()) + ')' : '' }}.</div>
           </div>
           <div class="form-group"></div>
         </div>
+        }
       </div>
 
       <!-- 2 -->
@@ -303,11 +316,11 @@
     <div class="modal-footer qc-modal-footer">
       <button class="btn btn-outline" type="button" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Hủy' }}</button>
       <button class="btn btn-amber" type="button" [hidden]="viewOnly()" (click)="save(false)" [disabled]="saving()">
-        @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; cách ly lô
+        @if (saving()) { <span class="spin-sm"></span> } {{ recheckMode() ? 'Vẫn cách ly' : 'Lưu & cách ly lô' }}
       </button>
       @if (!editLockedSplit()) {
       <button class="btn btn-primary" type="button" [hidden]="viewOnly()" (click)="save(true)" [disabled]="saving()">
-        @if (saving()) { <span class="spin-sm"></span> } Lưu &amp; duyệt đạt
+        @if (saving()) { <span class="spin-sm"></span> } {{ recheckMode() ? 'Đạt & xếp lại' : 'Lưu & duyệt đạt' }}
       </button>
       }
     </div>
