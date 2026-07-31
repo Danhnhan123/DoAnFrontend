@@ -1,17 +1,21 @@
 <section class="lot-page">
   <header class="hero">
     <div>
+      <span class="eyebrow">
+        <span class="leaf-mark" aria-hidden="true">⌁</span>
+        SCR-LOT-01 · Quản lý lô &amp; truy vết
+      </span>
       <h1>Lô lúa/gạo là đơn vị truy vết chính</h1>
       <p>
-        Theo dõi nguồn mua, phiếu nguồn, ngày nhập, giống/SKU, vị trí,
-        chất lượng, lượng còn lại và giá vốn của từng lô.
+        Mỗi lô lưu nguồn mua, phiếu mua, ngày nhập, giống, số bao, kg, vị trí
+        khu/cột/lớp, chất lượng và giá vốn để truy ngược từ gạo bán ra về nông
+        dân.
       </p>
     </div>
 
-    <button class="primary-btn" type="button" (click)="refresh()">
-      <span aria-hidden="true">↻</span>
-      Làm mới dữ liệu
-    </button>
+    <a class="primary-btn" routerLink="/admin/rice-purchase">
+      Tạo/cập nhật lô từ phiếu mua
+    </a>
   </header>
 
   <div class="kpi-grid" aria-label="Tổng hợp lô">
@@ -121,7 +125,10 @@
               <tr>
                 <td class="state-cell" colspan="7">
                   <strong>Chưa có lô phù hợp</strong>
-                  <span>Hãy đổi bộ lọc hoặc chốt và nhập kho một phiếu mua lúa.</span>
+                  <span
+                    >Hãy đổi bộ lọc hoặc chốt và nhập kho một phiếu mua
+                    lúa.</span
+                  >
                 </td>
               </tr>
             } @else {
@@ -142,12 +149,19 @@
                       {{ typeLabel(row.lotType) }}
                     </span>
                     <strong class="product-name">
-                      {{ row.riceVarietyName || row.productVariantName || row.sku || '—' }}
+                      {{
+                        row.riceVarietyName ||
+                          row.productVariantName ||
+                          row.sku ||
+                          "—"
+                      }}
                     </strong>
                   </td>
                   <td>
                     <span>{{ sourceLabel(row) }}</span>
-                    <small>{{ row.warehouseName || 'Kho #' + row.warehouseId }}</small>
+                    <small>{{
+                      row.warehouseName || "Kho #" + row.warehouseId
+                    }}</small>
                   </td>
                   <td>
                     <strong>{{ fmtWeight(row.remainingWeightKg) }}</strong>
@@ -185,7 +199,8 @@
 
       <footer class="pagination">
         <span>
-          Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản ghi
+          Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản
+          ghi
         </span>
         <div>
           <button
@@ -211,13 +226,12 @@
       <article class="panel detail-panel">
         <div class="panel-heading">
           <div>
-            <h2>Chi tiết lô</h2>
-            <p>Thông tin nguồn và tồn hiện tại</p>
+            <h2>SCR-LOT-02 · Chi tiết lô</h2>
           </div>
           <span class="view-icon" aria-hidden="true">◉</span>
         </div>
 
-        @if (loadingDetail()) {
+        @if (loadingDetail() || loadingTrace()) {
           <div class="detail-loading">
             @for (item of [1, 2, 3, 4, 5]; track item) {
               <span></span>
@@ -225,61 +239,66 @@
           </div>
         } @else {
           @if (selectedLot(); as lot) {
-          <div class="detail-code-row">
-            <div>
-              <small>Mã lô</small>
-              <strong>{{ lot.lotCode }}</strong>
+            <div class="detail-code-row">
+              <div>
+                <small>Mã lô</small>
+                <strong>{{ lot.lotCode }}</strong>
+              </div>
+              <span
+                class="status-badge"
+                [style.--status-color]="statusColor(lot)"
+              >
+                {{ statusLabel(lot) }}
+              </span>
             </div>
-            <span class="type-badge" [ngClass]="typeClass(lot.lotType)">
-              {{ typeLabel(lot.lotType) }}
-            </span>
-          </div>
 
-          <dl class="detail-list">
-            <div>
-              <dt>Nguồn lô</dt>
-              <dd>{{ sourceLabel(lot) }}</dd>
-            </div>
-            <div>
-              <dt>Giống / SKU</dt>
-              <dd>
-                {{ lot.riceVarietyName || lot.productVariantName || lot.sku || '—' }}
-              </dd>
-            </div>
-            <div>
-              <dt>Kho</dt>
-              <dd>{{ lot.warehouseName || 'Kho #' + lot.warehouseId }}</dd>
-            </div>
-            <div>
-              <dt>Vị trí</dt>
-              <dd>{{ locationLabel(lot.locationId) }}</dd>
-            </div>
-            <div>
-              <dt>Khối lượng còn lại</dt>
-              <dd>{{ fmtWeight(lot.remainingWeightKg) }}</dd>
-            </div>
-            <div>
-              <dt>Chất lượng</dt>
-              <dd [ngClass]="qualityClass(lot.qualityStatus)">
-                {{ qualityLabel(lot.qualityStatus) }}
-              </dd>
-            </div>
-            <div>
-              <dt>Trạng thái</dt>
-              <dd>
-                <span
-                  class="status-badge"
-                  [style.--status-color]="statusColor(lot)"
-                >
-                  {{ statusLabel(lot) }}
-                </span>
-              </dd>
-            </div>
-            <div>
-              <dt>Giá vốn</dt>
-              <dd>{{ fmtMoney(lot.costPricePerKg) }}/kg</dd>
-            </div>
-          </dl>
+            @if (traceErrorMessage()) {
+              <div class="inline-error">
+                <strong>Chưa tải được dữ liệu truy vết</strong>
+                <span>{{ traceErrorMessage() }}</span>
+                <button type="button" (click)="refresh()">Thử lại</button>
+              </div>
+            } @else {
+              <dl class="detail-list figma-detail-list">
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">♙</span>Nguồn
+                    mua
+                  </dt>
+                  <dd>{{ detailSourceLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">▣</span>Phiếu
+                    tham chiếu
+                  </dt>
+                  <dd>{{ detailReferenceLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">⌾</span>Vị
+                    trí/cột
+                  </dt>
+                  <dd>{{ detailLocationLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">◇</span>Số
+                    lượng
+                  </dt>
+                  <dd>{{ detailQuantityLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">▤</span>Chất
+                    lượng
+                  </dt>
+                  <dd [ngClass]="qualityClass(lot.qualityStatus)">
+                    {{ detailQualityLabel(lot) }}
+                  </dd>
+                </div>
+              </dl>
+            }
           } @else {
             <div class="empty-detail">
               <span aria-hidden="true">◎</span>
@@ -293,52 +312,66 @@
       <article class="panel trace-panel">
         <div class="panel-heading">
           <div>
-            <h2>Dấu mốc truy vết</h2>
+            <h2>SCR-LOT-03 · Lịch sử luân chuyển</h2>
           </div>
         </div>
 
         @if (selectedLot(); as lot) {
-          <ol class="timeline">
-            <li>
-              <span class="timeline-icon source">↳</span>
-              <div>
-                <strong>{{ sourceLabel(lot) }}</strong>
-                <p>
-                  {{ lot.sourceReceiptId ? 'Lô sinh khi chốt phiếu mua' :
-                     lot.sourceMillingOrderId ? 'Lô đầu ra từ lệnh xay' :
-                     'Lô được tạo trực tiếp' }}
-                </p>
-              </div>
-            </li>
-            <li>
-              <span class="timeline-icon created">＋</span>
-              <div>
-                <strong>Tạo lô {{ lot.lotCode }}</strong>
-                <p>{{ fmtDate(lot.createdDate, true) }}</p>
-              </div>
-            </li>
-            <li>
-              <span class="timeline-icon stored">⌂</span>
-              <div>
-                <strong>{{ statusLabel(lot) }}</strong>
-                <p>{{ locationLabel(lot.locationId) }}</p>
-              </div>
-            </li>
-            @if (lot.lastModifiedDate) {
-              <li>
-                <span class="timeline-icon updated">↻</span>
-                <div>
-                  <strong>Cập nhật gần nhất</strong>
-                  <p>{{ fmtDate(lot.lastModifiedDate, true) }}</p>
-                </div>
-              </li>
-            }
-          </ol>
+          @if (loadingTrace()) {
+            <div class="detail-loading trace-loading">
+              @for (item of [1, 2, 3, 4]; track item) {
+                <span></span>
+              }
+            </div>
+          } @else if (traceErrorMessage()) {
+            <div class="empty-detail compact trace-error">
+              <strong>Không tải được lịch sử luân chuyển</strong>
+              <p>{{ traceErrorMessage() }}</p>
+              <button type="button" (click)="refresh()">Thử lại</button>
+            </div>
+          } @else if (traceEvents().length) {
+            <ol class="timeline">
+              @for (
+                event of traceEvents();
+                track event.referenceType +
+                  "-" +
+                  event.referenceId +
+                  "-" +
+                  event.eventAt
+              ) {
+                <li>
+                  <span
+                    class="timeline-icon"
+                    [ngClass]="traceEventClass(event.eventType)"
+                    aria-hidden="true"
+                    >{{ traceEventGlyph(event.eventType) }}</span
+                  >
+                  <div>
+                    <strong>{{ event.title }}</strong>
+                    <p class="event-description">{{ event.description }}</p>
+                    <p class="event-meta">
+                      {{ fmtDate(event.eventAt, true) }}
+                      @if (event.referenceCode) {
+                        <span>· {{ event.referenceCode }}</span>
+                      }
+                    </p>
+                  </div>
+                </li>
+              }
+            </ol>
 
-          <p class="trace-note">
-            Lịch sử nhập, xay, giữ và xuất theo đúng từng lô cần backend bổ sung
-            API truy vấn giao dịch theo <code>paddyLotId</code>.
-          </p>
+            @if (traceability()?.isTruncated) {
+              <p class="trace-warning">
+                Chuỗi liên kết vượt giới hạn truy vấn; lịch sử đang hiển thị một
+                phần.
+              </p>
+            }
+          } @else {
+            <div class="empty-detail compact">
+              <strong>Chưa có giao dịch</strong>
+              <p>Lô {{ lot.lotCode }} chưa phát sinh dấu mốc truy vết.</p>
+            </div>
+          }
         } @else {
           <div class="empty-detail compact">
             <p>Chọn một lô để xem dấu mốc.</p>

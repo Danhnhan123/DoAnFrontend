@@ -22,7 +22,11 @@
   padding: 22px;
   color: var(--text);
   background:
-    radial-gradient(circle at 90% 0%, rgba(204, 242, 216, 0.75), transparent 32%),
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(204, 242, 216, 0.75),
+      transparent 32%
+    ),
     var(--page);
 }
 
@@ -81,6 +85,11 @@ button,
 input,
 select {
   font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 button {
@@ -454,7 +463,7 @@ td small {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 15px;
+  margin: 12px 15px 10px;
   padding: 13px;
   border: 1px solid #e2e9e5;
   border-radius: 11px;
@@ -478,6 +487,35 @@ td small {
   gap: 8px;
   padding: 0 15px 16px;
   margin: 0;
+}
+
+.figma-detail-list > div {
+  display: block;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #f7f9f8;
+}
+
+.figma-detail-list dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.figma-detail-list dd {
+  padding-left: 24px;
+  text-align: left;
+}
+
+.detail-icon {
+  display: inline-grid;
+  width: 17px;
+  color: var(--green-600);
+  place-items: center;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 .detail-list > div {
@@ -519,6 +557,29 @@ td small {
   width: 82%;
 }
 
+.inline-error {
+  display: grid;
+  gap: 7px;
+  margin: 0 15px 16px;
+  padding: 12px;
+  border: 1px solid #f1caca;
+  border-radius: 10px;
+  color: #9f3030;
+  background: #fff6f6;
+  font-size: 12px;
+}
+
+.inline-error button,
+.trace-error button {
+  width: fit-content;
+  padding: 6px 11px;
+  border: 1px solid #dbaaaa;
+  border-radius: 8px;
+  color: #9f3030;
+  background: #fff;
+  font-weight: 700;
+}
+
 .empty-detail {
   display: grid;
   min-height: 260px;
@@ -551,8 +612,10 @@ td small {
 .timeline {
   display: grid;
   gap: 0;
-  padding: 15px 17px 4px;
+  max-height: 470px;
+  padding: 8px 17px 4px;
   margin: 0;
+  overflow: auto;
   list-style: none;
 }
 
@@ -561,17 +624,23 @@ td small {
   display: grid;
   grid-template-columns: 30px 1fr;
   gap: 10px;
-  min-height: 65px;
+  min-height: 82px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf1ee;
+}
+
+.timeline li:last-child {
+  border-bottom: 0;
 }
 
 .timeline li:not(:last-child)::after {
   position: absolute;
   top: 29px;
-  bottom: 0;
+  bottom: -1px;
   left: 14px;
   width: 1px;
   background: #dce7e0;
-  content: '';
+  content: "";
 }
 
 .timeline-icon {
@@ -581,21 +650,25 @@ td small {
   height: 29px;
   place-items: center;
   border-radius: 50%;
-  color: #fff;
-  background: var(--green-600);
+  color: var(--green-600);
+  background: #ddf8e7;
   font-size: 13px;
+  font-weight: 800;
 }
 
-.timeline-icon.source {
-  background: #3d88df;
+.timeline-icon.quality {
+  color: #2476c8;
+  background: #e2f0ff;
 }
 
-.timeline-icon.stored {
-  background: #e49a2c;
+.timeline-icon.milling {
+  color: #8358c8;
+  background: #f0e9ff;
 }
 
-.timeline-icon.updated {
-  background: #805ac7;
+.timeline-icon.outbound {
+  color: #b16b12;
+  background: #fff1d8;
 }
 
 .timeline strong {
@@ -610,8 +683,22 @@ td small {
   line-height: 1.4;
 }
 
-.trace-note {
-  margin: 2px 16px 16px;
+.timeline .event-description {
+  padding-right: 4px;
+  color: #65766d;
+}
+
+.timeline .event-meta {
+  margin-top: 3px;
+  color: #9aa6a0;
+}
+
+.trace-loading span {
+  height: 52px;
+}
+
+.trace-warning {
+  margin: 4px 16px 16px;
   padding: 10px 11px;
   border: 1px solid #f0dfaa;
   border-radius: 9px;
@@ -619,10 +706,6 @@ td small {
   background: #fff9e8;
   font-size: 11px;
   line-height: 1.45;
-}
-
-.trace-note code {
-  font-weight: 750;
 }
 
 .sr-only {
