@@ -319,11 +319,100 @@ const adminChildren: Routes = [
       import('./components/outbound-order/outbound-order.component')
         .then(m => m.OutboundOrderComponent),
   },
-  {
+   {
     path: 'party-debts',
     loadComponent: () =>
       import('./components/party-debt/party-debt.component')
         .then(m => m.PartyDebtComponent),
+  },
+  // ── Các màn quản lý bảng trạng thái (lookup) ──
+  {
+    path: 'inbound-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'INBOUND_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/inbound-order-status/inbound-order-status.component')
+        .then(m => m.InboundOrderStatusComponent),
+  },
+  {
+    path: 'outbound-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'OUTBOUND_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/outbound-order-status/outbound-order-status.component')
+        .then(m => m.OutboundOrderStatusComponent),
+  },
+  {
+    path: 'stock-take-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'STOCK_TAKE_STATUS' },
+    loadComponent: () =>
+      import('./components/stock-take-status/stock-take-status.component')
+        .then(m => m.StockTakeStatusComponent),
+  },
+  {
+    path: 'customer-return-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'CUSTOMER_RETURN_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/customer-return-order-status/customer-return-order-status.component')
+        .then(m => m.CustomerReturnOrderStatusComponent),
+  },
+  {
+    path: 'return-to-supplier-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'RETURN_TO_SUPPLIER_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/return-to-supplier-order-status/return-to-supplier-order-status.component')
+        .then(m => m.ReturnToSupplierOrderStatusComponent),
+  },
+  {
+    path: 'paddy-purchase-schedule-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PADDY_PURCHASE_SCHEDULE_STATUS' },
+    loadComponent: () =>
+      import('./components/paddy-purchase-schedule-status/paddy-purchase-schedule-status.component')
+        .then(m => m.PaddyPurchaseScheduleStatusComponent),
+  },
+  {
+    path: 'lot-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'LOT_STATUS' },
+    loadComponent: () =>
+      import('./components/lot-status/lot-status.component')
+        .then(m => m.LotStatusComponent),
+  },
+  {
+    path: 'milling-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'MILLING_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/milling-order-status/milling-order-status.component')
+        .then(m => m.MillingOrderStatusComponent),
+  },
+  {
+    path: 'stock-transfer-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'STOCK_TRANSFER_STATUS' },
+    loadComponent: () =>
+      import('./components/stock-transfer-status/stock-transfer-status.component')
+        .then(m => m.StockTransferStatusComponent),
+  },
+  {
+    path: 'sales-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'SALES_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/sales-order-status/sales-order-status.component')
+        .then(m => m.SalesOrderStatusComponent),
+  },
+  {
+    path: 'purchase-order-status',
+    canMatch: [menuReadGuard],
+    data: { menuCode: 'PURCHASE_ORDER_STATUS' },
+    loadComponent: () =>
+      import('./components/purchase-order-status/purchase-order-status.component')
+        .then(m => m.PurchaseOrderStatusComponent),
   },
   // 404 cho các đường dẫn con /admin/* không tồn tại hoặc không đủ quyền READ (giữ layout admin).
   // data.notFound = true -> layout ẩn tiêu đề/phụ đề màn, chỉ hiện nội dung 404.

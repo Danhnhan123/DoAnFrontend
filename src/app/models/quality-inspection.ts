@@ -8,6 +8,8 @@ export interface QualityInspectionRow {
   id: number;
   paddyLotId: number;
   lotCode?: string | null;
+  /** Code trạng thái lô. 'AWAITING_QC' = phiếu kiểm định nháp (chờ nhập kết quả). */
+  lotStatusCode?: string | null;
   inspectorId?: number | null;
   inspectorName?: string | null;
   inspectedAt: string;
