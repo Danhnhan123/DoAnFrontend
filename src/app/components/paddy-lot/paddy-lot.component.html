@@ -202,22 +202,56 @@
           Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản
           ghi
         </span>
-        <div>
+        <div class="pagination-controls">
           <button
             type="button"
+            aria-label="Trang trước"
             [disabled]="page() <= 1 || loading()"
             (click)="setPage(page() - 1)"
           >
             ‹
           </button>
-          <strong>{{ page() }}</strong>
+          <div class="pagination-pages">
+            @for (pageNumber of visiblePages(); track pageNumber) {
+              <button
+                type="button"
+                [class.active]="pageNumber === page()"
+                [attr.aria-current]="pageNumber === page() ? 'page' : undefined"
+                [disabled]="loading()"
+                (click)="setPage(pageNumber)"
+              >
+                {{ pageNumber }}
+              </button>
+            }
+          </div>
           <button
             type="button"
+            aria-label="Trang tiếp theo"
             [disabled]="page() >= totalPages() || loading()"
             (click)="setPage(page() + 1)"
           >
             ›
           </button>
+          <div class="page-jump">
+            <label for="paddy-lot-page-input">Đến trang</label>
+            <input
+              id="paddy-lot-page-input"
+              type="number"
+              min="1"
+              [max]="totalPages()"
+              [ngModel]="pageInput()"
+              (ngModelChange)="pageInput.set($event)"
+              (keydown.enter)="goToPageInput()"
+              placeholder="#"
+            />
+            <button
+              type="button"
+              [disabled]="!pageInput() || loading()"
+              (click)="goToPageInput()"
+            >
+              Đi
+            </button>
+          </div>
         </div>
       </footer>
     </article>
@@ -332,7 +366,7 @@
           } @else if (traceEvents().length) {
             <ol class="timeline">
               @for (
-                event of traceEvents();
+                event of pagedTraceEvents();
                 track event.referenceType +
                   "-" +
                   event.referenceId +
@@ -359,6 +393,39 @@
                 </li>
               }
             </ol>
+
+            @if (traceEvents().length > tracePageSize) {
+              <nav
+                class="trace-pagination"
+                aria-label="Phân trang lịch sử luân chuyển"
+              >
+                <span>
+                  {{ traceRangeStart() }}–{{ traceRangeEnd() }} /
+                  {{ traceEvents().length }} sự kiện
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    aria-label="Trang lịch sử trước"
+                    [disabled]="traceCurrentPage() <= 1"
+                    (click)="setTracePage(traceCurrentPage() - 1)"
+                  >
+                    ‹
+                  </button>
+                  <strong
+                    >{{ traceCurrentPage() }} / {{ traceTotalPages() }}</strong
+                  >
+                  <button
+                    type="button"
+                    aria-label="Trang lịch sử tiếp theo"
+                    [disabled]="traceCurrentPage() >= traceTotalPages()"
+                    (click)="setTracePage(traceCurrentPage() + 1)"
+                  >
+                    ›
+                  </button>
+                </div>
+              </nav>
+            }
 
             @if (traceability()?.isTruncated) {
               <p class="trace-warning">

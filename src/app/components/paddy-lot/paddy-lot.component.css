@@ -421,32 +421,75 @@ td small {
   font-size: 12px;
 }
 
-.pagination > div {
+.pagination-controls,
+.pagination-pages,
+.page-jump {
   display: flex;
   align-items: center;
   gap: 7px;
 }
 
-.pagination button,
-.pagination strong {
+.pagination-controls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.pagination button {
   display: grid;
   width: 31px;
   height: 31px;
   place-items: center;
   border: 1px solid #d4dfd8;
   border-radius: 8px;
+  color: var(--text);
   background: #fff;
 }
 
-.pagination strong {
+.pagination button.active {
   color: #fff;
   border-color: var(--green-600);
   background: var(--green-600);
+  font-weight: 750;
 }
 
 .pagination button:disabled {
   cursor: not-allowed;
   opacity: 0.4;
+}
+
+.page-jump {
+  margin-left: 5px;
+}
+
+.page-jump label {
+  white-space: nowrap;
+}
+
+.page-jump input {
+  width: 58px;
+  height: 31px;
+  padding: 0 7px;
+  border: 1px solid #d4dfd8;
+  border-radius: 8px;
+  outline: none;
+  color: var(--text);
+  background: #fff;
+  text-align: center;
+}
+
+.page-jump input:focus {
+  border-color: #65c98a;
+  box-shadow: 0 0 0 3px rgba(22, 160, 82, 0.1);
+}
+
+.page-jump button {
+  width: auto;
+  min-width: 38px;
+  padding: 0 9px;
+  color: #fff;
+  border-color: var(--green-600);
+  background: var(--green-600);
+  font-weight: 700;
 }
 
 .detail-column {
@@ -612,10 +655,8 @@ td small {
 .timeline {
   display: grid;
   gap: 0;
-  max-height: 470px;
   padding: 8px 17px 4px;
   margin: 0;
-  overflow: auto;
   list-style: none;
 }
 
@@ -691,6 +732,49 @@ td small {
 .timeline .event-meta {
   margin-top: 3px;
   color: #9aa6a0;
+}
+
+.trace-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 8px 16px 12px;
+  border-top: 1px solid #e8eeea;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.trace-pagination > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trace-pagination button,
+.trace-pagination strong {
+  display: grid;
+  min-width: 31px;
+  height: 31px;
+  padding: 0 8px;
+  place-items: center;
+  border: 1px solid #d4dfd8;
+  border-radius: 8px;
+  color: var(--text);
+  background: #fff;
+}
+
+.trace-pagination strong {
+  color: #fff;
+  border-color: var(--green-600);
+  background: var(--green-600);
+  font-weight: 750;
+}
+
+.trace-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .trace-loading span {
@@ -776,9 +860,19 @@ td small {
     grid-column: auto;
   }
 
-  .pagination {
+  .pagination,
+  .trace-pagination {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .pagination-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .page-jump {
+    margin-left: 0;
   }
 }
 

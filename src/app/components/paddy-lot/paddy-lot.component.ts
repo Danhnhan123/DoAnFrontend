@@ -45,7 +45,10 @@ export class PaddyLotComponent implements OnDestroy {
   private readonly queryClient = inject(QueryClient);
 
   readonly pageSize = 10;
+  readonly tracePageSize = 5;
   readonly page = signal(1);
+  readonly pageInput = signal("");
+  readonly tracePage = signal(1);
   readonly searchInput = signal("");
   readonly search = signal("");
   readonly lotType = signal<string | null>(null);
@@ -160,6 +163,15 @@ export class PaddyLotComponent implements OnDestroy {
   readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.total() / this.pageSize)),
   );
+  readonly visiblePages = computed<number[]>(() => {
+    const total = this.totalPages();
+    const visibleCount = Math.min(5, total);
+    const start = Math.max(
+      1,
+      Math.min(this.page() - 2, total - visibleCount + 1),
+    );
+    return Array.from({ length: visibleCount }, (_, index) => start + index);
+  });
   readonly activeLotId = computed(
     () => this.selectedLotId() ?? this.rows()[0]?.id ?? null,
   );
@@ -246,8 +258,29 @@ export class PaddyLotComponent implements OnDestroy {
   readonly traceEvents = computed<TraceabilityEventDto[]>(() =>
     [...(this.traceability()?.timeline || [])].sort(
       (left, right) =>
-        new Date(right.eventAt).getTime() - new Date(left.eventAt).getTime() ||
-        right.sequence - left.sequence,
+        new Date(left.eventAt).getTime() - new Date(right.eventAt).getTime() ||
+        left.sequence - right.sequence,
+    ),
+  );
+  readonly traceTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.traceEvents().length / this.tracePageSize)),
+  );
+  readonly traceCurrentPage = computed(() =>
+    Math.min(this.tracePage(), this.traceTotalPages()),
+  );
+  readonly pagedTraceEvents = computed<TraceabilityEventDto[]>(() => {
+    const start = (this.traceCurrentPage() - 1) * this.tracePageSize;
+    return this.traceEvents().slice(start, start + this.tracePageSize);
+  });
+  readonly traceRangeStart = computed(() =>
+    this.traceEvents().length
+      ? (this.traceCurrentPage() - 1) * this.tracePageSize + 1
+      : 0,
+  );
+  readonly traceRangeEnd = computed(() =>
+    Math.min(
+      this.traceCurrentPage() * this.tracePageSize,
+      this.traceEvents().length,
     ),
   );
   readonly warehouses = computed(() => this.warehousesQuery.data() || []);
@@ -302,7 +335,9 @@ export class PaddyLotComponent implements OnDestroy {
     if (this.searchTimer) clearTimeout(this.searchTimer);
     this.searchTimer = setTimeout(() => {
       this.page.set(1);
+      this.pageInput.set("");
       this.selectedLotId.set(null);
+      this.tracePage.set(1);
       this.search.set(value.trim());
     }, 350);
   }
@@ -324,12 +359,38 @@ export class PaddyLotComponent implements OnDestroy {
 
   selectLot(id: number): void {
     this.selectedLotId.set(id);
+    this.tracePage.set(1);
   }
 
   setPage(page: number): void {
     if (page < 1 || page > this.totalPages() || page === this.page()) return;
     this.page.set(page);
+    this.pageInput.set("");
     this.selectedLotId.set(null);
+    this.tracePage.set(1);
+  }
+
+  goToPageInput(): void {
+    const requestedPage = Math.trunc(Number(this.pageInput()));
+    if (!Number.isFinite(requestedPage) || requestedPage <= 0) return;
+
+    const targetPage = Math.min(requestedPage, this.totalPages());
+    if (targetPage === this.page()) {
+      this.pageInput.set("");
+      return;
+    }
+    this.setPage(targetPage);
+  }
+
+  setTracePage(page: number): void {
+    if (
+      page < 1 ||
+      page > this.traceTotalPages() ||
+      page === this.traceCurrentPage()
+    ) {
+      return;
+    }
+    this.tracePage.set(page);
   }
 
   sortBy(field: string): void {
@@ -565,7 +626,9 @@ export class PaddyLotComponent implements OnDestroy {
 
   private resetPageAndSelection(): void {
     this.page.set(1);
+    this.pageInput.set("");
     this.selectedLotId.set(null);
+    this.tracePage.set(1);
   }
 
   private isAttentionLot(row: PaddyLotRow): boolean {
