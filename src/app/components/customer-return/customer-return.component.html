@@ -1,0 +1,748 @@
+<section class="return-page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow"
+        ><span aria-hidden="true">↶</span>Bán hàng · Kiểm tra chất lượng</span
+      >
+      <h1>Xử lý hàng khách trả lại</h1>
+      <p>
+        Kiểm tra chất lượng, quyết định nhập lại kho/cách ly/không nhập lại và
+        duyệt điều chỉnh tồn theo từng lô hàng trả.
+      </p>
+    </div>
+    <button class="primary-btn" type="button" (click)="openCreate()">
+      <span aria-hidden="true">＋</span>Tạo phiếu trả
+    </button>
+  </header>
+
+  <div class="kpi-grid" aria-label="Tổng hợp phiếu trả hàng">
+    <article class="kpi-card warning">
+      <span>Chờ kiểm chất lượng</span>
+      <strong>{{ fmtNumber(summary().waitingInspection) }}</strong>
+      <small>Cần xử lý</small>
+    </article>
+    <article class="kpi-card info">
+      <span>Chờ chủ kho duyệt</span>
+      <strong>{{ fmtNumber(summary().waitingApproval) }}</strong>
+      <small>Chưa điều chỉnh tồn</small>
+    </article>
+    <article class="kpi-card success">
+      <span>Nhập lại kho</span>
+      <strong>{{ fmtWeight(summary().restockedKg) }}</strong>
+      <small>Đạt chất lượng</small>
+    </article>
+    <article class="kpi-card danger">
+      <span>Chuyển cách ly</span>
+      <strong>{{ fmtWeight(summary().quarantinedKg) }}</strong>
+      <small>Hàng lỗi/rủi ro</small>
+    </article>
+  </div>
+
+  <div class="tabs" role="tablist" aria-label="Trạng thái xử lý">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        role="tab"
+        [class.active]="activeTab() === tab.key"
+        [attr.aria-selected]="activeTab() === tab.key"
+        (click)="setTab(tab.key)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  <div class="filter-bar">
+    <label class="search-box">
+      <span aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        placeholder="Tìm mã phiếu, khách hàng, đơn gốc..."
+        [ngModel]="searchInput()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </label>
+    <select
+      aria-label="Lọc khách hàng"
+      [ngModel]="customerFilter()"
+      (ngModelChange)="setCustomerFilter($event)"
+    >
+      <option value="">Tất cả khách hàng</option>
+      @for (customer of customers(); track customer.id) {
+        <option [value]="customer.id">{{ customer.name }}</option>
+      }
+    </select>
+    <select
+      aria-label="Lọc kho"
+      [ngModel]="warehouseFilter()"
+      (ngModelChange)="setWarehouseFilter($event)"
+    >
+      <option value="">Tất cả kho</option>
+      @for (warehouse of warehouses(); track warehouse.id) {
+        <option [value]="warehouse.id">{{ warehouse.name }}</option>
+      }
+    </select>
+    <label class="date-field">
+      <span>Từ ngày</span>
+      <input
+        type="date"
+        [ngModel]="dateFrom()"
+        (ngModelChange)="setDateFrom($event)"
+      />
+    </label>
+    <label class="date-field">
+      <span>Đến ngày</span>
+      <input
+        type="date"
+        [ngModel]="dateTo()"
+        (ngModelChange)="setDateTo($event)"
+      />
+    </label>
+  </div>
+
+  <div class="workspace-grid">
+    <article class="panel list-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Danh sách phiếu hàng trả</h2>
+          <p>{{ fmtNumber(total()) }} phiếu phù hợp</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Mã phiếu</th>
+              <th>Khách / đơn gốc</th>
+              <th>Hàng trả</th>
+              <th>Lô</th>
+              <th>SL</th>
+              <th>Lý do</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              @for (item of [1, 2, 3, 4, 5]; track item) {
+                <tr class="skeleton-row">
+                  <td colspan="7"><span></span></td>
+                </tr>
+              }
+            } @else if (errorMessage()) {
+              <tr>
+                <td class="state-cell error" colspan="7">
+                  <strong>Không tải được danh sách</strong>
+                  <span>{{ errorMessage() }}</span>
+                </td>
+              </tr>
+            } @else if (!rows().length) {
+              <tr>
+                <td class="state-cell" colspan="7">
+                  <strong>Chưa có phiếu phù hợp</strong>
+                  <span>Đổi bộ lọc hoặc tạo phiếu trả hàng mới.</span>
+                </td>
+              </tr>
+            } @else {
+              @for (row of rows(); track row.id) {
+                <tr
+                  class="data-row"
+                  [class.selected]="activeId() === row.id"
+                  (click)="selectReturn(row.id)"
+                >
+                  <td>
+                    <button class="return-code" type="button">
+                      {{ row.returnCode }}
+                    </button>
+                    <small>{{ fmtDate(row.createdDate) }}</small>
+                  </td>
+                  <td>
+                    <strong>{{
+                      row.customerName || row.customerCode || "—"
+                    }}</strong>
+                    <small>{{ sourceCode(row) }}</small>
+                  </td>
+                  <td>
+                    <span>{{
+                      row.primaryProductVariantName || row.primarySKU || "—"
+                    }}</span>
+                    <small>{{ row.itemCount }} dòng hàng</small>
+                  </td>
+                  <td>{{ row.primaryLotCode || "Nhiều lô" }}</td>
+                  <td>
+                    <strong>{{ fmtWeight(row.totalQuantityReturned) }}</strong>
+                  </td>
+                  <td class="reason-cell">
+                    {{ row.returnReason || "Không ghi lý do" }}
+                  </td>
+                  <td>
+                    <span
+                      class="status-badge"
+                      [ngClass]="statusClass(row.statusCode)"
+                    >
+                      {{ statusDisplay(row.statusCode, row.statusName) }}
+                    </span>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination">
+        <span
+          >Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản
+          ghi</span
+        >
+        <div>
+          <button
+            type="button"
+            [disabled]="page() <= 1 || loading()"
+            (click)="setPage(page() - 1)"
+          >
+            ‹
+          </button>
+          <strong>{{ page() }}</strong>
+          <button
+            type="button"
+            [disabled]="page() >= totalPages() || loading()"
+            (click)="setPage(page() + 1)"
+          >
+            ›
+          </button>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="detail-column">
+      <article class="panel quality-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Kiểm tra hàng trả</h2>
+            @if (detail(); as current) {
+              <p>{{ current.returnCode }} · {{ sourceCode(current) }}</p>
+            }
+          </div>
+          @if (detail(); as current) {
+            <span
+              class="status-badge"
+              [ngClass]="statusClass(current.statusCode)"
+            >
+              {{ statusDisplay(current.statusCode, current.statusName) }}
+            </span>
+          }
+        </div>
+
+        @if (loadingDetail()) {
+          <div class="detail-loading">
+            @for (item of [1, 2, 3, 4]; track item) {
+              <span></span>
+            }
+          </div>
+        } @else {
+          @if (detail(); as current) {
+            <div class="return-summary">
+              <small>{{ current.customerName || "Khách hàng" }}</small>
+              <strong>{{
+                current.primaryProductVariantName ||
+                  current.primarySKU ||
+                  "Hàng trả"
+              }}</strong>
+              <p>
+                {{ fmtWeight(current.totalQuantityReturned) }} ·
+                {{ current.items.length }} dòng · Lý do:
+                {{ current.returnReason || "—" }}
+              </p>
+            </div>
+
+            <div class="quality-list">
+              @for (item of current.items; track item.id) {
+                <div class="quality-item">
+                  <div>
+                    <strong>{{
+                      item.productVariantName || item.sku || "Sản phẩm"
+                    }}</strong>
+                    <small>
+                      @for (
+                        allocation of item.allocations;
+                        track allocation.id
+                      ) {
+                        <span
+                          >{{ allocation.paddyLotCode }} ·
+                          {{ fmtWeight(allocation.quantityReturned) }}</span
+                        >
+                      }
+                    </small>
+                  </div>
+                  <div class="quality-values">
+                    <span class="good"
+                      >Đạt {{ fmtWeight(item.quantityGood) }}</span
+                    >
+                    <span class="damaged"
+                      >Lỗi {{ fmtWeight(item.quantityDamaged) }}</span
+                    >
+                  </div>
+                </div>
+              }
+            </div>
+
+            @if (current.statusCode === status.DRAFT) {
+              <p class="info-banner">
+                Phiếu đang chờ Chủ cơ sở duyệt. Tồn kho chưa thay đổi.
+              </p>
+            } @else if (
+              current.statusCode === status.APPROVED && !inspectionOpen()
+            ) {
+              <p class="info-banner">
+                Phiếu đã duyệt, sẵn sàng kiểm tra chất lượng từng lô.
+              </p>
+            } @else if (current.statusCode === status.INSPECTED) {
+              <p class="info-banner success-banner">
+                Đã kiểm định. Kiểm tra quyết định xử lý trước khi xác nhận tồn.
+              </p>
+            }
+          } @else {
+            <div class="empty-detail">
+              <strong>Chưa chọn phiếu</strong>
+              <p>Chọn một dòng để xem và xử lý.</p>
+            </div>
+          }
+        }
+      </article>
+
+      @if (inspectionOpen()) {
+        <article class="panel decision-panel">
+          <div class="panel-heading"><h2>Quyết định xử lý theo lô</h2></div>
+          <div class="inspection-form">
+            @for (line of inspectionLines(); track line.allocationId) {
+              <section class="inspection-line">
+                <header>
+                  <div>
+                    <strong>{{ line.productName }}</strong
+                    ><small>{{ line.lotCode }}</small>
+                  </div>
+                  <span>{{ fmtWeight(line.quantityReturned) }}</span>
+                </header>
+                <div class="quantity-grid">
+                  <label
+                    >Nhập lại kho<input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      [ngModel]="line.quantityGood"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'quantityGood',
+                          $event
+                        )
+                      "
+                  /></label>
+                  <label
+                    >Cách ly<input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      [ngModel]="line.quantityDamaged"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'quantityDamaged',
+                          $event
+                        )
+                      "
+                  /></label>
+                  <label
+                    >Không nhập lại<input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      [ngModel]="line.quantityRejected"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'quantityRejected',
+                          $event
+                        )
+                      "
+                  /></label>
+                </div>
+                <div class="credit-editor">
+                  <label
+                    >Số lượng được hoàn tiền (kg)
+                    <input
+                      type="number"
+                      min="0"
+                      [max]="line.quantityGood + line.quantityDamaged"
+                      step="0.001"
+                      [ngModel]="line.creditQuantity"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'creditQuantity',
+                          $event
+                        )
+                      "
+                    />
+                  </label>
+                  <div>
+                    <span>Đơn giá ghi có</span
+                    ><strong>{{ fmtCurrency(line.unitCreditPrice) }}/kg</strong>
+                  </div>
+                  <div>
+                    <span>Tiền dự kiến</span
+                    ><strong>{{
+                      fmtCurrency(line.creditQuantity * line.unitCreditPrice)
+                    }}</strong>
+                  </div>
+                </div>
+                @if (line.quantityGood > 0) {
+                  <label class="field"
+                    >Vị trí nhập lại
+                    <select
+                      [ngModel]="line.restockLocationId"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'restockLocationId',
+                          $event
+                        )
+                      "
+                    >
+                      <option value="">Chọn vị trí thường</option>
+                      @for (location of restockLocations(); track location.id) {
+                        <option [value]="location.id">
+                          {{ locationLabel(location) }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                }
+                @if (line.quantityDamaged > 0) {
+                  <label class="field"
+                    >Vị trí cách ly
+                    <select
+                      [ngModel]="line.quarantineLocationId"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'quarantineLocationId',
+                          $event
+                        )
+                      "
+                    >
+                      <option value="">Chọn khu cách ly</option>
+                      @for (
+                        location of quarantineLocations();
+                        track location.id
+                      ) {
+                        <option [value]="location.id">
+                          {{ locationLabel(location) }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                }
+                @if (line.quantityDamaged > 0 || line.quantityRejected > 0) {
+                  <label class="field"
+                    >Lý do hàng lỗi/không nhập lại
+                    <input
+                      type="text"
+                      [ngModel]="line.damageReason"
+                      (ngModelChange)="
+                        updateInspection(
+                          line.allocationId,
+                          'damageReason',
+                          $event
+                        )
+                      "
+                      placeholder="Bao rách, ẩm, sai quy cách..."
+                    />
+                  </label>
+                }
+              </section>
+            }
+          </div>
+          <div class="inspection-credit-total">
+            <span>Tổng tiền ghi có dự kiến</span
+            ><strong>{{ fmtCurrency(inspectionCreditAmount()) }}</strong>
+          </div>
+          <footer class="panel-actions">
+            <button
+              type="button"
+              class="secondary-btn"
+              [disabled]="actionLoading()"
+              (click)="inspectionOpen.set(false)"
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              class="primary-btn"
+              [disabled]="actionLoading()"
+              (click)="submitInspection()"
+            >
+              Lưu kiểm định
+            </button>
+          </footer>
+        </article>
+      } @else {
+        @if (detail(); as current) {
+          <article class="panel decision-panel">
+            <div class="panel-heading"><h2>Quyết định xử lý</h2></div>
+            <div class="decision-summary">
+              <div>
+                <span>Nhập lại kho</span
+                ><strong class="good">{{
+                  fmtWeight(current.totalQuantityGood)
+                }}</strong>
+              </div>
+              <div>
+                <span>Chuyển cách ly</span
+                ><strong class="damaged">{{
+                  fmtWeight(current.totalQuantityDamaged)
+                }}</strong>
+              </div>
+              <div>
+                <span>Không nhập lại</span
+                ><strong>{{ fmtWeight(current.totalQuantityRejected) }}</strong>
+              </div>
+            </div>
+            @if (
+              current.statusCode === status.INSPECTED ||
+              current.statusCode === status.CONFIRMED
+            ) {
+              <div class="finance-preview">
+                <div class="finance-title">
+                  <div>
+                    <strong>Tác động tài chính</strong>
+                    <span>Backend ưu tiên khấu trừ công nợ phải thu.</span>
+                  </div>
+                  @if (loadingImpact()) {
+                    <small>Đang tính...</small>
+                  }
+                </div>
+                @if (impact(); as financial) {
+                  <div class="finance-grid">
+                    <div>
+                      <span>Tổng ghi có</span
+                      ><strong>{{
+                        fmtCurrency(financial.approvedCreditAmount)
+                      }}</strong>
+                    </div>
+                    <div>
+                      <span>Công nợ hiện tại</span
+                      ><strong>{{
+                        fmtCurrency(financial.currentReceivableBalance)
+                      }}</strong>
+                    </div>
+                    <div>
+                      <span>Khấu trừ công nợ</span
+                      ><strong class="good">{{
+                        fmtCurrency(financial.debtReductionAmount)
+                      }}</strong>
+                    </div>
+                    <div>
+                      <span>Còn phải hoàn khách</span
+                      ><strong class="damaged">{{
+                        fmtCurrency(financial.refundPendingAmount)
+                      }}</strong>
+                    </div>
+                  </div>
+                  @if (financial.refundPendingAmount > 0) {
+                    <p class="refund-note">
+                      Khoản còn lại được ghi nhận là công nợ phải trả/chờ hoàn;
+                      hệ thống chưa tự chi tiền mặt.
+                    </p>
+                  }
+                }
+              </div>
+            }
+            <footer class="panel-actions">
+              @if (
+                current.statusCode !== status.CONFIRMED &&
+                current.statusCode !== status.CANCELLED
+              ) {
+                <button
+                  type="button"
+                  class="danger-btn"
+                  [disabled]="actionLoading()"
+                  (click)="cancelReturn()"
+                >
+                  Hủy phiếu
+                </button>
+              }
+              @if (current.statusCode === status.DRAFT) {
+                <button
+                  type="button"
+                  class="primary-btn"
+                  [disabled]="actionLoading()"
+                  (click)="approve()"
+                >
+                  Duyệt phiếu
+                </button>
+              } @else if (current.statusCode === status.APPROVED) {
+                <button
+                  type="button"
+                  class="primary-btn"
+                  [disabled]="actionLoading()"
+                  (click)="beginInspection()"
+                >
+                  Kiểm tra chất lượng
+                </button>
+              } @else if (current.statusCode === status.INSPECTED) {
+                <button
+                  type="button"
+                  class="primary-btn"
+                  [disabled]="actionLoading() || loadingImpact()"
+                  (click)="confirmReturn()"
+                >
+                  Xác nhận điều chỉnh tồn
+                </button>
+              }
+            </footer>
+          </article>
+        }
+      }
+    </aside>
+  </div>
+</section>
+
+@if (showCreateModal()) {
+  <div class="modal-backdrop" (mousedown)="closeCreate()">
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-return-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="create-return-title">Tạo phiếu trả hàng</h2>
+          <p>Chọn đơn xuất gốc để lấy đúng khách hàng, kho và lô đã giao.</p>
+        </div>
+        <button
+          type="button"
+          aria-label="Đóng"
+          [disabled]="saving()"
+          (click)="closeCreate()"
+        >
+          ×
+        </button>
+      </header>
+      <div class="modal-body">
+        <label class="field"
+          >Đơn xuất gốc *
+          <select
+            [ngModel]="form().outboundOrderId"
+            [disabled]="loadingSource()"
+            (ngModelChange)="setSourceOutbound($event)"
+          >
+            <option value="">Chọn đơn xuất đã giao</option>
+            @for (outbound of outbounds(); track outbound.id) {
+              <option [value]="outbound.id">
+                {{ outbound.soCode }} · {{ outbound.customerName }} ·
+                {{ outbound.outboundStatusName }}
+              </option>
+            }
+          </select>
+        </label>
+        <div class="form-grid">
+          <label class="field"
+            >Khách hàng *
+            <select [ngModel]="form().customerId" disabled>
+              <option value="">Chọn khách hàng</option>
+              @for (customer of customers(); track customer.id) {
+                <option [value]="customer.id">
+                  {{ customer.code }} · {{ customer.name }}
+                </option>
+              }
+            </select>
+          </label>
+          <label class="field"
+            >Kho tiếp nhận *
+            <select [ngModel]="form().warehouseId" disabled>
+              <option value="">Chọn kho</option>
+              @for (warehouse of warehouses(); track warehouse.id) {
+                <option [value]="warehouse.id">{{ warehouse.name }}</option>
+              }
+            </select>
+          </label>
+          <label class="field"
+            >Lý do trả
+            <input
+              type="text"
+              [ngModel]="form().returnReason"
+              (ngModelChange)="updateFormField('returnReason', $event)"
+              placeholder="Bao rách, nghi ẩm, sai quy cách..."
+            />
+          </label>
+          <label class="field"
+            >Ghi chú
+            <input
+              type="text"
+              [ngModel]="form().note"
+              (ngModelChange)="updateFormField('note', $event)"
+              placeholder="Ghi chú tiếp nhận"
+            />
+          </label>
+        </div>
+
+        <div class="return-lines">
+          <div class="line-heading">
+            <strong>Chi tiết hàng trả</strong
+            ><span>Chỉ các dòng có số lượng lớn hơn 0 được gửi.</span>
+          </div>
+          @if (loadingSource()) {
+            <div class="detail-loading"><span></span><span></span></div>
+          } @else if (!form().lines.length) {
+            <div class="empty-lines">
+              Chọn đơn xuất gốc để nhập số lượng trả theo từng lô đã giao.
+            </div>
+          } @else {
+            @for (line of form().lines; track line.key) {
+              <div class="return-line">
+                <div>
+                  <strong>{{ line.productName }}</strong
+                  ><small>{{ line.sku }} · {{ line.lotCode }}</small>
+                </div>
+                <span>Tối đa {{ fmtWeight(line.maxQuantity) }}</span>
+                <label
+                  >Số lượng trả (kg)
+                  <input
+                    type="number"
+                    min="0"
+                    [max]="line.maxQuantity"
+                    step="0.001"
+                    [ngModel]="line.quantityReturned"
+                    (ngModelChange)="updateReturnQuantity(line.key, $event)"
+                  />
+                </label>
+              </div>
+            }
+          }
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button
+          type="button"
+          class="secondary-btn"
+          [disabled]="saving()"
+          (click)="closeCreate()"
+        >
+          Hủy
+        </button>
+        <button
+          type="button"
+          class="primary-btn"
+          [disabled]="saving() || loadingSource()"
+          (click)="submitCreate()"
+        >
+          {{ saving() ? "Đang lưu..." : "Tạo phiếu nháp" }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}

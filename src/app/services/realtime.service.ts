@@ -1,8 +1,8 @@
-import { Injectable, inject } from '@angular/core';
-import * as signalR from '@microsoft/signalr';
-import { injectQueryClient } from '@tanstack/angular-query-experimental';
-import { environment } from '../../environments/environment';
-import { AuthService } from './auth.service';
+import { Injectable, inject } from "@angular/core";
+import * as signalR from "@microsoft/signalr";
+import { injectQueryClient } from "@tanstack/angular-query-experimental";
+import { environment } from "../../environments/environment";
+import { AuthService } from "./auth.service";
 
 /**
  * Realtime "invalidate-on-change": server (SignalR) chỉ báo "entity X vừa đổi",
@@ -12,48 +12,61 @@ import { AuthService } from './auth.service';
  * (và thêm tên entity vào RealtimeEntityNames phía backend).
  */
 const REALTIME_MAP: Record<string, string[]> = {
-  User: ['users'],
-  Role: ['roles', 'role-options', 'sidebar-menus'],
-  Menu: ['menus', 'all-menus', 'sidebar-menus'],
-  UserStatus: ['user-statuses', 'user-status-options'],
-  Action: ['actions', 'all-actions'],
-  Product: ['products', 'product-options'],
-  ProductCategory: ['product-categories', 'product-category-options'],
-  ProductVariant: ['product-variants', 'inbound-product-variant-options', 'reports'],
-  ProductAttribute: ['product-attributes'],
-  Supplier: ['suppliers'],
-  UnitOfMeasure: ['unit-of-measures'],
-  IotDevice: ['iot-devices'],
-  Warehouse: ['warehouses', 'warehouse-options', 'inbound-warehouse-options', 'reports'],
-  Location: ['locations', 'reports'],
-  InboundOrder: ['inbound-orders'],
-  Inventory: ['inventories', 'inventory-summary', 'reports'],
-  InventoryTransaction: [
-    'inventory-transactions',
-    'inventories',
-    'inventory-summary',
-    'reports',
+  User: ["users"],
+  Role: ["roles", "role-options", "sidebar-menus"],
+  Menu: ["menus", "all-menus", "sidebar-menus"],
+  UserStatus: ["user-statuses", "user-status-options"],
+  Action: ["actions", "all-actions"],
+  Product: ["products", "product-options"],
+  ProductCategory: ["product-categories", "product-category-options"],
+  ProductVariant: [
+    "product-variants",
+    "inbound-product-variant-options",
+    "reports",
   ],
-  Alert: ['alerts', 'alerts-summary', 'reports'],
-  SystemConfig: ['system-configs'],
-  Notification: ['notifications'],
-  NotificationCategory: ['notification-categories', 'notification-category-options'],
-  NotificationType: ['notification-types'],
-  AuditLog: ['audit-log'],
-  ActivityLog: ['activity-log'],
-  PaddyLot: ['paddy-lots', 'reports'],
-  PaddyPurchaseReceipt: ['rice-purchase', 'reports'],
-  PartyDebt: ['party-debts', 'reports'],
-  DebtTransaction: ['party-debts', 'reports'],
-  QualityInspection: ['quality-inspections', 'reports'],
-  SalesOrder: ['sales-orders', 'reports'],
-  SalesOrderItem: ['sales-orders', 'reports'],
-  OutboundOrder: ['sales-orders', 'outbound-orders', 'reports'],
-  OutboundOrderItem: ['sales-orders', 'outbound-orders', 'reports'],
-  OutboundOrderItemAllocation: ['sales-orders', 'outbound-orders', 'reports'],
-  MillingOrder: ['milling-orders', 'sales-orders', 'reports'],
-  MillingOrderInput: ['milling-orders', 'reports'],
-  MillingOrderOutput: ['milling-orders', 'reports'],
+  ProductAttribute: ["product-attributes"],
+  Supplier: ["suppliers"],
+  UnitOfMeasure: ["unit-of-measures"],
+  IotDevice: ["iot-devices"],
+  Warehouse: [
+    "warehouses",
+    "warehouse-options",
+    "inbound-warehouse-options",
+    "reports",
+  ],
+  Location: ["locations", "reports"],
+  InboundOrder: ["inbound-orders"],
+  Inventory: ["inventories", "inventory-summary", "reports"],
+  InventoryTransaction: [
+    "inventory-transactions",
+    "inventories",
+    "inventory-summary",
+    "reports",
+  ],
+  Alert: ["alerts", "alerts-summary", "reports"],
+  SystemConfig: ["system-configs"],
+  Notification: ["notifications"],
+  NotificationCategory: [
+    "notification-categories",
+    "notification-category-options",
+  ],
+  NotificationType: ["notification-types"],
+  AuditLog: ["audit-log"],
+  ActivityLog: ["activity-log"],
+  PaddyLot: ["paddy-lots", "reports"],
+  PaddyPurchaseReceipt: ["rice-purchase", "reports"],
+  CustomerReturnOrder: ["customer-returns"],
+  PartyDebt: ["party-debts", "reports"],
+  DebtTransaction: ["party-debts", "reports"],
+  QualityInspection: ["quality-inspections", "reports"],
+  SalesOrder: ["sales-orders", "reports"],
+  SalesOrderItem: ["sales-orders", "reports"],
+  OutboundOrder: ["sales-orders", "outbound-orders", "reports"],
+  OutboundOrderItem: ["sales-orders", "outbound-orders", "reports"],
+  OutboundOrderItemAllocation: ["sales-orders", "outbound-orders", "reports"],
+  MillingOrder: ["milling-orders", "sales-orders", "reports"],
+  MillingOrderInput: ["milling-orders", "reports"],
+  MillingOrderOutput: ["milling-orders", "reports"],
 };
 
 /**
@@ -62,14 +75,14 @@ const REALTIME_MAP: Record<string, string[]> = {
  * và directive [appHasPerm] tự cập nhật ngay, không cần tải lại trang.
  */
 const PERMISSION_AFFECTING = new Set<string>([
-  'Role',
-  'Permission',
-  'UserRole',
-  'Menu',
-  'Action',
+  "Role",
+  "Permission",
+  "UserRole",
+  "Menu",
+  "Action",
 ]);
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class RealtimeService {
   private queryClient = injectQueryClient();
   private auth = inject(AuthService);
@@ -88,11 +101,11 @@ export class RealtimeService {
 
     // baseUrl dạng .../api/v1 -> hub nằm ở gốc host: .../hubs/data-change
     const hubUrl =
-      environment.baseUrl.replace(/\/api\/v\d+\/?$/, '') + '/hubs/data-change';
+      environment.baseUrl.replace(/\/api\/v\d+\/?$/, "") + "/hubs/data-change";
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(hubUrl, {
-        accessTokenFactory: () => this.auth.getToken() ?? '',
+        accessTokenFactory: () => this.auth.getToken() ?? "",
         // Xác thực bằng token (không dùng cookie) -> tắt credentials để tránh
         // lỗi CORS "Cannot use wildcard in Access-Control-Allow-Origin when
         // credentials flag is true" (server đang trả Allow-Origin: *).
@@ -102,8 +115,8 @@ export class RealtimeService {
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    this.connection.on('EntityChanged', (names: string[]) =>
-      this.onEntitiesChanged(names)
+    this.connection.on("EntityChanged", (names: string[]) =>
+      this.onEntitiesChanged(names),
     );
 
     this.connection.start().catch(() => {
