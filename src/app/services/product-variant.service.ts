@@ -10,6 +10,7 @@ import {
   UpdateProductVariantDto,
   ProductVariantSearchParams,
   ProductOption,
+  LookupOption,
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
@@ -106,11 +107,76 @@ export class ProductVariantService {
   }
 
   /**
+   * Kích hoạt biến thể (IsActive = true) qua endpoint chuyên dụng.
+   * Dùng cho nút bật/tắt trạng thái ở màn danh sách thay vì gọi update toàn bộ.
+   */
+  activate(id: number): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/product-variant/${id}/activate`,
+      {}
+    );
+  }
+
+  /**
+   * Vô hiệu hóa biến thể (IsActive = false) qua endpoint chuyên dụng.
+   */
+  deactivate(id: number): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/product-variant/${id}/deactivate`,
+      {}
+    );
+  }
+
+  /**
    * Lấy danh sách sản phẩm gốc để chọn productId.
    */
   getProducts(): Observable<ApiResponse<ProductOption[]>> {
     return this.http.get<ApiResponse<ProductOption[]>>(
       `${this.base}/product`
+    );
+  }
+
+  /**
+   * Body DataTables tối giản để lấy toàn bộ option cho dropdown (1 trang lớn).
+   */
+  private optionsBody(columns: string[]): any {
+    return {
+      draw: 1,
+      columns: columns.map((data) => ({
+        data,
+        name: data,
+        searchable: true,
+        orderable: true,
+        search: { value: '', regex: false, fixed: [] },
+      })),
+      order: [{ column: 1, dir: 'asc', name: columns[1] ?? columns[0] }],
+      start: 0,
+      length: 1000,
+      search: { value: '', regex: false, fixed: [] },
+    };
+  }
+
+  /** Danh sách đơn vị tính cho dropdown trong form. */
+  getUnitOfMeasureOptions(): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/unit-of-measures/paged-advanced`,
+      this.optionsBody(['id', 'name', 'symbol', 'createdDate'])
+    );
+  }
+
+  /** Danh sách giống lúa cho dropdown trong form. */
+  getRiceVarietyOptions(): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/rice-varieties/paged-advanced`,
+      this.optionsBody(['id', 'name', 'code', 'season', 'isActive', 'createdDate'])
+    );
+  }
+
+  /** Danh sách thuộc tính sản phẩm cho editor thuộc tính biến thể. */
+  getProductAttributeOptions(): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/product-attribute/paged-advanced`,
+      this.optionsBody(['id', 'name', 'description', 'createdDate'])
     );
   }
 

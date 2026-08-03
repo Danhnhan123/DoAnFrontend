@@ -15,6 +15,7 @@ import {
   CreateProductVariantDto,
   UpdateProductVariantDto,
   ProductOption,
+  LookupOption,
 } from '../../models';
 import { ProductVariantService } from '../../services/product-variant.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
@@ -61,14 +62,14 @@ export class ProductVariantComponent {
     name: '',
     description: '',
     productId: 0,
-    unitOfMeasureId: 1,
+    unitOfMeasureId: null,
+    riceVarietyId: null,
     sku: '',
-    barcode: '',
     qrCode: '',
     costPrice: 0,
     salePrice: 0,
     weight: 0,
-    attributeValues: '',
+    attributes: [] as { attributeId: number | null; value: string }[],
     imageId: null,
     isActive: true,
     minStockLevel: null,
@@ -132,6 +133,24 @@ export class ProductVariantComponent {
     queryFn: () => lastValueFrom(this.variantService.getProducts()),
   }));
 
+  /** Danh sách đơn vị tính cho dropdown trong form (thay ô nhập ID thủ công). */
+  uomQuery = injectQuery(() => ({
+    queryKey: ['variant-uom-options'],
+    queryFn: () => lastValueFrom(this.variantService.getUnitOfMeasureOptions()),
+  }));
+
+  /** Danh sách giống lúa cho dropdown trong form. */
+  riceVarietyQuery = injectQuery(() => ({
+    queryKey: ['variant-rice-variety-options'],
+    queryFn: () => lastValueFrom(this.variantService.getRiceVarietyOptions()),
+  }));
+
+  /** Danh sách thuộc tính sản phẩm cho editor thuộc tính biến thể. */
+  attributeQuery = injectQuery(() => ({
+    queryKey: ['variant-attribute-options'],
+    queryFn: () => lastValueFrom(this.variantService.getProductAttributeOptions()),
+  }));
+
   /**
    * Query lấy chi tiết khi sửa.
    * enabled giúp query chỉ chạy khi modal mở và có editItem.id.
@@ -166,6 +185,33 @@ export class ProductVariantComponent {
     return (this.productsQuery.data() as any)?.resources ?? [];
   });
 
+  /** Trích mảng data từ response DataTables (resources/data -> data). */
+  private extractRows(res: any): any[] {
+    const r = res?.resources ?? res?.data;
+    return r?.data ?? (Array.isArray(r) ? r : []);
+  }
+
+  uomOptions = computed<LookupOption[]>(() =>
+    this.extractRows(this.uomQuery.data()).map((x: any) => ({
+      id: x.id,
+      name: x.symbol ? `${x.name} (${x.symbol})` : x.name,
+    }))
+  );
+
+  riceVarietyOptions = computed<LookupOption[]>(() =>
+    this.extractRows(this.riceVarietyQuery.data()).map((x: any) => ({
+      id: x.id,
+      name: x.code ? `${x.name} (${x.code})` : x.name,
+    }))
+  );
+
+  attributeOptions = computed<LookupOption[]>(() =>
+    this.extractRows(this.attributeQuery.data()).map((x: any) => ({
+      id: x.id,
+      name: x.name,
+    }))
+  );
+
   activeCount = computed(() =>
     this.rows().filter((x) => x.isActive).length
   );
@@ -191,17 +237,25 @@ export class ProductVariantComponent {
 
     if (!detail) return;
 
+    // Backend trả thuộc tính đã parse (attributeValuesJson) hoặc chuỗi cũ (legacyAttributeValues).
+    const attributes = (detail.attributeValuesJson ?? []).map((a) => ({
+      attributeId: a.attributeId,
+      value: a.value ?? '',
+    }));
+
     this.form.set({
       name: detail.name || '',
       description: detail.description || '',
       productId: detail.productId || 0,
-      unitOfMeasureId: detail.unitOfMeasureId || 1,
+      unitOfMeasureId: detail.unitOfMeasureId ?? null,
+      riceVarietyId: detail.riceVarietyId ?? null,
       sku: detail.sku || '',
       qrCode: detail.qrCode || '',
       costPrice: detail.costPrice ?? 0,
       salePrice: detail.salePrice ?? 0,
       weight: detail.weight ?? 0,
-      attributeValues: detail.attributeValues || '',
+      attributes,
+      legacyAttributeValues: detail.legacyAttributeValues || '',
       imageId: detail.imageId ?? null,
       isActive: detail.isActive ?? true,
       minStockLevel: detail.minStockLevel ?? null,
@@ -269,6 +323,25 @@ export class ProductVariantComponent {
     },
     onError: (err: any) =>
       this.showAlert(err?.error?.message || 'Lỗi xóa', false),
+  }));
+
+  statusMutation = injectMutation(() => ({
+    mutationFn: (vars: { id: number; activate: boolean }) =>
+      lastValueFrom(
+        vars.activate
+          ? this.variantService.activate(vars.id)
+          : this.variantService.deactivate(vars.id)
+      ),
+    onSuccess: (res: any) => {
+      if (res.isSucceeded) {
+        this.queryClient.invalidateQueries({ queryKey: ['product-variants'] });
+        this.showAlert('Cập nhật trạng thái thành công!');
+      } else {
+        this.showAlert(res.message || 'Đổi trạng thái thất bại', false);
+      }
+    },
+    onError: (err: any) =>
+      this.showAlert(err?.error?.message || 'Lỗi đổi trạng thái', false),
   }));
 
   saving = computed(
@@ -350,14 +423,14 @@ export class ProductVariantComponent {
       name: '',
       description: '',
       productId: this.productOptions()[0]?.id || 0,
-      unitOfMeasureId: 1,
+      unitOfMeasureId: null,
+      riceVarietyId: null,
       sku: '',
-      barcode: '',
       qrCode: '',
       costPrice: 0,
       salePrice: 0,
       weight: 0,
-      attributeValues: '',
+      attributes: [],
       imageId: null,
       isActive: true,
       minStockLevel: null,
@@ -369,23 +442,52 @@ export class ProductVariantComponent {
   openEdit(row: ProductVariantRow): void {
     this.editItem.set(row);
 
+    // Đổ tạm dữ liệu từ dòng bảng; detailQuery sẽ nạp đầy đủ (giống lúa,
+    // đơn vị tính, thuộc tính đã parse) và ghi đè qua effect syncDetail.
     this.form.set({
       name: row.name || '',
       description: row.description || '',
       productId: row.productId || 0,
-      unitOfMeasureId: row.unitOfMeasureId || 1,
+      unitOfMeasureId: row.unitOfMeasureId ?? null,
+      riceVarietyId: row.riceVarietyId ?? null,
       sku: row.sku || '',
       qrCode: row.qrCode || '',
       costPrice: row.costPrice ?? 0,
       salePrice: row.salePrice ?? 0,
       weight: row.weight ?? 0,
-      attributeValues: row.attributeValues || '',
+      attributes: [],
       imageId: row.imageId ?? null,
       isActive: row.isActive ?? true,
       minStockLevel: row.minStockLevel ?? null,
     });
 
     this.showModal.set(true);
+  }
+
+  // Thao tác với editor thuộc tính biến thể (mảng {attributeId, value}).
+  addAttribute(): void {
+    this.form.update((x) => ({
+      ...x,
+      attributes: [...(x.attributes ?? []), { attributeId: null, value: '' }],
+    }));
+  }
+
+  removeAttribute(index: number): void {
+    this.form.update((x) => ({
+      ...x,
+      attributes: (x.attributes ?? []).filter((_: any, i: number) => i !== index),
+    }));
+  }
+
+  setAttribute(index: number, key: 'attributeId' | 'value', value: any): void {
+    this.form.update((x) => {
+      const attributes = [...(x.attributes ?? [])];
+      attributes[index] = {
+        ...attributes[index],
+        [key]: key === 'attributeId' ? (value === null ? null : Number(value)) : value,
+      };
+      return { ...x, attributes };
+    });
   }
 
   closeModal(): void {
@@ -415,17 +517,40 @@ export class ProductVariantComponent {
       return;
     }
 
+    // Build chuỗi JSON thuộc tính đúng định dạng backend: [{ attributeId, value }].
+    const validAttrs = (f.attributes ?? []).filter(
+      (a: any) => a.attributeId && String(a.value ?? '').trim() !== ''
+    );
+    const attrIds = validAttrs.map((a: any) => Number(a.attributeId));
+    if (new Set(attrIds).size !== attrIds.length) {
+      this.showAlert('Thuộc tính biến thể bị trùng, mỗi thuộc tính chỉ chọn 1 lần.', false);
+      return;
+    }
+    const attributeValues =
+      validAttrs.length > 0
+        ? JSON.stringify(
+            validAttrs.map((a: any) => ({
+              attributeId: Number(a.attributeId),
+              value: String(a.value).trim(),
+            }))
+          )
+        : undefined;
+
     const payloadBase: CreateProductVariantDto = {
       name: f.name,
       description: f.description || undefined,
       productId: Number(f.productId),
       unitOfMeasureId: Number(f.unitOfMeasureId),
+      riceVarietyId:
+        f.riceVarietyId === null || f.riceVarietyId === undefined || f.riceVarietyId === ''
+          ? null
+          : Number(f.riceVarietyId),
       sku: f.sku,
       qrCode: f.qrCode || undefined,
       costPrice: Number(f.costPrice || 0),
       salePrice: Number(f.salePrice || 0),
       weight: Number(f.weight || 0),
-      attributeValues: f.attributeValues || undefined,
+      attributeValues,
       imageId: f.imageId ? Number(f.imageId) : null,
       isActive: !!f.isActive,
       minStockLevel:
@@ -473,6 +598,26 @@ export class ProductVariantComponent {
       if (result.isConfirmed) {
         this.deleteMutation.mutate(id);
       }
+    });
+  }
+
+  toggleStatus(row: ProductVariantRow): void {
+    if (!this.perm.canUpdate('PRODUCT_VARIANTS')) return;
+
+    const activate = !row.isActive;
+    const actionText = activate ? 'kích hoạt' : 'vô hiệu hóa';
+
+    Swal.fire({
+      title: `Xác nhận ${actionText}`,
+      text: `Bạn có muốn ${actionText} biến thể "${row.name}" không?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#15803d',
+    }).then((result) => {
+      if (!result.isConfirmed) return;
+      this.statusMutation.mutate({ id: row.id, activate });
     });
   }
 

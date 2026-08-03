@@ -20,6 +20,8 @@ export interface ProductVariantRow {
 
   attributeValues?: string | null;
 
+  riceVarietyId?: number | null;
+
   imageId?: number | null;
   imageUrl?: string | null;
 
@@ -29,7 +31,57 @@ export interface ProductVariantRow {
   createdDate: string;
 }
 
-export interface ProductVariantDetailDto extends ProductVariantRow {}
+/** Một cặp thuộc tính đã parse mà backend trả về trong detail (attributeValuesJson). */
+export interface AttributeValueEntry {
+  attributeId: number;
+  attributeName?: string | null;
+  value: string;
+}
+
+/**
+ * Chi tiết biến thể — khớp đúng ProductVariantDetailDto của backend.
+ * Lưu ý: detail KHÔNG trả về chuỗi attributeValues, mà trả về:
+ *  - attributeValuesJson: danh sách đã parse (khi AttributeValues là JSON hợp lệ)
+ *  - legacyAttributeValues: chuỗi thô (khi là dữ liệu cũ dạng text)
+ */
+export interface ProductVariantDetailDto {
+  id: number;
+  name: string;
+  description?: string | null;
+
+  productId: number;
+  productName?: string | null;
+  productIsActive?: boolean;
+  productCategoryId?: number | null;
+  productCategoryName?: string | null;
+
+  unitOfMeasureId: number;
+  unitOfMeasureName?: string | null;
+
+  sku: string;
+  qrCode?: string | null;
+
+  costPrice: number;
+  salePrice: number;
+  weight: number;
+
+  imageId?: number | null;
+  imageUrl?: string | null;
+
+  isActive: boolean;
+  isDeleted?: boolean;
+  minStockLevel?: number | null;
+
+  riceVarietyId?: number | null;
+
+  attributeValuesJson?: AttributeValueEntry[] | null;
+  legacyAttributeValues?: string | null;
+
+  effectiveActiveStatus?: boolean;
+
+  createdDate: string;
+  lastModifiedDate?: string | null;
+}
 
 export interface CreateProductVariantDto {
   name: string;
@@ -45,7 +97,11 @@ export interface CreateProductVariantDto {
   salePrice: number;
   weight: number;
 
+  /** Chuỗi JSON dạng [{ "attributeId": number, "value": string }]. */
   attributeValues?: string | null;
+
+  riceVarietyId?: number | null;
+
   imageId?: number | null;
 
   isActive: boolean;
@@ -71,6 +127,12 @@ export interface ProductVariantSearchParams {
 }
 
 export interface ProductOption {
+  id: number;
+  name: string;
+}
+
+/** Option chung dùng cho dropdown đơn vị tính / giống lúa / thuộc tính. */
+export interface LookupOption {
   id: number;
   name: string;
 }

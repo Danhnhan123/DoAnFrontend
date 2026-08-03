@@ -188,6 +188,23 @@
                   <path d="M6 14h12v8H6z" />
                 </svg>
               </button>
+              <button [appHasPerm]="'PRODUCT_VARIANTS:UPDATE'" class="icon-btn toggle-btn" type="button"
+                (click)="toggleStatus(row)" [disabled]="statusMutation.isPending()"
+                [title]="row.isActive ? 'Vô hiệu hóa' : 'Kích hoạt'">
+                @if (row.isActive) {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="1" y="5" width="22" height="14" rx="7" />
+                  <circle cx="16" cy="12" r="3" />
+                </svg>
+                } @else {
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="1" y="5" width="22" height="14" rx="7" />
+                  <circle cx="8" cy="12" r="3" />
+                </svg>
+                }
+              </button>
               <button [class.perm-view-only]="!perm.canUpdate('PRODUCT_VARIANTS')" [title]="perm.canUpdate('PRODUCT_VARIANTS') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" type="button" (click)="openEdit(row)" >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -264,10 +281,22 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Đơn vị tính ID *</label>
-          <input class="form-control" type="number" [ngModel]="form().unitOfMeasureId"
-            (ngModelChange)="setField('unitOfMeasureId', +$event)" />
-          <small class="field-note">Backend hiện chưa có API danh sách đơn vị tính, tạm nhập ID.</small>
+          <label class="form-label">Đơn vị tính *</label>
+          <app-filter-select [options]="uomOptions()" allLabel="Chọn đơn vị tính" [clearable]="false"
+            [value]="form().unitOfMeasureId" (valueChange)="setField('unitOfMeasureId', $event)"></app-filter-select>
+        </div>
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Giống lúa</label>
+          <app-filter-select [options]="riceVarietyOptions()" allLabel="Không gắn giống lúa"
+            [value]="form().riceVarietyId" (valueChange)="setField('riceVarietyId', $event)"></app-filter-select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">QR Code</label>
+          <input class="form-control" [ngModel]="form().qrCode" (ngModelChange)="setField('qrCode', $event)" />
         </div>
       </div>
 
@@ -275,14 +304,6 @@
         <label class="form-label">Mô tả</label>
         <textarea class="form-control" rows="3" [ngModel]="form().description"
           (ngModelChange)="setField('description', $event)" placeholder="Mô tả biến thể..."></textarea>
-      </div>
-
-      <div class="form-row-2">
-
-        <div class="form-group">
-          <label class="form-label">QR Code</label>
-          <input class="form-control" [ngModel]="form().qrCode" (ngModelChange)="setField('qrCode', $event)" />
-        </div>
       </div>
 
       <div class="form-row-3">
@@ -322,10 +343,32 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Thuộc tính biến thể</label>
-        <input class="form-control" [ngModel]="form().attributeValues"
-          (ngModelChange)="setField('attributeValues', $event)"
-          placeholder='Ví dụ: {"color":"Đỏ","size":"L"}' />
+        <div class="attr-head">
+          <label class="form-label">Thuộc tính biến thể</label>
+          <button [hidden]="viewOnly()" class="btn btn-outline btn-sm" type="button" (click)="addAttribute()">
+            + Thêm thuộc tính
+          </button>
+        </div>
+
+        @if ((form().attributes ?? []).length === 0) {
+        <small class="field-note">Chưa có thuộc tính. Nhấn "Thêm thuộc tính" để chọn (ví dụ: Độ ẩm, Xuất xứ...).</small>
+        }
+
+        @for (attr of form().attributes; track $index) {
+        <div class="attr-row">
+          <app-filter-select class="attr-select" [options]="attributeOptions()" allLabel="Chọn thuộc tính"
+            [clearable]="false" [value]="attr.attributeId"
+            (valueChange)="setAttribute($index, 'attributeId', $event)"></app-filter-select>
+          <input class="form-control attr-value" [ngModel]="attr.value"
+            (ngModelChange)="setAttribute($index, 'value', $event)" placeholder="Giá trị" />
+          <button [hidden]="viewOnly()" class="icon-btn delete-btn" type="button" (click)="removeAttribute($index)"
+            title="Xóa thuộc tính">×</button>
+        </div>
+        }
+
+        @if (form().legacyAttributeValues) {
+        <small class="field-note">Dữ liệu cũ: {{ form().legacyAttributeValues }}</small>
+        }
       </div>
     </div>
 

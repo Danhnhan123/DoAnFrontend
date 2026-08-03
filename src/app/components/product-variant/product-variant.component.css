@@ -649,3 +649,36 @@
   min-height: 0;
   overflow-y: auto;
 }
+
+/* Editor thuộc tính biến thể */
+.attr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+.attr-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.attr-row .attr-select {
+  flex: 1 1 45%;
+}
+.attr-row .attr-value {
+  flex: 1 1 45%;
+}
+.attr-row .delete-btn {
+  flex: 0 0 auto;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.toggle-btn {
+  color: var(--accent, #16a34a);
+}
