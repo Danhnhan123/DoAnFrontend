@@ -1,0 +1,386 @@
+<section class="qr-page">
+  <header class="page-head">
+    <div>
+      <span class="feature-code">▦ SCR-25 · QR</span>
+      <h1>In tem QR</h1>
+      <p>
+        Xem trước và tạo tem QR cho lô lúa/gạo, bao gạo, vị trí kho và SKU. Tối
+        đa 500 tem mỗi lần.
+      </p>
+    </div>
+    <button class="primary-btn" type="button" (click)="openCreateModal()">
+      <span>＋</span> In tem mới
+    </button>
+  </header>
+
+  @if (loadError()) {
+    <div class="alert error-alert">
+      <span>{{ loadError() }}</span>
+      <button type="button" (click)="reloadDashboard()">Thử lại</button>
+    </div>
+  }
+
+  <div class="kpi-grid">
+    <article class="kpi-card">
+      <span>Tem đã tạo trong tháng</span>
+      <strong>{{ summary().totalLabelsThisMonth | number }}</strong>
+      <small>Lô / bao / vị trí / SKU</small>
+    </article>
+    <article class="kpi-card">
+      <span>Lệnh tạo file trong tháng</span>
+      <strong>{{ summary().totalJobsThisMonth | number }}</strong>
+      <small>Lấy từ nhật ký thao tác QR</small>
+    </article>
+    <article class="kpi-card">
+      <span>Phương thức in</span>
+      <strong>Trình duyệt</strong>
+      <small>PDF để in · PNG để tải xuống</small>
+    </article>
+  </div>
+
+  <section class="history-card">
+    <div class="history-head">
+      <div>
+        <h2>Lịch sử tạo tem</h2>
+        <p>{{ historyTotal() | number }} lệnh đã ghi nhận</p>
+      </div>
+      <button
+        class="secondary-btn"
+        type="button"
+        (click)="reloadDashboard()"
+        [disabled]="historyLoading()"
+      >
+        ↻ Làm mới
+      </button>
+    </div>
+
+    <div class="filter-row">
+      <label class="search-box">
+        <span>⌕</span>
+        <input
+          type="search"
+          placeholder="Tìm mã đối tượng, nội dung, người tạo..."
+          [ngModel]="searchInput()"
+          (ngModelChange)="onSearchInput($event)"
+        />
+      </label>
+      <div class="filter-control">
+        <app-filter-select
+          [options]="historyTypeOptions"
+          [value]="historyType()"
+          (valueChange)="historyType.set($event); applyHistoryFilter()"
+          allLabel="Tất cả loại tem"
+        ></app-filter-select>
+      </div>
+      <label class="date-control">
+        <span>Từ ngày</span>
+        <input
+          type="date"
+          [ngModel]="dateFrom()"
+          (ngModelChange)="dateFrom.set($event); applyHistoryFilter()"
+        />
+      </label>
+      <label class="date-control">
+        <span>Đến ngày</span>
+        <input
+          type="date"
+          [ngModel]="dateTo()"
+          (ngModelChange)="dateTo.set($event); applyHistoryFilter()"
+        />
+      </label>
+      <button class="text-btn" type="button" (click)="resetHistoryFilter()">
+        Xóa lọc
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã lệnh</th>
+            <th>Loại tem</th>
+            <th>Nội dung</th>
+            <th>Số lượng</th>
+            <th>Người tạo</th>
+            <th>File</th>
+            <th>Trạng thái</th>
+            <th>Thời gian</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (historyLoading()) {
+            <tr>
+              <td colspan="8" class="empty-cell">Đang tải lịch sử...</td>
+            </tr>
+          } @else if (!history().length) {
+            <tr>
+              <td colspan="8" class="empty-cell">
+                Chưa có lệnh tạo tem phù hợp.
+              </td>
+            </tr>
+          } @else {
+            @for (item of history(); track item.id) {
+              <tr>
+                <td data-label="Mã lệnh">
+                  <strong class="job-code">{{ item.jobCode }}</strong>
+                </td>
+                <td data-label="Loại tem">
+                  <span class="type-pill">{{
+                    labelTypeName(item.labelType)
+                  }}</span>
+                </td>
+                <td data-label="Nội dung">
+                  <span class="content-cell">{{ item.content }}</span>
+                </td>
+                <td data-label="Số lượng">
+                  <strong>{{ item.quantity | number }}</strong>
+                </td>
+                <td data-label="Người tạo">
+                  {{ item.printedBy || "Hệ thống" }}
+                </td>
+                <td data-label="File">
+                  <span class="file-pill">{{ item.format }}</span>
+                  <small>{{ item.template }}</small>
+                </td>
+                <td data-label="Trạng thái">
+                  <span class="status-pill">{{ statusName(item.status) }}</span>
+                </td>
+                <td data-label="Thời gian">
+                  {{ formatDate(item.createdDate) }}
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pagination">
+      <span>Trang {{ page() }}/{{ totalPages() }}</span>
+      <div>
+        <button
+          type="button"
+          [disabled]="page() <= 1 || historyLoading()"
+          (click)="setPage(page() - 1)"
+        >
+          ‹
+        </button>
+        @for (value of visiblePages(); track value) {
+          <button
+            type="button"
+            [class.active]="value === page()"
+            (click)="setPage(value)"
+          >
+            {{ value }}
+          </button>
+        }
+        <button
+          type="button"
+          [disabled]="page() >= totalPages() || historyLoading()"
+          (click)="setPage(page() + 1)"
+        >
+          ›
+        </button>
+      </div>
+    </footer>
+  </section>
+</section>
+
+@if (showCreate()) {
+  <div class="modal-backdrop" (click)="closeCreateModal()">
+    <section
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="qr-create-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-head">
+        <div>
+          <h2 id="qr-create-title">Tạo tem QR mới</h2>
+          <p>Chọn đối tượng, kích thước và số lượng trước khi tạo file.</p>
+        </div>
+        <button
+          class="close-btn"
+          type="button"
+          aria-label="Đóng"
+          (click)="closeCreateModal()"
+          [disabled]="generating()"
+        >
+          ×
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="form-column">
+          <label class="field">
+            <span>Loại tem *</span>
+            <app-filter-select
+              [options]="labelTypeOptions"
+              [value]="labelType()"
+              [clearable]="false"
+              (valueChange)="changeLabelType($event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field">
+            <span>Đối tượng cần in *</span>
+            <app-filter-select
+              [options]="subjectOptions()"
+              [multiple]="true"
+              [value]="selectedIds()"
+              [disabled]="loading()"
+              placeholder="Chọn một hoặc nhiều đối tượng"
+              (valueChange)="changeSubjects($event)"
+            ></app-filter-select>
+            <small
+              >Đã chọn {{ selectedIds().length }} đối tượng. Xem trước hiển thị
+              đối tượng đầu tiên.</small
+            >
+          </label>
+
+          <div class="two-cols">
+            <label class="field">
+              <span>Kích thước *</span>
+              <app-filter-select
+                [options]="templateOptions"
+                [value]="template()"
+                [clearable]="false"
+                (valueChange)="changeTemplate($event)"
+              ></app-filter-select>
+            </label>
+            <label class="field">
+              <span>Định dạng *</span>
+              <app-filter-select
+                [options]="formatOptions"
+                [value]="format()"
+                [clearable]="false"
+                [disabled]="labelType() === 'SKU'"
+                (valueChange)="changeFormat($event)"
+              ></app-filter-select>
+              @if (labelType() === "SKU") {
+                <small>Tem SKU hiện xuất PDF.</small>
+              }
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Số bản trên mỗi đối tượng *</span>
+            <input
+              class="number-input"
+              type="number"
+              min="1"
+              max="500"
+              [ngModel]="copiesPerLabel()"
+              (ngModelChange)="changeCopies($event)"
+            />
+          </label>
+
+          <div class="total-box" [class.invalid]="totalLabels() > 500">
+            <span>Tổng số tem</span>
+            <strong>{{ totalLabels() | number }} / 500</strong>
+          </div>
+
+          @if (formError()) {
+            <div class="alert error-alert">{{ formError() }}</div>
+          }
+        </div>
+
+        <div class="preview-column">
+          <div class="preview-title">
+            <div>
+              <strong>Xem trước tem</strong>
+              <small>{{ templateName(template()) }}</small>
+            </div>
+            @if (selectedIds().length > 1) {
+              <span>Tem 1/{{ selectedIds().length }}</span>
+            }
+          </div>
+
+          @if (previewLoading()) {
+            <div class="preview-empty">Đang tạo bản xem trước...</div>
+          } @else if (!preview()) {
+            <div class="preview-empty">Chọn đối tượng để xem trước tem QR.</div>
+          } @else {
+            <article
+              class="label-preview"
+              [class.quarantine]="preview()!.isQuarantined"
+            >
+              <div class="label-kind">
+                {{ labelTypeName(preview()!.labelType) }}
+              </div>
+              <div class="label-content">
+                @if (preview()!.qrImageDataUrl) {
+                  <img
+                    [src]="preview()!.qrImageDataUrl"
+                    alt="Mã QR xem trước"
+                  />
+                }
+                <div class="label-details">
+                  <strong>{{ preview()!.displayCode }}</strong>
+                  @if (preview()!.productName) {
+                    <span>{{ preview()!.productName }}</span>
+                  }
+                  @if (preview()!.sku) {
+                    <span>SKU: {{ preview()!.sku }}</span>
+                  }
+                  @if (preview()!.riceVarietyName) {
+                    <span>Giống: {{ preview()!.riceVarietyName }}</span>
+                  }
+                  @if (preview()!.weightKg != null) {
+                    <span
+                      >Khối lượng:
+                      {{ preview()!.weightKg | number: "1.0-2" }} kg</span
+                    >
+                  }
+                  @if (preview()!.packageWeightKg != null) {
+                    <span
+                      >Quy cách:
+                      {{ preview()!.packageWeightKg | number: "1.0-2" }}
+                      kg</span
+                    >
+                  }
+                  @if (preview()!.warehouseName) {
+                    <span>Kho: {{ preview()!.warehouseName }}</span>
+                  }
+                  @if (preview()!.locationName) {
+                    <span>Vị trí: {{ preview()!.locationName }}</span>
+                  }
+                  @if (preview()!.isQuarantined) {
+                    <b>ĐANG CÁCH LY</b>
+                  }
+                </div>
+              </div>
+              <small class="payload">{{ preview()!.qrPayload }}</small>
+            </article>
+          }
+        </div>
+      </div>
+
+      <footer class="modal-foot">
+        <button
+          class="secondary-btn"
+          type="button"
+          (click)="closeCreateModal()"
+          [disabled]="generating()"
+        >
+          Hủy
+        </button>
+        <button
+          class="primary-btn"
+          type="button"
+          (click)="generateLabels()"
+          [disabled]="generating() || previewLoading()"
+        >
+          {{
+            generating()
+              ? "Đang tạo file..."
+              : format() === "PDF" || labelType() === "SKU"
+                ? "Tạo PDF để in"
+                : "Tải ảnh PNG"
+          }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}

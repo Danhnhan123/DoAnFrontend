@@ -262,7 +262,22 @@
           <div>
             <h2>SCR-LOT-02 · Chi tiết lô</h2>
           </div>
-          <span class="view-icon" aria-hidden="true">◉</span>
+          @if (selectedLot(); as lot) {
+            <div class="qr-actions">
+              <button
+                type="button"
+                [routerLink]="['/admin/qr-labels']"
+                [queryParams]="{ labelType: 'PADDY_LOT', subjectId: lot.id }"
+              >In tem lô</button>
+              <button
+                type="button"
+                [routerLink]="['/admin/qr-labels']"
+                [queryParams]="{ labelType: 'BAG', subjectId: lot.id }"
+              >In tem bao</button>
+            </div>
+          } @else {
+            <span class="view-icon" aria-hidden="true">◉</span>
+          }
         </div>
 
         @if (loadingDetail() || loadingTrace()) {

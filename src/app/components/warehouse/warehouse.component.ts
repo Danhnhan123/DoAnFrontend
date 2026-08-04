@@ -65,6 +65,12 @@ export class WarehouseComponent {
     this.router.navigate(['/admin/warehouse-map']);
   }
 
+  printLocation(row: LocationRow): void {
+    void this.router.navigate(['/admin/qr-labels'], {
+      queryParams: { labelType: 'LOCATION', subjectId: row.id },
+    });
+  }
+
   // ===== 1. State bảng KHO (cards) =====
   whPage = signal(1);
   whPageSize = signal(6);

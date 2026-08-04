@@ -94,6 +94,7 @@ export class AdminLayoutComponent implements OnInit {
     "user-status": "Trạng thái người dùng",
     "rice-purchase": "Lịch & Phiếu mua lúa",
     "paddy-lots": "Quản lý lô & truy vết",
+    "qr-labels": "In tem QR",
     "quality-inspections": "Quản lý chất lượng & cách ly lô",
     "sales-orders": "Quản lý đơn bán",
     "party-debts": "Công nợ 2 chiều",
@@ -179,6 +180,25 @@ export class AdminLayoutComponent implements OnInit {
           url: "/admin/customer-returns",
           icon: "↩",
           sortOrder: 75,
+          child: [],
+        },
+      ];
+    }
+
+    // Lối vào cục bộ cho SCR-25; dùng lại quyền của các API lô/kho/SKU hiện có,
+    // không yêu cầu migration menu hoặc thay đổi cấu hình phân quyền.
+    if (!this.hasMenuUrl(result, "/admin/qr-labels")) {
+      result = [
+        ...result,
+        {
+          id: -1703,
+          code: "QR_LABELS",
+          treeIds: "-1703",
+          menuType: "ADMIN",
+          name: "In tem QR",
+          url: "/admin/qr-labels",
+          icon: "▦",
+          sortOrder: 79,
           child: [],
         },
       ];

@@ -324,6 +324,13 @@ const adminChildren: Routes = [
       ),
   },
   {
+    path: "qr-labels",
+    loadComponent: () =>
+      import("./components/qr-label/qr-label.component").then(
+        (m) => m.QrLabelComponent,
+      ),
+  },
+  {
     path: "milling-orders",
     canMatch: [menuReadGuard],
     data: { menuCode: "MILLING_ORDERS" },

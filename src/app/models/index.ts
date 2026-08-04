@@ -55,3 +55,4 @@ export * from "./milling-order-status";
 export * from "./stock-transfer-status";
 export * from "./sales-order-status";
 export * from "./purchase-order-status";
+export * from "./qr-label";
