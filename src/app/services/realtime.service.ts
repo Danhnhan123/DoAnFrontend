@@ -150,7 +150,9 @@ export class RealtimeService {
 
     // Nếu có thay đổi ảnh hưởng phân quyền -> nạp lại phiên (permissions + menus)
     // để guard/route + directive [appHasPerm] tự cập nhật cho MỌI phiên đang mở.
-    if (names.some((n) => PERMISSION_AFFECTING.has(n))) {
+    // "User" cũng nạp lại phiên để thông tin cá nhân (tên/avatar trên topbar,
+    // sidebar) tự cập nhật khi hồ sơ bị sửa ở nơi khác (vd mobile), không cần reload.
+    if (names.some((n) => PERMISSION_AFFECTING.has(n)) || names.includes("User")) {
       this.scheduleSessionReload();
     }
 
