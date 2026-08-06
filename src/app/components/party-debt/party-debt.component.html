@@ -16,19 +16,27 @@
 
   <div class="summary-grid" [class.loading]="summaryLoading()">
     <article class="summary-card payable">
-      <span class="summary-icon">↗</span>
+      <span class="summary-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7" /><path d="M7 7h10v10" /></svg>
+      </span>
       <div><small>Tổng phải trả nông dân</small><strong>{{ formatMoney(summary().totalPayable) }}</strong><span>{{ summary().openDocumentCount }} chứng từ còn mở</span></div>
     </article>
     <article class="summary-card overdue">
-      <span class="summary-icon">!</span>
+      <span class="summary-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>
+      </span>
       <div><small>Phải trả quá hạn</small><strong>{{ formatMoney(summary().totalOverduePayable) }}</strong><span>Cần ưu tiên thanh toán</span></div>
     </article>
     <article class="summary-card receivable">
-      <span class="summary-icon">↙</span>
+      <span class="summary-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 7 7 17" /><path d="M17 17H7V7" /></svg>
+      </span>
       <div><small>Tổng phải thu khách hàng</small><strong>{{ formatMoney(summary().totalReceivable) }}</strong><span>{{ summary().activeDebtCount }} sổ còn dư nợ</span></div>
     </article>
     <article class="summary-card overdue">
-      <span class="summary-icon">!</span>
+      <span class="summary-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><line x1="12" x2="12" y1="9" y2="13" /><line x1="12" x2="12.01" y1="17" y2="17" /></svg>
+      </span>
       <div><small>Phải thu quá hạn</small><strong>{{ formatMoney(summary().totalOverdueReceivable) }}</strong><span>{{ summary().overdueDocumentCount }} chứng từ quá hạn</span></div>
     </article>
   </div>
