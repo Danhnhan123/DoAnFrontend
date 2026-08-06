@@ -744,10 +744,10 @@ export class OutboundOrderComponent implements OnDestroy {
         : `<div style="text-align:left;color:#64748b;font-size:13px;margin:12px 0">Chưa lấy được số dư công nợ của phiếu. Bạn vẫn có thể nhập số tiền; hệ thống sẽ kiểm tra khi lưu.</div>`;
 
     const quickButtons =
-      `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">` +
-      `<button type="button" id="pay-none" class="swal2-styled" style="background:#64748b;margin:0;font-size:13px;padding:6px 12px">Không thanh toán</button>` +
+      `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">` +
+      `<button type="button" id="pay-none" class="ob-quick-btn">Không thanh toán</button>` +
       (outstanding != null && outstanding > 0
-        ? `<button type="button" id="pay-full" class="swal2-styled" style="background:#16a34a;margin:0;font-size:13px;padding:6px 12px">Thanh toán toàn bộ</button>`
+        ? `<button type="button" id="pay-full" class="ob-quick-btn primary">Thanh toán toàn bộ</button>`
         : '') +
       `</div>`;
 
@@ -946,6 +946,13 @@ export class OutboundOrderComponent implements OnDestroy {
       0
     );
   }
+
+  // ── trackBy: giữ nguyên DOM (ô input) khi cập nhật số lượng ──────────
+  // Nếu không có trackBy, mỗi lần gõ 1 ký tự làm signal tạo object mới →
+  // *ngFor huỷ & dựng lại <input> → mất focus. Track theo id ổn định.
+  trackAllocItem = (_: number, item: AllocateItemForm): number => item.itemId;
+  trackAllocLot = (_: number, lot: AllocateLotRow): number => lot.inventoryId;
+  trackPickRow = (_: number, row: PickRow): number => row.allocationId;
 
   // ── Formatting ─────────────────────────────────────────────────────
   fmtMoney(value: number | null | undefined): string {

@@ -384,7 +384,7 @@
     </div>
     <div class="ob-modal-body">
       <div class="ob-muted" *ngIf="loadingLots()">Đang tải tồn kho khả dụng…</div>
-      <div class="ob-alloc-item" *ngFor="let item of allocateForm(); let ii = index">
+      <div class="ob-alloc-item" *ngFor="let item of allocateForm(); let ii = index; trackBy: trackAllocItem">
         <div class="ob-alloc-item-head">
           <div class="ob-strong">{{ item.productVariantName }}</div>
           <div class="ob-muted sm">
@@ -397,7 +397,7 @@
             <tr><th>Lô</th><th>Vị trí</th><th class="num">Khả dụng</th><th class="num">Phân bổ (kg)</th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let lot of item.lots; let jj = index">
+            <tr *ngFor="let lot of item.lots; let jj = index; trackBy: trackAllocLot">
               <td>{{ lot.lotCode }}</td>
               <td>{{ lot.locationCode }}</td>
               <td class="num">{{ fmtKg(lot.availableKg) }}</td>
@@ -442,7 +442,7 @@
           <tr><th>Sản phẩm</th><th>Lô / vị trí</th><th class="num">Đã giữ</th><th class="num">Thực lấy (kg)</th></tr>
         </thead>
         <tbody>
-          <tr *ngFor="let r of pickForm(); let i = index">
+          <tr *ngFor="let r of pickForm(); let i = index; trackBy: trackPickRow">
             <td>{{ r.productVariantName }}</td>
             <td>{{ r.lotCode }} · {{ r.locationCode }}</td>
             <td class="num">{{ fmtKg(r.allocatedKg) }}</td>
