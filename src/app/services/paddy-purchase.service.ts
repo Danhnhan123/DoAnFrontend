@@ -6,6 +6,7 @@ import {
   ApiResponse,
   ConfirmPaddyStoreInResult,
   ConfirmStoreInRequest,
+  ConfirmPaddyPurchaseReceiptPayload,
   ConfirmPaddyPurchaseReceiptResult,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
@@ -126,10 +127,12 @@ export class PaddyPurchaseService {
 
   confirmReceipt(
     id: number,
+    payload?: ConfirmPaddyPurchaseReceiptPayload,
   ): Observable<ApiResponse<ConfirmPaddyPurchaseReceiptResult>> {
+    // Phát sinh nợ → gửi { dueDate }; không nợ → body rỗng {}.
     return this.http.post<ApiResponse<ConfirmPaddyPurchaseReceiptResult>>(
       `${this.base}/paddy-purchase-receipts/${id}/confirm`,
-      null,
+      payload ?? {},
     );
   }
 

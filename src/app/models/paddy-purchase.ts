@@ -110,6 +110,15 @@ export interface ConfirmPaddyPurchaseReceiptResult {
   inboundOrderId: number;
 }
 
+/**
+ * Payload khi chốt phiếu mua lúa.
+ * Chỉ gửi dueDate khi phiếu phát sinh công nợ phải trả (debtAmount > 0);
+ * nếu không phát sinh nợ thì gửi body rỗng {}.
+ */
+export interface ConfirmPaddyPurchaseReceiptPayload {
+  dueDate?: string | null;
+}
+
 export type PutawayPlacementMode = 1 | 2;
 
 export interface GetPutawaySuggestionsRequest {

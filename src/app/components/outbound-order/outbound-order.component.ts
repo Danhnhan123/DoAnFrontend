@@ -14,6 +14,8 @@ import Swal from 'sweetalert2';
 import {
   AllocateOutboundPayload,
   ApiResponse,
+  CompleteDeliveryResult,
+  DebtDocumentRow,
   DTResponse,
   InventoryRow,
   OUTBOUND_STATUS,
@@ -22,9 +24,12 @@ import {
   OutboundOrderPage,
   OutboundOrderRow,
   PickOutboundPayload,
+  SalesOrderDetail,
 } from '../../models';
 import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
+import { SalesOrderService } from '../../services/sales-order.service';
+import { PartyDebtService } from '../../services/party-debt.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -88,6 +93,8 @@ const PIPELINE_STEPS = [
 export class OutboundOrderComponent implements OnDestroy {
   private readonly service = inject(OutboundOrderService);
   private readonly inventoryService = inject(InventoryService);
+  private readonly salesOrderService = inject(SalesOrderService);
+  private readonly partyDebtService = inject(PartyDebtService);
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
 
@@ -637,50 +644,232 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   // ── Dispatch / Deliver / Fail / Cancel ─────────────────────────────
-  confirmDispatch(order: OutboundOrderDetail): void {
+  async confirmDispatch(order: OutboundOrderDetail): Promise<void> {
     if (order.outboundStatusId !== this.status.PACKED) return;
+
+    // Giá trị phải thu thực tế = giá bán (không dùng giá vốn).
+    // -1 nghĩa là chưa xác định được (lỗi tải đơn bán) → vẫn hiển thị ô hạn
+    // thanh toán cho an toàn, backend sẽ kiểm tra lại.
+    const receivable = await this.computeExpectedReceivable(order);
+    const hasReceivable = receivable !== 0;
+    const known = receivable > 0;
+    const today = this.todayIso();
+
+    const dueDateBlock = hasReceivable
+      ? `<div style="text-align:left;margin-top:12px">` +
+        (known
+          ? `<div style="margin-bottom:6px">Phiếu phát sinh <b>công nợ phải thu ${this.fmtMoney(
+              receivable,
+            )}</b>.</div>`
+          : `<div style="margin-bottom:6px">Nếu phiếu phát sinh công nợ phải thu, vui lòng chọn hạn thanh toán.</div>`) +
+        `<label style="display:block;font-weight:600;margin-bottom:4px" for="dispatch-due-date">Hạn thanh toán</label>` +
+        `<input type="date" id="dispatch-due-date" class="swal2-input" style="margin:0;width:100%" min="${today}" value="${today}">` +
+        `</div>`
+      : '';
+
     Swal.fire({
       title: 'Xác nhận xuất kho?',
-      html: `Phiếu <b>${order.soCode}</b> sẽ trừ tồn thực tế, ghi InventoryTransaction và chuyển đơn bán sang <b>Đang giao</b>.`,
+      html:
+        `<p style="margin:0;text-align:left">Phiếu <b>${order.soCode}</b> sẽ trừ tồn thực tế, ghi InventoryTransaction và chuyển đơn bán sang <b>Đang giao</b>.</p>` +
+        dueDateBlock +
+        `<label style="display:block;text-align:left;font-weight:600;margin:12px 0 4px" for="dispatch-note">Ghi chú xuất kho</label>` +
+        `<textarea id="dispatch-note" class="swal2-textarea" style="margin:0;width:100%" placeholder="Không bắt buộc…"></textarea>`,
       icon: 'question',
-      input: 'textarea',
-      inputPlaceholder: 'Ghi chú xuất kho (không bắt buộc)…',
       showCancelButton: true,
       confirmButtonText: 'Xác nhận xuất kho',
       cancelButtonText: 'Quay lại',
       confirmButtonColor: '#16a34a',
+      focusConfirm: false,
+      preConfirm: () => {
+        const note =
+          (document.getElementById('dispatch-note') as HTMLTextAreaElement)
+            ?.value?.trim() || null;
+        let dueDate: string | null = null;
+        if (hasReceivable) {
+          const value =
+            (document.getElementById('dispatch-due-date') as HTMLInputElement)
+              ?.value ?? '';
+          if (!value) {
+            Swal.showValidationMessage('Vui lòng chọn hạn thanh toán.');
+            return false;
+          }
+          if (value < today) {
+            Swal.showValidationMessage(
+              'Hạn thanh toán không được trước hôm nay.',
+            );
+            return false;
+          }
+          dueDate = value;
+        }
+        return { dueDate, note };
+      },
     }).then((result) => {
-      if (result.isConfirmed) {
+      if (result.isConfirmed && result.value) {
+        const { dueDate, note } = result.value as {
+          dueDate: string | null;
+          note: string | null;
+        };
         this.actionMutation.mutate({
           id: order.id,
           action: 'DISPATCH',
-          payload: { note: (result.value as string)?.trim() || null },
+          payload: { dueDate, note },
         });
       }
     });
   }
 
-  completeDelivery(order: OutboundOrderDetail): void {
+  async completeDelivery(order: OutboundOrderDetail): Promise<void> {
     if (order.outboundStatusId !== this.status.DISPATCHED) return;
+
+    // Lấy số dư chứng từ mới nhất từ API công nợ (không tự tính tổng - cọc,
+    // vì khách có thể đã thanh toán thêm qua trang công nợ).
+    const debt = await this.loadOutboundDebt(order);
+    const outstanding = debt ? debt.outstandingAmount : null;
+    const total = debt ? debt.totalAmount : null;
+    const paid = debt ? debt.totalAmount - debt.outstandingAmount : null;
+
+    const amountBlock =
+      debt != null
+        ? `<div style="text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:12px 0">` +
+          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Tổng tiền phiếu:</span><b>${this.fmtMoney(
+            total!,
+          )}</b></div>` +
+          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Đã thanh toán/cọc:</span><b>${this.fmtMoney(
+            paid!,
+          )}</b></div>` +
+          `<div style="display:flex;justify-content:space-between"><span>Còn phải thu:</span><b style="color:#dc2626">${this.fmtMoney(
+            outstanding!,
+          )}</b></div>` +
+          `</div>`
+        : `<div style="text-align:left;color:#64748b;font-size:13px;margin:12px 0">Chưa lấy được số dư công nợ của phiếu. Bạn vẫn có thể nhập số tiền; hệ thống sẽ kiểm tra khi lưu.</div>`;
+
+    const quickButtons =
+      `<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">` +
+      `<button type="button" id="pay-none" class="swal2-styled" style="background:#64748b;margin:0;font-size:13px;padding:6px 12px">Không thanh toán</button>` +
+      (outstanding != null && outstanding > 0
+        ? `<button type="button" id="pay-full" class="swal2-styled" style="background:#16a34a;margin:0;font-size:13px;padding:6px 12px">Thanh toán toàn bộ</button>`
+        : '') +
+      `</div>`;
+
+    const fieldLabel =
+      'display:block;text-align:left;font-weight:600;margin:12px 0 4px';
+
     Swal.fire({
       title: 'Xác nhận đã giao hàng?',
-      input: 'text',
-      inputLabel: 'Tên người nhận',
-      inputPlaceholder: 'VD: Nguyễn Văn A',
+      html:
+        `<label style="${fieldLabel};margin-top:0" for="cd-receiver">Tên người nhận</label>` +
+        `<input id="cd-receiver" class="swal2-input" style="margin:0;width:100%" placeholder="VD: Nguyễn Văn A">` +
+        amountBlock +
+        `<label style="${fieldLabel}" for="cd-payment">Số tiền khách thanh toán thêm (VNĐ)</label>` +
+        `<input id="cd-payment" class="swal2-input" style="margin:0;width:100%" inputmode="numeric" value="0">` +
+        quickButtons +
+        `<label style="${fieldLabel}" for="cd-note">Ghi chú giao hàng</label>` +
+        `<textarea id="cd-note" class="swal2-textarea" style="margin:0;width:100%" placeholder="Không bắt buộc…"></textarea>`,
       showCancelButton: true,
       confirmButtonText: 'Đã giao thành công',
       cancelButtonText: 'Quay lại',
       confirmButtonColor: '#16a34a',
-      inputValidator: (value) =>
-        value && value.trim() ? null : 'Vui lòng nhập tên người nhận.',
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.actionMutation.mutate({
-          id: order.id,
-          action: 'COMPLETE',
-          payload: { receiverName: (result.value as string).trim() },
+      focusConfirm: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: () => !Swal.isLoading(),
+      didOpen: () => {
+        const payInput = document.getElementById(
+          'cd-payment',
+        ) as HTMLInputElement;
+        const format = () => {
+          const digits = payInput.value.replace(/\D/g, '');
+          payInput.value = digits
+            ? Number(digits).toLocaleString('vi-VN')
+            : '0';
+        };
+        payInput.addEventListener('input', format);
+        format();
+        document.getElementById('pay-none')?.addEventListener('click', () => {
+          payInput.value = '0';
+          format();
         });
+        document.getElementById('pay-full')?.addEventListener('click', () => {
+          payInput.value = String(outstanding ?? 0);
+          format();
+        });
+      },
+      preConfirm: async () => {
+        const receiver =
+          (document.getElementById('cd-receiver') as HTMLInputElement)
+            ?.value?.trim() || '';
+        if (!receiver) {
+          Swal.showValidationMessage('Vui lòng nhập tên người nhận.');
+          return false;
+        }
+        const amount = this.parseMoney(
+          (document.getElementById('cd-payment') as HTMLInputElement)?.value,
+        );
+        if (amount < 0) {
+          Swal.showValidationMessage(
+            'Số tiền khách thanh toán thêm không được âm.',
+          );
+          return false;
+        }
+        const note =
+          (document.getElementById('cd-note') as HTMLTextAreaElement)
+            ?.value?.trim() || null;
+        try {
+          const res = await lastValueFrom(
+            this.service.completeDelivery(order.id, {
+              receiverName: receiver,
+              paymentAmount: amount,
+              deliveryNote: note,
+            }),
+          );
+          if (!res.isSucceeded) {
+            Swal.showValidationMessage(
+              res.message || 'Không xác nhận được giao hàng.',
+            );
+            return false;
+          }
+          return { ok: true, data: res.resources as CompleteDeliveryResult };
+        } catch (error) {
+          const status = (error as any)?.status;
+          const msg = this.errorText(error);
+          // 422: số tiền âm/vượt dư nợ/đã thu đủ/không có công nợ →
+          // GIỮ popup mở để người dùng sửa số tiền.
+          if (status === 422) {
+            Swal.showValidationMessage(msg);
+            return false;
+          }
+          // 400 (payload) / 409 (không còn "Đang giao") / khác → đóng popup,
+          // báo lỗi nguyên văn từ backend.
+          return { ok: false, error: msg };
+        }
+      },
+    }).then((result) => {
+      if (!result.isConfirmed || !result.value) return;
+      const value = result.value as
+        | { ok: true; data: CompleteDeliveryResult }
+        | { ok: false; error: string };
+      if (!value.ok) {
+        this.alert(value.error, false);
+        return;
       }
+      this.refreshAfterWrite();
+      this.notifyDeliveryDone(value.data);
+    });
+  }
+
+  /** Thông báo kết quả sau khi giao hàng thành công. */
+  private notifyDeliveryDone(data: CompleteDeliveryResult): void {
+    const remaining = data.remainingDebt;
+    let text = 'Đã xác nhận giao hàng thành công.';
+    if (remaining === 0) {
+      text = 'Khách hàng đã thanh toán đủ.';
+    } else if (remaining != null && remaining > 0) {
+      text = `Còn nợ ${this.fmtMoney(remaining)}.`;
+    }
+    Swal.fire({
+      icon: 'success',
+      title: 'Thành công',
+      text,
+      confirmButtonColor: '#16a34a',
     });
   }
 
@@ -847,10 +1036,98 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   private refreshAfterWrite(): void {
+    // 'outbound-orders' phủ cả danh sách phiếu và chi tiết phiếu đang chọn
+    // (queryKey chi tiết: ['outbound-orders', 'detail', id]).
     this.queryClient.invalidateQueries({ queryKey: ['outbound-orders'] });
     this.queryClient.invalidateQueries({ queryKey: ['sales-orders'] });
     this.queryClient.invalidateQueries({ queryKey: ['inventories'] });
     this.queryClient.invalidateQueries({ queryKey: ['inventory-summary'] });
+    // Làm mới cache/dữ liệu trang công nợ sau khi ghi nhận thanh toán.
+    this.queryClient.invalidateQueries({ queryKey: ['party-debts'] });
+    this.queryClient.invalidateQueries({ queryKey: ['reports'] });
+  }
+
+  /**
+   * Tính giá trị phải thu dự kiến của phiếu xuất theo GIÁ BÁN (không dùng giá
+   * vốn). Lấy đơn giá bán từ đơn bán (LineAmount / QuantityOrdered) rồi nhân
+   * số lượng đã lấy của từng dòng. Trả -1 nếu không xác định được.
+   */
+  private async computeExpectedReceivable(
+    order: OutboundOrderDetail,
+  ): Promise<number> {
+    try {
+      const res = await lastValueFrom(
+        this.salesOrderService.getById(order.salesOrderId),
+      );
+      const so = this.unwrap<SalesOrderDetail>(
+        res,
+        'Không tải được đơn bán.',
+      );
+      const unitByItem = new Map<number, number>();
+      for (const it of so.items) {
+        const unit =
+          it.quantityOrdered > 0
+            ? it.lineAmount / it.quantityOrdered
+            : Number(it.unitSalePrice || 0);
+        unitByItem.set(it.id, unit);
+      }
+      let total = 0;
+      for (const item of order.items) {
+        const unit =
+          item.salesOrderItemId != null
+            ? unitByItem.get(item.salesOrderItemId) ?? 0
+            : 0;
+        total += Number(item.quantityPicked || 0) * unit;
+      }
+      return total;
+    } catch {
+      return -1;
+    }
+  }
+
+  /**
+   * Lấy chứng từ công nợ phải thu của phiếu xuất này từ API công nợ.
+   * Khớp theo refType = 'OUTBOUND_ORDER' và refId = order.id.
+   */
+  private async loadOutboundDebt(
+    order: OutboundOrderDetail,
+  ): Promise<DebtDocumentRow | null> {
+    try {
+      const request = this.partyDebtService.buildDocumentRequest(
+        1,
+        50,
+        order.soCode,
+        'RECEIVABLE',
+        false,
+      );
+      const res = await lastValueFrom(
+        this.partyDebtService.getDocuments(request),
+      );
+      const rows = this.unwrap<DTResponse<DebtDocumentRow>>(
+        res,
+        'Không tải được công nợ.',
+      ).data;
+      return (
+        rows.find(
+          (r) => r.refType === 'OUTBOUND_ORDER' && r.refId === order.id,
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /** Ngày hôm nay dạng yyyy-MM-dd (theo giờ địa phương) cho input date. */
+  private todayIso(): string {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  }
+
+  /** Ép chuỗi nhập (đã format VNĐ) về số thuần. */
+  private parseMoney(raw: string | null | undefined): number {
+    const digits = (raw ?? '').replace(/\D/g, '');
+    return digits ? Number(digits) : 0;
   }
 
   private unwrap<T>(response: ApiResponse<T>, fallback: string): T {

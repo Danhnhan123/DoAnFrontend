@@ -123,13 +123,23 @@ export interface ConfirmPackingPayload {
 }
 
 export interface ConfirmDispatchPayload {
+  /** Hạn thanh toán — bắt buộc khi phiếu phát sinh công nợ phải thu. */
+  dueDate?: string | null;
   note?: string | null;
 }
 
 export interface CompleteDeliveryPayload {
   receiverName: string;
+  /** Số tiền khách thanh toán thêm khi nhận hàng (số thuần, mặc định 0). */
+  paymentAmount: number;
   deliveryNote?: string | null;
   proofImageUrl?: string | null;
+}
+
+/** Kết quả trả về của complete-delivery. */
+export interface CompleteDeliveryResult {
+  paymentAmount: number;
+  remainingDebt: number | null;
 }
 
 export interface FailDeliveryPayload {
