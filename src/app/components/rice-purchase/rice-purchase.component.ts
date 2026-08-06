@@ -13,6 +13,7 @@ import Swal from "sweetalert2";
 
 import {
   ApiResponse,
+  ConfirmPaddyPurchaseReceiptPayload,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
   DTResponse,
@@ -354,9 +355,14 @@ export class RicePurchaseComponent implements OnDestroy {
   }));
 
   private readonly confirmReceiptMutation = injectMutation(() => ({
-    mutationFn: async (id: number) =>
+    mutationFn: async (vars: {
+      id: number;
+      payload: ConfirmPaddyPurchaseReceiptPayload;
+    }) =>
       this.ensureSucceeded(
-        await lastValueFrom(this.purchaseService.confirmReceipt(id)),
+        await lastValueFrom(
+          this.purchaseService.confirmReceipt(vars.id, vars.payload),
+        ),
         "Không chốt được phiếu mua lúa.",
       ),
     onSuccess: async () => {
@@ -929,15 +935,20 @@ export class RicePurchaseComponent implements OnDestroy {
       return;
     }
 
-    const accepted = await this.askConfirm(
-      "Chốt phiếu mua lúa?",
-      "Hệ thống sẽ sinh lô và phiếu kiểm định chất lượng (chờ kiểm định). Sau khi kiểm định Đạt/Cách ly ở màn Chất lượng & cách ly mới sinh phiếu nhập kho.",
-    );
-    if (!accepted) return;
+    const hasDebt = Number(row.debtAmount || 0) > 0;
+    const confirm = await this.askConfirmReceipt(row, hasDebt);
+    if (!confirm.confirmed) return;
+
+    const payload: ConfirmPaddyPurchaseReceiptPayload = hasDebt
+      ? { dueDate: confirm.dueDate }
+      : {};
 
     this.confirmingReceiptId.set(row.id);
     try {
-      const response = await this.confirmReceiptMutation.mutateAsync(row.id);
+      const response = await this.confirmReceiptMutation.mutateAsync({
+        id: row.id,
+        payload,
+      });
       if (!response.isSucceeded) {
         throw new Error(response.message || "Không thể chốt phiếu mua lúa.");
       }
@@ -1354,6 +1365,72 @@ export class RicePurchaseComponent implements OnDestroy {
       reverseButtons: true,
     });
     return result.isConfirmed;
+  }
+
+  /**
+   * Popup chốt phiếu mua lúa.
+   * - Không phát sinh nợ: hỏi Đồng ý/Hủy như bình thường.
+   * - Phát sinh nợ (debtAmount > 0): bắt buộc chọn "Hạn thanh toán",
+   *   không cho chọn ngày trước hôm nay.
+   */
+  private async askConfirmReceipt(
+    row: PaddyPurchaseReceiptRow,
+    hasDebt: boolean,
+  ): Promise<{ confirmed: boolean; dueDate?: string }> {
+    const baseText =
+      "Hệ thống sẽ sinh lô và phiếu kiểm định chất lượng (chờ kiểm định). " +
+      "Sau khi kiểm định Đạt/Cách ly ở màn Chất lượng & cách ly mới sinh phiếu nhập kho.";
+
+    if (!hasDebt) {
+      const confirmed = await this.askConfirm("Chốt phiếu mua lúa?", baseText);
+      return { confirmed };
+    }
+
+    const today = this.todayIso();
+    const debt = this.formatMoney(Number(row.debtAmount || 0));
+    const result = await Swal.fire({
+      title: "Chốt phiếu mua lúa?",
+      icon: "question",
+      html:
+        `<p style="margin:0 0 8px;text-align:left">${baseText}</p>` +
+        `<p style="margin:0 0 10px;text-align:left">Phiếu phát sinh <b>công nợ phải trả ${debt}</b>. ` +
+        `Vui lòng chọn hạn thanh toán cho nhà cung cấp.</p>` +
+        `<label style="display:block;text-align:left;font-weight:600;margin-bottom:4px" for="ppr-due-date">Hạn thanh toán</label>` +
+        `<input type="date" id="ppr-due-date" class="swal2-input" style="margin:0" min="${today}" value="${today}">`,
+      showCancelButton: true,
+      confirmButtonText: "Chốt & tạo phiếu kiểm định",
+      cancelButtonText: "Hủy",
+      confirmButtonColor: "#159947",
+      cancelButtonColor: "#64748b",
+      reverseButtons: true,
+      focusConfirm: false,
+      preConfirm: () => {
+        const input = document.getElementById(
+          "ppr-due-date",
+        ) as HTMLInputElement | null;
+        const value = input?.value ?? "";
+        if (!value) {
+          Swal.showValidationMessage("Vui lòng chọn hạn thanh toán.");
+          return false;
+        }
+        if (value < today) {
+          Swal.showValidationMessage("Hạn thanh toán không được trước hôm nay.");
+          return false;
+        }
+        return value;
+      },
+    });
+
+    return result.isConfirmed
+      ? { confirmed: true, dueDate: result.value as string }
+      : { confirmed: false };
+  }
+
+  /** Ngày hôm nay dạng yyyy-MM-dd (theo giờ địa phương) cho input date. */
+  private todayIso(): string {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().slice(0, 10);
   }
 
   private showSuccess(message: string): Promise<any> {
