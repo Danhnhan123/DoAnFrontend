@@ -43,6 +43,8 @@ const REALTIME_MAP: Record<string, string[]> = {
     "inventory-summary",
     "reports",
   ],
+  StockTake: ['stock-takes'],
+  StockTakeItem: ['stock-takes'],
   Alert: ["alerts", "alerts-summary", "reports"],
   SystemConfig: ["system-configs"],
   Notification: ["notifications"],

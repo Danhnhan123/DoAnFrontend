@@ -104,6 +104,7 @@ export class AdminLayoutComponent implements OnInit {
     "unit-of-measures": "Đơn vị tính",
     warehouses: "Quản lý kho hàng",
     "stock-transfers": "Chuyển kho nội bộ",
+    "stock-takes": "Kiểm kê kho",
     "customer-returns": "Trả hàng khách & xử lý chất lượng",
     notifications: "Quản lý thông báo",
     "notification-categories": "Danh mục thông báo",

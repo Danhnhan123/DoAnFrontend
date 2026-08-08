@@ -42,6 +42,7 @@ export * from "./sales-order";
 export * from "./outbound-order";
 export * from "./party-debt";
 export * from "./stock-transfer";
+export * from "./stock-take";
 export * from "./report";
 export * from "./inbound-order-status";
 export * from "./outbound-order-status";

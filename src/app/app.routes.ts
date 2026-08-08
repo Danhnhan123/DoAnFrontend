@@ -301,6 +301,15 @@ const adminChildren: Routes = [
       ).then((m) => m.InventoryMonitoringComponent),
   },
   {
+    path: "stock-takes",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "STOCKTAKE" },
+    loadComponent: () =>
+      import("./components/stock-take/stock-take.component").then(
+        (m) => m.StockTakeComponent,
+      ),
+  },
+  {
     path: "stock-transfers",
     loadComponent: () =>
       import("./components/stock-transfer/stock-transfer.component").then(
