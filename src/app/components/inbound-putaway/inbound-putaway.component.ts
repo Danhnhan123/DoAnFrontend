@@ -658,7 +658,8 @@ export class InboundPutawayComponent {
   }
 
   canPrepare(): boolean {
-    return ["approved", "receiving", "partially received"].includes(
+    // selectedStatus() là CODE đã lowercase: draft/submitted/approved/receiving/partially_received/...
+    return ["approved", "receiving", "partially_received"].includes(
       this.selectedStatus(),
     );
   }
