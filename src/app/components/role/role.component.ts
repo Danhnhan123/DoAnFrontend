@@ -25,13 +25,26 @@ import { PermissionService } from '../../services/permission.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
+// Map hành động -> cờ khả dụng trong MenuPermissionDto.
+// Ưu tiên khoá theo CODE ổn định (READ/CREATE/UPDATE/DELETE/EXPORT/APPROVE);
+// kèm fallback theo TÊN hiển thị từ DB để an toàn nếu action thiếu code.
+// (Trước đây chỉ map theo tên với khoá 'Export'/'Approve' không khớp tên thật
+//  "Xuất dữ liệu"/"Duyệt" -> 2 cột Xuất & Duyệt luôn bị disable.)
 const ACTION_PROP_MAP: Record<string, string> = {
+  // theo Code
+  READ: 'hasRead',
+  CREATE: 'hasCreate',
+  UPDATE: 'hasUpdate',
+  DELETE: 'hasDelete',
+  EXPORT: 'hasExport',
+  APPROVE: 'hasApprove',
+  // fallback theo tên hiển thị
   Xem: 'hasRead',
   'Thêm mới': 'hasCreate',
   'Chỉnh sửa': 'hasUpdate',
   Xoá: 'hasDelete',
-  Export: 'hasExport',
-  Approve: 'hasApprove',
+  'Xuất dữ liệu': 'hasExport',
+  Duyệt: 'hasApprove',
 };
 
 @Component({
@@ -278,14 +291,15 @@ export class RoleComponent {
       .filter((m) => m.parentId === parentId)
       .sort((a, b) => a.order - b.order);
   }
-  isActionAllowed(menuId: number, actionName: string): boolean {
+  isActionAllowed(menuId: number, action: ActionDto): boolean {
     const perm = this.menuPermissions().get(menuId);
     if (!perm) return false;
-    const prop = ACTION_PROP_MAP[actionName];
+    // Ưu tiên resolve theo code, fallback theo tên hiển thị.
+    const prop = ACTION_PROP_MAP[action.code ?? ''] ?? ACTION_PROP_MAP[action.name];
     return prop ? Boolean(perm[prop]) : false;
   }
   isDisabled(menu: FlatMenu, action: ActionDto): boolean {
-    return !this.isActionAllowed(menu.id, action.name);
+    return !this.isActionAllowed(menu.id, action);
   }
   isChecked(menuId: number, actionId: number): boolean {
     return this.selectedPerms().get(menuId)?.has(actionId) ?? false;
