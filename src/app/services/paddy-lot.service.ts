@@ -25,6 +25,12 @@ export class PaddyLotService {
     );
   }
 
+  getAll(): Observable<ApiResponse<PaddyLotDetailDto[]>> {
+    return this.http.get<ApiResponse<PaddyLotDetailDto[]>>(
+      `${this.base}/paddy-lots`,
+    );
+  }
+
   getById(id: number): Observable<ApiResponse<PaddyLotDetailDto>> {
     return this.http.get<ApiResponse<PaddyLotDetailDto>>(
       `${this.base}/paddy-lots/${id}`,

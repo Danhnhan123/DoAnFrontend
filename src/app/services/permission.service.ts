@@ -71,4 +71,7 @@ export class PermissionService {
   canDelete(menuCode: string): boolean {
     return this.can(menuCode, ACTION.DELETE);
   }
+  canApprove(menuCode: string): boolean {
+    return this.can(menuCode, ACTION.APPROVE);
+  }
 }

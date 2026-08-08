@@ -301,6 +301,15 @@ const adminChildren: Routes = [
       ).then((m) => m.InventoryMonitoringComponent),
   },
   {
+    path: "stock-takes",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "STOCKTAKE" },
+    loadComponent: () =>
+      import("./components/stock-take/stock-take.component").then(
+        (m) => m.StockTakeComponent,
+      ),
+  },
+  {
     path: "stock-transfers",
     loadComponent: () =>
       import("./components/stock-transfer/stock-transfer.component").then(
@@ -321,6 +330,13 @@ const adminChildren: Routes = [
     loadComponent: () =>
       import("./components/paddy-lot/paddy-lot.component").then(
         (m) => m.PaddyLotComponent,
+      ),
+  },
+  {
+    path: "qr-labels",
+    loadComponent: () =>
+      import("./components/qr-label/qr-label.component").then(
+        (m) => m.QrLabelComponent,
       ),
   },
   {

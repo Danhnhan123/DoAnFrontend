@@ -1,0 +1,153 @@
+<div class="stocktake-page">
+  <section class="hero">
+    <div>
+      <span class="eyebrow">Kho · Kiểm kê</span>
+      <h1>Kiểm kê kho</h1>
+      <p>Chụp snapshot theo phạm vi, ghi nhận số đếm thực tế và duyệt điều chỉnh với đầy đủ bằng chứng.</p>
+    </div>
+    <button type="button" class="btn btn-primary" [appHasPerm]="'STOCKTAKE:CREATE'" (click)="openCreateForm()">＋ Tạo phiên kiểm kê</button>
+  </section>
+
+  @if (isReadOnlyUser()) {
+    <div class="readonly-banner">
+      <strong>Chế độ chỉ xem</strong>
+      <span>Bạn có thể xem phiếu, chênh lệch và lịch sử giao dịch; các thao tác thay đổi dữ liệu đã được ẩn.</span>
+    </div>
+  }
+
+  <section class="kpi-grid">
+    <article><span>Đang kiểm</span><strong>{{ summary().draftCount }}</strong><small>Phiếu nháp</small></article>
+    <article><span>Chờ duyệt</span><strong>{{ summary().submittedCount }}</strong><small>Đã khóa số đếm</small></article>
+    <article><span>Dòng chênh lệch</span><strong>{{ summary().varianceLineCount }}</strong><small>Trên phiếu chờ duyệt</small></article>
+    <article><span>Điều chỉnh dự kiến</span><strong [class.negative]="summary().netAdjustmentKg < 0">{{ formatNumber(summary().netAdjustmentKg) }} kg</strong><small>Giá trị ròng</small></article>
+  </section>
+
+  <section class="card">
+    <header class="list-header">
+      <div><h2>Danh sách phiên kiểm kê</h2><p>{{ total() }} phiếu</p></div>
+      <label class="search"><span>⌕</span><input type="search" placeholder="Mã phiếu, kho, ghi chú…" [ngModel]="searchInput()" (ngModelChange)="onSearch($event)" /></label>
+    </header>
+    <div class="filters">
+      <div><label>Kho</label><app-filter-select [options]="warehouseOptions()" [value]="warehouseFilter()" allLabel="Tất cả kho" (valueChange)="setWarehouseFilter($event)" /></div>
+      <div><label>Trạng thái</label><app-filter-select [options]="statusOptions()" [value]="statusFilter()" allLabel="Tất cả trạng thái" (valueChange)="setStatusFilter($event)" /></div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Mã phiếu</th><th>Kho / phạm vi</th><th class="number">Số dòng</th><th class="number">Chênh lệch</th><th class="number">Điều chỉnh ròng</th><th>Trạng thái</th><th>Người tạo</th><th>Ngày tạo</th></tr></thead>
+        <tbody>
+          @if (listLoading() && rows().length === 0) {
+            <tr><td colspan="8" class="empty"><span class="spinner"></span> Đang tải dữ liệu…</td></tr>
+          } @else if (rows().length === 0) {
+            <tr><td colspan="8" class="empty">Không có phiếu phù hợp.</td></tr>
+          } @else {
+            @for (row of rows(); track row.id) {
+              <tr class="clickable" tabindex="0" (click)="openDetail(row.id)" (keydown.enter)="openDetail(row.id)">
+                <td><strong>{{ row.stCode }}</strong></td>
+                <td><span>{{ row.warehouseName }}</span><small>{{ row.scopeDisplay }}</small></td>
+                <td class="number">{{ row.itemCount }}</td>
+                <td class="number">{{ row.varianceLineCount }}</td>
+                <td class="number" [class.negative]="row.netVarianceKg < 0">{{ formatNumber(row.netVarianceKg) }} kg</td>
+                <td><span class="pill" [ngClass]="statusClass(row.stockTakeStatusCode)">{{ row.stockTakeStatusName }}</span></td>
+                <td>{{ row.createdByName || '—' }}</td>
+                <td>{{ formatDate(row.createdDate) }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+    <footer class="pager">
+      <span>Hiển thị {{ rows().length }} / {{ total() }}</span>
+      <div><app-filter-select class="page-size" [clearable]="false" [options]="pageSizeOptions" [value]="pageSize()" (valueChange)="changePageSize($event)" />
+        <button type="button" [disabled]="page() <= 1" (click)="changePage(page() - 1)">‹</button><span>Trang {{ page() }} / {{ totalPages() }}</span><button type="button" [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">›</button>
+      </div>
+    </footer>
+  </section>
+</div>
+
+@if (showCreate()) {
+  <div class="modal-backdrop" (mousedown)="closeCreateForm()">
+    <section class="modal create-modal" role="dialog" aria-modal="true" (mousedown)="$event.stopPropagation()">
+      <header><div><span class="eyebrow">Bước 1 · Chụp snapshot</span><h2>Tạo phiên kiểm kê</h2></div><button type="button" class="close" (click)="closeCreateForm()">×</button></header>
+      <div class="modal-body form-grid">
+        <div class="field full"><label>Kho <b>*</b></label><app-filter-select [options]="warehouseOptions()" [value]="createForm().warehouseId" allLabel="Chọn kho" (valueChange)="setCreateWarehouse($event)" /></div>
+        <div class="field"><label>Loại phạm vi <b>*</b></label><app-filter-select [clearable]="false" [options]="scopeTypeOptions" [value]="createForm().scopeType" (valueChange)="setScopeType($event)" /></div>
+        <div class="field"><label>Giá trị phạm vi</label><app-filter-select [disabled]="createForm().scopeType === 'WAREHOUSE' || !createForm().warehouseId" [clearable]="false" [options]="scopeOptions()" [value]="createForm().scopeValue" [allLabel]="createForm().scopeType === 'WAREHOUSE' ? 'Toàn bộ tồn trong kho' : 'Chọn phạm vi'" (valueChange)="setScopeValue($event)" /></div>
+        <div class="field full"><label>Ghi chú</label><textarea rows="3" placeholder="Mục đích hoặc hướng dẫn kiểm kê" [ngModel]="createForm().note" (ngModelChange)="setCreateNote($event)"></textarea></div>
+        <div class="scope-note full"><strong>Snapshot do backend tạo</strong><span>Các dòng tồn hợp lệ trong phạm vi sẽ được cố định tại thời điểm tạo phiếu. Phiếu trống sẽ không được tạo.</span></div>
+      </div>
+      <footer><button type="button" class="btn btn-secondary" (click)="closeCreateForm()">Hủy</button><button type="button" class="btn btn-primary" [disabled]="saving()" (click)="createStockTake()">{{ saving() ? 'Đang tạo…' : 'Tạo & bắt đầu kiểm' }}</button></footer>
+    </section>
+  </div>
+}
+
+@if (selectedId() !== null) {
+  <div class="modal-backdrop" (mousedown)="closeDetail()">
+    <section class="modal detail-modal" role="dialog" aria-modal="true" (mousedown)="$event.stopPropagation()">
+      @if (detailLoading() && !detail()) {
+        <div class="modal-loading"><span class="spinner"></span> Đang tải chi tiết…</div>
+      } @else {
+        @if (detail(); as current) {
+        <header>
+          <div><span class="eyebrow">{{ current.warehouseName }} · {{ current.scopeDisplay }}</span><h2>{{ current.stCode }}</h2><p>Tạo bởi {{ current.createdByName || '—' }} lúc {{ formatDate(current.createdDate) }}</p></div>
+          <div class="header-side"><span class="pill" [ngClass]="statusClass(current.stockTakeStatusCode)">{{ current.stockTakeStatusName }}</span><button type="button" class="close" (click)="closeDetail()">×</button></div>
+        </header>
+
+        <div class="modal-body detail-body">
+          @if (!isStatus(current.stockTakeStatusCode, status.DRAFT)) {
+            <div class="lock-note">🔒 Phiếu đã gửi duyệt; số đếm và lý do được khóa để bảo toàn bằng chứng.</div>
+          }
+          @if (current.approveNote) { <div class="decision-note"><strong>Ghi chú quyết định:</strong> {{ current.approveNote }}</div> }
+          <div class="threshold-note">Ngưỡng: SMALL từ {{ thresholds().smallVariancePercent }}% hoặc {{ formatNumber(thresholds().smallVarianceKg) }} kg · LARGE từ {{ thresholds().mediumVariancePercent }}% hoặc {{ formatNumber(thresholds().mediumVarianceKg) }} kg.</div>
+
+          <div class="table-wrap detail-table">
+            <table>
+              <thead><tr><th>SKU / lô / vị trí</th><th class="number">Hệ thống</th><th class="number">Thực tế</th><th class="number">Chênh</th><th>Mức</th><th>Lý do</th><th>Kiểm lại</th></tr></thead>
+              <tbody>
+                @for (item of current.stockTakeItems; track item.id; let index = $index) {
+                  <tr>
+                    <td><strong>{{ item.sku || '—' }}</strong><span>{{ item.productVariantName || '—' }}</span><small>{{ item.lotCode || 'Không theo lô' }} · {{ item.zoneName || '—' }}/{{ item.locationCode || '—' }}</small>@if (item.isQuarantine) { <em>Cách ly</em> }</td>
+                    <td class="number">{{ formatNumber(item.systemQuantity) }} kg</td>
+                    <td class="number">
+                      @if (canEditDetail()) { <input class="count-input" type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.actualQuantity" (ngModelChange)="updateCount(index, 'actualQuantity', $event)" /> }
+                      @else { {{ item.actualQuantity == null ? '—' : formatNumber(item.actualQuantity) + ' kg' }} }
+                    </td>
+                    <td class="number" [class.negative]="(lineFor(item)?.actualQuantity ?? item.actualQuantity ?? item.systemQuantity) - item.systemQuantity < 0">{{ lineFor(item)?.actualQuantity == null ? '—' : formatNumber((lineFor(item)?.actualQuantity || 0) - item.systemQuantity) + ' kg' }}</td>
+                    <td><span class="severity" [ngClass]="severityClass(canEditDetail() ? lineSeverity(item) : item.varianceSeverity)">{{ canEditDetail() ? lineSeverity(item) : item.varianceSeverity }}</span></td>
+                    <td>
+                      @if (canEditDetail()) { <textarea rows="2" placeholder="Bắt buộc với Medium/Large" [ngModel]="lineFor(item)?.note" (ngModelChange)="updateCount(index, 'note', $event)"></textarea> }
+                      @else { {{ item.note || '—' }} }
+                    </td>
+                    <td>
+                      @if (canEditDetail()) { <label class="check"><input type="checkbox" [ngModel]="lineFor(item)?.recountConfirmed" (ngModelChange)="updateCount(index, 'recountConfirmed', $event)" /> <span>Đã kiểm lại</span></label> }
+                      @else { {{ item.recountConfirmed ? 'Đã xác nhận' : '—' }} }
+                    </td>
+                  </tr>
+                  @if (item.postSnapshotMovements.length) {
+                    <tr class="evidence-row"><td colspan="7"><details><summary>{{ item.postSnapshotMovements.length }} giao dịch sau snapshot — cần xử lý xung đột trước khi duyệt</summary><ul>@for (movement of item.postSnapshotMovements; track movement.id) { <li><b>{{ movement.transactionType }}</b> {{ formatNumber(movement.beforeQuantity) }} → {{ formatNumber(movement.afterQuantity) }} kg · {{ formatDate(movement.createdDate) }} · {{ movement.note || 'Không ghi chú' }}</li> }</ul></details></td></tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <footer>
+          <button type="button" class="btn btn-secondary" (click)="closeDetail()">Đóng</button>
+          <div class="action-group">
+            @if (isStatus(current.stockTakeStatusCode, status.DRAFT)) {
+              <button type="button" class="btn btn-secondary" [appHasPerm]="'STOCKTAKE:UPDATE'" [disabled]="actionLoading()" (click)="saveCounts()">Lưu nháp</button>
+              <button type="button" class="btn btn-primary" [appHasPerm]="'STOCKTAKE:UPDATE'" [disabled]="actionLoading()" (click)="submit()">Gửi duyệt</button>
+            }
+            @if (isStatus(current.stockTakeStatusCode, status.SUBMITTED)) {
+              <button type="button" class="btn btn-danger" [appHasPerm]="'STOCKTAKE:APPROVE'" [disabled]="actionLoading()" (click)="reject()">Từ chối</button>
+              <button type="button" class="btn btn-primary" [appHasPerm]="'STOCKTAKE:APPROVE'" [disabled]="actionLoading()" (click)="approve()">Duyệt & điều chỉnh tồn</button>
+            }
+          </div>
+        </footer>
+        }
+      }
+    </section>
+  </div>
+}
