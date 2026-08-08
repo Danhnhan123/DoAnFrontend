@@ -265,6 +265,39 @@ export class StockTransferComponent implements OnDestroy {
     )
   );
 
+  // ─── Option cho dropdown dùng chung trong form (app-filter-select) ──────────
+  /** Kho nguồn: chặn chọn trùng kho đích. */
+  readonly fromWarehouseSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({
+      id: w.id,
+      name: w.name,
+      disabled: w.id === this.form().toWarehouseId,
+    }))
+  );
+
+  /** Kho đích: chặn chọn trùng kho nguồn. */
+  readonly toWarehouseSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((w) => ({
+      id: w.id,
+      name: w.name,
+      disabled: w.id === this.form().fromWarehouseId,
+    }))
+  );
+
+  readonly sourceInventoryOptions = computed<FilterSelectOption[]>(() =>
+    this.sourceInventories().map((inv) => ({
+      id: inv.id,
+      name: this.inventoryOption(inv),
+    }))
+  );
+
+  readonly destinationLocationOptions = computed<FilterSelectOption[]>(() =>
+    this.destinationLocations().map((loc) => ({
+      id: loc.id,
+      name: this.locationLabel(loc),
+    }))
+  );
+
   readonly listLoading = computed(
     () => this.listQuery.isPending() || this.listQuery.isFetching()
   );

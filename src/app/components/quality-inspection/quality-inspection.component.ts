@@ -44,7 +44,7 @@ interface QcForm {
 }
 
 /**
- * SCR-QC — Quản lý chất lượng & cách ly lô (khớp thiết kế Figma "Chất lượng & cách ly").
+ * Quản lý chất lượng & cách ly lô (khớp thiết kế Figma "Chất lượng & cách ly").
  * Nối đủ 7 API QualityInspection: paged, GET all, GET {id}, by-lot, POST, PUT, DELETE.
  */
 @Component({

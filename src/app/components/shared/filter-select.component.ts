@@ -1,9 +1,13 @@
 import {
+  AfterViewInit,
   Component,
+  ElementRef,
   EventEmitter,
   HostListener,
   Input,
+  OnDestroy,
   Output,
+  ViewChild,
   signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -11,14 +15,20 @@ import { CommonModule } from '@angular/common';
 export interface FilterSelectOption {
   id: any;
   name: string;
+  /** Vô hiệu hoá riêng option này (không cho chọn). */
+  disabled?: boolean;
 }
 
 /**
- * Dropdown lọc dùng chung cho toàn bộ bộ lọc nâng cao (đồng bộ giao diện với
- * dropdown của màn Audit Log / Activity Log).
+ * Dropdown lọc/chọn dùng chung cho toàn bộ bộ lọc nâng cao và các form
+ * (đồng bộ giao diện với dropdown của màn Audit Log / Activity Log).
  *
  * - Chọn 1 (mặc định): có mục "Tất cả" để bỏ chọn, value là id (hoặc null).
  * - Chọn nhiều (multiple=true): checkbox, value là mảng id.
+ * - Option có thể set disabled riêng: { id, name, disabled: true }.
+ *
+ * Menu được render bằng position:fixed neo theo nút bấm nên KHÔNG bị cắt bởi
+ * container cha có overflow:hidden/auto (card, table-wrap, modal-body…).
  *
  * Dùng:
  *   <app-filter-select [options]="opts()" [value]="filter()"
@@ -31,6 +41,7 @@ export interface FilterSelectOption {
   template: `
     <div class="ms-dropdown" (click)="$event.stopPropagation()">
       <button
+        #toggleBtn
         type="button"
         class="form-control ms-toggle"
         [class.has-value]="hasValue()"
@@ -55,23 +66,28 @@ export interface FilterSelectOption {
       </button>
 
       @if (open()) {
-      <div class="ms-menu">
+      <div class="ms-menu" [ngStyle]="menuStyle()">
         @if (!multiple && clearable) {
         <label class="ms-item" (click)="selectSingle(null)">
           <span class="ms-radio" [class.on]="!hasValue()"></span>
           <span>{{ allLabel }}</span>
         </label>
         } @for (o of options; track o.id) { @if (multiple) {
-        <label class="ms-item">
+        <label class="ms-item" [class.disabled]="o.disabled">
           <input
             type="checkbox"
             [checked]="isChecked(o.id)"
+            [disabled]="o.disabled"
             (change)="toggleMulti(o.id, $any($event.target).checked)"
           />
           <span>{{ o.name }}</span>
         </label>
         } @else {
-        <label class="ms-item" (click)="selectSingle(o.id)">
+        <label
+          class="ms-item"
+          [class.disabled]="o.disabled"
+          (click)="o.disabled ? null : selectSingle(o.id)"
+        >
           <span class="ms-radio" [class.on]="o.id === value"></span>
           <span>{{ o.name }}</span>
         </label>
@@ -102,6 +118,10 @@ export interface FilterSelectOption {
         cursor: pointer;
         background: var(--card-bg, #fff);
       }
+      .ms-toggle:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
       .ms-toggle.has-value {
         border-color: var(--accent, #16a34a);
         color: var(--accent, #16a34a);
@@ -120,11 +140,8 @@ export interface FilterSelectOption {
         transform: rotate(180deg);
       }
       .ms-menu {
-        position: absolute;
-        top: calc(100% + 4px);
-        left: 0;
-        right: 0;
-        z-index: 50;
+        position: fixed;
+        z-index: 1200;
         max-height: 240px;
         overflow-y: auto;
         padding: 6px;
@@ -145,6 +162,13 @@ export interface FilterSelectOption {
       }
       .ms-item:hover {
         background: var(--bg-tertiary, #eef1f7);
+      }
+      .ms-item.disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .ms-item.disabled:hover {
+        background: transparent;
       }
       .ms-item input {
         flex-shrink: 0;
@@ -175,7 +199,7 @@ export interface FilterSelectOption {
     `,
   ],
 })
-export class FilterSelectComponent {
+export class FilterSelectComponent implements AfterViewInit, OnDestroy {
   @Input() options: FilterSelectOption[] = [];
   @Input() multiple = false;
   @Input() placeholder = 'Tất cả';
@@ -187,17 +211,62 @@ export class FilterSelectComponent {
   @Input() value: any = null;
   @Output() valueChange = new EventEmitter<any>();
 
+  @ViewChild('toggleBtn') toggleBtn?: ElementRef<HTMLButtonElement>;
+
   open = signal(false);
+  /** Toạ độ menu (position:fixed) để không bị cắt bởi overflow của ancestor. */
+  private menuPos = signal<{ [k: string]: string }>({});
+
+  private readonly reposition = () => {
+    // Khi cuộn/resize lúc menu đang mở: đóng lại để tránh menu "trôi" khỏi nút.
+    if (this.open()) this.open.set(false);
+  };
+
+  ngAfterViewInit(): void {
+    // capture=true để bắt cả cuộn của container bên trong (modal-body, table-wrap…).
+    window.addEventListener('scroll', this.reposition, true);
+    window.addEventListener('resize', this.reposition);
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('scroll', this.reposition, true);
+    window.removeEventListener('resize', this.reposition);
+  }
 
   @HostListener('document:click')
   onDocClick(): void {
     this.open.set(false);
   }
 
+  menuStyle(): { [k: string]: string } {
+    return this.menuPos();
+  }
+
+  private computePosition(): void {
+    const el = this.toggleBtn?.nativeElement;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const menuMaxHeight = 252; // 240 max-height + padding/border
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUp = spaceBelow < menuMaxHeight && rect.top > spaceBelow;
+    const style: { [k: string]: string } = {
+      left: `${Math.round(rect.left)}px`,
+      width: `${Math.round(rect.width)}px`,
+    };
+    if (openUp) {
+      style['bottom'] = `${Math.round(window.innerHeight - rect.top + 4)}px`;
+    } else {
+      style['top'] = `${Math.round(rect.bottom + 4)}px`;
+    }
+    this.menuPos.set(style);
+  }
+
   toggle(event: Event): void {
     event.stopPropagation();
     if (this.disabled) return;
-    this.open.update((v) => !v);
+    const next = !this.open();
+    if (next) this.computePosition();
+    this.open.set(next);
   }
 
   private asArray(): any[] {

@@ -1,7 +1,7 @@
 import { DTParameters } from './search';
 
 /**
- * Một dòng Phiếu kiểm định chất lượng lô lúa/gạo (SCR-09).
+ * Một dòng Phiếu kiểm định chất lượng lô lúa/gạo.
  * Khớp QualityInspectionDetailDto của backend.
  */
 export interface QualityInspectionRow {

@@ -14,7 +14,7 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 /**
- * Dịch vụ Kiểm định & Cách ly (SCR-09) — nối 7 API QualityInspection của backend:
+ * Dịch vụ Kiểm định & Cách ly — nối 7 API QualityInspection của backend:
  * GET all, POST paged-advanced, GET {id}, GET by-lot/{paddyLotId}, POST, PUT, DELETE.
  */
 @Injectable({ providedIn: 'root' })
@@ -44,7 +44,7 @@ export class QualityInspectionService {
     );
   }
 
-  /** Lịch sử kiểm định của một lô (SCR-QC-02). */
+  /** Lịch sử kiểm định của một lô. */
   getByLot(
     paddyLotId: number
   ): Observable<ApiResponse<QualityInspectionRow[]>> {

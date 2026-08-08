@@ -55,7 +55,7 @@ export class ReportComponent {
     {
       id: 'stock',
       label: 'Tồn kho',
-      title: 'SCR-RPT-02 · Báo cáo tồn kho lúa/gạo',
+      title: 'Báo cáo tồn kho lúa/gạo',
       columns: [
         { key: 'lotCode', label: 'Mã lô', strong: true },
         { key: 'sku', label: 'SKU' },
@@ -73,7 +73,7 @@ export class ReportComponent {
     {
       id: 'purchase',
       label: 'Thu mua',
-      title: 'SCR-RPT-03 · Báo cáo thu mua lúa',
+      title: 'Báo cáo thu mua lúa',
       columns: [
         { key: 'receiptDate', label: 'Ngày', kind: 'date' },
         { key: 'receiptCode', label: 'Mã phiếu', strong: true },
@@ -90,7 +90,7 @@ export class ReportComponent {
     {
       id: 'milling-loss',
       label: 'Xay xát & hao hụt',
-      title: 'SCR-RPT-04 · Báo cáo xay xát và hao hụt',
+      title: 'Báo cáo xay xát và hao hụt',
       columns: [
         { key: 'completedAt', label: 'Hoàn tất', kind: 'date' },
         { key: 'millingCode', label: 'Mã lệnh xay', strong: true },
@@ -106,7 +106,7 @@ export class ReportComponent {
     {
       id: 'sales',
       label: 'Bán hàng',
-      title: 'SCR-RPT-05 · Báo cáo bán hàng offline',
+      title: 'Báo cáo bán hàng offline',
       columns: [
         { key: 'orderDate', label: 'Ngày', kind: 'date' },
         { key: 'soCode', label: 'Mã đơn', strong: true },
@@ -122,7 +122,7 @@ export class ReportComponent {
     {
       id: 'two-way-debt',
       label: 'Công nợ',
-      title: 'SCR-RPT-06 · Báo cáo công nợ hai chiều',
+      title: 'Báo cáo công nợ hai chiều',
       columns: [
         { key: 'direction', label: 'Loại', kind: 'status' },
         { key: 'partyName', label: 'Đối tượng', strong: true },
@@ -137,7 +137,7 @@ export class ReportComponent {
     {
       id: 'quality',
       label: 'Chất lượng',
-      title: 'SCR-RPT-07 · Báo cáo chất lượng và cách ly',
+      title: 'Báo cáo chất lượng và cách ly',
       columns: [
         { key: 'lotCode', label: 'Mã lô', strong: true },
         { key: 'productVariantName', label: 'Loại hàng' },
@@ -153,7 +153,7 @@ export class ReportComponent {
     {
       id: 'relative-profit',
       label: 'Lãi/lỗ tương đối',
-      title: 'SCR-RPT-08 · Báo cáo lãi/lỗ tương đối',
+      title: 'Báo cáo lãi/lỗ tương đối',
       columns: [
         { key: 'periodLabel', label: 'Kỳ báo cáo', strong: true },
         { key: 'revenue', label: 'Doanh thu', kind: 'money' },
@@ -166,7 +166,7 @@ export class ReportComponent {
     {
       id: 'source-effectiveness',
       label: 'Nguồn mua',
-      title: 'SCR-RPT-09 · Phân tích hiệu quả nguồn mua',
+      title: 'Phân tích hiệu quả nguồn mua',
       columns: [
         { key: 'farmerName', label: 'Nông dân/nguồn', strong: true },
         { key: 'purchasedKg', label: 'Tổng kg mua', kind: 'weight' },

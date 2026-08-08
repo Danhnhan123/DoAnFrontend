@@ -3,7 +3,7 @@
   position: relative;
 }
 
-/* ===== Header khớp Figma (SCR-WH · Kho hàng) ===== */
+/* ===== Header khớp Figma (Kho hàng) ===== */
 .wh-page-head {
   display: flex;
   justify-content: space-between;

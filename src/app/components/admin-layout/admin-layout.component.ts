@@ -186,7 +186,7 @@ export class AdminLayoutComponent implements OnInit {
       ];
     }
 
-    // Lối vào cục bộ cho SCR-25; dùng lại quyền của các API lô/kho/SKU hiện có,
+    // Lối vào cục bộ cho màn in tem QR; dùng lại quyền của các API lô/kho/SKU hiện có,
     // không yêu cầu migration menu hoặc thay đổi cấu hình phân quyền.
     if (!this.hasMenuUrl(result, "/admin/qr-labels")) {
       result = [

@@ -47,7 +47,7 @@ interface MapZone {
 }
 
 /**
- * Màn "Bản đồ khu/cột" (SCR-WH-03) — sơ đồ mặt phẳng nhìn từ trên xuống của kho.
+ * Màn "Bản đồ khu/cột" — sơ đồ mặt phẳng nhìn từ trên xuống của kho.
  * - Dropdown lọc theo kho (thay cho nút "Gợi ý vị trí nhập kho").
  * - Mỗi ô = 1 cột/vị trí (Location), làm giàu bằng dữ liệu lô/tồn từ Inventory.
  * - Bấm ô để xem chi tiết ở panel bên phải.

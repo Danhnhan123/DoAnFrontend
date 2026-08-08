@@ -5,7 +5,7 @@
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M7 7h11l-3-3m3 3-3 3M17 17H6l3 3m-3-3 3-3" />
         </svg>
-        SCR-16 · Kho
+        Kho nội bộ
       </span>
       <h1>Chuyển kho nội bộ</h1>
       <p>
@@ -296,21 +296,23 @@
         <div class="form-grid">
           <div class="field">
             <label>Kho nguồn <em>*</em></label>
-            <select class="form-control" [ngModel]="form().fromWarehouseId" (ngModelChange)="setFormWarehouse('fromWarehouseId', $event)">
-              <option [ngValue]="null">-- Chọn kho nguồn --</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-                <option [ngValue]="warehouse.id" [disabled]="warehouse.id === form().toWarehouseId">{{ warehouse.name }}</option>
-              }
-            </select>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="-- Chọn kho nguồn --"
+              [options]="fromWarehouseSelectOptions()"
+              [value]="form().fromWarehouseId"
+              (valueChange)="setFormWarehouse('fromWarehouseId', $event)"
+            />
           </div>
           <div class="field">
             <label>Kho đích <em>*</em></label>
-            <select class="form-control" [ngModel]="form().toWarehouseId" (ngModelChange)="setFormWarehouse('toWarehouseId', $event)">
-              <option [ngValue]="null">-- Chọn kho đích --</option>
-              @for (warehouse of warehouses(); track warehouse.id) {
-                <option [ngValue]="warehouse.id" [disabled]="warehouse.id === form().fromWarehouseId">{{ warehouse.name }}</option>
-              }
-            </select>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="-- Chọn kho đích --"
+              [options]="toWarehouseSelectOptions()"
+              [value]="form().toWarehouseId"
+              (valueChange)="setFormWarehouse('toWarehouseId', $event)"
+            />
           </div>
           <div class="field">
             <label>Ngày chuyển <em>*</em></label>
@@ -325,14 +327,14 @@
         <div class="line-picker">
           <div class="field">
             <label>Chọn tồn kho nguồn</label>
-            <select class="form-control" [disabled]="!form().fromWarehouseId || sourceLoading()" [ngModel]="selectedInventoryId()" (ngModelChange)="selectedInventoryId.set(+$event || null)">
-              <option [ngValue]="null">
-                {{ sourceLoading() ? 'Đang tải tồn kho…' : '-- Chọn lô / hàng hóa / vị trí --' }}
-              </option>
-              @for (inventory of sourceInventories(); track inventory.id) {
-                <option [ngValue]="inventory.id">{{ inventoryOption(inventory) }}</option>
-              }
-            </select>
+            <app-filter-select
+              [clearable]="false"
+              [disabled]="!form().fromWarehouseId || sourceLoading()"
+              [placeholder]="sourceLoading() ? 'Đang tải tồn kho…' : '-- Chọn lô / hàng hóa / vị trí --'"
+              [options]="sourceInventoryOptions()"
+              [value]="selectedInventoryId()"
+              (valueChange)="selectedInventoryId.set($event ?? null)"
+            />
           </div>
           <button type="button" class="btn btn-secondary" [disabled]="!selectedInventoryId()" (click)="addInventoryLine()">Thêm dòng</button>
         </div>
@@ -361,12 +363,14 @@
                     </td>
                     <td>{{ line.fromLocationName }}</td>
                     <td>
-                      <select class="form-control compact" [ngModel]="line.toLocationId" (ngModelChange)="updateLine(index, 'toLocationId', $event)">
-                        <option [ngValue]="null">-- Chọn vị trí --</option>
-                        @for (location of destinationLocations(); track location.id) {
-                          <option [ngValue]="location.id">{{ locationLabel(location) }}</option>
-                        }
-                      </select>
+                      <app-filter-select
+                        class="in-cell"
+                        [clearable]="false"
+                        placeholder="-- Chọn vị trí --"
+                        [options]="destinationLocationOptions()"
+                        [value]="line.toLocationId"
+                        (valueChange)="updateLine(index, 'toLocationId', $event)"
+                      />
                     </td>
                     <td>
                       <input class="form-control compact number-input" type="number" min="0.001" step="0.001" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
