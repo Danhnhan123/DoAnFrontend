@@ -300,6 +300,15 @@ export class InboundOrderComponent {
     );
   }
 
+  /**
+   * Tách quyền: người tạo phiếu không được tự duyệt phiếu do chính mình tạo.
+   * Dùng để ẩn nút "Duyệt" ở FE (backend vẫn chặn thật ở InboundOrderService.ApproveAsync).
+   */
+  isCreatedByMe(order: InboundOrderListDto | InboundOrderDetailDto): boolean {
+    const myId = this.authService.currentUser()?.id;
+    return myId != null && order?.createdBy != null && order.createdBy === myId;
+  }
+
   // 9. Hiển thị
   statusLabel(name: string): string {
     return this.statusLabels[(name || '').trim().toLowerCase()] ?? name;

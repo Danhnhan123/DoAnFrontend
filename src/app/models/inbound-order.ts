@@ -19,6 +19,8 @@ export interface InboundOrderListDto {
   paddyPurchaseReceiptId?: number | null;
   paddyPurchaseReceiptCode?: string | null;
   createdDate: string;
+  /** Người tạo phiếu — dùng để ẩn nút Duyệt của chính người tạo (tách quyền). */
+  createdBy?: number | null;
 }
 
 export interface InboundOrderItemDto {

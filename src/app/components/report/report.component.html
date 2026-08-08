@@ -12,6 +12,7 @@
       <button
         type="button"
         class="export-primary"
+        [appHasPerm]="'REPORTS:EXPORT'"
         [disabled]="exporting() || activeTab() === 'overview'"
         (click)="export('xlsx')"
       >
@@ -21,6 +22,7 @@
       <button
         type="button"
         class="export-secondary"
+        [appHasPerm]="'REPORTS:EXPORT'"
         [disabled]="exporting() || activeTab() === 'overview'"
         (click)="export('csv')"
       >

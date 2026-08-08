@@ -6,6 +6,7 @@ import { injectQuery } from '@tanstack/angular-query-experimental';
 import { lastValueFrom } from 'rxjs';
 import Swal from 'sweetalert2';
 import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   ReportColumn,
   ReportFilterOptions,
@@ -41,7 +42,7 @@ interface ReportFilters {
 @Component({
   selector: 'app-report',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [CommonModule, FormsModule, FilterSelectComponent, HasPermissionDirective],
   templateUrl: './report.component.html',
   styleUrl: './report.component.css',
 })
