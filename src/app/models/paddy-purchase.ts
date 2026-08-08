@@ -12,6 +12,7 @@ export interface PaddyPurchaseScheduleRow {
   farmerName?: string | null;
   statusId: number;
   statusName?: string | null;
+  statusCode?: string | null;
   riceVarietyId?: number | null;
   riceVarietyName?: string | null;
   scheduleDate: string;
@@ -108,6 +109,15 @@ export interface ConfirmPaddyPurchaseReceiptResult {
   lotId: number;
   lotCode: string;
   inboundOrderId: number;
+}
+
+/**
+ * Payload khi chốt phiếu mua lúa.
+ * Chỉ gửi dueDate khi phiếu phát sinh công nợ phải trả (debtAmount > 0);
+ * nếu không phát sinh nợ thì gửi body rỗng {}.
+ */
+export interface ConfirmPaddyPurchaseReceiptPayload {
+  dueDate?: string | null;
 }
 
 export type PutawayPlacementMode = 1 | 2;

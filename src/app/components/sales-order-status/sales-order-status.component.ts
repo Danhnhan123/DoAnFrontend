@@ -48,9 +48,9 @@ export class SalesOrderStatusComponent {
   showModal = signal(false);
   editItem = signal<SalesOrderStatusAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', color: '#16a34a' });
+  form = signal<any>({ code: '', name: '', color: '#16a34a' });
 
-  private readonly colMap: Record<string, number> = { name: 1, color: 2, createdDate: 3 };
+  private readonly colMap: Record<string, number> = { code: 1, name: 2, color: 3, createdDate: 4 };
 
   listQuery = injectQuery(() => ({
     queryKey: [
@@ -105,7 +105,7 @@ export class SalesOrderStatusComponent {
     if (d && d !== this._prevDetailData) {
       this._prevDetailData = d;
       const detail: SalesOrderStatusDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) this.form.set({ name: detail.name, color: detail.color });
+      if (detail) this.form.set({ code: detail.code || '', name: detail.name, color: detail.color });
     }
     return true;
   }
@@ -172,13 +172,13 @@ export class SalesOrderStatusComponent {
   openCreate(): void {
     this.editItem.set(null);
     this._prevDetailData = null;
-    this.form.set({ name: '', color: '#16a34a' });
+    this.form.set({ code: '', name: '', color: '#16a34a' });
     this.showModal.set(true);
   }
   openEdit(row: SalesOrderStatusAdvancedRow): void {
     this._prevDetailData = null;
     this.editItem.set(row);
-    this.form.set({ name: row.name, color: row.color });
+    this.form.set({ code: row.code || '', name: row.name, color: row.color });
     this.showModal.set(true);
   }
   closeModal(): void { this.showModal.set(false); this.editItem.set(null); }
@@ -186,6 +186,11 @@ export class SalesOrderStatusComponent {
 
   save(): void {
     const f = this.form();
+    if (!this.isEdit()) {
+      const code = (f.code || '').trim();
+      if (!code) { this.showAlert('Vui lòng nhập Mã (Code) (*)', false); return; }
+      if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(code)) { this.showAlert('Mã chỉ gồm chữ cái, chữ số, dấu gạch dưới và phải bắt đầu bằng chữ cái.', false); return; }
+    }
     if (!f.name) { this.showAlert('Vui lòng điền đầy đủ tên trạng thái đơn bán (*)', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
@@ -207,6 +212,7 @@ export class SalesOrderStatusComponent {
         } as UpdateSalesOrderStatusDto);
       } else {
         this.createMutation.mutate({
+          code: f.code,
           name: f.name,
           color: f.color,
         } as CreateSalesOrderStatusDto);

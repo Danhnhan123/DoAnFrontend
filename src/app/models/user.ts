@@ -11,6 +11,7 @@ export interface UserAdvancedRow {
   gender?: number;
   userStatusId: number;
   userStatusName: string;
+  userStatusCode: string;
   userStatusColor?: string;
   avatarUrl?: string;
   lockEnabled: boolean;

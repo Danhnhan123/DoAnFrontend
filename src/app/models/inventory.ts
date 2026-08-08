@@ -43,6 +43,7 @@ export interface InventoryRow {
   lotCostPricePerKg?: number | null;
   lotStatusId?: number | null;
   lotStatusName?: string | null;
+  lotStatusCode?: string | null;
   lotStatusColor?: string | null;
   lotIsSellable?: boolean | null;
 

@@ -91,13 +91,20 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 }
 
 .summary-icon {
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 0 0 42px;
+  width: 42px;
   height: 42px;
   border-radius: 11px;
-  font-size: 20px;
-  font-weight: 900;
+  line-height: 0;
+}
+.summary-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
 }
 .payable .summary-icon { color: #7c3aed; background: #f3e8ff; }
 .receivable .summary-icon { color: #15803d; background: #dcfce7; }

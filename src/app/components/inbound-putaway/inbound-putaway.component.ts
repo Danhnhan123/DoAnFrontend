@@ -115,7 +115,7 @@ export class InboundPutawayComponent {
   readonly advanceOrderMutation = injectMutation(() => ({
     mutationKey: ["inbound-putaway", "advance-order"],
     mutationFn: async (line: InboundPutawayLine): Promise<string> => {
-      const status = this.normalizedStatus(line.order.inboundOrderStatusName);
+      const status = this.normalizedStatus(line.order.inboundOrderStatusCode);
 
       if (status === "draft") {
         await lastValueFrom(this.inboundService.submit(line.order.id));
@@ -143,7 +143,7 @@ export class InboundPutawayComponent {
       line,
       weight,
     }: PreparePutawayVariables): Promise<void> => {
-      const status = this.normalizedStatus(line.order.inboundOrderStatusName);
+      const status = this.normalizedStatus(line.order.inboundOrderStatusCode);
 
       if (status === "approved") {
         await lastValueFrom(
@@ -229,7 +229,7 @@ export class InboundPutawayComponent {
   readonly pendingLines = computed(() =>
     this.lines().filter((line) => {
       const orderStatus = this.normalizedStatus(
-        line.order.inboundOrderStatusName,
+        line.order.inboundOrderStatusCode,
       );
       return (
         this.remaining(line.item) > 0 &&
@@ -332,7 +332,7 @@ export class InboundPutawayComponent {
   );
 
   readonly selectedStatus = computed(() =>
-    this.normalizedStatus(this.selectedLine()?.order.inboundOrderStatusName),
+    this.normalizedStatus(this.selectedLine()?.order.inboundOrderStatusCode),
   );
 
   /**
@@ -658,7 +658,8 @@ export class InboundPutawayComponent {
   }
 
   canPrepare(): boolean {
-    return ["approved", "receiving", "partially received"].includes(
+    // selectedStatus() là CODE đã lowercase: draft/submitted/approved/receiving/partially_received/...
+    return ["approved", "receiving", "partially_received"].includes(
       this.selectedStatus(),
     );
   }

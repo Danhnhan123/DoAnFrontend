@@ -29,7 +29,7 @@ import {
   FilterSelectOption,
 } from '../shared/filter-select.component';
 
-type TransferTab = 'ALL' | 'Đang chuyển' | 'Hoàn tất';
+type TransferTab = 'ALL' | 'IN_TRANSIT' | 'COMPLETED';
 
 interface TransferFormLine {
   clientId: string;
@@ -126,7 +126,7 @@ export class StockTransferComponent implements OnDestroy {
             page: this.page(),
             pageSize: this.pageSize(),
             search: this.search(),
-            statusName:
+            statusCode:
               this.activeTab() === 'ALL' ? null : this.activeTab(),
             fromWarehouseId: this.fromWarehouseFilter(),
             toWarehouseId: this.toWarehouseFilter(),
@@ -354,7 +354,7 @@ export class StockTransferComponent implements OnDestroy {
   }
 
   openEdit(detail: StockTransferDetail): void {
-    if (detail.statusName !== this.status.DRAFT) return;
+    if (detail.statusCode !== this.status.DRAFT) return;
     this.editingId.set(detail.id);
     this.selectedInventoryId.set(null);
     this.form.set({
@@ -540,7 +540,7 @@ export class StockTransferComponent implements OnDestroy {
   }
 
   confirmDispatch(detail: StockTransferDetail): void {
-    if (detail.statusName !== this.status.DRAFT) return;
+    if (detail.statusCode !== this.status.DRAFT) return;
     Swal.fire({
       icon: 'question',
       title: 'Xác nhận xuất chuyển?',
@@ -560,7 +560,7 @@ export class StockTransferComponent implements OnDestroy {
   }
 
   confirmReceive(detail: StockTransferDetail): void {
-    if (detail.statusName !== this.status.IN_TRANSIT) return;
+    if (detail.statusCode !== this.status.IN_TRANSIT) return;
     Swal.fire({
       icon: 'question',
       title: 'Xác nhận đã nhận hàng?',
@@ -580,7 +580,7 @@ export class StockTransferComponent implements OnDestroy {
   }
 
   confirmCancel(detail: StockTransferDetail): void {
-    if (detail.statusName !== this.status.DRAFT) return;
+    if (detail.statusCode !== this.status.DRAFT) return;
     Swal.fire({
       icon: 'warning',
       title: 'Hủy phiếu chuyển?',

@@ -73,7 +73,7 @@ export class StockTransferService {
     page: number;
     pageSize: number;
     search: string;
-    statusName?: string | null;
+    statusCode?: string | null;
     fromWarehouseId?: number | null;
     toWarehouseId?: number | null;
     dateFrom?: string;
@@ -88,7 +88,7 @@ export class StockTransferService {
       'itemDisplay',
       'itemCount',
       'totalWeightKg',
-      'statusName',
+      'statusCode',
       'transferDate',
       'createdDate',
       'id',
@@ -106,7 +106,7 @@ export class StockTransferService {
     return {
       draw: params.page,
       columns: columns.map((name) => {
-        if (name === 'statusName') return column(name, params.statusName || '');
+        if (name === 'statusCode') return column(name, params.statusCode || '');
         if (name === 'fromWarehouseId') {
           return column(
             name,

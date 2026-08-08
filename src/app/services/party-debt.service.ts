@@ -130,15 +130,20 @@ export class PartyDebtService {
     return {
       draw: page,
       columns: [
-        this.column('partyName', true),
-        this.column('documentCode', true),
-        this.column('totalAmount', true),
-        this.column('paidAmount', true),
-        this.column('outstandingAmount', true),
-        this.column('dueDate', true),
-        this.column('status', true),
+        this.column('partyName', true), // 0
+        this.column('documentCode', true), // 1
+        this.column('totalAmount', true), // 2
+        this.column('paidAmount', true), // 3
+        this.column('outstandingAmount', true), // 4
+        this.column('dueDate', true), // 5
+        this.column('status', true), // 6
+        this.column('transactionDate', true), // 7 — ngày phát sinh
       ],
-      order: [{ column: 5, dir: overdueOnly ? 'asc' : 'desc', name: '' }],
+      // Mặc định: sắp theo ngày phát sinh mới nhất lên đầu (transactionDate desc).
+      // Riêng tab "Quá hạn": ưu tiên hạn thanh toán gần nhất (dueDate asc) lên đầu.
+      order: overdueOnly
+        ? [{ column: 5, dir: 'asc', name: '' }]
+        : [{ column: 7, dir: 'desc', name: '' }],
       start: (page - 1) * pageSize,
       length: pageSize,
       search: { value: keyword.trim(), regex: false, fixed: [] },

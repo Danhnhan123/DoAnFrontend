@@ -340,7 +340,8 @@ export class InboundOrderComponent {
   private normalizedStatus(
     order: InboundOrderListDto | InboundOrderDetailDto
   ): string {
-    return (order.inboundOrderStatusName || '').trim().toLowerCase();
+    // Dùng Code (DRAFT/SUBMITTED/...) cho logic, không dùng tên hiển thị tiếng Việt.
+    return (order.inboundOrderStatusCode || '').trim().toLowerCase();
   }
 
   private handleAction(res: ApiResponse<unknown>, successMessage: string): void {

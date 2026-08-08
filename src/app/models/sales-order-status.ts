@@ -1,5 +1,6 @@
 export interface SalesOrderStatusAdvancedRow {
   id: number;
+  code?: string;
   name: string;
   color: string;
   createdDate: string;
@@ -7,12 +8,14 @@ export interface SalesOrderStatusAdvancedRow {
 
 export interface SalesOrderStatusDetailDto {
   id: number;
+  code?: string;
   name: string;
   color: string;
   createdDate: string;
 }
 
 export interface CreateSalesOrderStatusDto {
+  code?: string;
   name: string;
   color: string;
 }

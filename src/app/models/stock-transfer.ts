@@ -1,10 +1,11 @@
 import { DTParameters } from './search';
 
+// Dùng CODE ổn định (đồng bộ cột Code ở bảng trạng thái) thay cho tên hiển thị tiếng Việt.
 export const STOCK_TRANSFER_STATUS = {
-  DRAFT: 'Nháp',
-  IN_TRANSIT: 'Đang chuyển',
-  COMPLETED: 'Hoàn tất',
-  CANCELLED: 'Hủy',
+  DRAFT: 'DRAFT',
+  IN_TRANSIT: 'IN_TRANSIT',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
 } as const;
 
 export interface StockTransferRow {
@@ -13,6 +14,7 @@ export interface StockTransferRow {
   transferCode: string;
   statusId: number;
   statusName: string;
+  statusCode: string;
   statusColor?: string | null;
   fromWarehouseId: number;
   fromWarehouseName: string;

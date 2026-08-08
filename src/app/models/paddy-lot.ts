@@ -13,6 +13,7 @@ export interface PaddyLotRow {
   riceVarietyName?: string | null;
   statusId: number;
   statusName?: string | null;
+  statusCode?: string | null;
   sourceReceiptId?: number | null;
   sourceMillingOrderId?: number | null;
   warehouseId: number;
@@ -72,6 +73,7 @@ export interface TraceabilityLotDto {
   riceVarietyName?: string | null;
   statusId: number;
   statusName?: string | null;
+  statusCode?: string | null;
   isSellable: boolean;
   isQuarantined: boolean;
   warehouseId: number;
@@ -131,6 +133,7 @@ export interface TraceabilityMillingDto {
   millingCode: string;
   statusId: number;
   statusName?: string | null;
+  statusCode?: string | null;
   warehouseId: number;
   warehouseCode?: string | null;
   warehouseName?: string | null;
@@ -179,6 +182,7 @@ export interface TraceabilityOutboundDto {
   outboundOrderId: number;
   outboundStatusId: number;
   outboundStatusName?: string | null;
+  outboundStatusCode?: string | null;
   completedDate?: string | null;
   warehouseId: number;
   warehouseCode?: string | null;
@@ -187,6 +191,7 @@ export interface TraceabilityOutboundDto {
   salesOrderCode?: string | null;
   salesOrderStatusId?: number | null;
   salesOrderStatusName?: string | null;
+  salesOrderStatusCode?: string | null;
   channel?: string | null;
   salesOrderDate?: string | null;
   customerId?: number | null;
