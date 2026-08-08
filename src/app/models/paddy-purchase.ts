@@ -12,6 +12,7 @@ export interface PaddyPurchaseScheduleRow {
   farmerName?: string | null;
   statusId: number;
   statusName?: string | null;
+  statusCode?: string | null;
   riceVarietyId?: number | null;
   riceVarietyName?: string | null;
   scheduleDate: string;

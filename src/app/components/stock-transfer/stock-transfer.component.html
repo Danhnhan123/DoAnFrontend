@@ -173,9 +173,9 @@
                 </td>
                 <td class="number">{{ row.itemCount }}</td>
                 <td class="number">{{ formatWeight(row.totalWeightKg) }}</td>
-                <td>{{ receivingLabel(row.statusName) }}</td>
+                <td>{{ receivingLabel(row.statusCode) }}</td>
                 <td>
-                  <span class="status-pill" [ngClass]="statusClass(row.statusName)">
+                  <span class="status-pill" [ngClass]="statusClass(row.statusCode)">
                     {{ row.statusName }}
                   </span>
                 </td>
@@ -227,7 +227,7 @@
           <div class="detail-summary">
             <div>
               <span>Trạng thái</span>
-              <strong><span class="status-pill" [ngClass]="statusClass(current.statusName)">{{ current.statusName }}</span></strong>
+              <strong><span class="status-pill" [ngClass]="statusClass(current.statusCode)">{{ current.statusName }}</span></strong>
             </div>
             <div><span>Kho đi</span><strong>{{ current.fromWarehouseName }}</strong></div>
             <div><span>Kho đến</span><strong>{{ current.toWarehouseName }}</strong></div>
@@ -268,11 +268,11 @@
         </div>
         <footer class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="closeDetail()">Đóng</button>
-          @if (current.statusName === status.DRAFT) {
+          @if (current.statusCode === status.DRAFT) {
             <button type="button" class="btn btn-danger-ghost" [disabled]="actionLoading()" (click)="confirmCancel(current)">Hủy phiếu</button>
             <button type="button" class="btn btn-secondary" [disabled]="actionLoading()" (click)="openEdit(current)">Chỉnh sửa</button>
             <button type="button" class="btn btn-primary" [disabled]="actionLoading()" (click)="confirmDispatch(current)">Xuất chuyển</button>
-          } @else if (current.statusName === status.IN_TRANSIT) {
+          } @else if (current.statusCode === status.IN_TRANSIT) {
             <button type="button" class="btn btn-primary" [disabled]="actionLoading()" (click)="confirmReceive(current)">Xác nhận nhận hàng</button>
           }
         </footer>

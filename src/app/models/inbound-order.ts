@@ -9,6 +9,8 @@ export interface InboundOrderListDto {
   supplierName?: string | null;
   inboundOrderStatusId: number;
   inboundOrderStatusName: string;
+  /** Mã code trạng thái (DRAFT/SUBMITTED/APPROVED/...) - dùng cho logic, không phụ thuộc tên hiển thị. */
+  inboundOrderStatusCode: string;
   totalAssetValue: number;
   expectedDate?: string | null;
   completedDate?: string | null;

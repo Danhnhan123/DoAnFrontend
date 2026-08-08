@@ -36,6 +36,7 @@ export interface OutboundOrderRow {
   customerName: string;
   outboundStatusId: number;
   outboundStatusName: string;
+  outboundStatusCode: string;
   outboundStatusColor: string;
   warehouseId?: number | null;
   warehouseName?: string | null;
@@ -55,6 +56,7 @@ export interface OutboundOrderDetail {
   customerName: string;
   outboundStatusId: number;
   outboundStatusName: string;
+  outboundStatusCode: string;
   outboundStatusColor: string;
   warehouseId: number;
   warehouseName: string;

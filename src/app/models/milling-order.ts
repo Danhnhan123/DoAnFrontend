@@ -208,6 +208,7 @@ export interface MillingSalesOrderOption {
   expectedDeliveryDate?: string | null;
   requiresMilling?: boolean;
   statusName?: string | null;
+  statusCode?: string | null;
 }
 
 export interface MillingSalesOrderPage {

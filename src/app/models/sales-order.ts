@@ -31,6 +31,7 @@ export interface SalesOrderRow {
   customerName: string;
   statusId: number;
   statusName: string;
+  statusCode: string;
   statusColor: string;
   channel: SalesOrderChannel;
   warehouseId?: number | null;
@@ -68,6 +69,7 @@ export interface SalesOrderOutboundSummary {
   id: number;
   outboundStatusId: number;
   outboundStatusName: string;
+  outboundStatusCode: string;
   totalDispatchedValue: number;
   totalDispatchedSaleValue: number;
   completedDate?: string | null;
