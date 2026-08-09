@@ -1,0 +1,70 @@
+<div class="page-wrapper">
+    <div class="toolbar card">
+        <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input class="search-input" placeholder="Tìm tên thiết bị, nền tảng, phiên bản, người dùng..."
+                [ngModel]="search()" (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        </div>
+        <app-filter-select class="page-size-select" [clearable]="false" style="width:132px;flex:0 0 auto"
+            [options]="[{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]"
+            [value]="pageSize()" (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+    </div>
+
+    <div class="card">
+        @if (loading()) {
+        <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+        } @else if (devices().length === 0) {
+        <div class="state-box"><span style="font-size:2.5rem">📱</span>
+            <p>Chưa có thiết bị nào</p>
+        </div>
+        } @else {
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:40px">STT</th>
+                        <th class="sortable" (click)="sort('deviceName')">Tên thiết bị <span class="sort-icon">{{ sortIcon('deviceName') }}</span></th>
+                        <th class="sortable" (click)="sort('platform')">Nền tảng <span class="sort-icon">{{ sortIcon('platform') }}</span></th>
+                        <th class="sortable" (click)="sort('osVersion')">Phiên bản HĐH <span class="sort-icon">{{ sortIcon('osVersion') }}</span></th>
+                        <th class="sortable" (click)="sort('appVersion')">Phiên bản app <span class="sort-icon">{{ sortIcon('appVersion') }}</span></th>
+                        <th class="sortable" (click)="sort('userName')">Người dùng <span class="sort-icon">{{ sortIcon('userName') }}</span></th>
+                        <th class="sortable" (click)="sort('createdDate')">Ngày đăng ký <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (d of devices(); track d.id; let idx=$index) {
+                    <tr>
+                        <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
+                        <td>
+                            <div class="u-name">{{ d.deviceName || '—' }}</div>
+                            @if (d.userAgent) { <div class="u-sub" [title]="d.userAgent">{{ d.userAgent }}</div> }
+                        </td>
+                        <td>{{ d.platform || '—' }}</td>
+                        <td class="text-muted small">{{ d.osVersion || '—' }}</td>
+                        <td class="text-muted small">{{ d.appVersion || '—' }}</td>
+                        <td class="text-muted small">{{ d.userName || '—' }}</td>
+                        <td class="text-muted small">{{ d.createdDate | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                    </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (totalPages() > 1) {
+        <div class="pagination">
+            <button class="page-btn" (click)="setPage(1)" [disabled]="page()===1">«</button>
+            <button class="page-btn" (click)="setPage(page()-1)" [disabled]="page()===1">‹</button>
+            @for (p of pages(); track p) {
+            <button class="page-btn" [class.active]="p===page()" (click)="setPage(p)">{{ p }}</button>
+            }
+            <button class="page-btn" (click)="setPage(page()+1)" [disabled]="page()===totalPages()">›</button>
+            <button class="page-btn" (click)="setPage(totalPages())" [disabled]="page()===totalPages()">»</button>
+            <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+        </div>
+        }
+        }
+    </div>
+</div>
