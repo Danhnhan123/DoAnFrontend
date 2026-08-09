@@ -25,9 +25,25 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     ? req.clone({ setHeaders: { Authorization: `Bearer ${token}` } })
     : req;
 
+  // Các endpoint auth KHÔNG được đi qua luồng refresh (tránh đệ quy/treo màn hình).
+  const isRefreshCall = req.url.includes('/auth/refresh-token');
+  const isLoginCall = req.url.includes('/auth/admin/login');
+
   return next(authReq).pipe(
     catchError((err: HttpErrorResponse) => {
       if (err.status !== 401) return throwError(() => err);
+
+      // Nếu CHÍNH request refresh-token bị 401 -> refresh token đã hết hạn thật.
+      // Đăng xuất ngay, KHÔNG gọi refresh lần nữa (nếu không sẽ chờ chính nó -> deadlock,
+      // màn hình bị load trắng vì không bao giờ điều hướng về trang đăng nhập).
+      if (isRefreshCall) {
+        authService.clearSession();
+        return throwError(() => err);
+      }
+      // Lỗi 401 khi đăng nhập (sai thông tin) -> để form login tự hiển thị lỗi.
+      if (isLoginCall) {
+        return throwError(() => err);
+      }
 
       const refreshToken = authService.getRefreshToken();
       if (!refreshToken) {
