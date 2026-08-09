@@ -16,6 +16,7 @@ import {
   PaddyPurchaseScheduleRow,
   PaddyScheduleStatusCode,
   GetPutawaySuggestionsRequest,
+  PaddyVariantOption,
   PutawaySuggestionsResponse,
   RiceVarietyDetailDto,
   UpdatePaddyPurchaseReceiptDto,
@@ -172,6 +173,13 @@ export class PaddyPurchaseService {
   getRiceVarieties(): Observable<ApiResponse<RiceVarietyDetailDto[]>> {
     return this.http.get<ApiResponse<RiceVarietyDetailDto[]>>(
       `${this.base}/rice-varieties`,
+    );
+  }
+
+  /** Danh sách biến thể sản phẩm lúa để chọn trên phiếu (FE lọc theo giống lúa). */
+  getProductVariants(): Observable<ApiResponse<PaddyVariantOption[]>> {
+    return this.http.get<ApiResponse<PaddyVariantOption[]>>(
+      `${this.base}/paddy-purchase-receipts/product-variants`,
     );
   }
 

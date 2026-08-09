@@ -23,6 +23,7 @@ import {
   PaddyQualitySnapshot,
   PaddyScheduleStatusCode,
   PaddyScheduleStatusOption,
+  PaddyVariantOption,
   RiceVarietyDetailDto,
   UpdatePaddyPurchaseReceiptDto,
   UpdatePaddyPurchaseScheduleDto,
@@ -69,6 +70,7 @@ interface ReceiptFormState {
   scheduleId: number | null;
   farmerId: number | null;
   riceVarietyId: number | null;
+  productVariantId: number | null;
   warehouseId: number | null;
   actualWeight: number | null;
   actualWeightUnit: WeightUnit;
@@ -168,6 +170,16 @@ export class RicePurchaseComponent implements OnDestroy {
       this.unwrap(
         await lastValueFrom(this.purchaseService.getRiceVarieties()),
         "Không tải được danh sách giống lúa.",
+      ),
+    staleTime: 5 * 60_000,
+  }));
+
+  private readonly productVariantsQuery = injectQuery(() => ({
+    queryKey: ["rice-purchase", "product-variants"],
+    queryFn: async () =>
+      this.unwrap(
+        await lastValueFrom(this.purchaseService.getProductVariants()),
+        "Không tải được danh sách sản phẩm.",
       ),
     staleTime: 5 * 60_000,
   }));
@@ -415,6 +427,23 @@ export class RicePurchaseComponent implements OnDestroy {
       name: `${v.name} · ${v.code}`,
     })),
   );
+  // Biến thể sản phẩm đang hoạt động (dùng để lọc theo giống lúa trên phiếu).
+  readonly productVariants = computed<PaddyVariantOption[]>(() =>
+    [...(this.productVariantsQuery.data() || [])].filter(
+      (v) => v.isActive !== false,
+    ),
+  );
+  // Options sản phẩm cho phiếu mua: chỉ những biến thể gắn đúng giống lúa đang chọn.
+  readonly receiptVariantSelectOptions = computed<FilterSelectOption[]>(() => {
+    const varietyId = this.receiptForm().riceVarietyId;
+    if (!varietyId) return [];
+    return this.productVariants()
+      .filter((v) => v.riceVarietyId === varietyId)
+      .map((v) => ({
+        id: v.id,
+        name: v.sku ? `${v.name} · ${v.sku}` : v.name,
+      }));
+  });
   readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
     this.warehouses().map((w) => ({
       id: w.id,
@@ -460,6 +489,7 @@ export class RicePurchaseComponent implements OnDestroy {
     () =>
       this.farmersQuery.isPending() ||
       this.riceVarietiesQuery.isPending() ||
+      this.productVariantsQuery.isPending() ||
       this.warehousesQuery.isPending() ||
       this.scheduleOptionsQuery.isPending(),
   );
@@ -792,6 +822,7 @@ export class RicePurchaseComponent implements OnDestroy {
       scheduleId: row.scheduleId ?? null,
       farmerId: row.farmerId,
       riceVarietyId: row.riceVarietyId ?? null,
+      productVariantId: row.productVariantId ?? null,
       warehouseId: row.warehouseId,
       actualWeight: Number(row.actualWeightKg),
       actualWeightUnit: "kg",
@@ -822,6 +853,16 @@ export class RicePurchaseComponent implements OnDestroy {
     this.receiptForm.update((current) => ({ ...current, [field]: value }));
   }
 
+  // Đổi giống lúa → reset sản phẩm đã chọn vì danh sách sản phẩm lọc theo giống.
+  onReceiptVarietyChange(rawValue: number | string | null): void {
+    const id = rawValue ? Number(rawValue) : null;
+    this.receiptForm.update((current) => ({
+      ...current,
+      riceVarietyId: id,
+      productVariantId: null,
+    }));
+  }
+
  onReceiptScheduleChange(
   rawValue: number | string | null,): void {
   const id = rawValue ? Number(rawValue) : null;
@@ -844,13 +885,20 @@ export class RicePurchaseComponent implements OnDestroy {
     }
   }
 
-    this.receiptForm.update((current) => ({
-      ...current,
-      scheduleId: id,
-      farmerId: schedule?.farmerId ?? current.farmerId,
-      riceVarietyId:
-        schedule?.riceVarietyId ?? current.riceVarietyId,
-    }));
+    this.receiptForm.update((current) => {
+      const nextVarietyId = schedule?.riceVarietyId ?? current.riceVarietyId;
+      return {
+        ...current,
+        scheduleId: id,
+        farmerId: schedule?.farmerId ?? current.farmerId,
+        riceVarietyId: nextVarietyId,
+        // Giống lúa đổi theo lịch → bỏ chọn sản phẩm cũ nếu khác giống.
+        productVariantId:
+          nextVarietyId === current.riceVarietyId
+            ? current.productVariantId
+            : null,
+      };
+    });
   }
 
   async saveReceipt(): Promise<void> {
@@ -885,6 +933,7 @@ export class RicePurchaseComponent implements OnDestroy {
       scheduleId: form.scheduleId || null,
       farmerId: Number(form.farmerId),
       riceVarietyId: form.riceVarietyId || null,
+      productVariantId: form.productVariantId || null,
       warehouseId: Number(form.warehouseId),
       actualWeightKg: this.toKilograms(
         form.actualWeight,
@@ -1153,6 +1202,7 @@ export class RicePurchaseComponent implements OnDestroy {
       scheduleId: null,
       farmerId: null,
       riceVarietyId: null,
+      productVariantId: null,
       warehouseId: null,
       actualWeight: null,
       actualWeightUnit: "kg",
@@ -1188,6 +1238,8 @@ export class RicePurchaseComponent implements OnDestroy {
   private validateReceipt(form: ReceiptFormState): string | null {
     if (!form.farmerId) return "Vui lòng chọn nông dân.";
     if (!form.warehouseId) return "Vui lòng chọn kho nhập.";
+    if (!form.riceVarietyId) return "Vui lòng chọn giống lúa.";
+    if (!form.productVariantId) return "Vui lòng chọn sản phẩm theo giống lúa.";
     if (!form.receiptDate) return "Vui lòng chọn ngày mua thực tế.";
     if (
       !form.actualWeight ||
