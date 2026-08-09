@@ -6,6 +6,7 @@ export * from "./permission";
 export * from "./menu";
 export * from "./user";
 export * from "./user-device";
+export * from "./user-verification-token";
 export * from "./user-notification";
 export * from "./user-status";
 export * from "./role";

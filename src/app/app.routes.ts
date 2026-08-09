@@ -89,6 +89,24 @@ const adminChildren: Routes = [
       ),
   },
   {
+    path: "user-device",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "USER_DEVICE" },
+    loadComponent: () =>
+      import("./components/user-device/user-device.component").then(
+        (m) => m.UserDeviceComponent,
+      ),
+  },
+  {
+    path: "user-verification-token",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "USER_VERIFICATION_TOKEN" },
+    loadComponent: () =>
+      import(
+        "./components/user-verification-token/user-verification-token.component"
+      ).then((m) => m.UserVerificationTokenComponent),
+  },
+  {
     path: "actions",
     canMatch: [menuReadGuard],
     data: { menuCode: "ACTIONS" },
