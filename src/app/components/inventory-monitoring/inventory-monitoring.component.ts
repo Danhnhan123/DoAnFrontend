@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { lastValueFrom } from 'rxjs';
 import { injectQuery } from '@tanstack/angular-query-experimental';
 
@@ -54,6 +55,12 @@ export class InventoryMonitoringComponent {
   private readonly alertService = inject(AlertService);
   private readonly warehouseService = inject(WarehouseService);
   private readonly categoryService = inject(ProductCategoryService);
+  private readonly router = inject(Router);
+
+  /** Điều hướng sang màn Kiểm kê (khu/cột/lô). */
+  goToStockTake(): void {
+    this.router.navigate(['/admin/stock-takes']);
+  }
 
   // ----- Bộ lọc / phân trang -----
   warehouseId = signal<number | null>(null);

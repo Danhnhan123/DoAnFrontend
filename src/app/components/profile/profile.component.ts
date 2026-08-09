@@ -361,7 +361,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   async logoutDevice(d: MyDevice): Promise<void> {
-    if (!d.deviceId) return;
     const isCurrent = this.isCurrentDevice(d);
     const confirm = await Swal.fire({
       title: 'Đăng xuất thiết bị?',
@@ -384,7 +383,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
     }
 
     try {
-      const res: any = await lastValueFrom(this.userDeviceService.logoutDevice(d.deviceId));
+      // Ưu tiên đăng xuất theo DeviceId; nếu thiết bị không có DeviceId thì đăng xuất theo Id bản ghi.
+      const res: any = await lastValueFrom(
+        d.deviceId
+          ? this.userDeviceService.logoutDevice(d.deviceId)
+          : this.userDeviceService.logoutDeviceById(d.id)
+      );
       if (res?.isSucceeded) {
         // Chỉ invalidate -> query tự refetch nền và render lại (realtime cũng sẽ bắn thêm).
         this.queryClient.invalidateQueries({ queryKey: ['my-devices'] });
