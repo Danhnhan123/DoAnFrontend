@@ -4,6 +4,7 @@ import {
   ElementRef,
   EventEmitter,
   HostListener,
+  inject,
   Input,
   OnDestroy,
   Output,
@@ -213,13 +214,20 @@ export class FilterSelectComponent implements AfterViewInit, OnDestroy {
 
   @ViewChild('toggleBtn') toggleBtn?: ElementRef<HTMLButtonElement>;
 
+  private readonly host = inject(ElementRef<HTMLElement>);
+
   open = signal(false);
   /** Toạ độ menu (position:fixed) để không bị cắt bởi overflow của ancestor. */
   private menuPos = signal<{ [k: string]: string }>({});
 
-  private readonly reposition = () => {
-    // Khi cuộn/resize lúc menu đang mở: đóng lại để tránh menu "trôi" khỏi nút.
-    if (this.open()) this.open.set(false);
+  private readonly reposition = (event?: Event) => {
+    if (!this.open()) return;
+    // Bỏ qua khi cuộn NGAY BÊN TRONG dropdown/menu (menu có overflow-y:auto):
+    // chỉ cuộn nội dung menu, không được đóng dropdown.
+    const target = event?.target as Node | null;
+    if (target && this.host.nativeElement.contains(target)) return;
+    // Cuộn/resize ở ngoài lúc menu đang mở: đóng lại để tránh menu "trôi" khỏi nút.
+    this.open.set(false);
   };
 
   ngAfterViewInit(): void {
