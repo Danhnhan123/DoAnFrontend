@@ -72,9 +72,14 @@ export class UserDeviceService {
     return this.http.get<ApiResponse<MyDevice[]>>(`${this.base}/user-device/my-devices`);
   }
 
-  /** Đăng xuất khỏi một thiết bị cụ thể. */
+  /** Đăng xuất khỏi một thiết bị cụ thể (theo DeviceId). */
   logoutDevice(deviceId: string): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.base}/user-device/logout`, { deviceId });
+  }
+
+  /** Đăng xuất một thiết bị theo Id bản ghi (dùng cho thiết bị không có DeviceId). */
+  logoutDeviceById(id: number): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.base}/user-device/logout-by-id`, { id });
   }
 
   /** Đăng xuất khỏi tất cả thiết bị khác (giữ thiết bị hiện tại). */
