@@ -56,6 +56,9 @@ export interface PaddyPurchaseReceiptRow {
   farmerName?: string | null;
   riceVarietyId?: number | null;
   riceVarietyName?: string | null;
+  productVariantId?: number | null;
+  productVariantName?: string | null;
+  productVariantSku?: string | null;
   warehouseId: number;
   warehouseName?: string | null;
   actualWeightKg: number;
@@ -87,6 +90,7 @@ export interface CreatePaddyPurchaseReceiptDto {
   scheduleId?: number | null;
   farmerId: number;
   riceVarietyId?: number | null;
+  productVariantId?: number | null;
   warehouseId: number;
   actualWeightKg: number;
   bagCount?: number | null;
@@ -103,6 +107,16 @@ export interface CreatePaddyPurchaseReceiptDto {
 export interface UpdatePaddyPurchaseReceiptDto
   extends CreatePaddyPurchaseReceiptDto {
   id: number;
+}
+
+/** Item dropdown "Sản phẩm" trên phiếu mua lúa (lọc theo giống lúa). */
+export interface PaddyVariantOption {
+  id: number;
+  name: string;
+  sku?: string | null;
+  riceVarietyId?: number | null;
+  riceVarietyName?: string | null;
+  isActive?: boolean;
 }
 
 /** JSON chất lượng được lưu trong PaddyPurchaseReceipt.QualityJson. */

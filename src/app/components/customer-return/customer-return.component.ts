@@ -9,7 +9,7 @@ import {
 import { lastValueFrom } from "rxjs";
 import Swal from "sweetalert2";
 
-import { ApiResponse, DTResponse } from "../../models/common";
+import { ApiResponse } from "../../models/common";
 import { CustomerRow } from "../../models/customer";
 import {
   CUSTOMER_RETURN_STATUS,
@@ -121,20 +121,11 @@ export class CustomerReturnComponent implements OnDestroy {
 
   private readonly customersQuery = injectQuery(() => ({
     queryKey: ["customer-return", "customers"],
-    queryFn: async () => {
-      const body = this.customerService.buildPagedBody({
-        page: 1,
-        pageSize: 1000,
-        search: "",
-        sortField: "createdDate",
-        sortDir: "desc",
-        colMap: { createdDate: 9 },
-        filterIsActive: true,
-      });
-      return this.unwrap<DTResponse<CustomerRow>>(
-        await lastValueFrom(this.customerService.getPagedAdvanced(body)),
-      ).data;
-    },
+    // Dropdown khách hàng: dùng GetAll dùng chung (chỉ [Authorize]) thay cho paged-advanced (bị chặn READ CUSTOMERS)
+    queryFn: async () =>
+      this.resourceArray<CustomerRow>(
+        await lastValueFrom(this.customerService.getAll()),
+      ),
     staleTime: 60_000,
   }));
 

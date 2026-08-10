@@ -841,14 +841,29 @@
           </label>
 
           <label class="field-group">
-            <span>Giống lúa</span>
+            <span>Giống lúa <b>*</b></span>
             <app-filter-select
-              allLabel="Chưa xác định"
-              placeholder="Chưa xác định"
+              placeholder="Chọn giống lúa..."
               [disabled]="receiptFormLocked()"
               [options]="varietySelectOptions()"
               [value]="receiptForm().riceVarietyId"
-              (valueChange)="setReceiptField('riceVarietyId', $event)"
+              (valueChange)="onReceiptVarietyChange($event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field-group">
+            <span>Sản phẩm <b>*</b></span>
+            <app-filter-select
+              [clearable]="false"
+              [placeholder]="
+                receiptForm().riceVarietyId
+                  ? 'Chọn sản phẩm...'
+                  : 'Chọn giống lúa trước'
+              "
+              [disabled]="receiptFormLocked() || !receiptForm().riceVarietyId"
+              [options]="receiptVariantSelectOptions()"
+              [value]="receiptForm().productVariantId"
+              (valueChange)="setReceiptField('productVariantId', $event)"
             ></app-filter-select>
           </label>
 
