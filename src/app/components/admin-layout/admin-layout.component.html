@@ -17,6 +17,18 @@
       </div>
     </div>
 
+    <div class="sidebar-search">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"></circle>
+        <path d="m20 20-3.5-3.5"></path>
+      </svg>
+      <input type="search" aria-label="Tìm chức năng trong menu" placeholder="Tìm chức năng..."
+        [value]="sidebarSearchTerm()" (input)="setSidebarSearch($any($event.target).value)" />
+      @if (sidebarSearchTerm()) {
+        <button type="button" aria-label="Xóa tìm kiếm" (click)="clearSidebarSearch()">×</button>
+      }
+    </div>
+
     <nav class="sidebar-nav">
       @if (menuLoading()) {
       <div class="menu-skeleton" aria-label="Đang tải menu">
@@ -27,10 +39,10 @@
         </div>
         }
       </div>
-      } @else if (sidebarMenus().length === 0) {
-      <div class="nav-item">Chưa có menu</div>
+      } @else if (filteredSidebarMenus().length === 0) {
+      <div class="sidebar-search-empty">Không tìm thấy chức năng phù hợp.</div>
       } @else {
-        @for (menu of sortedMenus(sidebarMenus()); track menu.id) {
+        @for (menu of sortedMenus(filteredSidebarMenus()); track menu.id) {
           @if (hasChildren(menu)) {
           <!-- Nhóm menu: tiêu đề nhóm + các mục con dạng phẳng (không thu gọn) -->
           <div class="nav-section">

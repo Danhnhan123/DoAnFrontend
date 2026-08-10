@@ -63,6 +63,7 @@ export class AdminLayoutComponent implements OnInit {
   userMenuOpen = signal(false);
   expandedMenus = signal<Set<string>>(new Set());
   pageTitle = signal("");
+  sidebarSearchTerm = signal("");
 
   // ── Thanh tìm kiếm toàn cục trên header ──────────────────────────────────
   searchTerm = signal("");
@@ -207,6 +208,37 @@ export class AdminLayoutComponent implements OnInit {
 
     return result;
   });
+
+  filteredSidebarMenus = computed<MenuAggregate[]>(() => {
+    const keyword = this.normalizeMenuText(this.sidebarSearchTerm());
+    const menus = this.sidebarMenus();
+    if (!keyword) return menus;
+    const filterTree = (items: MenuAggregate[]): MenuAggregate[] =>
+      items.flatMap((item) => {
+        const selfMatches = this.normalizeMenuText(item.name).includes(keyword);
+        const children = selfMatches ? item.child ?? [] : filterTree(item.child ?? []);
+        return selfMatches || children.length ? [{ ...item, child: children }] : [];
+      });
+    return filterTree(menus);
+  });
+
+  setSidebarSearch(value: string): void {
+    this.sidebarSearchTerm.set(value);
+  }
+
+  clearSidebarSearch(): void {
+    this.sidebarSearchTerm.set("");
+  }
+
+  private normalizeMenuText(value: string | null | undefined): string {
+    return String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase()
+      .trim();
+  }
 
   menuLoading = computed(
     () => this.sidebarQuery.isPending() && this.sidebarMenus().length === 0,

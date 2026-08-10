@@ -43,6 +43,7 @@ export interface CreateQualityInspectionDto {
   note?: string | null;
   /** Kg bị ảnh hưởng (tách một phần sang cách ly). Bỏ trống = cách ly toàn bộ lô. */
   affectedWeightKg?: number | null;
+  affectedBagIds?: number[];
 }
 
 export interface UpdateQualityInspectionDto extends CreateQualityInspectionDto {

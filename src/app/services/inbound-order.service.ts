@@ -8,6 +8,8 @@ import {
   InboundOrderItemDto,
   InboundOrderPagedAdvancedRequest,
   PutawaySuggestionDto,
+  BagPutawayPlanDto,
+  BagPutawayColumnRequestDto,
   SelectInboundPutawayDto,
 } from '../models/inbound-order';
 import { buildDateRange } from '../utils/date.utils';
@@ -110,6 +112,12 @@ export class InboundOrderService {
     );
   }
 
+  getBagPutawayPlan(orderId: number, receiptId: number): Observable<ApiResponse<BagPutawayPlanDto>> {
+    return this.http.get<ApiResponse<BagPutawayPlanDto>>(
+      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/bag-putaway-plan`
+    );
+  }
+
   selectPutaway(
     orderId: number,
     receiptId: number,
@@ -124,11 +132,12 @@ export class InboundOrderService {
   confirmReceipt(
     orderId: number,
     receiptId: number,
-    operationKey: string
+    operationKey: string,
+    columns?: BagPutawayColumnRequestDto[]
   ): Observable<ApiResponse<InboundOrderItemDto>> {
     return this.http.post<ApiResponse<InboundOrderItemDto>>(
       `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/confirm`,
-      { operationKey }
+      { operationKey, columns: columns?.length ? columns : null }
     );
   }
 

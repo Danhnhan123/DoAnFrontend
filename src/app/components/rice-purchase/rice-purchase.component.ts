@@ -29,6 +29,7 @@ import {
   WarehouseDetailDto,
 } from "../../models";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
+import { BluetoothScaleService } from "../../services/bluetooth-scale.service";
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { PermissionService } from '../../services/permission.service';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
@@ -73,6 +74,7 @@ interface ReceiptFormState {
   actualWeight: number | null;
   actualWeightUnit: WeightUnit;
   bagCount: number | null;
+  bags: Array<{ bagNo: number; weightKg: number | null }>;
   agreedPrice: number | null;
   paidAmount: number | null;
   moisturePercent: number | null;
@@ -104,6 +106,8 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly receiptViewOnly = computed(() => !!this.editingReceipt() && !this.perm.canUpdate('RICE_PURCHASE'));
   private readonly queryClient = inject(QueryClient);
   private readonly router = inject(Router);
+  private readonly bluetoothScale = inject(BluetoothScaleService);
+  readonly readingBleScale = signal(false);
 
   readonly statuses: PaddyScheduleStatusOption[] = [
     { id: 1, code: "NEW", name: "Mới tạo", color: "#6B7280" },
@@ -796,6 +800,7 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeight: Number(row.actualWeightKg),
       actualWeightUnit: "kg",
       bagCount: row.bagCount ?? null,
+      bags: (row.bags || []).map((x) => ({ bagNo: x.bagNo, weightKg: Number(x.weightKg) })),
       agreedPrice: Number(row.agreedPrice),
       paidAmount: Number(row.paidAmount),
       moisturePercent: quality.moisturePercent ?? null,
@@ -820,6 +825,41 @@ export class RicePurchaseComponent implements OnDestroy {
     value: ReceiptFormState[K],
   ): void {
     this.receiptForm.update((current) => ({ ...current, [field]: value }));
+  }
+
+  addReceiptBag(weightKg: number | null = null): void {
+    if (this.receiptFormLocked()) return;
+    this.receiptForm.update((form) => ({
+      ...form,
+      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg }],
+      bagCount: form.bags.length + 1,
+      actualWeight: [...form.bags, { bagNo: form.bags.length + 1, weightKg }]
+        .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0),
+      actualWeightUnit: "kg",
+    }));
+  }
+
+  async readBleScaleAsBag(): Promise<void> {
+    if (this.receiptFormLocked() || this.readingBleScale()) return;
+    this.readingBleScale.set(true);
+    try { this.addReceiptBag(await this.bluetoothScale.readWeightKg()); }
+    catch (error) { this.showError(error instanceof Error ? error.message : "Không đọc được cân BLE."); }
+    finally { this.readingBleScale.set(false); }
+  }
+
+  updateReceiptBag(index: number, weightKg: number | null): void {
+    this.receiptForm.update((form) => {
+      const bags = form.bags.map((bag, i) => i === index ? { ...bag, weightKg } : bag);
+      return { ...form, bags, bagCount: bags.length, actualWeight: bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0), actualWeightUnit: "kg" };
+    });
+  }
+
+  removeReceiptBag(index: number): void {
+    if (this.receiptFormLocked()) return;
+    this.receiptForm.update((form) => {
+      const bags = form.bags.filter((_, i) => i !== index).map((bag, i) => ({ ...bag, bagNo: i + 1 }));
+      return { ...form, bags, bagCount: bags.length, actualWeight: bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0), actualWeightUnit: "kg" };
+    });
   }
 
  onReceiptScheduleChange(
@@ -891,6 +931,7 @@ export class RicePurchaseComponent implements OnDestroy {
         form.actualWeightUnit,
       ),
       bagCount: form.bagCount ?? null,
+      bags: form.bags.map((bag) => ({ bagNo: bag.bagNo, weightKg: Number(bag.weightKg) })),
       agreedPrice: this.roundMoney(Number(form.agreedPrice)),
       totalAmount: this.receiptTotalAmount(),
       paidAmount: this.roundMoney(Number(form.paidAmount || 0)),
@@ -1157,6 +1198,7 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeight: null,
       actualWeightUnit: "kg",
       bagCount: null,
+      bags: [],
       agreedPrice: null,
       paidAmount: 0,
       moisturePercent: null,
@@ -1189,6 +1231,9 @@ export class RicePurchaseComponent implements OnDestroy {
     if (!form.farmerId) return "Vui lòng chọn nông dân.";
     if (!form.warehouseId) return "Vui lòng chọn kho nhập.";
     if (!form.receiptDate) return "Vui lòng chọn ngày mua thực tế.";
+    if (form.bags.length === 0) return "Vui lòng nhập ít nhất một bao.";
+    if (form.bags.some((bag) => !Number.isFinite(Number(bag.weightKg)) || Number(bag.weightKg) <= 0))
+      return "Khối lượng của mỗi bao phải lớn hơn 0.";
     if (
       !form.actualWeight ||
       !Number.isFinite(Number(form.actualWeight)) ||

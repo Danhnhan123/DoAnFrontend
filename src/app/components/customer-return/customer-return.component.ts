@@ -74,6 +74,7 @@ interface InspectionLine {
   quarantineLocationId: number | null;
   damageReason: string;
   note: string;
+  bags: Array<{ weightKg: number; condition: "GOOD" | "DAMAGED" }>;
 }
 
 @Component({
@@ -570,10 +571,37 @@ export class CustomerReturnComponent implements OnDestroy {
           quarantineLocationId: null,
           damageReason: "",
           note: "",
+          bags: allocation.quantityReturned > 0
+            ? [{ weightKg: allocation.quantityReturned, condition: "GOOD" as const }]
+            : [],
         })),
       ),
     );
     this.inspectionOpen.set(true);
+  }
+
+  addInspectionBag(allocationId: number, condition: "GOOD" | "DAMAGED"): void {
+    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+      ? { ...line, bags: [...line.bags, { weightKg: 0, condition }] }
+      : line));
+  }
+
+  updateInspectionBag(allocationId: number, index: number, weightKg: number): void {
+    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+      ? { ...line, bags: line.bags.map((bag, i) => i === index ? { ...bag, weightKg: Number(weightKg) } : bag) }
+      : line));
+  }
+
+  updateInspectionBagCondition(allocationId: number, index: number, condition: "GOOD" | "DAMAGED"): void {
+    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+      ? { ...line, bags: line.bags.map((bag, i) => i === index ? { ...bag, condition } : bag) }
+      : line));
+  }
+
+  removeInspectionBag(allocationId: number, index: number): void {
+    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+      ? { ...line, bags: line.bags.filter((_, i) => i !== index) }
+      : line));
   }
 
   updateInspection(
@@ -631,6 +659,14 @@ export class CustomerReturnComponent implements OnDestroy {
           `Lô ${line.lotCode} chỉ được hoàn tối đa ${this.fmtWeight(line.quantityGood + line.quantityDamaged)} theo lượng nhận lại.`,
           "warning",
         );
+        return;
+      }
+      const goodBagKg = line.bags.filter(x => x.condition === "GOOD").reduce((sum, x) => sum + Number(x.weightKg || 0), 0);
+      const damagedBagKg = line.bags.filter(x => x.condition === "DAMAGED").reduce((sum, x) => sum + Number(x.weightKg || 0), 0);
+      if (line.bags.some(x => !Number.isFinite(x.weightKg) || x.weightKg <= 0)
+          || Math.abs(goodBagKg - line.quantityGood) > 0.001
+          || Math.abs(damagedBagKg - line.quantityDamaged) > 0.001) {
+        await this.message("Cân bao chưa khớp", `Tổng cân bao đạt/hỏng của lô ${line.lotCode} phải khớp số kg phân loại.`, "warning");
         return;
       }
       if (line.quantityGood > 0 && !line.restockLocationId) {
@@ -693,6 +729,7 @@ export class CustomerReturnComponent implements OnDestroy {
         restockLocationId: line.restockLocationId,
         quarantineLocationId: line.quarantineLocationId,
         note: line.note.trim() || null,
+        bags: line.bags.map(x => ({ weightKg: Number(x.weightKg), condition: x.condition })),
       });
       items.set(line.itemId, current);
     });

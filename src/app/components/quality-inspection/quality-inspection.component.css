@@ -323,3 +323,9 @@
   .form-row-3, .form-row-2 { grid-template-columns: 1fr; }
   .qc-banner { flex-direction: column; }
 }
+.qc-bag-summary { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+.qc-bag-summary span { padding: 8px 10px; border-radius: 8px; background: #f5f8f5; border: 1px solid #dce7dd; }
+.qc-bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.qc-bag-option { display: flex; align-items: center; gap: 8px; padding: 10px; border: 1px solid #d8e2d9; border-radius: 8px; cursor: pointer; background: #fff; }
+.qc-bag-option b { margin-left: auto; }
+.qc-bag-option.selected { border-color: #d97706; background: #fff8e8; }

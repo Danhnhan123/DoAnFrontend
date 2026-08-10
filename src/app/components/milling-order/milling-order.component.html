@@ -212,6 +212,15 @@
                       <button type="button" (click)="openDetail(row)">Xem</button>
                     }
                   } @else if (statusCode(row) === 'RESERVED') {
+                    @if (canReservePaddy()) {
+                      <button
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openReserve(row, $event)"
+                      >
+                        Phân bổ lại
+                      </button>
+                    }
                     @if (canManageOrder()) {
                       <button
                         class="action-primary"
@@ -233,6 +242,15 @@
                       <button type="button" (click)="openDetail(row)">Xem</button>
                     }
                   } @else if (statusCode(row) === 'IN_PROGRESS') {
+                    @if (canReservePaddy()) {
+                      <button
+                        type="button"
+                        [disabled]="actionLoadingId() === row.id"
+                        (click)="openReserve(row, $event)"
+                      >
+                        Điều chỉnh nguồn lúa
+                      </button>
+                    }
                     @if (canCompleteOrder()) {
                       <button
                         class="action-primary"
@@ -344,12 +362,20 @@
           <label>
             <span>Giống lúa</span>
             <app-filter-select
+              [disabled]="createForm().sourceType === 'SALES_ORDER' || viewOnly()"
               placeholder="Chọn giống lúa"
               allLabel="Chọn giống lúa"
               [options]="varietySelectOptions()"
               [value]="createForm().riceVarietyId"
               (valueChange)="setCreateField('riceVarietyId', $event)"
             ></app-filter-select>
+            @if (createForm().sourceType === 'SALES_ORDER') {
+              @if (selectedSalesOrderVarietyError()) {
+                <small class="field-error">{{ selectedSalesOrderVarietyError() }}</small>
+              } @else if (createForm().riceVarietyId) {
+                <small>Giống lúa được tự động xác định từ sản phẩm trong đơn bán.</small>
+              }
+            }
           </label>
 
           <label>
@@ -387,9 +413,13 @@
               min="0.001"
               step="0.001"
               placeholder="VD: 3100"
+              [disabled]="createForm().sourceType === 'SALES_ORDER' || viewOnly()"
               [ngModel]="createForm().targetRiceKg"
               (ngModelChange)="setCreateField('targetRiceKg', $event)"
             />
+            @if (createForm().sourceType === 'SALES_ORDER' && selectedSalesOrderWeightNote()) {
+              <small>{{ selectedSalesOrderWeightNote() }}</small>
+            }
           </label>
 
           <label>
@@ -566,7 +596,13 @@
     >
       <header class="modal-header">
         <div>
-          <h2 id="reserve-milling-title">Chọn lô/cột và giữ lúa</h2>
+          <h2 id="reserve-milling-title">
+            {{ statusCode(activeOrder()!) === 'IN_PROGRESS'
+              ? 'Điều chỉnh nguồn lúa đang xay'
+              : statusCode(activeOrder()!) === 'RESERVED'
+                ? 'Phân bổ lại lô/cột lấy lúa'
+                : 'Chọn lô/cột và giữ lúa' }}
+          </h2>
           <p>
             {{ activeOrder()?.millingCode }} ·
             {{ activeOrder()?.warehouseName || 'Kho #' + activeOrder()?.warehouseId }}
@@ -592,7 +628,8 @@
         </div>
 
         <div class="notice">
-          Chỉ các lô lúa còn tồn, đang lưu kho và không cách ly mới được hiển thị.
+          Hệ thống kiểm tra thứ tự lấy bao từ trên xuống khi xác nhận. Nếu một cột bị
+          bao khác chặn, hãy chọn thêm vị trí khác hoặc đảo các bao cản trước.
         </div>
 
         <div class="line-list">
@@ -666,7 +703,13 @@
           [disabled]="saving()"
           (click)="reservePaddy()"
         >
-          {{ saving() ? 'Đang giữ lúa...' : 'Xác nhận giữ lúa' }}
+          {{ saving()
+            ? 'Đang kiểm tra và lưu...'
+            : statusCode(activeOrder()!) === 'IN_PROGRESS'
+              ? 'Xác nhận điều chỉnh'
+              : statusCode(activeOrder()!) === 'RESERVED'
+                ? 'Xác nhận phân bổ lại'
+                : 'Kiểm tra & giữ lúa' }}
         </button>
       </footer>
     </section>
@@ -758,7 +801,8 @@
                       <app-filter-select
                         [clearable]="false"
                         placeholder="Chọn vị trí không cách ly"
-                        [options]="locationSelectOptions(activeOrder()?.warehouseId || null)"
+                        [disabled]="!line.productVariantId"
+                        [options]="outputLocationSelectOptions(line)"
                         [value]="line.locationId"
                         (valueChange)="setOutputField(i, 'locationId', $event)"
                       ></app-filter-select>

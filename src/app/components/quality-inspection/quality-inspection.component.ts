@@ -41,6 +41,7 @@ interface QcForm {
   handling: string | null;
   note: string;
   affectedWeightKg: number | null;
+  affectedBagIds: number[];
 }
 
 /**
@@ -253,7 +254,7 @@ export class QualityInspectionComponent {
   lotMap = computed<Map<number, PaddyLotRow>>(() => {
     const m = new Map<number, PaddyLotRow>();
     for (const l of this.lotList()) m.set(l.id, l);
-    for (const p of this.pendingLots()) if (!m.has(p.id)) m.set(p.id, p);
+    for (const p of this.pendingLots()) m.set(p.id, { ...m.get(p.id), ...p });
     for (const q of this.quarantinedLots()) if (!m.has(q.id)) m.set(q.id, q);
     return m;
   });
@@ -353,6 +354,18 @@ export class QualityInspectionComponent {
     const id = this.form().paddyLotId;
     return id != null ? this.lotMap().get(Number(id)) ?? null : null;
   });
+
+  eligibleBags = computed(() => this.formLot()?.bags ?? []);
+  selectedBags = computed(() => {
+    const ids = new Set(this.form().affectedBagIds);
+    return this.eligibleBags().filter((bag) => ids.has(bag.id));
+  });
+  selectedBagWeightKg = computed(() =>
+    this.selectedBags().reduce((sum, bag) => sum + Number(bag.weightKg), 0)
+  );
+  remainingBagWeightKg = computed(() =>
+    Math.max(0, this.eligibleBags().reduce((sum, bag) => sum + Number(bag.weightKg), 0) - this.selectedBagWeightKg())
+  );
 
   // ================= Effects =================
   private autoSelect = effect(() => {
@@ -474,7 +487,20 @@ export class QualityInspectionComponent {
     this.recheckMode.set(false);
   }
   setField(field: keyof QcForm, value: any): void {
-    this.form.update((x) => ({ ...x, [field]: value }));
+    this.form.update((x) => ({
+      ...x,
+      [field]: value,
+      ...(field === 'paddyLotId' ? { affectedBagIds: [], affectedWeightKg: null } : {}),
+    }));
+  }
+
+  toggleAffectedBag(id: number, checked: boolean): void {
+    this.form.update((current) => ({
+      ...current,
+      affectedBagIds: checked
+        ? [...new Set([...current.affectedBagIds, id])]
+        : current.affectedBagIds.filter((bagId) => bagId !== id),
+    }));
   }
 
   /** Lưu — passed quyết định theo nút bấm (Đạt = xanh / Cách ly = vàng). */
@@ -496,7 +522,8 @@ export class QualityInspectionComponent {
     }
 
     // Kg ảnh hưởng chỉ áp dụng khi CÁCH LY (không đạt) và có nhập giá trị.
-    const affected = !passed ? this.num(f.affectedWeightKg) : null;
+    const affectedBagIds = !passed ? f.affectedBagIds : [];
+    const affected = affectedBagIds.length > 0 ? this.selectedBagWeightKg() : null;
     if (affected != null) {
       const basis = this.formLotWeight();
       if (affected <= 0) {
@@ -544,6 +571,7 @@ export class QualityInspectionComponent {
         handling: f.handling || null,
         note: f.note?.trim() || null,
         affectedWeightKg: affected,
+        affectedBagIds,
       };
       if (this.isEdit()) {
         this.updateMutation.mutate({ ...base, id: this.editItem()!.id });
@@ -757,6 +785,7 @@ export class QualityInspectionComponent {
       handling: r.handling || null,
       note: r.note || '',
       affectedWeightKg: r.affectedWeightKg ?? null,
+      affectedBagIds: [],
     };
   }
 
@@ -774,6 +803,7 @@ export class QualityInspectionComponent {
       handling: null,
       note: '',
       affectedWeightKg: null,
+      affectedBagIds: [],
     };
   }
 
