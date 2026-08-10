@@ -106,7 +106,7 @@
         </div>
         <div class="user-info">
           <span class="user-name">{{ user()?.fullName || 'Admin User' }}</span>
-          <span class="user-role">Quản trị viên</span>
+          <span class="user-role">{{ roleLabel() || 'Người dùng' }}</span>
         </div>
         <svg class="user-card-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none"
           stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -200,7 +200,7 @@
             </div>
             <div class="chip-info">
               <span class="chip-name">{{ user()?.fullName || 'Admin User' }}</span>
-              <span class="chip-role">Quản trị viên</span>
+              <span class="chip-role">{{ roleLabel() || 'Người dùng' }}</span>
             </div>
             <svg class="chip-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

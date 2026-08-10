@@ -32,6 +32,7 @@ import {
   MenuAggregate,
   GlobalSearchGroup,
   GlobalSearchItem,
+  DataItem,
 } from "../../models";
 
 @Component({
@@ -74,6 +75,39 @@ export class AdminLayoutComponent implements OnInit {
 
   user = computed(() => this.authService.currentUser());
   isDark = computed(() => this.themeService.theme() === "dark");
+
+  /**
+   * Nhãn vai trò của user đang đăng nhập, lấy theo dữ liệu gửi lên (không fix cứng).
+   * - Nếu có vai trò quản trị viên (admin) trong danh sách: CHỈ hiển thị vai trò admin.
+   * - Ngược lại: hiển thị tất cả vai trò, ngăn cách bằng dấu phẩy.
+   */
+  roleLabel = computed<string>(() => {
+    const roles = this.user()?.roles ?? [];
+    if (!roles.length) return "";
+    const adminRole = roles.find((r) => this.isAdminRole(r));
+    if (adminRole) return adminRole.name;
+    return roles
+      .map((r) => r.name)
+      .filter(Boolean)
+      .join(", ");
+  });
+
+  /** Nhận diện vai trò quản trị viên theo id/code/tên (bỏ dấu, không phân biệt hoa thường). */
+  private isAdminRole(role: DataItem): boolean {
+    const code = String((role as any).code ?? "").toUpperCase();
+    const name = String(role.name ?? "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .trim()
+      .toLowerCase();
+    return (
+      Number(role.id) === 1001 ||
+      code === "ADMIN" ||
+      ["quan tri vien", "system admin", "admin"].some(
+        (n) => name === n || name.includes(n),
+      )
+    );
+  }
 
   /** Tiêu đề từng màn theo segment route (góc trái vùng nội dung). */
   private readonly titleMap: Record<string, string> = {
@@ -148,64 +182,8 @@ export class AdminLayoutComponent implements OnInit {
         : this.menuService.buildMenuTree(raw)
       : [];
 
-    // Thêm lối vào cục bộ để màn công nợ không phụ thuộc migration/seed menu mới.
-    // Phân quyền cho menu sẽ được bổ sung ở một hạng mục riêng.
-    let result = [...menus];
-    if (!this.hasMenuUrl(result, "/admin/party-debts")) {
-      result = [
-        ...result,
-        {
-          id: -1701,
-          code: "PARTY_DEBT",
-          treeIds: "-1701",
-          menuType: "ADMIN",
-          name: "Công nợ 2 chiều",
-          url: "/admin/party-debts",
-          icon: "💳",
-          sortOrder: 90,
-          child: [],
-        },
-      ];
-    }
-
-    // Lối vào nghiệp vụ trả hàng; phân quyền menu được bổ sung ở hạng mục riêng.
-    if (!this.hasMenuUrl(result, "/admin/customer-returns")) {
-      result = [
-        ...result,
-        {
-          id: -1702,
-          code: "CUSTOMER_RETURN",
-          treeIds: "-1702",
-          menuType: "ADMIN",
-          name: "Trả hàng khách",
-          url: "/admin/customer-returns",
-          icon: "↩",
-          sortOrder: 75,
-          child: [],
-        },
-      ];
-    }
-
-    // Lối vào cục bộ cho màn in tem QR; dùng lại quyền của các API lô/kho/SKU hiện có,
-    // không yêu cầu migration menu hoặc thay đổi cấu hình phân quyền.
-    if (!this.hasMenuUrl(result, "/admin/qr-labels")) {
-      result = [
-        ...result,
-        {
-          id: -1703,
-          code: "QR_LABELS",
-          treeIds: "-1703",
-          menuType: "ADMIN",
-          name: "In tem QR",
-          url: "/admin/qr-labels",
-          icon: "▦",
-          sortOrder: 79,
-          child: [],
-        },
-      ];
-    }
-
-    return result;
+    // Menu sidebar lấy hoàn toàn theo phân quyền của user từ API (/auth/me/menus).
+    return [...menus];
   });
 
   menuLoading = computed(
@@ -445,14 +423,6 @@ export class AdminLayoutComponent implements OnInit {
 
     walk(this.sidebarMenus());
     this.expandedMenus.update((current) => new Set([...current, ...parents]));
-  }
-
-  private hasMenuUrl(items: MenuAggregate[], expectedUrl: string): boolean {
-    return items.some(
-      (item) =>
-        this.routerLinkFor(item) === expectedUrl ||
-        this.hasMenuUrl(item.child ?? [], expectedUrl),
-    );
   }
 
   logout(): void {
