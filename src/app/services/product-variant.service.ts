@@ -137,47 +137,22 @@ export class ProductVariantService {
   }
 
   /**
-   * Body DataTables tối giản để lấy toàn bộ option cho dropdown (1 trang lớn).
+   * Danh sách đơn vị tính cho dropdown trong form.
+   * Dùng endpoint GetAll dùng chung (chỉ [Authorize]) thay cho paged-advanced (bị chặn READ),
+   * để role có quyền quản lý biến thể nhưng không có quyền xem menu Đơn vị tính vẫn lấy được dropdown.
    */
-  private optionsBody(columns: string[]): any {
-    return {
-      draw: 1,
-      columns: columns.map((data) => ({
-        data,
-        name: data,
-        searchable: true,
-        orderable: true,
-        search: { value: '', regex: false, fixed: [] },
-      })),
-      order: [{ column: 1, dir: 'asc', name: columns[1] ?? columns[0] }],
-      start: 0,
-      length: 1000,
-      search: { value: '', regex: false, fixed: [] },
-    };
-  }
-
-  /** Danh sách đơn vị tính cho dropdown trong form. */
   getUnitOfMeasureOptions(): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/unit-of-measures/paged-advanced`,
-      this.optionsBody(['id', 'name', 'symbol', 'createdDate'])
-    );
+    return this.http.get<ApiResponse<any>>(`${this.base}/unit-of-measures`);
   }
 
-  /** Danh sách giống lúa cho dropdown trong form. */
+  /** Danh sách giống lúa cho dropdown trong form (GetAll dùng chung). */
   getRiceVarietyOptions(): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/rice-varieties/paged-advanced`,
-      this.optionsBody(['id', 'name', 'code', 'season', 'isActive', 'createdDate'])
-    );
+    return this.http.get<ApiResponse<any>>(`${this.base}/rice-varieties`);
   }
 
-  /** Danh sách thuộc tính sản phẩm cho editor thuộc tính biến thể. */
+  /** Danh sách thuộc tính sản phẩm cho editor thuộc tính biến thể (GetAll dùng chung). */
   getProductAttributeOptions(): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-attribute/paged-advanced`,
-      this.optionsBody(['id', 'name', 'description', 'createdDate'])
-    );
+    return this.http.get<ApiResponse<any>>(`${this.base}/product-attribute`);
   }
 
    /**

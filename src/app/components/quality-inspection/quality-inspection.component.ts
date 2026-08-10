@@ -19,7 +19,6 @@ import {
   UpdateQualityInspectionDto,
   PaddyLotRow,
   UserAdvancedRow,
-  DTParameters,
 } from '../../models';
 import { QualityInspectionService } from '../../services/quality-inspection.service';
 import { PaddyLotService } from '../../services/paddy-lot.service';
@@ -187,18 +186,16 @@ export class QualityInspectionComponent {
     queryFn: () => lastValueFrom(this.paddyLotService.getQuarantined()),
   }));
 
+  // Dropdown người kiểm + vai trò: dùng GetAll dùng chung (chỉ [Authorize]) thay cho
+  // paged-advanced/paged (bị chặn READ USER/ROLE) để role làm QC vẫn lấy được danh sách.
   usersQuery = injectQuery(() => ({
     queryKey: ['qc-user-options'],
-    queryFn: () =>
-      lastValueFrom(this.userService.getPagedAdvanced(this.userListBody())),
+    queryFn: () => lastValueFrom(this.userService.getAll()),
   }));
 
   rolesQuery = injectQuery(() => ({
     queryKey: ['qc-roles'],
-    queryFn: () =>
-      lastValueFrom(
-        this.roleService.getPagedRoles({ pageIndex: 1, pageSize: 1000 })
-      ),
+    queryFn: () => lastValueFrom(this.roleService.getAll()),
   }));
 
   historyQuery = injectQuery(() => ({
@@ -790,24 +787,6 @@ export class QualityInspectionComponent {
     if (v === null || v === undefined || (v as any) === '') return null;
     const n = Number(v);
     return isNaN(n) ? null : n;
-  }
-  private userListBody(): DTParameters {
-    return {
-      draw: 1,
-      columns: [
-        {
-          data: 'username',
-          name: 'username',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-      ],
-      order: [{ column: 0, dir: 'asc', name: 'username' }],
-      start: 0,
-      length: 500,
-      search: { value: '', regex: false, fixed: [] },
-    };
   }
   private showAlert(message: string, ok = true): void {
     Swal.fire({
