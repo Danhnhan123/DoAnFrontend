@@ -41,6 +41,14 @@ export class UserService {
   }
 
   /** Lấy chi tiết user theo ID */
+  /**
+   * Lấy toàn bộ user (kèm vai trò) cho dropdown dùng chung — endpoint GetAll chỉ [Authorize].
+   * Dùng ở các màn cần chọn user (vd Kiểm định chất lượng) mà role không có quyền READ menu User.
+   */
+  getAll(): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.base}/user`);
+  }
+
   getById(id: number): Observable<ApiResponse<UserDetailDto>> {
     return this.http.get<ApiResponse<UserDetailDto>>(`${this.base}/user/${id}`);
   }

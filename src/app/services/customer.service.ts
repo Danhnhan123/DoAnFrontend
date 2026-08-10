@@ -25,6 +25,16 @@ export class CustomerService {
     );
   }
 
+  /**
+   * Lấy toàn bộ khách hàng cho dropdown (endpoint GetAll dùng chung, chỉ [Authorize]).
+   * Dùng thay cho paged-advanced ở các màn cần dropdown khách hàng nhưng role không có quyền xem menu Khách hàng.
+   */
+  getAll(): Observable<ApiResponse<CustomerDetailDto[]>> {
+    return this.http.get<ApiResponse<CustomerDetailDto[]>>(
+      `${this.base}/customers`
+    );
+  }
+
   getById(id: number): Observable<ApiResponse<CustomerDetailDto>> {
     return this.http.get<ApiResponse<CustomerDetailDto>>(
       `${this.base}/customers/${id}`
