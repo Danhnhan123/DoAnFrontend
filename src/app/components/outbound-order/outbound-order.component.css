@@ -320,6 +320,17 @@
 .ob-item-qty .ob-muted { margin: 0; }
 .ob-alloc { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
 .ob-alloc-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; }
+.ob-bag-group {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
 .ob-alloc-kg { margin-left: auto; font-weight: 700; color: #334155; }
 .ob-alloc-kg em { color: #16a34a; font-style: normal; font-weight: 600; }
 .ob-noalloc { margin-top: 6px; }

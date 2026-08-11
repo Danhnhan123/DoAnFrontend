@@ -14,6 +14,8 @@ import {
   InboundOrderItemDto,
   PutawaySuggestionDto,
   BagPutawayPlanDto,
+  BagPutawayColumnDto,
+  BagPutawayBagDto,
 } from "../../models/inbound-order";
 import { LocationDetailDto } from "../../models/location";
 import { AuthService } from "../../services/auth.service";
@@ -48,6 +50,17 @@ interface ConfirmPutawayVariables {
   isOverride: boolean;
   overrideReason: string | null;
   bagPlan?: BagPutawayPlanDto | null;
+}
+
+interface BagDisplayGroup {
+  key: string;
+  weightKg: number;
+  bags: BagPutawayBagDto[];
+  bagIds: number[];
+  count: number;
+  priorityStart: number;
+  priorityEnd: number;
+  isStandardWeight: boolean;
 }
 
 type ScreenStatus =
@@ -90,6 +103,9 @@ export class InboundPutawayComponent {
   readonly manualLocationId = signal<number | null>(null);
   readonly overrideReason = signal("");
   readonly bagPlan = signal<BagPutawayPlanDto | null>(null);
+  readonly expandedBagGroups = signal<ReadonlySet<string>>(new Set<string>());
+  readonly bagGroupPages = signal<Record<string, number>>({});
+  readonly bagGroupPageSize = 20;
 
   readonly inboundQuery = injectQuery(() => ({
     queryKey: this.inboundQueryKey,
@@ -350,6 +366,8 @@ export class InboundPutawayComponent {
     this.manualOverride.set(false);
     this.manualLocationId.set(null);
     this.overrideReason.set("");
+    this.expandedBagGroups.set(new Set<string>());
+    this.bagGroupPages.set({});
     this.message.set("");
 
     if (!line) return;
@@ -478,13 +496,14 @@ export class InboundPutawayComponent {
       if (!plan) return plan;
       const source = plan.columns.find((column) => column.bagIds.includes(bagId));
       let target = plan.columns.find((column) => column.locationId === Number(targetLocationId));
+      let targetWasCreated = false;
       const bag = source?.bags.find((item) => item.id === bagId);
       if (!source || !bag) return plan;
       if (!target) {
         const candidate = plan.candidateLocations.find(x => x.locationId === Number(targetLocationId));
         if (!candidate) return plan;
         target = { locationId: candidate.locationId, slotCode: candidate.slotCode, bagIds: [], bags: [], totalKg: 0, capacityRemainAfter: candidate.capacityAvailableKg, reason: candidate.reason };
-        plan.columns.push(target);
+        targetWasCreated = true;
       }
       if (source === target) return plan;
       const targetMax = target.totalKg + target.capacityRemainAfter;
@@ -493,6 +512,7 @@ export class InboundPutawayComponent {
         this.activeStatus.set("capacity");
         return plan;
       }
+      if (targetWasCreated) plan.columns.push(target);
       source.bagIds = source.bagIds.filter((id) => id !== bagId); source.bags = source.bags.filter((x) => x.id !== bagId);
       source.totalKg -= bag.weightKg; source.capacityRemainAfter += bag.weightKg;
       target.bagIds.push(bagId); target.bags.push(bag); target.totalKg += bag.weightKg; target.capacityRemainAfter -= bag.weightKg;
@@ -508,7 +528,104 @@ export class InboundPutawayComponent {
         .map((column, index) => ({ ...column, priorityRank: index + 1 }));
       return { ...plan, columns };
     });
+    this.resetBagGroupView();
     this.suggestions.set(this.orderSuggestionsByPlan(this.suggestions(), this.bagPlan()));
+  }
+
+  moveBagGroup(bagIds: number[], targetLocationId: number): void {
+    const ids = new Set(bagIds);
+    this.bagPlan.update((plan) => {
+      if (!plan || ids.size === 0) return plan;
+
+      const source = plan.columns.find((column) =>
+        column.bagIds.some((bagId) => ids.has(bagId)),
+      );
+      if (!source || source.locationId === Number(targetLocationId)) return plan;
+
+      const movingBags = source.bags.filter((bag) => ids.has(bag.id));
+      if (movingBags.length !== ids.size) return plan;
+
+      let target = plan.columns.find(
+        (column) => column.locationId === Number(targetLocationId),
+      );
+      let targetWasCreated = false;
+      if (!target) {
+        const candidate = plan.candidateLocations.find(
+          (item) => item.locationId === Number(targetLocationId),
+        );
+        if (!candidate) return plan;
+        target = {
+          locationId: candidate.locationId,
+          slotCode: candidate.slotCode,
+          bagIds: [],
+          bags: [],
+          totalKg: 0,
+          capacityRemainAfter: candidate.capacityAvailableKg,
+          reason: candidate.reason,
+        };
+        targetWasCreated = true;
+      }
+
+      const movingWeight = movingBags.reduce(
+        (total, bag) => total + bag.weightKg,
+        0,
+      );
+      if (target.capacityRemainAfter + 0.001 < movingWeight) {
+        this.message.set(
+          `Cột ${target.slotCode} không đủ sức chứa cho nhóm ${movingBags.length} bao (${this.formatKg(movingWeight)}).`,
+        );
+        this.activeStatus.set("capacity");
+        return plan;
+      }
+
+      if (targetWasCreated) plan.columns.push(target);
+
+      source.bags = source.bags.filter((bag) => !ids.has(bag.id));
+      source.bagIds = source.bags.map((bag) => bag.id);
+      source.totalKg -= movingWeight;
+      source.capacityRemainAfter += movingWeight;
+
+      // Nhóm chuyển sang cột khác được xếp tiếp lên đỉnh của cột đích (LIFO).
+      target.bags.push(...movingBags);
+      target.bagIds = target.bags.map((bag) => bag.id);
+      target.totalKg += movingWeight;
+      target.capacityRemainAfter -= movingWeight;
+
+      return {
+        ...plan,
+        columns: this.rankBagColumns(
+          plan.columns.filter((column) => column.bags.length > 0),
+          plan,
+        ),
+      };
+    });
+    this.resetBagGroupView();
+    this.suggestions.set(
+      this.orderSuggestionsByPlan(this.suggestions(), this.bagPlan()),
+    );
+  }
+
+  moveBagGroupOrder(
+    locationId: number,
+    bagIds: number[],
+    target: "top" | "bottom",
+  ): void {
+    const ids = new Set(bagIds);
+    this.bagPlan.update((plan) => {
+      if (!plan || ids.size === 0) return plan;
+      const column = plan.columns.find((item) => item.locationId === locationId);
+      if (!column) return plan;
+
+      const moving = column.bags.filter((bag) => ids.has(bag.id));
+      const remaining = column.bags.filter((bag) => !ids.has(bag.id));
+      if (moving.length !== ids.size) return plan;
+
+      // Mảng gửi Backend luôn giữ thứ tự vật lý đáy -> đỉnh.
+      column.bags = target === "top" ? [...remaining, ...moving] : [...moving, ...remaining];
+      column.bagIds = column.bags.map((bag) => bag.id);
+      return { ...plan, columns: [...plan.columns] };
+    });
+    this.resetBagGroupView();
   }
 
   moveBagOrder(locationId: number, index: number, direction: -1 | 1): void {
@@ -522,6 +639,138 @@ export class InboundPutawayComponent {
       column.bagIds = column.bags.map((bag) => bag.id);
       return { ...plan, columns: [...plan.columns] };
     });
+    this.resetBagGroupView();
+  }
+
+  columnBagGroups(
+    column: BagPutawayColumnDto,
+    plan: BagPutawayPlanDto,
+  ): BagDisplayGroup[] {
+    if (!column.bags.length) return [];
+    const standardWeight = this.standardBagWeight(plan);
+    const groups: BagDisplayGroup[] = [];
+    let run: BagPutawayBagDto[] = [];
+
+    const flush = (): void => {
+      if (!run.length) return;
+      const bottomIndex = column.bags.findIndex((bag) => bag.id === run[0].id);
+      const topIndex = column.bags.findIndex(
+        (bag) => bag.id === run[run.length - 1].id,
+      );
+      const priorityStart = column.bags.length - topIndex;
+      const priorityEnd = column.bags.length - bottomIndex;
+      groups.push({
+        key: `${column.locationId}:${run[0].id}:${run[run.length - 1].id}`,
+        weightKg: run[0].weightKg,
+        bags: [...run],
+        bagIds: run.map((bag) => bag.id),
+        count: run.length,
+        priorityStart,
+        priorityEnd,
+        isStandardWeight:
+          Math.abs(run[0].weightKg - standardWeight) < 0.001,
+      });
+      run = [];
+    };
+
+    // Chỉ gom các bao cùng khối lượng nằm liên tiếp để không làm sai stack.
+    for (const bag of column.bags) {
+      if (
+        run.length > 0 &&
+        Math.abs(run[0].weightKg - bag.weightKg) >= 0.001
+      ) {
+        flush();
+      }
+      run.push(bag);
+    }
+    flush();
+
+    // Backend nhận đáy -> đỉnh; UI hiển thị đỉnh -> đáy để STT 1 nằm trên cùng.
+    return groups.reverse();
+  }
+
+  groupPriorityLabel(group: BagDisplayGroup): string {
+    return group.priorityStart === group.priorityEnd
+      ? `${group.priorityStart}`
+      : `${group.priorityStart}–${group.priorityEnd}`;
+  }
+
+  groupTitle(group: BagDisplayGroup): string {
+    if (group.count > 1) {
+      return `${group.count} bao × ${this.formatKg(group.weightKg)}`;
+    }
+    return `Bao #${group.bags[0].bagNo} · ${this.formatKg(group.weightKg)}`;
+  }
+
+  groupKind(group: BagDisplayGroup): string {
+    if (group.count > 1) {
+      return group.isStandardWeight
+        ? "Nhóm chuẩn · liên tục"
+        : "Nhóm cùng khối lượng · liên tục";
+    }
+    return group.isStandardWeight ? "Bao chuẩn" : "Bao lẻ";
+  }
+
+  isBagGroupExpanded(groupKey: string): boolean {
+    return this.expandedBagGroups().has(groupKey);
+  }
+
+  toggleBagGroup(groupKey: string): void {
+    this.expandedBagGroups.update((current) => {
+      const next = new Set(current);
+      if (next.has(groupKey)) next.delete(groupKey);
+      else next.add(groupKey);
+      return next;
+    });
+    this.setBagGroupPage(groupKey, 1);
+  }
+
+  visibleGroupBags(group: BagDisplayGroup): BagPutawayBagDto[] {
+    const page = this.bagGroupPage(group.key);
+    const start = (page - 1) * this.bagGroupPageSize;
+    // Danh sách chi tiết cũng hiển thị từ đỉnh xuống đáy.
+    return [...group.bags].reverse().slice(start, start + this.bagGroupPageSize);
+  }
+
+  bagGroupPage(groupKey: string): number {
+    return this.bagGroupPages()[groupKey] ?? 1;
+  }
+
+  bagGroupPageCount(group: BagDisplayGroup): number {
+    return Math.max(1, Math.ceil(group.count / this.bagGroupPageSize));
+  }
+
+  setBagGroupPage(groupKey: string, page: number): void {
+    this.bagGroupPages.update((pages) => ({
+      ...pages,
+      [groupKey]: Math.max(1, page),
+    }));
+  }
+
+  bagIndex(column: BagPutawayColumnDto, bagId: number): number {
+    return column.bags.findIndex((bag) => bag.id === bagId);
+  }
+
+  planBagCount(plan: BagPutawayPlanDto | null = this.bagPlan()): number {
+    return plan?.columns.reduce(
+      (total, column) => total + column.bags.length,
+      0,
+    ) ?? 0;
+  }
+
+  planTotalKg(plan: BagPutawayPlanDto | null = this.bagPlan()): number {
+    return plan?.columns.reduce(
+      (total, column) => total + column.totalKg,
+      0,
+    ) ?? 0;
+  }
+
+  confirmPutawayLabel(): string {
+    const plan = this.bagPlan();
+    if (plan?.columns.length) {
+      return `Xác nhận xếp ${this.planBagCount(plan)} bao · ${this.formatKg(this.planTotalKg(plan))}`;
+    }
+    return `Xác nhận xếp ${this.formatKg(this.placementWeightKg())}`;
   }
 
   bagSuggestionReason(locationId: number): string {
@@ -542,6 +791,50 @@ export class InboundPutawayComponent {
       (rank.get(a.locationId) ?? Number.MAX_SAFE_INTEGER) -
       (rank.get(b.locationId) ?? Number.MAX_SAFE_INTEGER)
     );
+  }
+
+  private standardBagWeight(plan: BagPutawayPlanDto): number {
+    const counts = new Map<string, { weight: number; count: number }>();
+    for (const bag of plan.columns.flatMap((column) => column.bags)) {
+      const key = bag.weightKg.toFixed(3);
+      const current = counts.get(key);
+      counts.set(key, {
+        weight: bag.weightKg,
+        count: (current?.count ?? 0) + 1,
+      });
+    }
+    return [...counts.values()].sort(
+      (a, b) => b.count - a.count || b.weight - a.weight,
+    )[0]?.weight ?? 0;
+  }
+
+  private rankBagColumns(
+    columns: BagPutawayColumnDto[],
+    plan: BagPutawayPlanDto,
+  ): BagPutawayColumnDto[] {
+    return [...columns]
+      .sort((a, b) => {
+        const candidateA = plan.candidateLocations.find(
+          (item) => item.locationId === a.locationId,
+        );
+        const candidateB = plan.candidateLocations.find(
+          (item) => item.locationId === b.locationId,
+        );
+        return (
+          Number(candidateB?.containsSameVariant) -
+            Number(candidateA?.containsSameVariant) ||
+          Number(candidateB?.priority ?? 0) -
+            Number(candidateA?.priority ?? 0) ||
+          a.capacityRemainAfter - b.capacityRemainAfter ||
+          a.locationId - b.locationId
+        );
+      })
+      .map((column, index) => ({ ...column, priorityRank: index + 1 }));
+  }
+
+  private resetBagGroupView(): void {
+    this.expandedBagGroups.set(new Set<string>());
+    this.bagGroupPages.set({});
   }
 
   chooseSuggestion(suggestion: PutawaySuggestionDto): void {
@@ -649,9 +942,12 @@ export class InboundPutawayComponent {
       return;
     }
 
-    const locationId = this.manualOverride()
-      ? Number(this.manualLocationId())
-      : Number(this.selectedLocationId());
+    const plan = this.bagPlan();
+    const locationId = plan?.columns.length
+      ? plan.columns[0].locationId
+      : this.manualOverride()
+        ? Number(this.manualLocationId())
+        : Number(this.selectedLocationId());
     if (!locationId) {
       await Swal.fire({
         icon: "warning",
@@ -671,12 +967,18 @@ export class InboundPutawayComponent {
       return;
     }
 
+    const confirmWeightKg = plan?.columns.length
+      ? this.planTotalKg(plan)
+      : Number(this.placementWeightKg());
+    const confirmBagCount = plan?.columns.length
+      ? this.planBagCount(plan)
+      : null;
     const accepted = await Swal.fire({
       icon: "question",
       title: "Xác nhận nhập kho?",
-      text: `Hệ thống sẽ tăng tồn kho ${this.formatKg(
-        this.placementWeightKg(),
-      )} tại vị trí đã chọn.`,
+      text: confirmBagCount != null
+        ? `Hệ thống sẽ xếp ${confirmBagCount} bao (${this.formatKg(confirmWeightKg)}) theo phương án LIFO đã hiển thị.`
+        : `Hệ thống sẽ tăng tồn kho ${this.formatKg(confirmWeightKg)} tại vị trí đã chọn.`,
       showCancelButton: true,
       confirmButtonText: "Xác nhận",
       cancelButtonText: "Quay lại",
@@ -684,7 +986,7 @@ export class InboundPutawayComponent {
     });
     if (!accepted.isConfirmed) return;
 
-    const weightKg = Number(this.placementWeightKg());
+    const weightKg = confirmWeightKg;
     const remainingBeforeConfirm = this.remaining(line.item);
     const isPartialPutaway = weightKg < remainingBeforeConfirm;
 
@@ -697,7 +999,7 @@ export class InboundPutawayComponent {
         overrideReason: this.manualOverride()
           ? this.overrideReason().trim()
           : null,
-        bagPlan: this.bagPlan(),
+        bagPlan: plan,
       });
 
       await this.success(

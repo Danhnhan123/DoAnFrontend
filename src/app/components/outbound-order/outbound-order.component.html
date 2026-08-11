@@ -255,12 +255,15 @@
               </div>
             </div>
             <div class="ob-alloc" *ngIf="it.allocations.length; else noAlloc">
-              <div class="ob-alloc-row" *ngFor="let a of it.allocations">
-                <span class="ob-tag">{{ a.paddyLotCode || 'INV-' + a.inventoryId }}</span>
-                <span class="ob-muted sm">{{ a.locationCode || '—' }}</span>
+              <div class="ob-alloc-row" *ngFor="let group of allocationGroups(it)">
+                <span class="ob-tag">{{ group.paddyLotCode || 'INV-' + group.inventoryId }}</span>
+                <span class="ob-muted sm">{{ group.locationCode || '—' }}</span>
+                <span class="ob-bag-group" *ngIf="group.bagCount > 1">
+                  {{ group.bagCount }} bao × {{ fmtKg(group.weightPerBagKg) }}
+                </span>
                 <span class="ob-alloc-kg">
-                  {{ fmtKg(a.quantityAllocated) }}
-                  <em *ngIf="a.quantityPicked">· lấy {{ fmtKg(a.quantityPicked) }}</em>
+                  Tổng {{ fmtKg(group.totalAllocatedKg) }}
+                  <em *ngIf="group.totalPickedKg">· lấy {{ fmtKg(group.totalPickedKg) }}</em>
                 </span>
               </div>
             </div>
@@ -439,12 +442,18 @@
     <div class="ob-modal-body">
       <table class="ob-lot-table">
         <thead>
-          <tr><th>Sản phẩm</th><th>Lô / vị trí</th><th class="num">Đã giữ</th><th class="num">Thực lấy (kg)</th></tr>
+          <tr><th>Sản phẩm</th><th>Lô / vị trí</th><th>Nhóm bao</th><th class="num">Đã giữ</th><th class="num">Thực lấy (kg)</th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let r of pickForm(); let i = index; trackBy: trackPickRow">
             <td>{{ r.productVariantName }}</td>
             <td>{{ r.lotCode }} · {{ r.locationCode }}</td>
+            <td>
+              <span class="ob-bag-group" *ngIf="r.bagCount > 1; else singleBag">
+                {{ r.bagCount }} bao × {{ fmtKg(r.weightPerBagKg) }}
+              </span>
+              <ng-template #singleBag>{{ fmtKg(r.weightPerBagKg) }}</ng-template>
+            </td>
             <td class="num">{{ fmtKg(r.allocatedKg) }}</td>
             <td class="num">
               <input

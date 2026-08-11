@@ -19,6 +19,7 @@ import {
   DTResponse,
   InventoryRow,
   OUTBOUND_STATUS,
+  OutboundOrderAllocationGroup,
   OutboundOrderDetail,
   OutboundOrderItem,
   OutboundOrderPage,
@@ -63,10 +64,13 @@ interface AllocateItemForm {
 }
 
 interface PickRow {
-  allocationId: number;
+  key: string;
+  allocationIds: number[];
   lotCode: string;
   locationCode: string;
   productVariantName: string;
+  bagCount: number;
+  weightPerBagKg: number;
   allocatedKg: number;
   pickedKg: number | null;
 }
@@ -556,17 +560,19 @@ export class OutboundOrderComponent implements OnDestroy {
     if (order.outboundStatusId !== this.status.PICKING) return;
     const rows: PickRow[] = [];
     for (const item of order.items) {
-      for (const alloc of item.allocations) {
+      for (const group of this.allocationGroups(item)) {
         rows.push({
-          allocationId: alloc.id,
-          lotCode: alloc.paddyLotCode || `INV-${alloc.inventoryId}`,
-          locationCode: alloc.locationCode || '—',
+          key: `${item.id}:${group.groupKey}`,
+          allocationIds: group.allocationIds,
+          lotCode: group.paddyLotCode || `INV-${group.inventoryId}`,
+          locationCode: group.locationCode || '—',
           productVariantName: item.productVariantName,
-          allocatedKg: Number(alloc.quantityAllocated || 0),
-          pickedKg:
-            Number(alloc.quantityPicked || 0) > 0
-              ? Number(alloc.quantityPicked)
-              : Number(alloc.quantityAllocated || 0),
+          bagCount: group.bagCount,
+          weightPerBagKg: group.weightPerBagKg,
+          allocatedKg: Number(group.totalAllocatedKg || 0),
+          pickedKg: Number(group.totalPickedKg || 0) > 0
+            ? Number(group.totalPickedKg)
+            : Number(group.totalAllocatedKg || 0),
         });
       }
     }
@@ -608,11 +614,49 @@ export class OutboundOrderComponent implements OnDestroy {
         return;
       }
     }
-    const picks = rows.map((r) => ({
-      allocationId: r.allocationId,
-      quantityPicked: Number(r.pickedKg || 0),
-    }));
+    const allocations = (order.items || []).flatMap((item) => item.allocations || []);
+    const allocationById = new Map(allocations.map((allocation) => [allocation.id, allocation]));
+    const picks = rows.flatMap((row) => {
+      let remaining = Number(row.pickedKg || 0);
+      return row.allocationIds.map((allocationId) => {
+        const allocation = allocationById.get(allocationId);
+        const allocatedKg = Number(allocation?.quantityAllocated || 0);
+        const quantityPicked = Math.min(remaining, allocatedKg);
+        remaining = Math.max(0, remaining - quantityPicked);
+        return { allocationId, quantityPicked };
+      });
+    });
     this.pickMutation.mutate({ id: order.id, payload: { picks } });
+  }
+
+  allocationGroups(item: OutboundOrderItem): OutboundOrderAllocationGroup[] {
+    if (item.allocationGroups?.length) return item.allocationGroups;
+
+    // Tương thích Backend cũ: tự gom các allocation cùng lô/vị trí/trọng lượng.
+    const groups = new Map<string, OutboundOrderAllocationGroup>();
+    for (const allocation of [...(item.allocations || [])].sort((a, b) => a.id - b.id)) {
+      const unitWeight = Number(allocation.quantityAllocated || 0);
+      const key = `${allocation.inventoryId}:${allocation.locationId}:${unitWeight.toFixed(3)}`;
+      const current = groups.get(key) || {
+        groupKey: key,
+        allocationIds: [],
+        inventoryId: allocation.inventoryId,
+        paddyLotId: allocation.paddyLotId,
+        paddyLotCode: allocation.paddyLotCode,
+        locationId: allocation.locationId,
+        locationCode: allocation.locationCode,
+        bagCount: 0,
+        weightPerBagKg: unitWeight,
+        totalAllocatedKg: 0,
+        totalPickedKg: 0,
+      };
+      current.allocationIds.push(allocation.id);
+      current.bagCount += 1;
+      current.totalAllocatedKg += unitWeight;
+      current.totalPickedKg += Number(allocation.quantityPicked || 0);
+      groups.set(key, current);
+    }
+    return [...groups.values()];
   }
 
   // ── Packing ────────────────────────────────────────────────────────
@@ -957,7 +1001,7 @@ export class OutboundOrderComponent implements OnDestroy {
   // *ngFor huỷ & dựng lại <input> → mất focus. Track theo id ổn định.
   trackAllocItem = (_: number, item: AllocateItemForm): number => item.itemId;
   trackAllocLot = (_: number, lot: AllocateLotRow): number => lot.inventoryId;
-  trackPickRow = (_: number, row: PickRow): number => row.allocationId;
+  trackPickRow = (_: number, row: PickRow): string => row.key;
 
   // ── Formatting ─────────────────────────────────────────────────────
   fmtMoney(value: number | null | undefined): string {
