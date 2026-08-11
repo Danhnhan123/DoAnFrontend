@@ -511,6 +511,19 @@ export class InboundPutawayComponent {
     this.suggestions.set(this.orderSuggestionsByPlan(this.suggestions(), this.bagPlan()));
   }
 
+  moveBagOrder(locationId: number, index: number, direction: -1 | 1): void {
+    this.bagPlan.update((plan) => {
+      if (!plan) return plan;
+      const column = plan.columns.find((x) => x.locationId === locationId);
+      if (!column) return plan;
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= column.bags.length) return plan;
+      [column.bags[index], column.bags[targetIndex]] = [column.bags[targetIndex], column.bags[index]];
+      column.bagIds = column.bags.map((bag) => bag.id);
+      return { ...plan, columns: [...plan.columns] };
+    });
+  }
+
   bagSuggestionReason(locationId: number): string {
     return this.bagPlan()?.candidateLocations.find((x) => x.locationId === locationId)?.reason ?? '';
   }

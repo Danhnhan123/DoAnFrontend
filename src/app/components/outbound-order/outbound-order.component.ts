@@ -432,7 +432,13 @@ export class OutboundOrderComponent implements OnDestroy {
     this.loadingLots.set(true);
     this.allocateForm.set([]);
     try {
-      const rows = await this.loadWarehouseLots(order.warehouseId);
+      const candidateResponse = await lastValueFrom(
+        this.service.getAllocationCandidates(order.id)
+      );
+      const rows = this.unwrap<any[]>(
+        candidateResponse,
+        'Không tải được nguồn tồn có thể phân bổ.'
+      ) || [];
       const form: AllocateItemForm[] = order.items.map((item) => {
         const already = item.allocations.reduce(
           (s, a) => s + Number(a.quantityAllocated || 0),
@@ -442,14 +448,13 @@ export class OutboundOrderComponent implements OnDestroy {
           .filter(
             (r) =>
               r.productVariantId === item.productVariantId &&
-              Number(r.quantityAvailable || 0) > 0 &&
-              r.lotIsSellable !== false
+              Number(r.selectableQuantity || 0) > 0
           )
           .map((r) => ({
-            inventoryId: r.id,
-            lotCode: r.lotCode || `INV-${r.id}`,
+            inventoryId: r.inventoryId,
+            lotCode: r.lotCode || `INV-${r.inventoryId}`,
             locationCode: r.locationCode || '—',
-            availableKg: Number(r.quantityAvailable || 0),
+            availableKg: Number(r.selectableQuantity || 0),
             qty: null as number | null,
           }));
         return {

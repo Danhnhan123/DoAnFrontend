@@ -284,9 +284,15 @@
                   <small>{{ column.reason }}</small>
                 }
                 <div class="bag-chips">
-                  @for (bag of column.bags; track bag.id) {
+                  <small>Thứ tự vật lý: đáy → đỉnh. Backend giữ nguyên đúng thứ tự này.</small>
+                  @for (bag of column.bags; track bag.id; let bagIndex = $index) {
                     <label class="bag-chip">
-                      <span>Bao #{{ bag.bagNo }} · {{ formatKg(bag.weightKg) }}</span>
+                      <span>
+                        {{ bagIndex === 0 ? 'ĐÁY · ' : (bagIndex === column.bags.length - 1 ? 'ĐỈNH · ' : '') }}
+                        Bao #{{ bag.bagNo }} · {{ formatKg(bag.weightKg) }}
+                      </span>
+                      <button type="button" (click)="moveBagOrder(column.locationId, bagIndex, -1)" [disabled]="bagIndex === 0 || actionPending()">↓</button>
+                      <button type="button" (click)="moveBagOrder(column.locationId, bagIndex, 1)" [disabled]="bagIndex === column.bags.length - 1 || actionPending()">↑</button>
                       <select [ngModel]="column.locationId" (ngModelChange)="moveBag(bag.id, +$event)" [disabled]="actionPending()">
                         @for (target of plan.candidateLocations; track target.locationId) {
                           <option [value]="target.locationId">{{ target.slotCode }} · còn {{ formatKg(candidateCapacityRemain(plan, target.locationId)) }}</option>

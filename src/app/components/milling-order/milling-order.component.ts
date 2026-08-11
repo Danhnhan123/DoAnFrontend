@@ -24,6 +24,7 @@ import {
   MillingPaddyLotOption,
   MillingProductVariantOption,
   MillingSalesOrderOption,
+  MillingSourceSuggestionResult,
   MillingWarehouseOption,
   MillingYieldOption,
   UpdateMillingOrderPayload,
@@ -43,6 +44,7 @@ interface AllocationLine {
   locationId: number | null;
   consumedWeightKg: number | null;
   note: string;
+  bagIds: number[];
 }
 
 interface CreateOrderForm {
@@ -144,6 +146,7 @@ export class MillingOrderComponent {
   selectedOrderId = signal<number | null>(null);
   activeOrder = signal<MillingOrderRow | MillingOrderDetailDto | null>(null);
   saving = signal(false);
+  suggestingSources = signal(false);
   actionLoadingId = signal<number | null>(null);
 
   createForm = signal<CreateOrderForm>(this.defaultCreateForm());
@@ -594,15 +597,21 @@ export class MillingOrderComponent {
   );
 
   computedPaddyToConsumeKg = computed(() => {
-    const yieldRate = Number(this.completeForm().configuredYieldRate) || 0;
-    return yieldRate > 0 ? this.totalRiceOutputKg() / yieldRate : 0;
+    return (this.activeOrder()?.inputs || []).reduce(
+      (sum, input) => sum + Number(input.reservedWeightKg || 0),
+      0
+    );
   });
 
   actualYieldRate = computed(() => {
     const order = this.activeOrder();
-    const expectedRice = order ? this.targetRice(order) : 0;
-    return expectedRice > 0 ? this.totalRiceOutputKg() / expectedRice : 0;
+    const actualPaddy = this.computedPaddyToConsumeKg();
+    return order && actualPaddy > 0 ? this.totalRiceOutputKg() / actualPaddy : 0;
   });
+
+  yieldDeltaPercentagePoints = computed(() =>
+    (this.actualYieldRate() - (Number(this.completeForm().configuredYieldRate) || 0)) * 100
+  );
 
   yieldDeviationPercent = computed(() => {
     const order = this.activeOrder();
@@ -902,10 +911,13 @@ export class MillingOrderComponent {
       this.assertSucceeded(created);
       const orderId = this.createdId(created);
 
-      if (form.allocations.length && orderId) {
+      if (form.allocations.some((x) => x.bagIds.length) && orderId) {
         const reserved = await lastValueFrom(
           this.service.reserve(orderId, {
-            inputs: this.toInputPayloads(form.allocations),
+            columns: Array.from(form.allocations.reduce((map, line) => {
+              if (line.locationId && line.bagIds.length) map.set(line.locationId, [...(map.get(line.locationId) || []), ...line.bagIds]);
+              return map;
+            }, new Map<number, number[]>())).map(([locationId, bagIds]) => ({ locationId, bagIds })),
           })
         );
         if (!reserved?.isSucceeded) {
@@ -940,7 +952,8 @@ export class MillingOrderComponent {
 
   async openReserve(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
-    if (!this.canReservePaddy()) {
+    const readOnly = this.statusCode(row) === 'IN_PROGRESS';
+    if (!readOnly && !this.canReservePaddy()) {
       void this.showPermissionDenied('Bạn không có quyền giữ lúa cho lệnh xay.');
       return;
     }
@@ -956,16 +969,34 @@ export class MillingOrderComponent {
       }
       this.activeOrder.set(detail);
       const currentInputs = detail.inputs ?? [];
+      const groupedInputs = Array.from(currentInputs.reduce((map, input) => {
+        const locationId = input.locationId ?? null;
+        if (!locationId) return map;
+        const current = map.get(locationId) || {
+          key: ++this.lineSequence,
+          paddyLotId: input.paddyLotId,
+          locationId,
+          consumedWeightKg: 0,
+          note: '',
+          bagIds: [] as number[],
+          bagRows: [] as Array<{ bagId: number; stackOrder: number }>,
+        };
+        current.consumedWeightKg += Number(input.reservedWeightKg ?? input.consumedWeightKg) || 0;
+        current.note = [current.note, input.note || ''].filter(Boolean).join(' · ');
+        current.bagRows.push(...(input.bags || []).map((bag) => ({ bagId: bag.bagId, stackOrder: bag.stackOrder })));
+        map.set(locationId, current);
+        return map;
+      }, new Map<number, any>()).values()).map((group) => ({
+        key: group.key,
+        paddyLotId: group.paddyLotId,
+        locationId: group.locationId,
+        consumedWeightKg: group.consumedWeightKg,
+        note: group.note,
+        bagIds: group.bagRows.sort((a: any, b: any) => b.stackOrder - a.stackOrder).map((x: any) => x.bagId),
+      }));
       this.reserveLines.set(
-        currentInputs.length
-          ? currentInputs.map((input) => ({
-              key: ++this.lineSequence,
-              paddyLotId: input.paddyLotId,
-              locationId: input.locationId ?? null,
-              consumedWeightKg:
-                Number(input.reservedWeightKg ?? input.consumedWeightKg) || null,
-              note: input.note ?? '',
-            }))
+        groupedInputs.length
+          ? groupedInputs
           : [this.newAllocation()]
       );
       this.showReserveModal.set(true);
@@ -974,6 +1005,40 @@ export class MillingOrderComponent {
     } finally {
       this.actionLoadingId.set(null);
     }
+  }
+
+  reserveReadOnly(): boolean {
+    return !!this.activeOrder() && this.statusCode(this.activeOrder()!) === 'IN_PROGRESS';
+  }
+
+  reserveLotText(line: AllocationLine): string {
+    const input = (this.activeOrder()?.inputs ?? []).find(
+      (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
+    );
+    const lot = this.paddyLots().find((x) => x.id === line.paddyLotId);
+    return input?.lotCode || lot?.lotCode || `Lô #${line.paddyLotId}`;
+  }
+
+  reserveLocationText(line: AllocationLine): string {
+    const input = (this.activeOrder()?.inputs ?? []).find(
+      (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
+    );
+    const location = this.locations().find((x) => x.id === line.locationId);
+    return input?.locationCode || (location ? this.locationLabel(location) : `Vị trí/cột #${line.locationId}`);
+  }
+
+  reserveBagText(line: AllocationLine): string {
+    const bags = (this.activeOrder()?.inputs ?? [])
+      .filter((x) => x.locationId === line.locationId)
+      .flatMap((x) => x.bags ?? [])
+      .filter((x) => line.bagIds.includes(x.bagId))
+      .sort((a, b) => b.stackOrder - a.stackOrder);
+    if (bags.length) {
+      return `${bags.map((x) => `Bao #${x.bagNo} · ${this.fmtWeight(x.weightKg)}`).join(' | ')} · Tổng ${this.fmtWeight(line.consumedWeightKg || 0)}`;
+    }
+    return line.bagIds.length
+      ? `${line.bagIds.length} bao · ${this.fmtWeight(line.consumedWeightKg || 0)}`
+      : 'Chưa có bao vật lý';
   }
 
   closeReserve(): void {
@@ -1016,6 +1081,14 @@ export class MillingOrderComponent {
     }
     const order = this.activeOrder();
     if (!order) return;
+    if (this.statusCode(order) === 'IN_PROGRESS') {
+      this.showError('Lệnh đang xay đã khóa nguồn lúa; chỉ được xem các bao đã giữ.');
+      return;
+    }
+    if (this.reserveLines().some((x) => !x.bagIds.length)) {
+      this.showError('Vui lòng bấm “Tự chọn nguồn phù hợp” để chọn đúng các bao vật lý trước khi xác nhận.');
+      return;
+    }
     const error = this.validateAllocations(
       this.reserveLines(),
       this.reserveRequiredKg()
@@ -1029,7 +1102,13 @@ export class MillingOrderComponent {
     try {
       const result = await lastValueFrom(
         this.service.reserve(order.id, {
-          inputs: this.toInputPayloads(this.reserveLines()),
+          columns: Array.from(
+            this.reserveLines().reduce((map, line) => {
+              if (!line.locationId || !line.bagIds.length) return map;
+              map.set(line.locationId, [...(map.get(line.locationId) || []), ...line.bagIds]);
+              return map;
+            }, new Map<number, number[]>())
+          ).map(([locationId, bagIds]) => ({ locationId, bagIds })),
         })
       );
       this.assertSucceeded(result);
@@ -1260,14 +1339,14 @@ export class MillingOrderComponent {
         `<div>Gạo thành phẩm: <b>${this.fmtWeight(
           this.totalRiceOutputKg()
         )}</b></div>` +
-        `<div>Lúa tính theo yield tham chiếu: <b>${this.fmtWeight(
+        `<div>Lúa đầu vào thực tế (nguyên bao): <b>${this.fmtWeight(
           this.computedPaddyToConsumeKg()
         )}</b></div>` +
-        `<div>Mức đạt kế hoạch: <b>${this.fmtPercent(
+        `<div>Yield thực tế: <b>${this.fmtPercent(
           this.actualYieldRate()
         )}</b></div>` +
         (deviation > 2
-          ? `<div style="color:#b45309">Sai lệch yield ${this.yieldDeviationPercent().toFixed(
+          ? `<div style="color:#b45309">Sản lượng gạo lệch kế hoạch ${this.yieldDeviationPercent().toFixed(
               2
             )}% — cần ghi nhận lý do.</div>`
           : '') +
@@ -1423,6 +1502,49 @@ export class MillingOrderComponent {
         return variant.isByproduct === true && tokens.some((token) => text.includes(token));
       })
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  async autoSuggestSources(): Promise<void> {
+    const order = this.activeOrder();
+    if (!order || this.suggestingSources()) return;
+    this.suggestingSources.set(true);
+    try {
+      const response = await lastValueFrom(this.service.suggestSources(order.id));
+      this.assertSucceeded(response);
+      const suggestion = this.resource<MillingSourceSuggestionResult>(response);
+      if (!suggestion || !suggestion.inputs?.length) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Chưa tìm thấy nguồn lấy được ngay',
+          text: response.message || 'Hãy đảo bao cản hoặc bổ sung lúa phù hợp vào kho.',
+          confirmButtonColor: '#16a052',
+        });
+        return;
+      }
+      this.reserveLines.set((suggestion.columns || []).map((column) => {
+        const source = suggestion.inputs.find((x) => x.locationId === column.locationId);
+        return {
+          key: ++this.lineSequence,
+          paddyLotId: source?.paddyLotId || null,
+          locationId: column.locationId,
+          consumedWeightKg: Number(column.suggestedWeightKg),
+          note: `Tự động chọn ${column.bagIds.length} bao liên tục từ đỉnh cột`,
+          bagIds: column.bagIds || [],
+        };
+      }));
+      if (!suggestion.isComplete) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Nguồn lấy ngay chưa đủ',
+          text: `Đã gợi ý ${this.fmtWeight(suggestion.suggestedWeightKg)}, còn thiếu ${this.fmtWeight(suggestion.missingWeightKg)}. Hãy đảo bao hoặc bổ sung nguồn khác.`,
+          confirmButtonColor: '#16a052',
+        });
+      }
+    } catch (error) {
+      this.showError(this.errorText(error, 'Không thể tự động gợi ý nguồn lúa.'));
+    } finally {
+      this.suggestingSources.set(false);
+    }
   }
 
   private suitableOutputLocations(line: OutputLine): MillingLocationOption[] {
@@ -1630,6 +1752,7 @@ export class MillingOrderComponent {
       locationId: null,
       consumedWeightKg: null,
       note: '',
+      bagIds: [],
     };
   }
 
@@ -1665,6 +1788,7 @@ export class MillingOrderComponent {
         : value;
       const updated = { ...line, [field]: normalized } as AllocationLine;
       if (field === 'paddyLotId') {
+        updated.bagIds = [];
         const lot = this.paddyLots().find(
           (item) => item.id === updated.paddyLotId
         );
@@ -1690,6 +1814,7 @@ export class MillingOrderComponent {
         }
       }
       if (field === 'locationId' && updated.paddyLotId && updated.locationId) {
+        updated.bagIds = [];
         const lot = this.paddyLots().find(
           (item) => item.id === updated.paddyLotId
         );
@@ -1773,6 +1898,16 @@ export class MillingOrderComponent {
     const selected = new Set<string>();
     let total = 0;
     for (const line of lines) {
+      if (line.bagIds.length) {
+        if (!line.locationId) return 'Mỗi nhóm bao phải có vị trí/cột.';
+        if (!line.consumedWeightKg || line.consumedWeightKg <= 0)
+          return 'Tổng cân các bao đã chọn phải lớn hơn 0.';
+        const bagColumnKey = `bags:${line.locationId}`;
+        if (selected.has(bagColumnKey)) return 'Một vị trí/cột không được khai báo lặp lại.';
+        selected.add(bagColumnKey);
+        total += Number(line.consumedWeightKg);
+        continue;
+      }
       if (!line.paddyLotId) return 'Mỗi dòng đầu vào phải chọn một lô lúa.';
       if (!line.locationId) return 'Mỗi dòng đầu vào phải có vị trí/cột.';
       if (!line.consumedWeightKg || line.consumedWeightKg <= 0) {
@@ -1812,7 +1947,7 @@ export class MillingOrderComponent {
       selected.add(key);
       total += Number(line.consumedWeightKg);
     }
-    if (requiredKg > 0 && Math.abs(total - requiredKg) > 0.01) {
+    if (false && requiredKg > 0 && Math.abs(total - requiredKg) > 0.01) {
       return `Tổng lượng giữ phải bằng lượng lúa dự kiến ${this.fmtWeight(
         requiredKg
       )}. Hiện đã phân bổ ${this.fmtWeight(total)}.`;
@@ -1862,13 +1997,13 @@ export class MillingOrderComponent {
     ) {
       return `Tổng đầu ra và hao hụt ${this.fmtWeight(
         outputAndLoss
-      )} vượt quá lượng lúa tính ngược + 2% dung sai.`;
+      )} vượt quá lượng lúa nguyên bao thực tế + 2% dung sai.`;
     }
     if (
       Math.abs(this.yieldDeviationPercent()) > 2 &&
       !form.note.trim()
     ) {
-      return 'Sai lệch yield trên 2%. Vui lòng nhập ghi chú/lý do.';
+      return 'Sản lượng gạo thực tế lệch kế hoạch trên 2%. Vui lòng nhập ghi chú/lý do.';
     }
     return null;
   }

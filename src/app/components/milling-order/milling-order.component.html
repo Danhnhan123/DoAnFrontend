@@ -242,15 +242,13 @@
                       <button type="button" (click)="openDetail(row)">Xem</button>
                     }
                   } @else if (statusCode(row) === 'IN_PROGRESS') {
-                    @if (canReservePaddy()) {
-                      <button
-                        type="button"
-                        [disabled]="actionLoadingId() === row.id"
-                        (click)="openReserve(row, $event)"
-                      >
-                        Điều chỉnh nguồn lúa
-                      </button>
-                    }
+                    <button
+                      type="button"
+                      [disabled]="actionLoadingId() === row.id"
+                      (click)="openReserve(row, $event)"
+                    >
+                      Xem nguồn lúa
+                    </button>
                     @if (canCompleteOrder()) {
                       <button
                         class="action-primary"
@@ -598,7 +596,7 @@
         <div>
           <h2 id="reserve-milling-title">
             {{ statusCode(activeOrder()!) === 'IN_PROGRESS'
-              ? 'Điều chỉnh nguồn lúa đang xay'
+              ? 'Nguồn lúa đang xay (chỉ xem)'
               : statusCode(activeOrder()!) === 'RESERVED'
                 ? 'Phân bổ lại lô/cột lấy lúa'
                 : 'Chọn lô/cột và giữ lúa' }}
@@ -632,11 +630,25 @@
           bao khác chặn, hãy chọn thêm vị trí khác hoặc đảo các bao cản trước.
         </div>
 
+        @if (!reserveReadOnly()) {
+        <button
+          class="small-add-btn standalone"
+          type="button"
+          [disabled]="suggestingSources() || saving()"
+          (click)="autoSuggestSources()"
+        >
+          {{ suggestingSources() ? 'Đang tìm nguồn lấy được...' : '✓ Tự chọn nguồn phù hợp' }}
+        </button>
+        }
+
         <div class="line-list">
           @for (line of reserveLines(); track line.key; let i = $index) {
             <div class="allocation-line reserve-line">
               <label>
                 <span>Lô lúa</span>
+                @if (reserveReadOnly()) {
+                  <input type="text" readonly [value]="reserveLotText(line)" />
+                } @else {
                 <app-filter-select
                   [clearable]="false"
                   placeholder="Chọn lô đủ điều kiện"
@@ -644,9 +656,13 @@
                   [value]="line.paddyLotId"
                   (valueChange)="setReserveLine(i, 'paddyLotId', $event)"
                 ></app-filter-select>
+                }
               </label>
               <label>
                 <span>Vị trí/cột</span>
+                @if (reserveReadOnly()) {
+                  <input type="text" readonly [value]="reserveLocationText(line)" />
+                } @else {
                 <app-filter-select
                   [clearable]="false"
                   [disabled]="!line.paddyLotId"
@@ -655,26 +671,27 @@
                   [value]="line.locationId"
                   (valueChange)="setReserveLine(i, 'locationId', $event)"
                 ></app-filter-select>
+                }
               </label>
               <label>
-                <span>Khối lượng giữ (kg)</span>
+                <span>Bao lúa đã chọn (nguyên bao)</span>
                 <input
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  [ngModel]="line.consumedWeightKg"
-                  (ngModelChange)="setReserveLine(i, 'consumedWeightKg', $event)"
+                  type="text"
+                  readonly
+                  [value]="reserveBagText(line)"
                 />
               </label>
               <label>
                 <span>Ghi chú</span>
                 <input
                   type="text"
+                  [readonly]="reserveReadOnly()"
                   placeholder="Không bắt buộc"
                   [ngModel]="line.note"
                   (ngModelChange)="setReserveLine(i, 'note', $event)"
                 />
               </label>
+              @if (!reserveReadOnly()) {
               <button
                 class="remove-line"
                 type="button"
@@ -684,19 +701,23 @@
               >
                 ×
               </button>
+              }
             </div>
           }
         </div>
 
+        @if (!reserveReadOnly()) {
         <button [appHasPerm]="'MILLING_ORDERS:CREATE'" class="small-add-btn standalone" type="button" (click)="addReserveLine()">
           ＋ Thêm lô/cột đầu vào
         </button>
+        }
       </div>
 
       <footer class="modal-footer">
         <button class="secondary-btn" type="button" (click)="closeReserve()">
           Để sau
         </button>
+        @if (!reserveReadOnly()) {
         <button
           class="primary-btn"
           type="button"
@@ -711,6 +732,7 @@
                 ? 'Xác nhận phân bổ lại'
                 : 'Kiểm tra & giữ lúa' }}
         </button>
+        }
       </footer>
     </section>
   </div>
@@ -889,14 +911,15 @@
               </label>
 
               <div class="calculated-field">
-                <span>Mức đạt kế hoạch</span>
+                <span>Yield thực tế</span>
                 <strong>{{ fmtPercent(actualYieldRate()) }}</strong>
                 <small
                   [class.value-warning]="
                     yieldDeviationPercent() > 2 || yieldDeviationPercent() < -2
                   "
                 >
-                  Sản lượng lệch {{ yieldDeviationPercent().toFixed(2) }}%
+                  Chênh yield {{ yieldDeltaPercentagePoints() >= 0 ? '+' : '' }}{{ yieldDeltaPercentagePoints().toFixed(2) }} điểm % ·
+                  Sản lượng gạo lệch {{ yieldDeviationPercent() >= 0 ? '+' : '' }}{{ yieldDeviationPercent().toFixed(2) }}%
                 </small>
               </div>
 

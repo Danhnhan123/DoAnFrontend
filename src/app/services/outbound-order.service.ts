@@ -42,6 +42,12 @@ export class OutboundOrderService {
     );
   }
 
+  getAllocationCandidates(id: number): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(
+      `${this.base}/outbound-orders/${id}/allocation-candidates`
+    );
+  }
+
   allocate(
     id: number,
     payload: AllocateOutboundPayload

@@ -390,7 +390,16 @@
             Kiểm tra &amp; giữ hàng
           </button>
           }
-          @if (canCreateOutbound(order)) {
+          @if (activeDraftOutbound(order); as draftOutbound) {
+          <button
+            class="so-btn so-btn-primary"
+            type="button"
+            [appHasPerm]="'SALE_ORDERS:UPDATE'" (click)="continueDraftOutbound(order)"
+            [disabled]="acting()"
+          >
+            Tiếp tục phiếu xuất #{{ draftOutbound.id }}
+          </button>
+          } @else if (canCreateOutbound(order)) {
           <button
             class="so-btn so-btn-primary"
             type="button"

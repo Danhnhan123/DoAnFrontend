@@ -567,7 +567,19 @@ export class WarehouseComponent {
     this.form.update((f) => ({
       ...f,
       locations: f.locations.map((l, i) =>
-        i === index ? { ...l, [field]: value } : l
+        i === index
+          ? (() => {
+              const updated = { ...l, [field]: value };
+              if (['zoneName', 'shelfRow'].includes(field)) {
+                updated.slotCode = this.buildLocationCode(
+                  updated.zoneName,
+                  updated.shelfRow,
+                );
+                updated.shelfLevel = '';
+              }
+              return updated;
+            })()
+          : l
       ),
     }));
   }
@@ -616,6 +628,14 @@ export class WarehouseComponent {
     for (const l of lines) {
       if (!l.zoneName?.trim()) {
         this.showAlert('Mỗi vị trí lưu trữ phải có Tên khu vực', false);
+        return;
+      }
+      if (!l.shelfRow?.toString().trim()) {
+        this.showAlert('Mỗi vị trí phải có Cột xếp', false);
+        return;
+      }
+      if ((this.toNum(l.maxCapacity) ?? 0) <= 0) {
+        this.showAlert('Sức chứa tối đa của mỗi vị trí phải lớn hơn 0 kg', false);
         return;
       }
     }
@@ -867,7 +887,17 @@ export class WarehouseComponent {
   }
 
   setLocField(field: string, value: any): void {
-    this.locForm.update((x) => ({ ...x, [field]: value }));
+    this.locForm.update((x) => {
+      const updated = { ...x, [field]: value };
+      if (['zoneName', 'shelfRow'].includes(field)) {
+        updated.slotCode = this.buildLocationCode(
+          updated.zoneName,
+          updated.shelfRow
+        );
+        updated.shelfLevel = '';
+      }
+      return updated;
+    });
   }
 
   saveLoc(): void {
@@ -878,6 +908,19 @@ export class WarehouseComponent {
     }
     if (!f.zoneName?.trim()) {
       this.showAlert('Vui lòng nhập Tên khu vực', false);
+      return;
+    }
+    if (!f.shelfRow?.trim()) {
+      this.showAlert('Vui lòng nhập Cột xếp', false);
+      return;
+    }
+    if (!f.slotCode?.trim()) {
+      this.showAlert('Không thể tạo mã vị trí. Vui lòng kiểm tra lại thông tin vị trí', false);
+      return;
+    }
+    const maxCapacity = this.toNum(f.maxCapacity);
+    if (maxCapacity == null || maxCapacity <= 0) {
+      this.showAlert('Sức chứa tối đa phải lớn hơn 0 kg', false);
       return;
     }
 
@@ -942,6 +985,22 @@ export class WarehouseComponent {
     } finally {
       this.savingLoc.set(false);
     }
+  }
+
+  private normalizeColumn(value: unknown): string {
+    let text = String(value ?? '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!text) return '';
+    return /^\d+$/.test(text) ? `C${text.padStart(2, '0')}` : text;
+  }
+
+  private buildLocationCode(zoneName: unknown, shelfRow: unknown): string {
+    const zone = String(zoneName ?? '')
+      .trim()
+      .replace(/^khu\s+/i, '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-');
+    const column = this.normalizeColumn(shelfRow);
+    return [zone, column].filter(Boolean).join('-');
   }
 
   deleteLocation(row: LocationRow): void {
