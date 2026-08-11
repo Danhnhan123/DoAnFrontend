@@ -838,7 +838,7 @@ export class RicePurchaseComponent implements OnDestroy {
       qualityGrade: quality.grade || "",
       qualityNote: quality.note || "",
       priceAdjustReason: row.priceAdjustReason || "",
-      receiptDate: this.toDateInput(row.receiptDate),
+      receiptDate: this.toDateTimeInput(row.receiptDate),
       isConfirmed: !!row.isConfirmed,
     });
     this.showReceiptModal.set(true);
@@ -987,7 +987,7 @@ export class RicePurchaseComponent implements OnDestroy {
       debtAmount: this.receiptDebtAmount(),
       qualityJson: this.buildQualityJson(form),
       priceAdjustReason: form.priceAdjustReason.trim() || null,
-      receiptDate: this.toApiDate(form.receiptDate),
+      receiptDate: this.toApiDateTime(form.receiptDate),
     };
 
     try {
@@ -1180,6 +1180,20 @@ export class RicePurchaseComponent implements OnDestroy {
     }).format(date);
   }
 
+  formatDateTime(value?: string | null): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+
   formatWeightKg(value?: number | null): string {
     return `${new Intl.NumberFormat("vi-VN", {
       maximumFractionDigits: 2,
@@ -1255,7 +1269,7 @@ export class RicePurchaseComponent implements OnDestroy {
       qualityGrade: "",
       qualityNote: "",
       priceAdjustReason: "",
-      receiptDate: this.todayInput(),
+      receiptDate: this.nowDateTimeInput(),
       isConfirmed: false,
     };
   }
@@ -1361,6 +1375,14 @@ export class RicePurchaseComponent implements OnDestroy {
     return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10);
   }
 
+  private nowDateTimeInput(): string {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    return new Date(now.getTime() - offset * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  }
+
   private toDateInput(value?: string | null): string {
     if (!value) return this.todayInput();
     const date = new Date(value);
@@ -1371,8 +1393,22 @@ export class RicePurchaseComponent implements OnDestroy {
       .slice(0, 10);
   }
 
+  private toDateTimeInput(value?: string | null): string {
+    if (!value) return this.nowDateTimeInput();
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value.slice(0, 16);
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  }
+
   private toApiDate(value: string): string {
     return `${value}T00:00:00`;
+  }
+
+  private toApiDateTime(value: string): string {
+    return value.length === 16 ? `${value}:00` : value;
   }
 
   private roundWeight(value: number): number {

@@ -462,7 +462,7 @@
                       >
                     }
                   </td>
-                  <td>{{ formatDate(row.receiptDate) }}</td>
+                  <td>{{ formatDateTime(row.receiptDate) }}</td>
                   <td>
                     <div class="action-cell">
                       <button
@@ -821,7 +821,8 @@
           <label class="field-group">
             <span>Ngày mua thực tế <b>*</b></span>
             <input
-              type="date"
+              type="datetime-local"
+              step="60"
               [ngModel]="receiptForm().receiptDate"
               (ngModelChange)="setReceiptField('receiptDate', $event)"
               [disabled]="receiptFormLocked()"
