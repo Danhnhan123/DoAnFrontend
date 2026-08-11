@@ -104,6 +104,12 @@ export interface CustomerReturnAllocationDetail {
   unitCreditPrice: number;
   creditAmount: number;
   note?: string | null;
+  bags?: CustomerReturnBag[];
+}
+
+export interface CustomerReturnBag {
+  weightKg: number;
+  condition: "GOOD" | "DAMAGED";
 }
 
 export interface CreateCustomerReturnPayload {
@@ -148,6 +154,7 @@ export interface InspectCustomerReturnAllocationPayload {
   restockLocationId?: number | null;
   quarantineLocationId?: number | null;
   note?: string | null;
+  bags: CustomerReturnBag[];
 }
 
 export interface CustomerReturnImpactPreview {

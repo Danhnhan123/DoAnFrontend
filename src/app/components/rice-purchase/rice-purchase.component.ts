@@ -30,6 +30,7 @@ import {
   WarehouseDetailDto,
 } from "../../models";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
+import { BluetoothScaleService } from "../../services/bluetooth-scale.service";
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { PermissionService } from '../../services/permission.service';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
@@ -75,6 +76,7 @@ interface ReceiptFormState {
   actualWeight: number | null;
   actualWeightUnit: WeightUnit;
   bagCount: number | null;
+  bags: Array<{ bagNo: number; weightKg: number | null }>;
   agreedPrice: number | null;
   paidAmount: number | null;
   moisturePercent: number | null;
@@ -106,6 +108,8 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly receiptViewOnly = computed(() => !!this.editingReceipt() && !this.perm.canUpdate('RICE_PURCHASE'));
   private readonly queryClient = inject(QueryClient);
   private readonly router = inject(Router);
+  private readonly bluetoothScale = inject(BluetoothScaleService);
+  readonly readingBleScale = signal(false);
 
   readonly statuses: PaddyScheduleStatusOption[] = [
     { id: 1, code: "NEW", name: "Mới tạo", color: "#6B7280" },
@@ -827,13 +831,14 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeight: Number(row.actualWeightKg),
       actualWeightUnit: "kg",
       bagCount: row.bagCount ?? null,
+      bags: (row.bags || []).map((x) => ({ bagNo: x.bagNo, weightKg: Number(x.weightKg) })),
       agreedPrice: Number(row.agreedPrice),
       paidAmount: Number(row.paidAmount),
       moisturePercent: quality.moisturePercent ?? null,
       qualityGrade: quality.grade || "",
       qualityNote: quality.note || "",
       priceAdjustReason: row.priceAdjustReason || "",
-      receiptDate: this.toDateInput(row.receiptDate),
+      receiptDate: this.toDateTimeInput(row.receiptDate),
       isConfirmed: !!row.isConfirmed,
     });
     this.showReceiptModal.set(true);
@@ -851,6 +856,41 @@ export class RicePurchaseComponent implements OnDestroy {
     value: ReceiptFormState[K],
   ): void {
     this.receiptForm.update((current) => ({ ...current, [field]: value }));
+  }
+
+  addReceiptBag(weightKg: number | null = null): void {
+    if (this.receiptFormLocked()) return;
+    this.receiptForm.update((form) => ({
+      ...form,
+      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg }],
+      bagCount: form.bags.length + 1,
+      actualWeight: [...form.bags, { bagNo: form.bags.length + 1, weightKg }]
+        .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0),
+      actualWeightUnit: "kg",
+    }));
+  }
+
+  async readBleScaleAsBag(): Promise<void> {
+    if (this.receiptFormLocked() || this.readingBleScale()) return;
+    this.readingBleScale.set(true);
+    try { this.addReceiptBag(await this.bluetoothScale.readWeightKg()); }
+    catch (error) { this.showError(error instanceof Error ? error.message : "Không đọc được cân BLE."); }
+    finally { this.readingBleScale.set(false); }
+  }
+
+  updateReceiptBag(index: number, weightKg: number | null): void {
+    this.receiptForm.update((form) => {
+      const bags = form.bags.map((bag, i) => i === index ? { ...bag, weightKg } : bag);
+      return { ...form, bags, bagCount: bags.length, actualWeight: bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0), actualWeightUnit: "kg" };
+    });
+  }
+
+  removeReceiptBag(index: number): void {
+    if (this.receiptFormLocked()) return;
+    this.receiptForm.update((form) => {
+      const bags = form.bags.filter((_, i) => i !== index).map((bag, i) => ({ ...bag, bagNo: i + 1 }));
+      return { ...form, bags, bagCount: bags.length, actualWeight: bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0), actualWeightUnit: "kg" };
+    });
   }
 
   // Đổi giống lúa → reset sản phẩm đã chọn vì danh sách sản phẩm lọc theo giống.
@@ -940,13 +980,14 @@ export class RicePurchaseComponent implements OnDestroy {
         form.actualWeightUnit,
       ),
       bagCount: form.bagCount ?? null,
+      bags: form.bags.map((bag) => ({ bagNo: bag.bagNo, weightKg: Number(bag.weightKg) })),
       agreedPrice: this.roundMoney(Number(form.agreedPrice)),
       totalAmount: this.receiptTotalAmount(),
       paidAmount: this.roundMoney(Number(form.paidAmount || 0)),
       debtAmount: this.receiptDebtAmount(),
       qualityJson: this.buildQualityJson(form),
       priceAdjustReason: form.priceAdjustReason.trim() || null,
-      receiptDate: this.toApiDate(form.receiptDate),
+      receiptDate: this.toApiDateTime(form.receiptDate),
     };
 
     try {
@@ -1139,6 +1180,20 @@ export class RicePurchaseComponent implements OnDestroy {
     }).format(date);
   }
 
+  formatDateTime(value?: string | null): string {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return new Intl.DateTimeFormat("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  }
+
   formatWeightKg(value?: number | null): string {
     return `${new Intl.NumberFormat("vi-VN", {
       maximumFractionDigits: 2,
@@ -1207,13 +1262,14 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeight: null,
       actualWeightUnit: "kg",
       bagCount: null,
+      bags: [],
       agreedPrice: null,
       paidAmount: 0,
       moisturePercent: null,
       qualityGrade: "",
       qualityNote: "",
       priceAdjustReason: "",
-      receiptDate: this.todayInput(),
+      receiptDate: this.nowDateTimeInput(),
       isConfirmed: false,
     };
   }
@@ -1241,6 +1297,9 @@ export class RicePurchaseComponent implements OnDestroy {
     if (!form.riceVarietyId) return "Vui lòng chọn giống lúa.";
     if (!form.productVariantId) return "Vui lòng chọn sản phẩm theo giống lúa.";
     if (!form.receiptDate) return "Vui lòng chọn ngày mua thực tế.";
+    if (form.bags.length === 0) return "Vui lòng nhập ít nhất một bao.";
+    if (form.bags.some((bag) => !Number.isFinite(Number(bag.weightKg)) || Number(bag.weightKg) <= 0))
+      return "Khối lượng của mỗi bao phải lớn hơn 0.";
     if (
       !form.actualWeight ||
       !Number.isFinite(Number(form.actualWeight)) ||
@@ -1316,6 +1375,14 @@ export class RicePurchaseComponent implements OnDestroy {
     return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10);
   }
 
+  private nowDateTimeInput(): string {
+    const now = new Date();
+    const offset = now.getTimezoneOffset();
+    return new Date(now.getTime() - offset * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  }
+
   private toDateInput(value?: string | null): string {
     if (!value) return this.todayInput();
     const date = new Date(value);
@@ -1326,8 +1393,22 @@ export class RicePurchaseComponent implements OnDestroy {
       .slice(0, 10);
   }
 
+  private toDateTimeInput(value?: string | null): string {
+    if (!value) return this.nowDateTimeInput();
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value.slice(0, 16);
+    const offset = date.getTimezoneOffset();
+    return new Date(date.getTime() - offset * 60_000)
+      .toISOString()
+      .slice(0, 16);
+  }
+
   private toApiDate(value: string): string {
     return `${value}T00:00:00`;
+  }
+
+  private toApiDateTime(value: string): string {
+    return value.length === 16 ? `${value}:00` : value;
   }
 
   private roundWeight(value: number): number {

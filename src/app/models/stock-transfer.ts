@@ -42,6 +42,7 @@ export interface StockTransferItemDetail {
   toLocationName?: string | null;
   weightKg: number;
   note?: string | null;
+  bagIds?: number[];
 }
 
 export interface StockTransferDetail extends StockTransferRow {
@@ -62,6 +63,7 @@ export interface StockTransferItemPayload {
   toLocationId?: number | null;
   weightKg: number;
   note?: string | null;
+  bagIds?: number[];
 }
 
 export interface CreateStockTransferPayload {

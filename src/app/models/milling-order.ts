@@ -149,6 +149,9 @@ export interface MillingLocationOption {
   currentOccupancy?: number | null;
   isQuarantine?: boolean;
   isActive?: boolean;
+  allowedCategoryId?: number | null;
+  priority?: number;
+  currentProductVariantId?: number | null;
 }
 
 export interface MillingPaddyLotOption {
@@ -177,6 +180,7 @@ export interface MillingProductVariantOption {
   name: string;
   sku?: string | null;
   productName?: string | null;
+  productCategoryId?: number | null;
   riceVarietyId?: number | null;
   riceVarietyName?: string | null;
   weight?: number | null;
@@ -207,6 +211,15 @@ export interface MillingSalesOrderOption {
   warehouseName?: string | null;
   expectedDeliveryDate?: string | null;
   requiresMilling?: boolean;
+  riceVarietyId?: number | null;
+  riceVarietyCode?: string | null;
+  riceVarietyName?: string | null;
+  riceVarietyDisplayName?: string | null;
+  riceVarietyCount?: number;
+  hasUnconfiguredRiceVariety?: boolean;
+  totalRiceRequiredKg?: number;
+  allocatedMillingRiceKg?: number;
+  remainingMillingRiceKg?: number;
   statusName?: string | null;
   statusCode?: string | null;
 }

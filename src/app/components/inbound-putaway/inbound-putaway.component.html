@@ -268,6 +268,38 @@
           </div>
         }
 
+        @if (bagPlan(); as plan) {
+          <div class="bag-plan">
+            <h3>Phương án xếp nguyên bao</h3>
+            @if (plan.unplacedBagIds.length) {
+              <div class="notice error">Còn {{ plan.unplacedBagIds.length }} bao chưa có vị trí. Không thể xác nhận.</div>
+            }
+            @for (column of plan.columns; track column.locationId) {
+              <article class="bag-column" [class.over-capacity]="column.capacityRemainAfter < 0">
+                <header>
+                  <strong>Ưu tiên {{ column.priorityRank || $index + 1 }} · {{ column.slotCode }}</strong>
+                  <span>Xếp {{ formatKg(column.totalKg) }} · sức chứa còn lại: {{ formatKg(column.totalKg + column.capacityRemainAfter) }} → {{ formatKg(column.capacityRemainAfter) }}</span>
+                </header>
+                @if (column.reason) {
+                  <small>{{ column.reason }}</small>
+                }
+                <div class="bag-chips">
+                  @for (bag of column.bags; track bag.id) {
+                    <label class="bag-chip">
+                      <span>Bao #{{ bag.bagNo }} · {{ formatKg(bag.weightKg) }}</span>
+                      <select [ngModel]="column.locationId" (ngModelChange)="moveBag(bag.id, +$event)" [disabled]="actionPending()">
+                        @for (target of plan.candidateLocations; track target.locationId) {
+                          <option [value]="target.locationId">{{ target.slotCode }} · còn {{ formatKg(candidateCapacityRemain(plan, target.locationId)) }}</option>
+                        }
+                      </select>
+                    </label>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        }
+
         <div class="suggestion-list">
           @if (suggestions().length) {
             @for (suggestion of suggestions(); track suggestion.locationId; let index = $index) {
@@ -289,7 +321,7 @@
                 <div class="suggestion-content">
                   <div class="suggestion-title">
                     <strong>
-                      @if (index === 0) { Ưu tiên 1 · }
+                      Ưu tiên {{ index + 1 }} ·
                       {{ locationLabel(suggestion) }}
                     </strong>
                     @if (selectedLocationId() === suggestion.locationId) {
@@ -298,11 +330,11 @@
                   </div>
                   <p>
                     {{
-                      suggestion.isQuarantine
+                      bagSuggestionReason(suggestion.locationId) || (suggestion.isQuarantine
                         ? "Khu cách ly phù hợp chất lượng lô"
                         : suggestion.categoryMatch
                           ? "Đúng nhóm hàng"
-                          : "Vị trí dùng chung"
+                          : "Vị trí dùng chung")
                     }}
                     · còn {{ formatKg(suggestion.availableCapacity) }}
                     @if (!suggestion.canFitWhole) {
@@ -430,7 +462,7 @@
               <button
                 class="primary-button confirm-button"
                 type="button"
-                [disabled]="actionPending()"
+                [disabled]="actionPending() || !!bagPlan()?.unplacedBagIds?.length"
                 [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="confirmPutaway()"
               >
                 {{

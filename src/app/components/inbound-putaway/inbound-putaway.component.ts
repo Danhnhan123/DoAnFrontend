@@ -13,6 +13,7 @@ import {
   InboundOrderDetailDto,
   InboundOrderItemDto,
   PutawaySuggestionDto,
+  BagPutawayPlanDto,
 } from "../../models/inbound-order";
 import { LocationDetailDto } from "../../models/location";
 import { AuthService } from "../../services/auth.service";
@@ -46,6 +47,7 @@ interface ConfirmPutawayVariables {
   weightKg: number;
   isOverride: boolean;
   overrideReason: string | null;
+  bagPlan?: BagPutawayPlanDto | null;
 }
 
 type ScreenStatus =
@@ -87,6 +89,7 @@ export class InboundPutawayComponent {
   readonly manualOverride = signal(false);
   readonly manualLocationId = signal<number | null>(null);
   readonly overrideReason = signal("");
+  readonly bagPlan = signal<BagPutawayPlanDto | null>(null);
 
   readonly inboundQuery = injectQuery(() => ({
     queryKey: this.inboundQueryKey,
@@ -178,20 +181,17 @@ export class InboundPutawayComponent {
       weightKg,
       isOverride,
       overrideReason,
+      bagPlan,
     }: ConfirmPutawayVariables): Promise<void> => {
-      await lastValueFrom(
-        this.inboundService.selectPutaway(line.order.id, line.item.id, {
-          locationId,
-          isOverride,
-          overrideReason,
-          weightKg,
-        }),
-      );
+      if (!bagPlan?.columns.length) {
+        await lastValueFrom(this.inboundService.selectPutaway(line.order.id, line.item.id, { locationId, isOverride, overrideReason, weightKg }));
+      }
       await lastValueFrom(
         this.inboundService.confirmReceipt(
           line.order.id,
           line.item.id,
           this.operationKey(),
+          bagPlan?.columns.map((column) => ({ locationId: column.locationId, bagIds: column.bagIds })),
         ),
       );
     },
@@ -433,12 +433,19 @@ export class InboundPutawayComponent {
         staleTime: 0,
       });
       const suggestions = this.unwrap<PutawaySuggestionDto[]>(response) ?? [];
-      this.suggestions.set(suggestions);
+      let plan: BagPutawayPlanDto | null = null;
+      try {
+        const planResponse = await lastValueFrom(this.inboundService.getBagPutawayPlan(line.order.id, line.item.id));
+        plan = this.unwrap<BagPutawayPlanDto>(planResponse) ?? null;
+        this.bagPlan.set(plan);
+      } catch { this.bagPlan.set(null); }
+      const orderedSuggestions = this.orderSuggestionsByPlan(suggestions, plan);
+      this.suggestions.set(orderedSuggestions);
       const selected =
-        suggestions.find(
+        orderedSuggestions.find(
           (suggestion) => suggestion.locationId === preferredLocationId,
         ) ??
-        suggestions[0] ??
+        orderedSuggestions[0] ??
         null;
       this.selectedLocationId.set(selected?.locationId ?? null);
       if (selected) {
@@ -464,6 +471,64 @@ export class InboundPutawayComponent {
       this.activeStatus.set("error");
       this.message.set(this.apiError(error, "Không tải được vị trí gợi ý."));
     }
+  }
+
+  moveBag(bagId: number, targetLocationId: number): void {
+    this.bagPlan.update((plan) => {
+      if (!plan) return plan;
+      const source = plan.columns.find((column) => column.bagIds.includes(bagId));
+      let target = plan.columns.find((column) => column.locationId === Number(targetLocationId));
+      const bag = source?.bags.find((item) => item.id === bagId);
+      if (!source || !bag) return plan;
+      if (!target) {
+        const candidate = plan.candidateLocations.find(x => x.locationId === Number(targetLocationId));
+        if (!candidate) return plan;
+        target = { locationId: candidate.locationId, slotCode: candidate.slotCode, bagIds: [], bags: [], totalKg: 0, capacityRemainAfter: candidate.capacityAvailableKg, reason: candidate.reason };
+        plan.columns.push(target);
+      }
+      if (source === target) return plan;
+      const targetMax = target.totalKg + target.capacityRemainAfter;
+      if (target.totalKg + bag.weightKg > targetMax) {
+        this.message.set(`Cột ${target.slotCode} không đủ sức chứa cho bao #${bag.bagNo}.`);
+        this.activeStatus.set("capacity");
+        return plan;
+      }
+      source.bagIds = source.bagIds.filter((id) => id !== bagId); source.bags = source.bags.filter((x) => x.id !== bagId);
+      source.totalKg -= bag.weightKg; source.capacityRemainAfter += bag.weightKg;
+      target.bagIds.push(bagId); target.bags.push(bag); target.totalKg += bag.weightKg; target.capacityRemainAfter -= bag.weightKg;
+      const columns = plan.columns
+        .filter((column) => column.bagIds.length > 0)
+        .sort((a, b) => {
+          const ca = plan.candidateLocations.find((x) => x.locationId === a.locationId);
+          const cb = plan.candidateLocations.find((x) => x.locationId === b.locationId);
+          return Number(cb?.containsSameVariant) - Number(ca?.containsSameVariant) ||
+            Number(cb?.priority ?? 0) - Number(ca?.priority ?? 0) ||
+            a.capacityRemainAfter - b.capacityRemainAfter || a.locationId - b.locationId;
+        })
+        .map((column, index) => ({ ...column, priorityRank: index + 1 }));
+      return { ...plan, columns };
+    });
+    this.suggestions.set(this.orderSuggestionsByPlan(this.suggestions(), this.bagPlan()));
+  }
+
+  bagSuggestionReason(locationId: number): string {
+    return this.bagPlan()?.candidateLocations.find((x) => x.locationId === locationId)?.reason ?? '';
+  }
+
+  candidateCapacityRemain(plan: BagPutawayPlanDto, locationId: number): number {
+    return plan.columns.find((column) => column.locationId === locationId)?.capacityRemainAfter ??
+      plan.candidateLocations.find((candidate) => candidate.locationId === locationId)?.capacityAvailableKg ?? 0;
+  }
+
+  private orderSuggestionsByPlan(
+    suggestions: PutawaySuggestionDto[], plan: BagPutawayPlanDto | null
+  ): PutawaySuggestionDto[] {
+    if (!plan?.candidateLocations?.length) return suggestions;
+    const rank = new Map(plan.candidateLocations.map((item, index) => [item.locationId, index]));
+    return [...suggestions].sort((a, b) =>
+      (rank.get(a.locationId) ?? Number.MAX_SAFE_INTEGER) -
+      (rank.get(b.locationId) ?? Number.MAX_SAFE_INTEGER)
+    );
   }
 
   chooseSuggestion(suggestion: PutawaySuggestionDto): void {
@@ -619,6 +684,7 @@ export class InboundPutawayComponent {
         overrideReason: this.manualOverride()
           ? this.overrideReason().trim()
           : null,
+        bagPlan: this.bagPlan(),
       });
 
       await this.success(

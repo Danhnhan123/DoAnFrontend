@@ -397,6 +397,33 @@
                     }}</strong>
                   </div>
                 </div>
+                @if (line.quantityGood > 0 || line.quantityDamaged > 0) {
+                  <div class="field">
+                    <span>Cân từng bao nhận lại</span>
+                    @for (bag of line.bags; track $index; let bagIndex = $index) {
+                      <div class="quantity-grid">
+                        <label>Phân loại
+                          <select [ngModel]="bag.condition" (ngModelChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
+                            <option value="GOOD">Bao đạt</option><option value="DAMAGED">Bao cách ly</option>
+                          </select>
+                        </label>
+                        <label>Khối lượng
+                          <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
+                            (ngModelChange)="updateInspectionBag(line.allocationId, bagIndex, $event)" />
+                        </label>
+                        <button type="button" class="btn btn-outline-danger" (click)="removeInspectionBag(line.allocationId, bagIndex)">Xóa bao</button>
+                      </div>
+                    }
+                    <div class="actions">
+                      @if (line.quantityGood > 0) {
+                        <button type="button" class="btn btn-outline-primary" (click)="addInspectionBag(line.allocationId, 'GOOD')">+ Bao đạt</button>
+                      }
+                      @if (line.quantityDamaged > 0) {
+                        <button type="button" class="btn btn-outline-warning" (click)="addInspectionBag(line.allocationId, 'DAMAGED')">+ Bao cách ly</button>
+                      }
+                    </div>
+                  </div>
+                }
                 @if (line.quantityGood > 0) {
                   <label class="field"
                     >Vị trí nhập lại

@@ -103,7 +103,23 @@ export interface CreateInboundOrderItemDto {
   quantityOrdered: number;
   unitCostPrice: number;
   note?: string | null;
+  bags?: InboundBagInput[];
 }
+
+export interface InboundBagInput { bagNo: number; weightKg: number; }
+export interface BagPutawayColumnDto {
+  locationId: number; slotCode: string; bagIds: number[];
+  bags: BagPutawayBagDto[];
+  totalKg: number; capacityRemainAfter: number;
+  priorityRank?: number; reason?: string;
+}
+export interface BagPutawayBagDto { id: number; bagNo: number; weightKg: number; }
+export interface BagPutawayCandidateLocationDto {
+  locationId: number; slotCode: string; capacityAvailableKg: number;
+  priority?: number; containsSameVariant?: boolean; reason?: string;
+}
+export interface BagPutawayPlanDto { columns: BagPutawayColumnDto[]; candidateLocations: BagPutawayCandidateLocationDto[]; unplacedBagIds: number[]; }
+export interface BagPutawayColumnRequestDto { locationId: number; bagIds: number[]; }
 
 export interface CreateInboundOrderDto {
   warehouseId: number;

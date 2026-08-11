@@ -17,6 +17,7 @@ import {
   MillingSalesOrderPage,
   MillingWarehouseOption,
   MillingYieldOption,
+  RiceVarietyDetailDto,
   ReserveMillingOrderPayload,
   UpdateMillingOrderPayload,
 } from '../models';
@@ -122,6 +123,12 @@ export class MillingOrderService {
   getYieldConfigs(): Observable<ApiResponse<MillingYieldOption[]>> {
     return this.http.get<ApiResponse<MillingYieldOption[]>>(
       `${this.base}/milling-yield-configs`
+    );
+  }
+
+  getRiceVarieties(): Observable<ApiResponse<RiceVarietyDetailDto[]>> {
+    return this.http.get<ApiResponse<RiceVarietyDetailDto[]>>(
+      `${this.base}/rice-varieties`
     );
   }
 

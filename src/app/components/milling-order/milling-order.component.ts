@@ -220,6 +220,12 @@ export class MillingOrderComponent {
     staleTime: 2 * 60 * 1000,
   }));
 
+  riceVarietyQuery = injectQuery(() => ({
+    queryKey: ['milling-order-options', 'rice-varieties'],
+    queryFn: () => lastValueFrom(this.service.getRiceVarieties()),
+    staleTime: 5 * 60 * 1000,
+  }));
+
   salesOrderQuery = injectQuery(() => ({
     queryKey: ['milling-order-options', 'sales-orders'],
     queryFn: () => lastValueFrom(this.service.getSalesOrders()),
@@ -361,6 +367,12 @@ export class MillingOrderComponent {
     )
   );
 
+  riceVarieties = computed(() =>
+    this.resourceList<any>(this.riceVarietyQuery.data())
+      .filter((x) => x.isActive !== false)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+  );
+
   salesOrders = computed<MillingSalesOrderOption[]>(() => {
     return this.resourceList<MillingSalesOrderOption>(this.salesOrderQuery.data())
       .filter((x: MillingSalesOrderOption) => x.requiresMilling !== false)
@@ -371,23 +383,57 @@ export class MillingOrderComponent {
 
   varietyOptions = computed(() => {
     const map = new Map<number, { id: number; code?: string; name: string }>();
+
+    // Tên chuẩn luôn lấy từ danh mục giống lúa, không dựng nhãn "Giống #ID".
+    for (const variety of this.riceVarieties()) {
+      const name = String(variety.name || '').trim();
+      const code = String(variety.code || '').trim();
+      if (variety.id != null && (name || code)) {
+        map.set(variety.id, {
+          id: variety.id,
+          code: code || undefined,
+          name: name || code,
+        });
+      }
+    }
+
+    // Các nguồn nghiệp vụ chỉ bổ sung dữ liệu lịch sử nếu danh mục không có.
     for (const config of this.yieldConfigs()) {
-      if (config.riceVarietyId != null) {
+      if (config.riceVarietyId != null && !map.has(config.riceVarietyId)) {
+        const name = String(
+          config.riceVarietyName || config.riceVarietyCode || ''
+        ).trim();
+        if (!name) continue;
         map.set(config.riceVarietyId, {
           id: config.riceVarietyId,
           code: config.riceVarietyCode ?? undefined,
-          name:
-            config.riceVarietyName ||
-            config.riceVarietyCode ||
-            `Giống #${config.riceVarietyId}`,
+          name,
         });
       }
     }
     for (const lot of this.paddyLots()) {
       if (lot.riceVarietyId != null && !map.has(lot.riceVarietyId)) {
+        const name = String(lot.riceVarietyName || '').trim();
+        if (!name) continue;
         map.set(lot.riceVarietyId, {
           id: lot.riceVarietyId,
-          name: lot.riceVarietyName || `Giống #${lot.riceVarietyId}`,
+          name,
+        });
+      }
+    }
+    for (const order of this.salesOrders()) {
+      if (order.riceVarietyId != null && !map.has(order.riceVarietyId)) {
+        const name = String(
+          order.riceVarietyDisplayName ||
+            order.riceVarietyName ||
+            order.riceVarietyCode ||
+            ''
+        ).trim();
+        if (!name) continue;
+        map.set(order.riceVarietyId, {
+          id: order.riceVarietyId,
+          code: order.riceVarietyCode ?? undefined,
+          name,
         });
       }
     }
@@ -639,7 +685,7 @@ export class MillingOrderComponent {
     event?.stopPropagation();
     // Cho phép mở để XEM (READ). Nếu không có quyền UPDATE, popup mở ở chế độ chỉ xem
     // (input khoá, ẩn nút lưu — xem viewOnly()). Chỉ đơn DRAFT mới mở form này.
-    if (this.statusCode(row) !== 'DRAFT') return;
+    if (!['DRAFT', 'RESERVED', 'IN_PROGRESS'].includes(this.statusCode(row))) return;
     this.createForm.set({
       id: row.id,
       sourceType: row.salesOrderId ? 'SALES_ORDER' : 'PRODUCTION_PLAN',
@@ -703,6 +749,8 @@ export class MillingOrderComponent {
       ...form,
       salesOrderId: id,
       warehouseId: order?.warehouseId ?? form.warehouseId,
+      riceVarietyId: order?.riceVarietyId ?? null,
+      targetRiceKg: order ? Number(order.remainingMillingRiceKg) || null : null,
       expectedCompletionDate:
         this.toDateInput(order?.expectedDeliveryDate) ||
         form.expectedCompletionDate,
@@ -711,6 +759,41 @@ export class MillingOrderComponent {
           ? []
           : form.allocations,
     }));
+    this.applyRecommendedYield();
+  }
+
+  selectedSalesOrderWeightNote(): string {
+    const order = this.salesOrders().find(
+      (item) => item.id === this.createForm().salesOrderId
+    );
+    if (!order) return '';
+    const total = Number(order.totalRiceRequiredKg) || 0;
+    const allocated = Number(order.allocatedMillingRiceKg) || 0;
+    const remaining = Number(order.remainingMillingRiceKg) || 0;
+    return `Đơn cần ${this.fmtWeight(total)}; đã phân bổ ${this.fmtWeight(allocated)}; lệnh này lấy phần còn lại ${this.fmtWeight(remaining)}.`;
+  }
+
+  outputLocationSelectOptions(line: OutputLine): FilterSelectOption[] {
+    return this.suitableOutputLocations(line).map((location, index) => ({
+      id: location.id,
+      name: `${index === 0 ? 'Gợi ý · ' : ''}${this.locationLabel(location)} · còn ${this.fmtWeight(
+        Math.max(0, Number(location.maxCapacity ?? 0) - Number(location.currentOccupancy ?? 0))
+      )}`,
+    }));
+  }
+
+  selectedSalesOrderVarietyError(): string {
+    const form = this.createForm();
+    if (form.sourceType !== 'SALES_ORDER' || !form.salesOrderId) return '';
+    const order = this.salesOrders().find((item) => item.id === form.salesOrderId);
+    if (!order) return 'Không tìm thấy thông tin đơn bán đã chọn.';
+    if (order.hasUnconfiguredRiceVariety)
+      return 'Có sản phẩm chưa được cấu hình giống lúa. Hãy cập nhật biến thể sản phẩm trước.';
+    if ((order.riceVarietyCount ?? 0) > 1)
+      return 'Đơn bán có nhiều giống lúa. Hãy tách đơn theo từng giống trước khi tạo lệnh xay.';
+    if (!order.riceVarietyId)
+      return 'Không xác định được giống lúa từ sản phẩm của đơn bán.';
+    return '';
   }
 
   applyRecommendedYield(): void {
@@ -855,16 +938,42 @@ export class MillingOrderComponent {
     }
   }
 
-  openReserve(row: MillingOrderRow, event?: Event): void {
+  async openReserve(row: MillingOrderRow, event?: Event): Promise<void> {
     event?.stopPropagation();
     if (!this.canReservePaddy()) {
       void this.showPermissionDenied('Bạn không có quyền giữ lúa cho lệnh xay.');
       return;
     }
-    if (this.statusCode(row) !== 'DRAFT') return;
-    this.activeOrder.set(row);
-    this.reserveLines.set([this.newAllocation()]);
-    this.showReserveModal.set(true);
+    if (!['DRAFT', 'RESERVED', 'IN_PROGRESS'].includes(this.statusCode(row))) return;
+
+    this.actionLoadingId.set(row.id);
+    try {
+      let detail: MillingOrderRow | MillingOrderDetailDto = row;
+      if (!row.inputs) {
+        const response = await lastValueFrom(this.service.getById(row.id));
+        this.assertSucceeded(response);
+        detail = this.resource<MillingOrderDetailDto>(response) ?? row;
+      }
+      this.activeOrder.set(detail);
+      const currentInputs = detail.inputs ?? [];
+      this.reserveLines.set(
+        currentInputs.length
+          ? currentInputs.map((input) => ({
+              key: ++this.lineSequence,
+              paddyLotId: input.paddyLotId,
+              locationId: input.locationId ?? null,
+              consumedWeightKg:
+                Number(input.reservedWeightKg ?? input.consumedWeightKg) || null,
+              note: input.note ?? '',
+            }))
+          : [this.newAllocation()]
+      );
+      this.showReserveModal.set(true);
+    } catch (error) {
+      this.showError(this.errorText(error, 'Không thể tải phân bổ nguồn lúa.'));
+    } finally {
+      this.actionLoadingId.set(null);
+    }
   }
 
   closeReserve(): void {
@@ -927,7 +1036,13 @@ export class MillingOrderComponent {
       this.showReserveModal.set(false);
       this.activeOrder.set(null);
       this.reserveLines.set([this.newAllocation()]);
-      await this.afterCommand('Giữ lúa cho lệnh xay thành công.');
+      await this.afterCommand(
+        this.statusCode(order) === 'IN_PROGRESS'
+          ? 'Điều chỉnh nguồn lúa đang xay thành công.'
+          : this.statusCode(order) === 'RESERVED'
+            ? 'Phân bổ lại lúa cho lệnh xay thành công.'
+            : 'Giữ lúa cho lệnh xay thành công.'
+      );
     } catch (error) {
       this.showError(this.errorText(error, 'Không thể giữ lúa.'));
     } finally {
@@ -1092,12 +1207,30 @@ export class MillingOrderComponent {
         const updated = { ...line, [field]: normalized } as OutputLine;
         if (field === 'outputType') {
           updated.productVariantId = null;
+          updated.locationId = null;
+        }
+        if (field === 'productVariantId') {
+          const variant = this.productVariants().find(
+            (item) => item.id === updated.productVariantId
+          );
+          updated.bagWeightKg = Number(variant?.weight) > 0 ? Number(variant?.weight) : null;
+          const count = Number(updated.bagCount) || 0;
+          if (count > 0 && updated.bagWeightKg) {
+            updated.outputWeightKg = Number((count * updated.bagWeightKg).toFixed(3));
+          }
+          updated.locationId = this.suitableOutputLocations(updated)[0]?.id ?? null;
         }
         if (field === 'bagCount' || field === 'bagWeightKg') {
           const count = Number(updated.bagCount) || 0;
           const bagWeight = Number(updated.bagWeightKg) || 0;
           if (count > 0 && bagWeight > 0) {
             updated.outputWeightKg = Number((count * bagWeight).toFixed(3));
+          }
+        }
+        if (['bagCount', 'bagWeightKg', 'outputWeightKg'].includes(String(field))) {
+          const suitableIds = new Set(this.suitableOutputLocations(updated).map((item) => item.id));
+          if (!updated.locationId || !suitableIds.has(updated.locationId)) {
+            updated.locationId = this.suitableOutputLocations(updated)[0]?.id ?? null;
           }
         }
         return updated;
@@ -1179,7 +1312,25 @@ export class MillingOrderComponent {
         'Đã hoàn tất lệnh, tạo lô đầu ra và nhập kho thành phẩm.'
       );
     } catch (error) {
-      this.showError(this.errorText(error, 'Không thể hoàn tất lệnh xay.'));
+      const message = this.errorText(error, 'Không thể hoàn tất lệnh xay.');
+      if (message.includes('Chưa thể lấy đủ') || message.includes('bao đang cản')) {
+        const choice = await Swal.fire({
+          icon: 'warning',
+          title: 'Nguồn lúa đang bị bao khác cản',
+          text: message,
+          showCancelButton: true,
+          confirmButtonText: 'Điều chỉnh nguồn lúa',
+          cancelButtonText: 'Ở lại kiểm tra',
+          confirmButtonColor: '#16a052',
+        });
+        if (choice.isConfirmed) {
+          this.showCompleteModal.set(false);
+          this.completeForm.set(this.defaultCompleteForm());
+          this.openReserve(order);
+        }
+      } else {
+        this.showError(message);
+      }
     } finally {
       this.saving.set(false);
     }
@@ -1256,12 +1407,48 @@ export class MillingOrderComponent {
   }
 
   variantsForType(type: MillingOutputType): MillingProductVariantOption[] {
-    const wantsByproduct = type !== 'RICE';
-    return [...this.productVariants()].sort((a, b) => {
-      const scoreA = a.isByproduct === wantsByproduct ? 0 : 1;
-      const scoreB = b.isByproduct === wantsByproduct ? 0 : 1;
-      return scoreA - scoreB || a.name.localeCompare(b.name);
-    });
+    const tokenByType: Partial<Record<MillingOutputType, string[]>> = {
+      BROKEN: ['TAM-', 'TẤM', 'TAM '],
+      BRAN: ['CAM-', 'CÁM', 'CAM '],
+      HUSK: ['TRAU-', 'TRẤU', 'TRAU '],
+    };
+    return this.productVariants()
+      .filter((variant) => {
+        const text = `${variant.sku ?? ''} ${variant.name ?? ''} ${variant.productName ?? ''}`.toUpperCase();
+        if (type === 'RICE') {
+          return variant.isByproduct !== true &&
+            (text.includes('GAO-') || text.includes('GẠO') || text.includes('GAO '));
+        }
+        const tokens = tokenByType[type] ?? [];
+        return variant.isByproduct === true && tokens.some((token) => text.includes(token));
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  private suitableOutputLocations(line: OutputLine): MillingLocationOption[] {
+    const order = this.activeOrder();
+    const variant = this.productVariants().find((item) => item.id === line.productVariantId);
+    if (!order || !variant) return [];
+    const requiredKg = Number(line.outputWeightKg) || 0;
+    return this.locations()
+      .filter((location) => {
+        const remaining = Number(location.maxCapacity ?? 0) - Number(location.currentOccupancy ?? 0);
+        return location.warehouseId === order.warehouseId &&
+          location.isActive !== false &&
+          !location.isQuarantine &&
+          (!location.allowedCategoryId || location.allowedCategoryId === variant.productCategoryId) &&
+          (!location.currentProductVariantId || location.currentProductVariantId === variant.id) &&
+          remaining + 0.0005 >= requiredKg;
+      })
+      .sort((a, b) => {
+        const sameA = a.currentProductVariantId === variant.id ? 0 : 1;
+        const sameB = b.currentProductVariantId === variant.id ? 0 : 1;
+        const priorityA = Number(a.priority) || 3;
+        const priorityB = Number(b.priority) || 3;
+        const remainingA = Number(a.maxCapacity ?? 0) - Number(a.currentOccupancy ?? 0);
+        const remainingB = Number(b.maxCapacity ?? 0) - Number(b.currentOccupancy ?? 0);
+        return sameA - sameB || priorityA - priorityB || remainingA - remainingB || a.id - b.id;
+      });
   }
 
   lotLabel(lot: MillingPaddyLotOption): string {
@@ -1555,6 +1742,10 @@ export class MillingOrderComponent {
     if (form.sourceType === 'SALES_ORDER' && !form.salesOrderId) {
       return 'Vui lòng chọn đơn bán cần xay.';
     }
+    if (form.sourceType === 'SALES_ORDER') {
+      const varietyError = this.selectedSalesOrderVarietyError();
+      if (varietyError) return varietyError;
+    }
     if (
       form.expectedYield == null ||
       form.expectedYield <= 0 ||
@@ -1597,9 +1788,21 @@ export class MillingOrderComponent {
       if (!inventory) {
         return `Lô ${lot.lotCode} không còn tồn khả dụng tại vị trí đã chọn.`;
       }
-      if (line.consumedWeightKg > inventory.quantityAvailable + 0.001) {
+      const ownReserved = (this.activeOrder()?.inputs ?? [])
+        .filter(
+          (input) =>
+            input.paddyLotId === line.paddyLotId &&
+            input.locationId === line.locationId
+        )
+        .reduce(
+          (sum, input) =>
+            sum + Number(input.reservedWeightKg ?? input.consumedWeightKg ?? 0),
+          0
+        );
+      const reallocatableAvailable = inventory.quantityAvailable + ownReserved;
+      if (line.consumedWeightKg > reallocatableAvailable + 0.001) {
         return `Lô ${lot.lotCode} tại vị trí đã chọn chỉ còn khả dụng ${this.fmtWeight(
-          inventory.quantityAvailable
+          reallocatableAvailable
         )}.`;
       }
       const key = `${line.paddyLotId}:${line.locationId}`;

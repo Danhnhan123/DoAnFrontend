@@ -63,6 +63,7 @@ export interface PaddyPurchaseReceiptRow {
   warehouseName?: string | null;
   actualWeightKg: number;
   bagCount?: number | null;
+  bags?: BagInput[];
   agreedPrice: number;
   totalAmount: number;
   paidAmount: number;
@@ -79,6 +80,11 @@ export interface PaddyPurchaseReceiptRow {
   lastModifiedDate?: string | null;
 }
 
+export interface BagInput {
+  bagNo: number;
+  weightKg: number;
+}
+
 export interface CreatePaddyPurchaseReceiptDto {
   organizationId?: number | null;
   scheduleId?: number | null;
@@ -88,6 +94,7 @@ export interface CreatePaddyPurchaseReceiptDto {
   warehouseId: number;
   actualWeightKg: number;
   bagCount?: number | null;
+  bags?: BagInput[];
   agreedPrice: number;
   totalAmount: number;
   paidAmount: number;

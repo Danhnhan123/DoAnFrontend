@@ -772,3 +772,10 @@ select:focus {
     margin-left: 0;
   }
 }
+.bag-plan { margin: 16px 0; display: grid; gap: 12px; }
+.bag-column { padding: 12px; border: 1px solid #dbe3ee; border-radius: 10px; background: #f8fafc; }
+.bag-column.over-capacity { border-color: #dc2626; background: #fef2f2; }
+.bag-column header { display: flex; justify-content: space-between; gap: 12px; }
+.bag-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.bag-chip { display: flex; align-items: center; gap: 7px; padding: 7px; border-radius: 7px; background: #fff; border: 1px solid #e2e8f0; }
+.bag-chip select { max-width: 130px; }

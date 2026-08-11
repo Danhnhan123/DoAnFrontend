@@ -462,7 +462,7 @@
                       >
                     }
                   </td>
-                  <td>{{ formatDate(row.receiptDate) }}</td>
+                  <td>{{ formatDateTime(row.receiptDate) }}</td>
                   <td>
                     <div class="action-cell">
                       <button
@@ -821,7 +821,8 @@
           <label class="field-group">
             <span>Ngày mua thực tế <b>*</b></span>
             <input
-              type="date"
+              type="datetime-local"
+              step="60"
               [ngModel]="receiptForm().receiptDate"
               (ngModelChange)="setReceiptField('receiptDate', $event)"
               [disabled]="receiptFormLocked()"
@@ -867,28 +868,30 @@
             ></app-filter-select>
           </label>
 
-          <div class="field-group">
-            <span>Thực cân <b>*</b></span>
-            <div class="weight-input-group">
-              <input
-                type="number"
-                min="0"
-                step="any"
-                [ngModel]="receiptForm().actualWeight"
-                (ngModelChange)="setReceiptField('actualWeight', $event)"
-                placeholder="Nhập khối lượng"
-                aria-label="Khối lượng thực cân"
-                [disabled]="receiptFormLocked()"
-              />
-              <app-filter-select
-                class="unit-select"
-                [clearable]="false"
-                [disabled]="receiptFormLocked()"
-                [options]="weightUnitSelectOptions"
-                [value]="receiptForm().actualWeightUnit"
-                (valueChange)="setReceiptField('actualWeightUnit', $event)"
-              ></app-filter-select>
+          <div class="field-group span-2 bag-editor">
+            <div class="bag-editor-header">
+              <span>Danh sách bao <b>*</b></span>
+              <div class="bag-actions">
+                <button type="button" class="btn-ble-bag" (click)="readBleScaleAsBag()" [disabled]="receiptFormLocked() || readingBleScale()">{{ readingBleScale() ? 'Đang đọc...' : 'Đọc cân BLE' }}</button>
+                <button type="button" class="btn-add-bag" (click)="addReceiptBag()" [disabled]="receiptFormLocked()">+ Thêm bao</button>
+              </div>
             </div>
+            @if (receiptForm().bags.length === 0) {
+              <p class="bag-empty">Chưa có bao. Mỗi lần cân hãy thêm một dòng bao.</p>
+            } @else {
+              <div class="bag-grid">
+                @for (bag of receiptForm().bags; track bag.bagNo; let i = $index) {
+                  <div class="bag-row">
+                    <span class="bag-number">Bao #{{ bag.bagNo }}</span>
+                    <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
+                      (ngModelChange)="updateReceiptBag(i, $event)" [disabled]="receiptFormLocked()" aria-label="Khối lượng bao" />
+                    <span>kg</span>
+                    <button type="button" class="btn-remove-bag" (click)="removeReceiptBag(i)" [disabled]="receiptFormLocked()" aria-label="Xóa bao">×</button>
+                  </div>
+                }
+              </div>
+            }
+            <div class="bag-total"><span>{{ receiptForm().bags.length }} bao</span><strong>Tổng: {{ receiptForm().actualWeight || 0 | number:'1.0-3' }} kg</strong></div>
           </div>
 
           <label class="field-group">

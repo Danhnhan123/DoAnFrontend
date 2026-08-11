@@ -26,6 +26,15 @@ export interface PaddyLotRow {
   qualityStatus?: string | null;
   createdDate: string;
   lastModifiedDate?: string | null;
+  bags?: PaddyLotBagOption[];
+}
+
+export interface PaddyLotBagOption {
+  id: number;
+  bagNo: number;
+  weightKg: number;
+  status: string;
+  locationId?: number | null;
 }
 
 export interface PaddyLotDetailDto extends PaddyLotRow {}

@@ -242,15 +242,31 @@
           </div>
         </div>
         @if (!recheckMode()) {
-        <div class="form-row-2">
-          <div class="form-group">
-            <label class="form-label">Kg ảnh hưởng (tách sang cách ly)</label>
-            <input class="form-control" type="number" step="0.1" min="0" [disabled]="editLockedSplit()"
-              [ngModel]="form().affectedWeightKg" (ngModelChange)="setField('affectedWeightKg', $event)"
-              placeholder="VD: 500 — để trống nếu cách ly toàn bộ" />
-            <div class="qc-hint">Chỉ áp dụng khi bấm “Lưu &amp; cách ly”. Phải nhỏ hơn trọng lượng lô{{ formLot() ? ' (' + fmtKg(formLotWeight()) + ')' : '' }}.</div>
-          </div>
-          <div class="form-group"></div>
+        <div class="form-group">
+          <label class="form-label">Chọn bao cần tách sang cách ly</label>
+          @if (editLockedSplit()) {
+            <div class="qc-readonly">Đã tách {{ fmtKg(form().affectedWeightKg) }}. Danh sách bao đã được khóa theo lịch sử kiểm định.</div>
+          } @else if (eligibleBags().length) {
+            <div class="qc-bag-summary">
+              <span>Toàn lô: <b>{{ eligibleBags().length }} bao / {{ fmtKg(formLotWeight()) }}</b></span>
+              <span>Cách ly: <b>{{ selectedBags().length }} bao / {{ fmtKg(selectedBagWeightKg()) }}</b></span>
+              <span>Còn lại: <b>{{ eligibleBags().length - selectedBags().length }} bao / {{ fmtKg(remainingBagWeightKg()) }}</b></span>
+            </div>
+            <div class="qc-bag-grid">
+              @for (bag of eligibleBags(); track bag.id) {
+                <label class="qc-bag-option" [class.selected]="form().affectedBagIds.includes(bag.id)">
+                  <input type="checkbox"
+                    [checked]="form().affectedBagIds.includes(bag.id)"
+                    (change)="toggleAffectedBag(bag.id, $any($event.target).checked)" />
+                  <span>Bao #{{ bag.bagNo }}</span>
+                  <b>{{ fmtKg(bag.weightKg) }}</b>
+                </label>
+              }
+            </div>
+            <div class="qc-hint">Chọn một số bao để tách lô. Không chọn bao nào nếu muốn cách ly toàn bộ lô.</div>
+          } @else {
+            <div class="qc-lock-note">Lô chưa có dữ liệu bao hợp lệ. Không thể tách cách ly một phần; chỉ có thể duyệt đạt hoặc cách ly toàn bộ.</div>
+          }
         </div>
         }
       </div>
