@@ -14,9 +14,11 @@ export interface MillingOrderInputDetail {
   paddyLotId: number;
   lotCode?: string | null;
   locationId?: number | null;
+  locationCode?: string | null;
   consumedWeightKg: number;
   reservedWeightKg?: number | null;
   note?: string | null;
+  bags?: Array<{ bagId: number; bagNo: number; weightKg: number; stackOrder: number; status: string }>;
 }
 
 export interface MillingOrderOutputDetail {
@@ -54,6 +56,8 @@ export interface MillingOrderRow {
   totalRiceOutputKg: number;
   targetRiceKg?: number | null;
   computedPaddyKg: number;
+  actualPaddyInputKg?: number | null;
+  actualYieldRate?: number | null;
   byproductKg?: number | null;
   lossKg?: number | null;
   machineRef?: string | null;
@@ -102,7 +106,31 @@ export interface MillingOrderInputPayload {
 }
 
 export interface ReserveMillingOrderPayload {
-  inputs: MillingOrderInputPayload[];
+  columns: Array<{ locationId: number; bagIds: number[] }>;
+}
+
+export interface MillingSourceSuggestion {
+  paddyLotId: number;
+  lotCode: string;
+  locationId: number;
+  locationCode?: string | null;
+  suggestedWeightKg: number;
+  immediatelyRetrievableKg: number;
+  bagIds: number[];
+}
+
+export interface MillingSourceSuggestionResult {
+  requiredWeightKg: number;
+  suggestedWeightKg: number;
+  missingWeightKg: number;
+  isComplete: boolean;
+  inputs: MillingSourceSuggestion[];
+  columns: Array<{
+    locationId: number;
+    locationCode?: string | null;
+    suggestedWeightKg: number;
+    bagIds: number[];
+  }>;
 }
 
 export interface MillingOrderOutputPayload {

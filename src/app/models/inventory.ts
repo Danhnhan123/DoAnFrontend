@@ -30,6 +30,8 @@ export interface InventoryRow {
   quantityProcessing: number;
   totalWeightKg: number;
   bags: number;
+  hasPhysicalBagData?: boolean;
+  openBags?: number;
 
   minStockLevel?: number | null;
   isLowStock: boolean;

@@ -86,14 +86,14 @@
                     <div class="slot-lot muted">—</div>
                   }
                   <div class="slot-nums">
-                    <span>{{ fmtNum(s.bags) }} bao</span>
+                    <span>{{ bagLabel(s) }}</span>
                     <span class="slot-kg">{{ fmtNum(s.weightKg) }} kg</span>
                   </div>
                   <div class="slot-bar">
                     <span class="slot-bar-fill" [style.width.%]="s.fillPct > 100 ? 100 : s.fillPct"></span>
                   </div>
                   <div class="slot-foot">
-                    {{ s.fillPct }}% sức chứa{{ s.quality ? ' · ' + s.quality : '' }}
+                    {{ capacityLabel(s) }}
                   </div>
                 </button>
               }
@@ -122,7 +122,7 @@
             <div class="detail-row"><span>Khu</span><b>{{ s.zoneName }}</b></div>
             <div class="detail-row"><span>Lô đang chứa</span><b class="link">{{ s.lotCode || '—' }}</b></div>
             <div class="detail-row"><span>Mặt hàng</span><b>{{ s.productName || s.categoryName || '—' }}</b></div>
-            <div class="detail-row"><span>Số bao</span><b>{{ fmtNum(s.bags) }} bao</b></div>
+            <div class="detail-row"><span>Số bao</span><b>{{ bagLabel(s) }}</b></div>
             <div class="detail-row"><span>Khối lượng</span><b>{{ fmtNum(s.weightKg) }} kg</b></div>
             <div class="detail-row"><span>Sức chứa</span><b>{{ fmtNum(s.currentOccupancy) }} / {{ fmtNum(s.maxCapacity) }}</b></div>
             <div class="detail-row"><span>Chất lượng</span><b>{{ s.quality || '—' }}</b></div>

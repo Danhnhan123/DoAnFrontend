@@ -32,6 +32,7 @@ import {
   SalesOrderDetail,
   SalesOrderPage,
   SalesOrderRow,
+  SalesOrderOutboundSummary,
   UpdateSalesOrderPayload,
   WarehouseSalesOption,
 } from '../../models';
@@ -687,6 +688,20 @@ export class SalesOrderComponent implements OnDestroy {
       }))
     );
     this.showOutboundModal.set(true);
+  }
+
+  activeDraftOutbound(order: SalesOrderDetail): SalesOrderOutboundSummary | null {
+    return order.outboundOrders.find(
+      (x) => (x.outboundStatusCode || '').toUpperCase() === 'DRAFT'
+    ) ?? null;
+  }
+
+  continueDraftOutbound(order: SalesOrderDetail): void {
+    const draft = this.activeDraftOutbound(order);
+    if (!draft) return;
+    this.router.navigate(['/admin/outbound-orders'], {
+      queryParams: { outboundOrderId: draft.id, salesOrderId: order.id },
+    });
   }
 
   closeOutbound(): void {

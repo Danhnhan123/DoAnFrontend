@@ -136,7 +136,6 @@
             <th class="sortable" (click)="sort('sku')">SKU <span class="sort-icon">{{ sortIcon('sku') }}</span></th>
             <th>Đơn vị</th>
             <th class="sortable text-right" (click)="sort('salePrice')">Giá bán <span class="sort-icon">{{ sortIcon('salePrice') }}</span></th>
-            <th class="text-right">Giá vốn</th>
             <th>Trạng thái</th>
             <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
             <th style="text-align:right">Thao tác</th>
@@ -160,7 +159,6 @@
             <td data-label="SKU"><span class="role-pill">{{ row.sku }}</span></td>
             <td data-label="Đơn vị">{{ row.unitOfMeasureName || row.unitOfMeasureId }}</td>
             <td class="price-cell" data-label="Giá bán">{{ row.salePrice | number:'1.0-0' }} đ</td>
-            <td class="price-cell muted-price" data-label="Giá vốn">{{ row.costPrice | number:'1.0-0' }} đ</td>
             <td data-label="Trạng thái">
               <span class="status-pill" [class.active]="row.isActive" [class.inactive]="!row.isActive">
                 {{ row.isActive ? 'Đang bán' : 'Ngừng bán' }}
@@ -306,13 +304,7 @@
           (ngModelChange)="setField('description', $event)" placeholder="Mô tả biến thể..."></textarea>
       </div>
 
-      <div class="form-row-3">
-        <div class="form-group">
-          <label class="form-label">Giá vốn</label>
-          <input class="form-control" type="number" [ngModel]="form().costPrice"
-            (ngModelChange)="setField('costPrice', +$event)" />
-        </div>
-
+      <div class="form-row-2">
         <div class="form-group">
           <label class="form-label">Giá bán</label>
           <input class="form-control" type="number" [ngModel]="form().salePrice"

@@ -15,6 +15,7 @@ import {
   MillingPaddyLotOption,
   MillingProductVariantOption,
   MillingSalesOrderPage,
+  MillingSourceSuggestionResult,
   MillingWarehouseOption,
   MillingYieldOption,
   RiceVarietyDetailDto,
@@ -123,6 +124,12 @@ export class MillingOrderService {
   getYieldConfigs(): Observable<ApiResponse<MillingYieldOption[]>> {
     return this.http.get<ApiResponse<MillingYieldOption[]>>(
       `${this.base}/milling-yield-configs`
+    );
+  }
+
+  suggestSources(id: number): Observable<ApiResponse<MillingSourceSuggestionResult>> {
+    return this.http.get<ApiResponse<MillingSourceSuggestionResult>>(
+      `${this.base}/milling-orders/${id}/source-suggestions`
     );
   }
 

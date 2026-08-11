@@ -35,6 +35,8 @@ interface MapSlot {
   productName: string | null;
   categoryName: string | null;
   bags: number;
+  openBags: number;
+  hasPhysicalBagData: boolean;
   weightKg: number;
   quality: string | null;
   strategy: string | null;
@@ -158,14 +160,24 @@ export class WarehouseMapComponent {
   private invByLocation = computed(() => {
     const map = new Map<
       number,
-      { bags: number; weightKg: number; rows: InventoryRow[] }
+      { bags: number; openBags: number; weightKg: number; rows: InventoryRow[]; hasPhysicalBagData: boolean }
     >();
     for (const inv of this.inventoryRows()) {
       const lid = inv.locationId;
       if (lid == null) continue;
-      const cur = map.get(lid) ?? { bags: 0, weightKg: 0, rows: [] };
+      const cur = map.get(lid) ?? {
+        bags: 0,
+        openBags: 0,
+        weightKg: 0,
+        rows: [],
+        hasPhysicalBagData: true,
+      };
       cur.bags += Number(inv.bags ?? 0);
+      cur.openBags += Number(inv.openBags ?? 0);
       cur.weightKg += Number(inv.totalWeightKg ?? 0);
+      if (Number(inv.totalWeightKg ?? 0) > 0 && !inv.hasPhysicalBagData) {
+        cur.hasPhysicalBagData = false;
+      }
       cur.rows.push(inv);
       map.set(lid, cur);
     }
@@ -183,18 +195,27 @@ export class WarehouseMapComponent {
     const zoneMap = new Map<string, MapSlot[]>();
     for (const l of locs) {
       const cap = Number(l.maxCapacity ?? 0);
-      const occ = Number(l.currentOccupancy ?? 0);
+      const inv = invMap.get(l.id);
+      // Bản đồ phản ánh tồn thực tế. CurrentOccupancy cũ có thể bị lệch do dữ liệu
+      // trước thời điểm quản lý bao vật lý.
+      const occ = inv ? inv.weightKg : Number(l.currentOccupancy ?? 0);
       const fillPct = cap > 0 ? Math.round((occ / cap) * 100) : 0;
       const isActive = l.isActive ?? true;
       const isQuarantine = !!l.isQuarantine;
 
-      const inv = invMap.get(l.id);
       const rep = inv?.rows?.[0];
-      const quality = rep?.lotQualityStatus?.trim() || null;
+      const distinctLots = new Set((inv?.rows ?? []).map(x => x.lotCode).filter(Boolean));
+      const distinctProducts = new Set((inv?.rows ?? []).map(x => x.productVariantName).filter(Boolean));
+      const hasBlockedContent = (inv?.rows ?? []).some(x =>
+        Number(x.quantityQuarantine ?? 0) > 0 || x.lotIsSellable === false
+      );
+      const quality = hasBlockedContent
+        ? 'Có thành phần lô cách ly/rủi ro'
+        : (rep?.lotQualityStatus?.trim() || null);
 
       const slot: MapSlot = {
         id: l.id,
-        slotCode: l.slotCode || l.zoneName || `#${l.id}`,
+        slotCode: this.locationLabel(l),
         zoneName: l.zoneName || '—',
         maxCapacity: cap,
         currentOccupancy: occ,
@@ -202,14 +223,16 @@ export class WarehouseMapComponent {
         isActive,
         isQuarantine,
         priority: l.priority ?? null,
-        lotCode: rep?.lotCode ?? null,
-        productName: rep?.productVariantName ?? null,
+        lotCode: distinctLots.size > 1 ? `${distinctLots.size} lô` : (rep?.lotCode ?? null),
+        productName: distinctProducts.size > 1 ? `${distinctProducts.size} mặt hàng` : (rep?.productVariantName ?? null),
         categoryName: rep?.categoryName ?? null,
         bags: inv?.bags ?? 0,
+        openBags: inv?.openBags ?? 0,
+        hasPhysicalBagData: inv?.hasPhysicalBagData ?? true,
         weightKg: inv?.weightKg ?? 0,
         quality,
-        strategy: this.strategyOf(isQuarantine, quality),
-        status: this.computeStatus(isActive, isQuarantine, fillPct, inv?.weightKg ?? 0, quality),
+        strategy: this.strategyOf(isQuarantine || hasBlockedContent, quality),
+        status: this.computeStatus(isActive, isQuarantine || hasBlockedContent, fillPct, inv?.weightKg ?? 0, quality),
       };
 
       const arr = zoneMap.get(slot.zoneName) ?? [];
@@ -296,6 +319,43 @@ export class WarehouseMapComponent {
       minimumFractionDigits: 0,
       maximumFractionDigits: digits,
     });
+  }
+
+  bagLabel(slot: MapSlot): string {
+    if (slot.weightKg > 0 && !slot.hasPhysicalBagData) {
+      return 'Chưa đồng bộ bao';
+    }
+    if (slot.openBags > 0) {
+      return `${this.fmtNum(slot.bags)} bao (${this.fmtNum(slot.openBags)} bao mở)`;
+    }
+    return `${this.fmtNum(slot.bags)} bao`;
+  }
+
+  capacityLabel(slot: MapSlot): string {
+    if (slot.maxCapacity > 0 && slot.currentOccupancy > slot.maxCapacity) {
+      return `${slot.fillPct}% sức chứa · Vượt ${this.fmtNum(slot.currentOccupancy - slot.maxCapacity)} kg`;
+    }
+    return `${slot.fillPct}% sức chứa${slot.quality ? ' · ' + slot.quality : ''}`;
+  }
+
+  private locationLabel(location: any): string {
+    const zone = String(location.zoneName ?? '').trim();
+    const row = String(location.shelfRow ?? '').trim();
+    const level = String(location.shelfLevel ?? '').trim();
+    const slot = String(location.slotCode ?? '').trim();
+    const zoneCode = zone.replace(/^khu\s+/i, '').trim();
+    const canonical = [zoneCode, row, level].filter(Boolean).join('-');
+
+    // Một số dữ liệu cũ đã lưu cả tên khu/cột/lớp lặp hai lần trong SlotCode.
+    // Khi nhận diện được chuỗi lỗi này, dùng tọa độ chuẩn thay vì hiển thị nguyên dữ liệu bẩn.
+    if (canonical && slot) {
+      const occurrences = slot.toLocaleLowerCase('vi-VN').split(canonical.toLocaleLowerCase('vi-VN')).length - 1;
+      if (occurrences > 1 || (/^khu\s+/i.test(slot) && slot.toLocaleLowerCase('vi-VN').includes(canonical.toLocaleLowerCase('vi-VN')))) {
+        return canonical;
+      }
+    }
+
+    return slot || canonical || zone || `#${location.id}`;
   }
 
   trackZone = (_: number, z: MapZone) => z.name;

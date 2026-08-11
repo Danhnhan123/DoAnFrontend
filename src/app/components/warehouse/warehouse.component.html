@@ -32,7 +32,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
         </svg>
-        Thêm khu/cột
+        Thêm vị trí
       </button>
     </div>
   </div>
@@ -206,7 +206,7 @@
   <div class="card loc-section">
     <div class="loc-head">
       <div class="loc-head-title">
-        <h3>Quản lý khu/cột/lớp</h3>
+        <h3>Quản lý vị trí kho</h3>
         @if (selectedWarehouseId() != null) {
         <span class="sel-chip">
           {{ selectedWarehouseName() }}
@@ -220,7 +220,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Thêm khu/cột
+          Thêm vị trí
         </button>
       </div>
     </div>
@@ -232,7 +232,7 @@
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
-        <input class="search-input" placeholder="Tìm khu vực, kho, hàng/tầng kệ, mã ô..." [ngModel]="locSearch()"
+        <input class="search-input" placeholder="Tìm kho, khu vực, cột xếp, mã vị trí..." [ngModel]="locSearch()"
           (ngModelChange)="locSearch.set($event)" (keydown.enter)="onLocSearch()" />
       </div>
 
@@ -266,8 +266,8 @@
             (ngModelChange)="locFilterZoneName.set($event || null)" (keydown.enter)="applyLocFilter()" />
         </div>
         <div class="form-group">
-          <label>Mã ô</label>
-          <input class="form-control" placeholder="Lọc theo mã ô..." [ngModel]="locFilterSlotCode()"
+          <label>Mã vị trí</label>
+          <input class="form-control" placeholder="Lọc theo mã vị trí..." [ngModel]="locFilterSlotCode()"
             (ngModelChange)="locFilterSlotCode.set($event || null)" (keydown.enter)="applyLocFilter()" />
         </div>
         <div class="form-group">
@@ -302,11 +302,11 @@
       <table>
         <thead>
           <tr>
-            <th class="sortable" (click)="locSort('slotCode')">Mã khu / ô <span class="sort-icon">{{ locSortIcon('slotCode') }}</span></th>
+            <th class="sortable" (click)="locSort('slotCode')">Mã vị trí <span class="sort-icon">{{ locSortIcon('slotCode') }}</span></th>
             <th class="sortable" (click)="locSort('zoneName')">Tên khu vực <span class="sort-icon">{{ locSortIcon('zoneName') }}</span></th>
             <th class="sortable" (click)="locSort('warehouseId')">Kho <span class="sort-icon">{{ locSortIcon('warehouseId') }}</span></th>
-            <th>Vị trí kệ</th>
-            <th class="sortable" (click)="locSort('maxCapacity')">Ô chứa <span class="sort-icon">{{ locSortIcon('maxCapacity') }}</span></th>
+            <th>Cột xếp</th>
+            <th class="sortable" (click)="locSort('maxCapacity')">Đang chứa / Tối đa <span class="sort-icon">{{ locSortIcon('maxCapacity') }}</span></th>
             <th>Lấp đầy</th>
             <th class="sortable" (click)="locSort('isActive')">Trạng thái <span class="sort-icon">{{ locSortIcon('isActive') }}</span></th>
             <th style="text-align:right">Thao tác</th>
@@ -315,13 +315,13 @@
         <tbody>
           @for (row of locations(); track row.id) {
           <tr>
-            <td data-label="Mã khu / ô"><span class="code-link">{{ row.slotCode || row.zoneName }}</span></td>
+            <td data-label="Mã vị trí"><span class="code-link">{{ row.slotCode || row.zoneName }}</span></td>
             <td data-label="Tên khu vực">
               <div class="u-name">{{ row.zoneName }}</div>
               @if (row.description) { <div class="u-sub text-muted small">{{ row.description }}</div> }
             </td>
             <td data-label="Kho"><span class="role-pill">{{ row.warehouseName }}</span></td>
-            <td class="text-muted small" data-label="Vị trí kệ">{{ (row.shelfRow || '—') }} / {{ (row.shelfLevel || '—') }}</td>
+            <td class="text-muted small" data-label="Cột xếp">{{ row.shelfRow || '—' }}</td>
             <td class="text-muted small" data-label="Ô chứa">
               {{ (row.currentOccupancy ?? 0) | number }} / {{ row.maxCapacity != null ? (row.maxCapacity | number) : '—' }}
             </td>
@@ -469,28 +469,23 @@
                 (ngModelChange)="setLineField($index, 'zoneName', $event)" placeholder="Khu A" maxlength="100" />
             </div>
             <div class="form-group">
-              <label class="form-label">Mã ô</label>
-              <input class="form-control" [ngModel]="line.slotCode"
-                (ngModelChange)="setLineField($index, 'slotCode', $event)" placeholder="A-R01-L02-03" maxlength="50" />
+              <label class="form-label">Cột xếp *</label>
+              <input class="form-control" [ngModel]="line.shelfRow"
+                (ngModelChange)="setLineField($index, 'shelfRow', $event)" placeholder="Ví dụ: C01" maxlength="50" />
             </div>
           </div>
 
-          <div class="form-row-3">
+          <div class="form-row-2">
             <div class="form-group">
-              <label class="form-label">Hàng kệ</label>
-              <input class="form-control" [ngModel]="line.shelfRow"
-                (ngModelChange)="setLineField($index, 'shelfRow', $event)" placeholder="R01" maxlength="50" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tầng kệ</label>
-              <input class="form-control" [ngModel]="line.shelfLevel"
-                (ngModelChange)="setLineField($index, 'shelfLevel', $event)" placeholder="L02" maxlength="50" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Sức chứa tối đa</label>
-              <input class="form-control" type="number" min="0" [ngModel]="line.maxCapacity"
+              <label class="form-label">Sức chứa tối đa (kg) *</label>
+              <input class="form-control" type="number" min="1" [ngModel]="line.maxCapacity"
                 (ngModelChange)="setLineField($index, 'maxCapacity', $event)" placeholder="100" />
             </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Mã vị trí tự sinh</label>
+            <input class="form-control" [ngModel]="line.slotCode" readonly placeholder="A-C01" />
           </div>
 
           <div class="form-row-2">
@@ -578,27 +573,24 @@
         </div>
       </div>
 
-      <div class="form-row-3">
+      <div class="form-row-2">
         <div class="form-group">
-          <label class="form-label">Hàng kệ</label>
+          <label class="form-label">Cột xếp *</label>
           <input class="form-control" [ngModel]="locForm().shelfRow"
-            (ngModelChange)="setLocField('shelfRow', $event)" placeholder="R01" maxlength="50" />
+            (ngModelChange)="setLocField('shelfRow', $event)" placeholder="Ví dụ: C01" maxlength="50" />
         </div>
-        <div class="form-group">
-          <label class="form-label">Tầng kệ</label>
-          <input class="form-control" [ngModel]="locForm().shelfLevel"
-            (ngModelChange)="setLocField('shelfLevel', $event)" placeholder="L02" maxlength="50" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Mã ô</label>
-          <input class="form-control" [ngModel]="locForm().slotCode"
-            (ngModelChange)="setLocField('slotCode', $event)" placeholder="A-R01-L02-03" maxlength="50" />
-        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Mã vị trí tự sinh</label>
+        <input class="form-control" [ngModel]="locForm().slotCode" readonly
+          placeholder="Sẽ tự sinh, ví dụ: A-C01" />
+        <p class="field-note">Cấu trúc: Mã khu - Cột xếp. Các bao trong cột được quản lý thứ tự từ dưới lên trên để phục vụ nhập, đảo và xuất hàng.</p>
       </div>
 
       <div class="form-row-3">
         <div class="form-group">
-          <label class="form-label">Sức chứa tối đa</label>
+          <label class="form-label">Sức chứa tối đa (kg) *</label>
           <input class="form-control" type="number" min="1" [ngModel]="locForm().maxCapacity"
             (ngModelChange)="setLocField('maxCapacity', $event)" placeholder="100" />
         </div>
