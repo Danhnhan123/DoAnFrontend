@@ -565,12 +565,12 @@ export class OutboundOrderComponent implements OnDestroy {
             qty: null,
           };
         })
-        .sort((a, b) => {
-          // Sort location cards: location with unblocked open bag first
-          if (a.hasOpenBag && !a.isOpenBagBlocked && !b.hasOpenBag) return -1;
-          if (b.hasOpenBag && !b.isOpenBagBlocked && !a.hasOpenBag) return 1;
-          return a.locationCode.localeCompare(b.locationCode);
-        });
+          .sort((a, b) => {
+            // Sort location cards: location with unblocked open bag first
+            if (a.hasOpenBag && !a.isOpenBagBlocked && !b.hasOpenBag) return -1;
+            if (b.hasOpenBag && !b.isOpenBagBlocked && !a.hasOpenBag) return 1;
+            return a.locationCode.localeCompare(b.locationCode);
+          });
 
         return {
           itemId: item.id,
@@ -619,13 +619,13 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) =>
-                j === locIndex
-                  ? { ...loc, qty: value === '' || value == null ? null : Number(value) }
-                  : loc
-              ),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) =>
+              j === locIndex
+                ? { ...loc, qty: value === '' || value == null ? null : Number(value) }
+                : loc
+            ),
+          }
           : item
       )
     );
@@ -637,13 +637,13 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) =>
-                j === locIndex
-                  ? { ...loc, fullBagsToTake: Math.min(num, loc.totalFullBagCount) }
-                  : loc
-              ),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) =>
+              j === locIndex
+                ? { ...loc, fullBagsToTake: Math.min(num, loc.totalFullBagCount) }
+                : loc
+            ),
+          }
           : item
       )
     );
@@ -654,17 +654,17 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) => {
-                if (j !== locIndex) return loc;
-                const willTakeAll = !loc.takeAllOpenBag;
-                return {
-                  ...loc,
-                  takeAllOpenBag: willTakeAll,
-                  openBagTakeKg: willTakeAll ? loc.openBagWeightKg : null,
-                };
-              }),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) => {
+              if (j !== locIndex) return loc;
+              const willTakeAll = !loc.takeAllOpenBag;
+              return {
+                ...loc,
+                takeAllOpenBag: willTakeAll,
+                openBagTakeKg: willTakeAll ? loc.openBagWeightKg : null,
+              };
+            }),
+          }
           : item
       )
     );
@@ -676,18 +676,18 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) => {
-                if (j !== locIndex) return loc;
-                const validNum = num == null ? null : Math.min(num, loc.openBagWeightKg);
-                const isAll = validNum != null && Math.abs(validNum - loc.openBagWeightKg) < 0.001;
-                return {
-                  ...loc,
-                  openBagTakeKg: validNum,
-                  takeAllOpenBag: isAll,
-                };
-              }),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) => {
+              if (j !== locIndex) return loc;
+              const validNum = num == null ? null : Math.min(num, loc.openBagWeightKg);
+              const isAll = validNum != null && Math.abs(validNum - loc.openBagWeightKg) < 0.001;
+              return {
+                ...loc,
+                openBagTakeKg: validNum,
+                takeAllOpenBag: isAll,
+              };
+            }),
+          }
           : item
       )
     );
@@ -699,17 +699,17 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) => {
-                if (j !== locIndex) return loc;
-                const maxSplit = loc.standardWeightKg || 0;
-                const validNum = num == null ? null : Math.min(num, maxSplit);
-                return {
-                  ...loc,
-                  splitBagKg: validNum,
-                };
-              }),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) => {
+              if (j !== locIndex) return loc;
+              const maxSplit = loc.standardWeightKg || 0;
+              const validNum = num == null ? null : Math.min(num, maxSplit);
+              return {
+                ...loc,
+                splitBagKg: validNum,
+              };
+            }),
+          }
           : item
       )
     );
@@ -720,18 +720,18 @@ export class OutboundOrderComponent implements OnDestroy {
       form.map((item, i) =>
         i === itemIndex
           ? {
-              ...item,
-              locations: item.locations.map((loc, j) => {
-                if (j !== locIndex) return loc;
-                return {
-                  ...loc,
-                  takeAllOpenBag: loc.hasOpenBag && !loc.isOpenBagBlocked,
-                  openBagTakeKg: loc.hasOpenBag && !loc.isOpenBagBlocked ? loc.openBagWeightKg : null,
-                  fullBagsToTake: loc.totalFullBagCount,
-                  splitBagKg: null,
-                };
-              }),
-            }
+            ...item,
+            locations: item.locations.map((loc, j) => {
+              if (j !== locIndex) return loc;
+              return {
+                ...loc,
+                takeAllOpenBag: loc.hasOpenBag && !loc.isOpenBagBlocked,
+                openBagTakeKg: loc.hasOpenBag && !loc.isOpenBagBlocked ? loc.openBagWeightKg : null,
+                fullBagsToTake: loc.totalFullBagCount,
+                splitBagKg: null,
+              };
+            }),
+          }
           : item
       )
     );
@@ -1214,7 +1214,7 @@ export class OutboundOrderComponent implements OnDestroy {
         ) {
           this.alert(
             `Tại vị trí ${r.locationCode}: Bao lẻ còn thừa ${this.fmtKg(openRemaining)}. ` +
-              `Cần lấy hết bao lẻ trước khi lấy hoặc xé bao chuẩn bên dưới.`,
+            `Cần lấy hết bao lẻ trước khi lấy hoặc xé bao chuẩn bên dưới.`,
             false
           );
           return null;
@@ -1316,14 +1316,14 @@ export class OutboundOrderComponent implements OnDestroy {
 
     const dueDateBlock = hasReceivable
       ? `<div style="text-align:left;margin-top:12px">` +
-        (known
-          ? `<div style="margin-bottom:6px">Phiếu phát sinh <b>công nợ phải thu ${this.fmtMoney(
-              receivable,
-            )}</b>.</div>`
-          : `<div style="margin-bottom:6px">Nếu phiếu phát sinh công nợ phải thu, vui lòng chọn hạn thanh toán.</div>`) +
-        `<label style="display:block;font-weight:600;margin-bottom:4px" for="dispatch-due-date">Hạn thanh toán</label>` +
-        `<input type="date" id="dispatch-due-date" class="swal2-input" style="margin:0;width:100%" min="${today}" value="${today}">` +
-        `</div>`
+      (known
+        ? `<div style="margin-bottom:6px">Phiếu phát sinh <b>công nợ phải thu ${this.fmtMoney(
+          receivable,
+        )}</b>.</div>`
+        : `<div style="margin-bottom:6px">Nếu phiếu phát sinh công nợ phải thu, vui lòng chọn hạn thanh toán.</div>`) +
+      `<label style="display:block;font-weight:600;margin-bottom:4px" for="dispatch-due-date">Hạn thanh toán</label>` +
+      `<input type="date" id="dispatch-due-date" class="swal2-input" style="margin:0;width:100%" min="${today}" value="${today}">` +
+      `</div>`
       : '';
 
     Swal.fire({
@@ -1390,16 +1390,16 @@ export class OutboundOrderComponent implements OnDestroy {
     const amountBlock =
       debt != null
         ? `<div style="text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;margin:12px 0">` +
-          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Tổng tiền phiếu:</span><b>${this.fmtMoney(
-            total!,
-          )}</b></div>` +
-          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Đã thanh toán/cọc:</span><b>${this.fmtMoney(
-            paid!,
-          )}</b></div>` +
-          `<div style="display:flex;justify-content:space-between"><span>Còn phải thu:</span><b style="color:#dc2626">${this.fmtMoney(
-            outstanding!,
-          )}</b></div>` +
-          `</div>`
+        `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Tổng tiền phiếu:</span><b>${this.fmtMoney(
+          total!,
+        )}</b></div>` +
+        `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Đã thanh toán/cọc:</span><b>${this.fmtMoney(
+          paid!,
+        )}</b></div>` +
+        `<div style="display:flex;justify-content:space-between"><span>Còn phải thu:</span><b style="color:#dc2626">${this.fmtMoney(
+          outstanding!,
+        )}</b></div>` +
+        `</div>`
         : `<div style="text-align:left;color:#64748b;font-size:13px;margin:12px 0">Chưa lấy được số dư công nợ của phiếu. Bạn vẫn có thể nhập số tiền; hệ thống sẽ kiểm tra khi lưu.</div>`;
 
     const quickButtons =
@@ -1603,9 +1603,9 @@ export class OutboundOrderComponent implements OnDestroy {
     return order.items.every((item) => {
       const picked = item.allocations.length
         ? item.allocations.reduce(
-            (sum, allocation) => sum + Number(allocation.quantityPicked || 0),
-            0
-          )
+          (sum, allocation) => sum + Number(allocation.quantityPicked || 0),
+          0
+        )
         : Number(item.quantityPicked || 0);
       return picked + 0.001 >= Number(item.quantityOrdered || 0);
     });
