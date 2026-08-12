@@ -132,7 +132,7 @@
                   [style.color]="row.outboundStatusColor"
                   [style.background]="row.outboundStatusColor + '1f'"
                 >
-                  {{ statusLabel(row.outboundStatusId, row.outboundStatusName) }}
+                  {{ statusLabel(row) }}
                 </span>
               </td>
               <td>{{ fmtDate(row.createdDate) }}</td>
@@ -184,7 +184,7 @@
             [style.color]="d.outboundStatusColor"
             [style.background]="d.outboundStatusColor + '1f'"
           >
-            {{ statusLabel(d.outboundStatusId, d.outboundStatusName) }}
+            {{ statusLabel(d) }}
           </span>
         </div>
 
@@ -306,7 +306,7 @@
           <button
             type="button"
             class="btn primary"
-            *ngIf="canAllocate(d.outboundStatusId)"
+            *ngIf="canAllocate(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openAllocate(d)"
           >
@@ -315,7 +315,7 @@
           <button
             type="button"
             class="btn info"
-            *ngIf="canPick(d.outboundStatusId)"
+            *ngIf="canPick(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPick(d)"
           >
@@ -324,8 +324,9 @@
           <button
             type="button"
             class="btn violet"
-            *ngIf="canPack(d.outboundStatusId)"
-            [disabled]="saving()"
+            *ngIf="canPack(d)"
+            [disabled]="saving() || !isPickedEnough(d)"
+            [title]="isPickedEnough(d) ? '' : 'Cần lấy đủ số lượng trước khi đóng gói'"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPacking(d)"
           >
             Xác nhận đóng gói
@@ -333,7 +334,7 @@
           <button
             type="button"
             class="btn primary"
-            *ngIf="canDispatch(d.outboundStatusId)"
+            *ngIf="canDispatch(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="confirmDispatch(d)"
           >
@@ -342,7 +343,7 @@
           <button
             type="button"
             class="btn primary"
-            *ngIf="canDeliver(d.outboundStatusId)"
+            *ngIf="canDeliver(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="completeDelivery(d)"
           >
@@ -351,7 +352,7 @@
           <button
             type="button"
             class="btn danger-ghost"
-            *ngIf="canDeliver(d.outboundStatusId)"
+            *ngIf="canDeliver(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="failDelivery(d)"
           >
@@ -360,7 +361,7 @@
           <button
             type="button"
             class="btn danger-ghost"
-            *ngIf="canCancel(d.outboundStatusId)"
+            *ngIf="canCancel(d)"
             [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="cancelOrder(d)"
           >
@@ -424,7 +425,10 @@
         <!-- ── Auto-allocate button (only for bag-tracked SKUs) ── -->
         <div class="ob-auto-alloc" *ngIf="hasBagData(item)">
           <button type="button" class="btn ghost ob-auto-btn" (click)="autoAllocate()" [disabled]="saving()">
-            ⚡ Tự động phân bổ dọn bao lẻ
+            <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+            </svg>
+            Tự động phân bổ dọn bao lẻ
           </button>
         </div>
 
@@ -435,13 +439,33 @@
                  [class.has-open]="loc.hasOpenBag && !loc.isOpenBagBlocked">
               <div class="ob-stack-card-head">
                 <div class="ob-stack-card-loc">
-                  <span class="ob-tag">📍 {{ loc.locationCode }}</span>
-                  <span class="ob-open-badge" *ngIf="loc.hasOpenBag && !loc.isOpenBagBlocked">🟡 Bao lẻ ({{ loc.openBagLotCode }})</span>
-                  <span class="ob-open-badge blocked" *ngIf="loc.hasOpenBag && loc.isOpenBagBlocked">🚫 Bao lẻ bị chặn</span>
+                  <span class="ob-tag">
+                    <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M20 10c0 4.5-8 12-8 12S4 14.5 4 10a8 8 0 1 1 16 0Z" />
+                      <circle cx="12" cy="10" r="3" />
+                    </svg>
+                    {{ loc.locationCode }}
+                  </span>
+                  <span class="ob-open-badge" *ngIf="loc.hasOpenBag && !loc.isOpenBagBlocked">
+                    <svg class="ob-inline-ico fill" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="6" />
+                    </svg>
+                    Bao lẻ ({{ loc.openBagLotCode }})
+                  </span>
+                  <span class="ob-open-badge blocked" *ngIf="loc.hasOpenBag && loc.isOpenBagBlocked">
+                    <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="m4.9 4.9 14.2 14.2" />
+                    </svg>
+                    Bao lẻ bị chặn
+                  </span>
                 </div>
                 <button type="button" class="btn ghost ob-col-btn" (click)="selectEntireColumn(ii, jj)"
                         title="Chọn toàn bộ cột">
-                  ⚡ Cả cột
+                  <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+                  </svg>
+                  Cả cột
                 </button>
               </div>
 
@@ -471,7 +495,12 @@
               <!-- Full bags row -->
               <div class="ob-stack-row">
                 <div class="ob-stack-label">
-                  📦 Bao chuẩn ({{ fmtNumber(loc.standardWeightKg, 0) }} kg/bao)
+                  <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m21 8-9-5-9 5 9 5 9-5Z" />
+                    <path d="M3 8v8l9 5 9-5V8" />
+                    <path d="M12 13v8" />
+                  </svg>
+                  Bao chuẩn ({{ fmtNumber(loc.standardWeightKg, 0) }} kg/bao)
                 </div>
                 <div class="ob-stack-input">
                   <span class="ob-muted sm">Khả dụng: {{ loc.totalFullBagCount }} bao nguyên</span>
@@ -493,7 +522,14 @@
               <!-- Split full bag row -->
               <div class="ob-stack-row ob-split-row" *ngIf="loc.totalFullBagCount > loc.fullBagsToTake">
                 <div class="ob-stack-label sm">
-                  ✂️ Xé 1 bao chuẩn lấy lẻ:
+                  <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="6" cy="6" r="3" />
+                    <circle cx="6" cy="18" r="3" />
+                    <path d="M20 4 8.12 15.88" />
+                    <path d="m14.47 14.48 5.53 5.52" />
+                    <path d="M8.12 8.12 12 12" />
+                  </svg>
+                  Xé 1 bao chuẩn lấy lẻ:
                 </div>
                 <div class="ob-stack-input-inline">
                   <input type="number" min="0" [max]="loc.standardWeightKg" step="0.1"
@@ -507,12 +543,21 @@
 
               <!-- Column total -->
               <div class="ob-stack-total">
-                👉 Tổng lấy tại cột: <b>{{ fmtKg(locationBagKg(loc)) }}</b>
+                <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12h14" />
+                  <path d="m13 6 6 6-6 6" />
+                </svg>
+                Tổng lấy tại cột: <b>{{ fmtKg(locationBagKg(loc)) }}</b>
               </div>
 
               <!-- Stack Order Warning Banner -->
               <div class="ob-card-warning" *ngIf="hasOpenBagBlockerWarning(loc)">
-                ⚠️ Bao lẻ ở đỉnh cột còn thừa {{ fmtKg(loc.openBagWeightKg - (loc.openBagTakeKg || 0)) }}. Bạn phải chọn <b>"Lấy hết bao lẻ"</b> trước nếu muốn lấy tiếp các bao chuẩn ở bên dưới của cột này.
+                <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+                Bao lẻ ở đỉnh cột còn thừa {{ fmtKg(loc.openBagWeightKg - (loc.openBagTakeKg || 0)) }}. Bạn phải chọn <b>"Lấy hết bao lẻ"</b> trước nếu muốn lấy tiếp các bao chuẩn ở bên dưới của cột này.
               </div>
             </div>
           </div>
@@ -571,7 +616,10 @@
     <div class="ob-pick-toolbar">
       <span class="ob-muted sm">Mặc định điền sẵn 100% số bao đã phân bổ. Điều chỉnh nếu có chênh lệch thực tế.</span>
       <button type="button" class="btn ghost ob-auto-btn" (click)="fillAllPick100()">
-        ⚡ Xác nhận lấy đủ 100%
+        <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+        </svg>
+        Xác nhận lấy đủ 100%
       </button>
     </div>
 
@@ -581,9 +629,20 @@
              [class.has-open]="r.hasOpenBag">
           <div class="ob-stack-card-head">
             <div class="ob-stack-card-loc">
-              <span class="ob-tag">📍 {{ r.locationCode }}</span>
+              <span class="ob-tag">
+                <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M20 10c0 4.5-8 12-8 12S4 14.5 4 10a8 8 0 1 1 16 0Z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                {{ r.locationCode }}
+              </span>
               <span class="ob-tag lot-tag" *ngIf="r.lotCode">{{ r.lotCode }}</span>
-              <span class="ob-open-badge" *ngIf="r.hasOpenBag">🟡 Bao lẻ</span>
+              <span class="ob-open-badge" *ngIf="r.hasOpenBag">
+                <svg class="ob-inline-ico fill" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="6" />
+                </svg>
+                Bao lẻ
+              </span>
             </div>
             <div class="ob-strong sm">{{ r.productVariantName }}</div>
           </div>
@@ -611,7 +670,12 @@
           <!-- Full bags row (nếu có bao chuẩn) -->
           <div class="ob-stack-row" *ngIf="r.allocatedFullBagCount > 0">
             <div class="ob-stack-label">
-              📦 Bao chuẩn ({{ fmtNumber(r.standardWeightKg, 0) }} kg/bao) · Đã giữ {{ r.allocatedFullBagCount }} bao
+              <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m21 8-9-5-9 5 9 5 9-5Z" />
+                <path d="M3 8v8l9 5 9-5V8" />
+                <path d="M12 13v8" />
+              </svg>
+              Bao chuẩn ({{ fmtNumber(r.standardWeightKg, 0) }} kg/bao) · Đã giữ {{ r.allocatedFullBagCount }} bao
             </div>
             <div class="ob-stack-input">
               <div class="ob-bag-stepper">
@@ -632,7 +696,14 @@
           <!-- Split / partial bag row (nếu có phần lẻ đã giữ) -->
           <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedSplitKg > 0">
             <div class="ob-stack-label sm">
-              ✂️ Bao xé lẻ (Đã giữ {{ fmtKg(r.allocatedSplitKg) }}):
+              <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <path d="M20 4 8.12 15.88" />
+                <path d="m14.47 14.48 5.53 5.52" />
+                <path d="M8.12 8.12 12 12" />
+              </svg>
+              Bao xé lẻ (Đã giữ {{ fmtKg(r.allocatedSplitKg) }}):
             </div>
             <div class="ob-stack-input-inline">
               <input type="number" min="0" [max]="r.standardWeightKg" step="0.1"
@@ -645,7 +716,11 @@
 
           <!-- Card Total -->
           <div class="ob-stack-total">
-            👉 Tổng thực lấy tại cột: <b>{{ fmtKg(locationPickedKg(r)) }}</b>
+            <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14" />
+              <path d="m13 6 6 6-6 6" />
+            </svg>
+            Tổng thực lấy tại cột: <b>{{ fmtKg(locationPickedKg(r)) }}</b>
             <span class="ob-muted sm" *ngIf="r.totalAllocatedKg !== locationPickedKg(r)">
               (Đã giữ {{ fmtKg(r.totalAllocatedKg) }})
             </span>

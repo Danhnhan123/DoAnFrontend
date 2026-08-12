@@ -17,6 +17,19 @@ export const OUTBOUND_STATUS = {
 export type OutboundStatusId =
   (typeof OUTBOUND_STATUS)[keyof typeof OUTBOUND_STATUS];
 
+export const OUTBOUND_STATUS_CODE = {
+  DRAFT: 'DRAFT',
+  PICKING: 'PICKING',
+  PACKED: 'PACKED',
+  DISPATCHED: 'DISPATCHED',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+  DELIVERY_FAILED: 'DELIVERY_FAILED',
+} as const;
+
+export type OutboundStatusCode =
+  (typeof OUTBOUND_STATUS_CODE)[keyof typeof OUTBOUND_STATUS_CODE];
+
 export interface OutboundOrderPagedRequest {
   keyword?: string | null;
   page: number;

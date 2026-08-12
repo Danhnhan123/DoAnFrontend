@@ -469,6 +469,16 @@
 /* ── Auto-allocate ── */
 .ob-auto-alloc { margin-bottom: 8px; }
 .ob-auto-btn { font-size: 0.78rem; }
+.ob-inline-ico {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  vertical-align: -2px;
+}
+.ob-inline-ico.fill {
+  fill: currentColor;
+  stroke: none;
+}
 
 /* ── Stack Cards Grid ── */
 .ob-stack-cards { display: flex; flex-direction: column; gap: 10px; }
@@ -537,6 +547,13 @@
 .ob-bag-weight { font-weight: 700; color: #334155; font-size: 0.84rem; }
 
 .ob-stack-label { font-size: 0.82rem; font-weight: 600; color: #475569; }
+.ob-stack-label,
+.ob-stack-total,
+.ob-card-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
 .ob-stack-input {
   display: flex;
@@ -625,6 +642,7 @@
   color: #991b1b;
   font-size: 0.78rem;
   line-height: 1.35;
+  align-items: flex-start;
 }
 
 

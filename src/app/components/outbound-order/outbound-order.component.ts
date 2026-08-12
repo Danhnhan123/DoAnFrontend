@@ -20,6 +20,8 @@ import {
   DTResponse,
   InventoryRow,
   OUTBOUND_STATUS,
+  OUTBOUND_STATUS_CODE,
+  OutboundStatusCode,
   OutboundOrderAllocationGroup,
   OutboundOrderDetail,
   OutboundOrderItem,
@@ -38,7 +40,7 @@ import {
   FilterSelectOption,
 } from '../shared/filter-select.component';
 
-type StatusFilter = 'ALL' | number;
+type StatusFilter = 'ALL' | OutboundStatusCode;
 type SortDir = 'asc' | 'desc';
 type OutboundAction =
   | 'DISPATCH'
@@ -46,6 +48,12 @@ type OutboundAction =
   | 'FAIL'
   | 'CANCEL'
   | 'PACKING';
+
+type OutboundStatusSource = {
+  outboundStatusCode?: string | null;
+  outboundStatusId?: number | null;
+  outboundStatusName?: string | null;
+};
 
 interface GroupedSubLot {
   inventoryId: number;
@@ -139,7 +147,7 @@ export class OutboundOrderComponent implements OnDestroy {
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
 
-  readonly status = OUTBOUND_STATUS;
+  readonly statusCode = OUTBOUND_STATUS_CODE;
   readonly Math = Math;
   readonly pipelineSteps = PIPELINE_STEPS;
   readonly pageSizeOptions = [10, 20, 50];
@@ -149,31 +157,32 @@ export class OutboundOrderComponent implements OnDestroy {
     { id: 50, name: '50 / trang' },
   ];
 
-  /** Nhãn trạng thái tiếng Việt theo id (khớp OutboundOrderStatusSeed). */
-  private readonly statusLabels: Record<number, string> = {
-    [OUTBOUND_STATUS.DRAFT]: 'Nháp',
-    [OUTBOUND_STATUS.PICKING]: 'Đang lấy hàng',
-    [OUTBOUND_STATUS.PACKED]: 'Chờ xuất kho',
-    [OUTBOUND_STATUS.DISPATCHED]: 'Đang giao',
-    [OUTBOUND_STATUS.COMPLETED]: 'Hoàn tất',
-    [OUTBOUND_STATUS.CANCELLED]: 'Đã hủy',
-    [OUTBOUND_STATUS.DELIVERY_FAILED]: 'Giao thất bại',
+  /** Nhãn trạng thái tiếng Việt theo code (khớp OutboundOrderStatusSeed). */
+  private readonly statusLabels: Record<OutboundStatusCode, string> = {
+    [OUTBOUND_STATUS_CODE.DRAFT]: 'Nháp',
+    [OUTBOUND_STATUS_CODE.PICKING]: 'Đang lấy hàng',
+    [OUTBOUND_STATUS_CODE.PACKED]: 'Đã đóng gói',
+    [OUTBOUND_STATUS_CODE.DISPATCHED]: 'Đang giao hàng',
+    [OUTBOUND_STATUS_CODE.COMPLETED]: 'Hoàn thành',
+    [OUTBOUND_STATUS_CODE.CANCELLED]: 'Đã hủy',
+    [OUTBOUND_STATUS_CODE.DELIVERY_FAILED]: 'Giao hàng thất bại',
   };
 
-  /** Trả nhãn tiếng Việt; fallback về tên gốc từ backend nếu id lạ. */
-  statusLabel(statusId: number, fallback?: string | null): string {
-    return this.statusLabels[statusId] || fallback || '—';
+  /** Trả nhãn tiếng Việt; fallback về tên gốc từ backend nếu code lạ. */
+  statusLabel(source: OutboundStatusSource): string {
+    const code = this.statusCodeOf(source);
+    return code ? this.statusLabels[code] : source.outboundStatusName || '—';
   }
 
   readonly statusTabs: { key: StatusFilter; label: string }[] = [
     { key: 'ALL', label: 'Tất cả' },
-    { key: OUTBOUND_STATUS.DRAFT, label: 'Nháp' },
-    { key: OUTBOUND_STATUS.PICKING, label: 'Đang lấy hàng' },
-    { key: OUTBOUND_STATUS.PACKED, label: 'Chờ xuất kho' },
-    { key: OUTBOUND_STATUS.DISPATCHED, label: 'Đang giao' },
-    { key: OUTBOUND_STATUS.COMPLETED, label: 'Hoàn tất' },
-    { key: OUTBOUND_STATUS.DELIVERY_FAILED, label: 'Giao lỗi' },
-    { key: OUTBOUND_STATUS.CANCELLED, label: 'Đã hủy' },
+    { key: OUTBOUND_STATUS_CODE.DRAFT, label: 'Nháp' },
+    { key: OUTBOUND_STATUS_CODE.PICKING, label: 'Đang lấy hàng' },
+    { key: OUTBOUND_STATUS_CODE.PACKED, label: 'Đã đóng gói' },
+    { key: OUTBOUND_STATUS_CODE.DISPATCHED, label: 'Đang giao hàng' },
+    { key: OUTBOUND_STATUS_CODE.COMPLETED, label: 'Hoàn thành' },
+    { key: OUTBOUND_STATUS_CODE.DELIVERY_FAILED, label: 'Giao hàng thất bại' },
+    { key: OUTBOUND_STATUS_CODE.CANCELLED, label: 'Đã hủy' },
   ];
 
   readonly page = signal(1);
@@ -246,7 +255,7 @@ export class OutboundOrderComponent implements OnDestroy {
     const dir = this.sortDir() === 'asc' ? 1 : -1;
     let list = this.pageRows();
     if (filter !== 'ALL') {
-      list = list.filter((row) => row.outboundStatusId === filter);
+      list = list.filter((row) => this.isStatus(row, filter));
     }
     return [...list].sort((a, b) => {
       const av = this.sortValue(a, key);
@@ -270,16 +279,16 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly pageDeliveringCount = computed(
     () =>
       this.pageRows().filter(
-        (r) => r.outboundStatusId === this.status.DISPATCHED
+        (r) => this.isStatus(r, OUTBOUND_STATUS_CODE.DISPATCHED)
       ).length
   );
   readonly pageWaitingCount = computed(
     () =>
       this.pageRows().filter((r) =>
-        this.isStatusIn(r.outboundStatusId, [
-          this.status.DRAFT,
-          this.status.PICKING,
-          this.status.PACKED,
+        this.isStatusIn(r, [
+          OUTBOUND_STATUS_CODE.DRAFT,
+          OUTBOUND_STATUS_CODE.PICKING,
+          OUTBOUND_STATUS_CODE.PACKED,
         ])
       ).length
   );
@@ -288,16 +297,16 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly activeStep = computed(() => {
     const order = this.detail();
     if (!order) return 0;
-    switch (order.outboundStatusId) {
-      case this.status.DRAFT:
+    switch (this.statusCodeOf(order)) {
+      case OUTBOUND_STATUS_CODE.DRAFT:
         return 2;
-      case this.status.PICKING:
+      case OUTBOUND_STATUS_CODE.PICKING:
         return 3;
-      case this.status.PACKED:
+      case OUTBOUND_STATUS_CODE.PACKED:
         return 4;
-      case this.status.DISPATCHED:
+      case OUTBOUND_STATUS_CODE.DISPATCHED:
         return 6;
-      case this.status.COMPLETED:
+      case OUTBOUND_STATUS_CODE.COMPLETED:
         return 7;
       default:
         return -1;
@@ -469,7 +478,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Allocate ───────────────────────────────────────────────────────
   async openAllocate(order: OutboundOrderDetail): Promise<void> {
-    if (order.outboundStatusId !== this.status.DRAFT) return;
+    if (!this.canAllocate(order)) return;
     this.showAllocateModal.set(true);
     this.loadingLots.set(true);
     this.allocateForm.set([]);
@@ -922,7 +931,7 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   openPick(order: OutboundOrderDetail): void {
-    if (order.outboundStatusId !== this.status.PICKING) return;
+    if (!this.canPick(order)) return;
     const cards: PickLocationCard[] = [];
 
     for (const item of order.items) {
@@ -1145,7 +1154,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Packing ────────────────────────────────────────────────────────
   openPacking(order: OutboundOrderDetail): void {
-    if (order.outboundStatusId !== this.status.PICKING) return;
+    if (!this.canPack(order) || !this.isPickedEnough(order)) return;
     this.packingQr.set(`PACK-${order.id}-${Date.now().toString().slice(-6)}`);
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
     this.packingScale.set('');
@@ -1178,7 +1187,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Dispatch / Deliver / Fail / Cancel ─────────────────────────────
   async confirmDispatch(order: OutboundOrderDetail): Promise<void> {
-    if (order.outboundStatusId !== this.status.PACKED) return;
+    if (!this.canDispatch(order)) return;
 
     // Giá trị phải thu thực tế = giá bán (không dùng giá vốn).
     // -1 nghĩa là chưa xác định được (lỗi tải đơn bán) → vẫn hiển thị ô hạn
@@ -1252,7 +1261,7 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   async completeDelivery(order: OutboundOrderDetail): Promise<void> {
-    if (order.outboundStatusId !== this.status.DISPATCHED) return;
+    if (!this.canDeliver(order)) return;
 
     // Lấy số dư chứng từ mới nhất từ API công nợ (không tự tính tổng - cọc,
     // vì khách có thể đã thanh toán thêm qua trang công nợ).
@@ -1407,7 +1416,7 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   failDelivery(order: OutboundOrderDetail): void {
-    if (order.outboundStatusId !== this.status.DISPATCHED) return;
+    if (!this.canDeliver(order)) return;
     Swal.fire({
       title: 'Giao hàng thất bại?',
       text: 'Tồn kho sẽ được hoàn nhập và công nợ (nếu có) được đảo lại.',
@@ -1433,7 +1442,7 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   cancelOrder(order: OutboundOrderDetail): void {
-    if (!this.canCancel(order.outboundStatusId)) return;
+    if (!this.canCancel(order)) return;
     Swal.fire({
       title: 'Hủy phiếu xuất?',
       html: `Phiếu <b>${order.soCode}</b> sẽ bị hủy và phần tồn đã giữ được giải phóng.`,
@@ -1450,27 +1459,39 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   // ── Guards ─────────────────────────────────────────────────────────
-  canAllocate(statusId: number): boolean {
-    return statusId === this.status.DRAFT;
+  canAllocate(source: OutboundStatusSource): boolean {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.DRAFT);
   }
-  canPick(statusId: number): boolean {
-    return statusId === this.status.PICKING;
+  canPick(source: OutboundStatusSource): boolean {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
   }
-  canPack(statusId: number): boolean {
-    return statusId === this.status.PICKING;
+  canPack(source: OutboundStatusSource): boolean {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
   }
-  canDispatch(statusId: number): boolean {
-    return statusId === this.status.PACKED;
+  canDispatch(source: OutboundStatusSource): boolean {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.PACKED);
   }
-  canDeliver(statusId: number): boolean {
-    return statusId === this.status.DISPATCHED;
+  canDeliver(source: OutboundStatusSource): boolean {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.DISPATCHED);
   }
-  canCancel(statusId: number): boolean {
-    return this.isStatusIn(statusId, [
-      this.status.DRAFT,
-      this.status.PICKING,
-      this.status.PACKED,
+  canCancel(source: OutboundStatusSource): boolean {
+    return this.isStatusIn(source, [
+      OUTBOUND_STATUS_CODE.DRAFT,
+      OUTBOUND_STATUS_CODE.PICKING,
+      OUTBOUND_STATUS_CODE.PACKED,
     ]);
+  }
+
+  isPickedEnough(order: OutboundOrderDetail): boolean {
+    return order.items.every((item) => {
+      const picked = item.allocations.length
+        ? item.allocations.reduce(
+            (sum, allocation) => sum + Number(allocation.quantityPicked || 0),
+            0
+          )
+        : Number(item.quantityPicked || 0);
+      return picked + 0.001 >= Number(item.quantityOrdered || 0);
+    });
   }
 
   itemAllocatedKg(item: OutboundOrderItem): number {
@@ -1549,7 +1570,7 @@ export class OutboundOrderComponent implements OnDestroy {
       case 'value':
         return Number(row.totalDispatchedSaleValue || 0);
       case 'status':
-        return Number(row.outboundStatusId || 0);
+        return this.statusRank(row);
       case 'createdDate':
       default:
         return row.createdDate ? new Date(row.createdDate).getTime() : 0;
@@ -1571,8 +1592,63 @@ export class OutboundOrderComponent implements OnDestroy {
     }
   }
 
-  private isStatusIn(statusId: number, statuses: readonly number[]): boolean {
-    return statuses.includes(statusId);
+  private isStatus(
+    source: OutboundStatusSource,
+    status: OutboundStatusCode
+  ): boolean {
+    return this.statusCodeOf(source) === status;
+  }
+
+  private isStatusIn(
+    source: OutboundStatusSource,
+    statuses: readonly OutboundStatusCode[]
+  ): boolean {
+    const code = this.statusCodeOf(source);
+    return code != null && statuses.includes(code);
+  }
+
+  private statusRank(source: OutboundStatusSource): number {
+    const code = this.statusCodeOf(source);
+    if (!code) return Number(source.outboundStatusId || 0);
+    return [
+      OUTBOUND_STATUS_CODE.DRAFT,
+      OUTBOUND_STATUS_CODE.PICKING,
+      OUTBOUND_STATUS_CODE.PACKED,
+      OUTBOUND_STATUS_CODE.DISPATCHED,
+      OUTBOUND_STATUS_CODE.COMPLETED,
+      OUTBOUND_STATUS_CODE.CANCELLED,
+      OUTBOUND_STATUS_CODE.DELIVERY_FAILED,
+    ].indexOf(code);
+  }
+
+  private statusCodeOf(source: OutboundStatusSource): OutboundStatusCode | null {
+    const code = (source.outboundStatusCode || '').toUpperCase();
+    if (this.isKnownStatusCode(code)) return code;
+
+    switch (source.outboundStatusId) {
+      case OUTBOUND_STATUS.DRAFT:
+        return OUTBOUND_STATUS_CODE.DRAFT;
+      case OUTBOUND_STATUS.PICKING:
+        return OUTBOUND_STATUS_CODE.PICKING;
+      case OUTBOUND_STATUS.PACKED:
+        return OUTBOUND_STATUS_CODE.PACKED;
+      case OUTBOUND_STATUS.DISPATCHED:
+        return OUTBOUND_STATUS_CODE.DISPATCHED;
+      case OUTBOUND_STATUS.COMPLETED:
+        return OUTBOUND_STATUS_CODE.COMPLETED;
+      case OUTBOUND_STATUS.CANCELLED:
+        return OUTBOUND_STATUS_CODE.CANCELLED;
+      case OUTBOUND_STATUS.DELIVERY_FAILED:
+        return OUTBOUND_STATUS_CODE.DELIVERY_FAILED;
+      default:
+        return null;
+    }
+  }
+
+  private isKnownStatusCode(code: string): code is OutboundStatusCode {
+    return Object.values(OUTBOUND_STATUS_CODE).includes(
+      code as OutboundStatusCode
+    );
   }
 
   private refreshAfterWrite(): void {
