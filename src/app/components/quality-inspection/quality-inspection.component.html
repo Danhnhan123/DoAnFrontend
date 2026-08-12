@@ -334,7 +334,7 @@
       <button class="btn btn-amber" type="button" [hidden]="viewOnly()" (click)="save(false)" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> } {{ recheckMode() ? 'Vẫn cách ly' : 'Lưu & cách ly lô' }}
       </button>
-      @if (!editLockedSplit()) {
+      @if (!editLockedSplit() && (recheckMode() || selectedBags().length === 0)) {
       <button class="btn btn-primary" type="button" [hidden]="viewOnly()" (click)="save(true)" [disabled]="saving()">
         @if (saving()) { <span class="spin-sm"></span> } {{ recheckMode() ? 'Đạt & xếp lại' : 'Lưu & duyệt đạt' }}
       </button>
