@@ -628,7 +628,7 @@
 
     <!-- Quick action bar -->
     <div class="ob-pick-toolbar">
-      <span class="ob-muted sm">Mặc định điền sẵn 100% số bao đã phân bổ. Điều chỉnh nếu có chênh lệch thực tế.</span>
+      <span class="ob-muted sm">Tự động điền số lượng lấy hàng theo phân bổ hiện tại. Điều chỉnh nếu có chênh lệch thực tế rồi lưu.</span>
       <button type="button" class="btn ghost ob-auto-btn" (click)="confirmPick100()" [disabled]="saving()">
         <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 4 2 2" />
@@ -639,7 +639,7 @@
           <path d="M19 16v2" />
           <path d="M18 17h2" />
         </svg>
-        Xác nhận lấy đủ 100%
+        Tự động điền dọn bao lẻ
       </button>
     </div>
 

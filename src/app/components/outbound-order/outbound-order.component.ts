@@ -1096,13 +1096,8 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   confirmPick100(): void {
-    const order = this.detail();
-    if (!order || this.saving()) return;
-    const fullRows = this.fullPickRows(this.pickForm());
-    this.pickForm.set(fullRows);
-    const payload = this.buildPickPayload(order, fullRows);
-    if (!payload) return;
-    this.pickMutation.mutate({ id: order.id, payload });
+    if (this.saving()) return;
+    this.fillAllPick100();
   }
 
   togglePickOpenBag(index: number): void {
