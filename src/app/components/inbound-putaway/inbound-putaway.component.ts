@@ -394,8 +394,28 @@ export class InboundPutawayComponent {
       return;
     }
 
+    // Ghi nhớ trạng thái trước khi chuyển bước để quyết định có tự động hóa hay không.
+    const prevStatus = this.normalizedStatus(line.order.inboundOrderStatusCode);
+
     try {
       const successMessage = await this.advanceOrderMutation.mutateAsync(line);
+
+      // Sau khi phê duyệt (Submitted → Approved): tự động bắt đầu nhận hàng và
+      // tải gợi ý vị trí ngay — nhân viên kho không cần bấm thêm 2 nút.
+      if (prevStatus === "submitted") {
+        const weight = this.remaining(line.item);
+        if (weight > 0) {
+          try {
+            await lastValueFrom(this.inboundService.startReceipt(line.order.id, line.item.id));
+            await lastValueFrom(this.inboundService.recordQuantity(line.order.id, line.item.id, weight));
+            await this.fetchSuggestions();
+          } catch {
+            // Nếu tự động thất bại, giao diện vẫn còn nguyên để nhân viên thao tác thủ công.
+          }
+        }
+        return;
+      }
+
       await this.success(successMessage);
     } catch (error) {
       this.showError(error, "Không thể chuyển bước phiếu nhập.");
