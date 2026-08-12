@@ -426,7 +426,13 @@
         <div class="ob-auto-alloc" *ngIf="hasBagData(item)">
           <button type="button" class="btn ghost ob-auto-btn" (click)="autoAllocate()" [disabled]="saving()">
             <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+              <path d="m15 4 2 2" />
+              <path d="m7 12 5 5" />
+              <path d="M13 5 5 13a2.1 2.1 0 0 0 0 3l3 3a2.1 2.1 0 0 0 3 0l8-8a2.1 2.1 0 0 0 0-3l-3-3a2.1 2.1 0 0 0-3 0Z" />
+              <path d="M6 4v2" />
+              <path d="M5 5h2" />
+              <path d="M19 16v2" />
+              <path d="M18 17h2" />
             </svg>
             Tự động phân bổ dọn bao lẻ
           </button>
@@ -441,8 +447,9 @@
                 <div class="ob-stack-card-loc">
                   <span class="ob-tag">
                     <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M20 10c0 4.5-8 12-8 12S4 14.5 4 10a8 8 0 1 1 16 0Z" />
-                      <circle cx="12" cy="10" r="3" />
+                      <path d="M12 21s7-5.8 7-12a7 7 0 1 0-14 0c0 6.2 7 12 7 12Z" />
+                      <path d="M9.5 9.5h5" />
+                      <path d="M9.5 12.5h5" />
                     </svg>
                     {{ loc.locationCode }}
                   </span>
@@ -463,7 +470,11 @@
                 <button type="button" class="btn ghost ob-col-btn" (click)="selectEntireColumn(ii, jj)"
                         title="Chọn toàn bộ cột">
                   <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+                    <path d="M4 4h6v6H4z" />
+                    <path d="M14 4h6v6h-6z" />
+                    <path d="M4 14h6v6H4z" />
+                    <path d="M14 14h6v6h-6z" />
+                    <path d="m8 8 8 8" />
                   </svg>
                   Cả cột
                 </button>
@@ -496,9 +507,10 @@
               <div class="ob-stack-row">
                 <div class="ob-stack-label">
                   <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="m21 8-9-5-9 5 9 5 9-5Z" />
-                    <path d="M3 8v8l9 5 9-5V8" />
-                    <path d="M12 13v8" />
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <path d="M12 22V12" />
+                    <path d="m7.5 4.4 9 5.2" />
                   </svg>
                   Bao chuẩn ({{ fmtNumber(loc.standardWeightKg, 0) }} kg/bao)
                 </div>
@@ -523,11 +535,11 @@
               <div class="ob-stack-row ob-split-row" *ngIf="loc.totalFullBagCount > loc.fullBagsToTake">
                 <div class="ob-stack-label sm">
                   <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="6" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M20 4 8.12 15.88" />
-                    <path d="m14.47 14.48 5.53 5.52" />
-                    <path d="M8.12 8.12 12 12" />
+                    <path d="M5 12h14" />
+                    <path d="m13 6 6 6-6 6" />
+                    <path d="M5 5v14" />
+                    <path d="M9 8h2" />
+                    <path d="M9 16h2" />
                   </svg>
                   Xé 1 bao chuẩn lấy lẻ:
                 </div>
@@ -544,8 +556,10 @@
               <!-- Column total -->
               <div class="ob-stack-total">
                 <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M5 12h14" />
-                  <path d="m13 6 6 6-6 6" />
+                  <rect x="4" y="3" width="16" height="18" rx="2" />
+                  <path d="M8 7h8" />
+                  <path d="M8 11h8" />
+                  <path d="M8 15h5" />
                 </svg>
                 Tổng lấy tại cột: <b>{{ fmtKg(locationBagKg(loc)) }}</b>
               </div>
@@ -617,7 +631,13 @@
       <span class="ob-muted sm">Mặc định điền sẵn 100% số bao đã phân bổ. Điều chỉnh nếu có chênh lệch thực tế.</span>
       <button type="button" class="btn ghost ob-auto-btn" (click)="fillAllPick100()">
         <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z" />
+          <path d="m15 4 2 2" />
+          <path d="m7 12 5 5" />
+          <path d="M13 5 5 13a2.1 2.1 0 0 0 0 3l3 3a2.1 2.1 0 0 0 3 0l8-8a2.1 2.1 0 0 0 0-3l-3-3a2.1 2.1 0 0 0-3 0Z" />
+          <path d="M6 4v2" />
+          <path d="M5 5h2" />
+          <path d="M19 16v2" />
+          <path d="M18 17h2" />
         </svg>
         Xác nhận lấy đủ 100%
       </button>
@@ -631,8 +651,9 @@
             <div class="ob-stack-card-loc">
               <span class="ob-tag">
                 <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M20 10c0 4.5-8 12-8 12S4 14.5 4 10a8 8 0 1 1 16 0Z" />
-                  <circle cx="12" cy="10" r="3" />
+                  <path d="M12 21s7-5.8 7-12a7 7 0 1 0-14 0c0 6.2 7 12 7 12Z" />
+                  <path d="M9.5 9.5h5" />
+                  <path d="M9.5 12.5h5" />
                 </svg>
                 {{ r.locationCode }}
               </span>
@@ -671,9 +692,10 @@
           <div class="ob-stack-row" *ngIf="r.allocatedFullBagCount > 0">
             <div class="ob-stack-label">
               <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="m21 8-9-5-9 5 9 5 9-5Z" />
-                <path d="M3 8v8l9 5 9-5V8" />
-                <path d="M12 13v8" />
+                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                <path d="m3.3 7 8.7 5 8.7-5" />
+                <path d="M12 22V12" />
+                <path d="m7.5 4.4 9 5.2" />
               </svg>
               Bao chuẩn ({{ fmtNumber(r.standardWeightKg, 0) }} kg/bao) · Đã giữ {{ r.allocatedFullBagCount }} bao
             </div>
@@ -697,11 +719,11 @@
           <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedSplitKg > 0">
             <div class="ob-stack-label sm">
               <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="6" cy="6" r="3" />
-                <circle cx="6" cy="18" r="3" />
-                <path d="M20 4 8.12 15.88" />
-                <path d="m14.47 14.48 5.53 5.52" />
-                <path d="M8.12 8.12 12 12" />
+                <path d="M5 12h14" />
+                <path d="m13 6 6 6-6 6" />
+                <path d="M5 5v14" />
+                <path d="M9 8h2" />
+                <path d="M9 16h2" />
               </svg>
               Bao xé lẻ (Đã giữ {{ fmtKg(r.allocatedSplitKg) }}):
             </div>
@@ -717,8 +739,10 @@
           <!-- Card Total -->
           <div class="ob-stack-total">
             <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M5 12h14" />
-              <path d="m13 6 6 6-6 6" />
+              <rect x="4" y="3" width="16" height="18" rx="2" />
+              <path d="M8 7h8" />
+              <path d="M8 11h8" />
+              <path d="M8 15h5" />
             </svg>
             Tổng thực lấy tại cột: <b>{{ fmtKg(locationPickedKg(r)) }}</b>
             <span class="ob-muted sm" *ngIf="r.totalAllocatedKg !== locationPickedKg(r)">

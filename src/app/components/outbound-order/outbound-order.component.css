@@ -475,6 +475,9 @@
   flex: 0 0 14px;
   vertical-align: -2px;
 }
+.btn .ob-inline-ico { width: 15px; height: 15px; flex-basis: 15px; }
+.ob-tag .ob-inline-ico,
+.ob-open-badge .ob-inline-ico { width: 12px; height: 12px; flex-basis: 12px; }
 .ob-inline-ico.fill {
   fill: currentColor;
   stroke: none;
@@ -508,6 +511,7 @@
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
+  gap: 4px;
   border-radius: 999px;
   font-size: 0.68rem;
   font-weight: 700;
@@ -603,6 +607,7 @@
   color: #475569;
 }
 .ob-stack-total b { color: #14532d; }
+.ob-stack-total .ob-inline-ico { color: #16a34a; }
 
 .ob-pick-toolbar {
   display: flex;
