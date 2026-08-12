@@ -376,7 +376,7 @@
 
 </section>
 
-<!-- ═══════════ Modal: Phân bổ lô hàng ═══════════ -->
+<!-- ═══════════ Modal: Phân bổ lô hàng (Stack Card UX) ═══════════ -->
 <div class="ob-modal-backdrop" *ngIf="showAllocateModal()" (click)="closeAllocate()">
   <div class="ob-modal wide" (click)="$event.stopPropagation()">
     <div class="ob-modal-head">
@@ -387,37 +387,163 @@
     </div>
     <div class="ob-modal-body">
       <div class="ob-muted" *ngIf="loadingLots()">Đang tải tồn kho khả dụng…</div>
+
       <div class="ob-alloc-item" *ngFor="let item of allocateForm(); let ii = index; trackBy: trackAllocItem">
-        <div class="ob-alloc-item-head">
-          <div class="ob-strong">{{ item.productVariantName }}</div>
-          <div class="ob-muted sm">
-            Cần {{ fmtKg(item.orderedKg) }} · còn lại
-            <b [class.neg]="allocateRemaining(item) < 0">{{ fmtKg(allocateRemaining(item)) }}</b>
+        <!-- ── Live Summary Header ── -->
+        <div class="ob-alloc-summary">
+          <div class="ob-alloc-summary-left">
+            <div class="ob-strong">{{ item.productVariantName }}</div>
+            <div class="ob-muted sm" *ngIf="item.sku">{{ item.sku }}</div>
+          </div>
+          <div class="ob-alloc-summary-right">
+            <div class="ob-alloc-stat">
+              <span class="ob-info-k">Cần xuất</span>
+              <span class="ob-strong">{{ fmtKg(item.orderedKg) }}</span>
+            </div>
+            <div class="ob-alloc-stat">
+              <span class="ob-info-k">Đã chọn</span>
+              <span class="ob-strong">{{ fmtKg(allocatedTotal(item)) }}</span>
+            </div>
+            <div class="ob-alloc-stat">
+              <span class="ob-info-k">Còn lại</span>
+              <span class="ob-strong" [class.neg]="allocateRemaining(item) < 0"
+                    [class.pos]="allocateRemaining(item) > 0.001"
+                    [class.zero]="Math.abs(allocateRemaining(item)) <= 0.001">
+                {{ fmtKg(allocateRemaining(item)) }}
+              </span>
+            </div>
+            <span class="ob-alloc-badge"
+                  [class.match]="Math.abs(allocateRemaining(item)) <= 0.001"
+                  [class.short]="allocateRemaining(item) > 0.001"
+                  [class.over]="allocateRemaining(item) < -0.001">
+              {{ Math.abs(allocateRemaining(item)) <= 0.001 ? '✓ Đủ' : (allocateRemaining(item) > 0 ? 'Thiếu' : 'Dư') }}
+            </span>
           </div>
         </div>
-        <table class="ob-lot-table" *ngIf="item.lots.length; else noLot">
-          <thead>
-            <tr><th>Lô</th><th>Vị trí</th><th class="num">Khả dụng</th><th class="num">Phân bổ (kg)</th></tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let lot of item.lots; let jj = index; trackBy: trackAllocLot">
-              <td>{{ lot.lotCode }}</td>
-              <td>{{ lot.locationCode }}</td>
-              <td class="num">{{ fmtKg(lot.availableKg) }}</td>
-              <td class="num">
-                <input
-                  type="number"
-                  min="0"
-                  [max]="lot.availableKg"
-                  [ngModel]="lot.qty"
-                  (ngModelChange)="setAllocateQty(ii, jj, $event)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <ng-template #noLot>
-          <div class="ob-muted sm">Không có lô khả dụng cho sản phẩm này trong kho.</div>
+
+        <!-- ── Auto-allocate button (only for bag-tracked SKUs) ── -->
+        <div class="ob-auto-alloc" *ngIf="hasBagData(item)">
+          <button type="button" class="btn ghost ob-auto-btn" (click)="autoAllocate()" [disabled]="saving()">
+            ⚡ Tự động phân bổ dọn bao lẻ
+          </button>
+        </div>
+
+        <!-- ═══ BAG-BASED STACK CARDS ═══ -->
+        <ng-container *ngIf="hasBagData(item); else legacyTable">
+          <div class="ob-stack-cards">
+            <div class="ob-stack-card" *ngFor="let loc of item.locations; let jj = index; trackBy: trackAllocLoc"
+                 [class.has-open]="loc.hasOpenBag && !loc.isOpenBagBlocked">
+              <div class="ob-stack-card-head">
+                <div class="ob-stack-card-loc">
+                  <span class="ob-tag">📍 {{ loc.locationCode }}</span>
+                  <span class="ob-open-badge" *ngIf="loc.hasOpenBag && !loc.isOpenBagBlocked">🟡 Bao lẻ ({{ loc.openBagLotCode }})</span>
+                  <span class="ob-open-badge blocked" *ngIf="loc.hasOpenBag && loc.isOpenBagBlocked">🚫 Bao lẻ bị chặn</span>
+                </div>
+                <button type="button" class="btn ghost ob-col-btn" (click)="selectEntireColumn(ii, jj)"
+                        title="Chọn toàn bộ cột">
+                  ⚡ Cả cột
+                </button>
+              </div>
+
+              <!-- Open bag row -->
+              <div class="ob-stack-row ob-open-row" *ngIf="loc.hasOpenBag">
+                <div class="ob-open-left">
+                  <label class="ob-bag-check" [class.disabled]="loc.isOpenBagBlocked">
+                    <input type="checkbox"
+                           [checked]="loc.takeAllOpenBag"
+                           [disabled]="loc.isOpenBagBlocked"
+                           (change)="toggleOpenBag(ii, jj)" />
+                    <span>Lấy hết bao lẻ ({{ fmtKg(loc.openBagWeightKg) }})</span>
+                  </label>
+                </div>
+                <div class="ob-open-right">
+                  <span class="ob-muted sm">Hoặc lấy lẻ:</span>
+                  <input type="number" min="0" [max]="loc.openBagWeightKg" step="0.1"
+                         class="ob-kg-input"
+                         [disabled]="loc.isOpenBagBlocked"
+                         [ngModel]="loc.openBagTakeKg"
+                         (ngModelChange)="setOpenBagTakeKg(ii, jj, $event)"
+                         placeholder="0.0" />
+                  <span class="ob-muted sm">kg</span>
+                </div>
+              </div>
+
+              <!-- Full bags row -->
+              <div class="ob-stack-row">
+                <div class="ob-stack-label">
+                  📦 Bao chuẩn ({{ fmtNumber(loc.standardWeightKg, 0) }} kg/bao)
+                </div>
+                <div class="ob-stack-input">
+                  <span class="ob-muted sm">Khả dụng: {{ loc.totalFullBagCount }} bao nguyên</span>
+                  <div class="ob-bag-stepper">
+                    <button type="button" class="ob-step-btn"
+                            [disabled]="loc.fullBagsToTake <= 0"
+                            (click)="setFullBagsToTake(ii, jj, loc.fullBagsToTake - 1)">−</button>
+                    <input type="number" min="0" [max]="loc.totalFullBagCount"
+                           [ngModel]="loc.fullBagsToTake"
+                           (ngModelChange)="setFullBagsToTake(ii, jj, $event)" />
+                    <button type="button" class="ob-step-btn"
+                            [disabled]="loc.fullBagsToTake >= loc.totalFullBagCount"
+                            (click)="setFullBagsToTake(ii, jj, loc.fullBagsToTake + 1)">+</button>
+                    <span class="ob-muted sm">bao nguyên</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Split full bag row -->
+              <div class="ob-stack-row ob-split-row" *ngIf="loc.totalFullBagCount > loc.fullBagsToTake">
+                <div class="ob-stack-label sm">
+                  ✂️ Xé 1 bao chuẩn lấy lẻ:
+                </div>
+                <div class="ob-stack-input-inline">
+                  <input type="number" min="0" [max]="loc.standardWeightKg" step="0.1"
+                         class="ob-kg-input"
+                         [ngModel]="loc.splitBagKg"
+                         (ngModelChange)="setSplitBagKg(ii, jj, $event)"
+                         placeholder="0.0" />
+                  <span class="ob-muted sm">kg (tạo bao lẻ mới)</span>
+                </div>
+              </div>
+
+              <!-- Column total -->
+              <div class="ob-stack-total">
+                👉 Tổng lấy tại cột: <b>{{ fmtKg(locationBagKg(loc)) }}</b>
+              </div>
+
+              <!-- Stack Order Warning Banner -->
+              <div class="ob-card-warning" *ngIf="hasOpenBagBlockerWarning(loc)">
+                ⚠️ Bao lẻ ở đỉnh cột còn thừa {{ fmtKg(loc.openBagWeightKg - (loc.openBagTakeKg || 0)) }}. Bạn phải chọn <b>"Lấy hết bao lẻ"</b> trước nếu muốn lấy tiếp các bao chuẩn ở bên dưới của cột này.
+              </div>
+            </div>
+          </div>
+          <div class="ob-muted sm" *ngIf="item.locations.length === 0">Không có vị trí khả dụng cho sản phẩm này trong kho.</div>
+        </ng-container>
+
+        <!-- ═══ LEGACY TABLE (for products without bag data) ═══ -->
+        <ng-template #legacyTable>
+          <table class="ob-lot-table" *ngIf="item.locations.length; else noLot">
+            <thead>
+              <tr><th>Vị trí</th><th class="num">Khả dụng</th><th class="num">Phân bổ (kg)</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let loc of item.locations; let jj = index; trackBy: trackAllocLoc">
+                <td>{{ loc.locationCode }}</td>
+                <td class="num">{{ fmtKg(loc.availableKg) }}</td>
+                <td class="num">
+                  <input
+                    type="number"
+                    min="0"
+                    [max]="loc.availableKg"
+                    [ngModel]="loc.qty"
+                    (ngModelChange)="setAllocateQty(ii, jj, $event)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <ng-template #noLot>
+            <div class="ob-muted sm">Không có vị trí khả dụng cho sản phẩm này trong kho.</div>
+          </ng-template>
         </ng-template>
       </div>
     </div>
@@ -430,47 +556,109 @@
   </div>
 </div>
 
-<!-- ═══════════ Modal: Cập nhật lấy hàng ═══════════ -->
+
+<!-- ═══════════ Modal: Cập nhật lấy hàng (Stack Card UX) ═══════════ -->
 <div class="ob-modal-backdrop" *ngIf="showPickModal()" (click)="closePick()">
-  <div class="ob-modal" (click)="$event.stopPropagation()">
+  <div class="ob-modal wide" (click)="$event.stopPropagation()">
     <div class="ob-modal-head">
-      <h3>Cập nhật số lượng lấy hàng</h3>
+      <h3>Xác nhận &amp; Cập nhật lấy hàng</h3>
       <button class="ob-x" (click)="closePick()" aria-label="Đóng">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
       </button>
     </div>
-    <div class="ob-modal-body">
-      <table class="ob-lot-table">
-        <thead>
-          <tr><th>Sản phẩm</th><th>Lô / vị trí</th><th>Nhóm bao</th><th class="num">Đã giữ</th><th class="num">Thực lấy (kg)</th></tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let r of pickForm(); let i = index; trackBy: trackPickRow">
-            <td>{{ r.productVariantName }}</td>
-            <td>{{ r.lotCode }} · {{ r.locationCode }}</td>
-            <td>
-              <span class="ob-bag-group" *ngIf="r.bagCount > 1; else singleBag">
-                {{ r.bagCount }} bao × {{ fmtKg(r.weightPerBagKg) }}
-              </span>
-              <ng-template #singleBag>{{ fmtKg(r.weightPerBagKg) }}</ng-template>
-            </td>
-            <td class="num">{{ fmtKg(r.allocatedKg) }}</td>
-            <td class="num">
-              <input
-                type="number"
-                min="0"
-                [max]="r.allocatedKg"
-                [ngModel]="r.pickedKg"
-                (ngModelChange)="setPickQty(i, $event)"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+    <!-- Quick action bar -->
+    <div class="ob-pick-toolbar">
+      <span class="ob-muted sm">Mặc định điền sẵn 100% số bao đã phân bổ. Điều chỉnh nếu có chênh lệch thực tế.</span>
+      <button type="button" class="btn ghost ob-auto-btn" (click)="fillAllPick100()">
+        ⚡ Xác nhận lấy đủ 100%
+      </button>
     </div>
+
+    <div class="ob-modal-body">
+      <div class="ob-stack-cards">
+        <div class="ob-stack-card" *ngFor="let r of pickForm(); let i = index; trackBy: trackPickRow"
+             [class.has-open]="r.hasOpenBag">
+          <div class="ob-stack-card-head">
+            <div class="ob-stack-card-loc">
+              <span class="ob-tag">📍 {{ r.locationCode }}</span>
+              <span class="ob-tag lot-tag" *ngIf="r.lotCode">{{ r.lotCode }}</span>
+              <span class="ob-open-badge" *ngIf="r.hasOpenBag">🟡 Bao lẻ</span>
+            </div>
+            <div class="ob-strong sm">{{ r.productVariantName }}</div>
+          </div>
+
+          <!-- Open bag row (nếu vị trí có bao lẻ) -->
+          <div class="ob-stack-row ob-open-row" *ngIf="r.hasOpenBag">
+            <div class="ob-open-left">
+              <label class="ob-bag-check">
+                <input type="checkbox"
+                       [checked]="r.takeOpenBag"
+                       (change)="togglePickOpenBag(i)" />
+                <span>Lấy hết bao lẻ (Đã giữ: {{ fmtKg(r.openBagWeightKg) }})</span>
+              </label>
+            </div>
+            <div class="ob-open-right">
+              <span class="ob-muted sm">Hoặc lấy lẻ:</span>
+              <input type="number" min="0" [max]="r.openBagWeightKg" step="0.1"
+                     class="ob-kg-input"
+                     [ngModel]="r.openBagPickedKg"
+                     (ngModelChange)="setPickOpenBagKg(i, $event)" />
+              <span class="ob-muted sm">kg</span>
+            </div>
+          </div>
+
+          <!-- Full bags row (nếu có bao chuẩn) -->
+          <div class="ob-stack-row" *ngIf="r.allocatedFullBagCount > 0">
+            <div class="ob-stack-label">
+              📦 Bao chuẩn ({{ fmtNumber(r.standardWeightKg, 0) }} kg/bao) · Đã giữ {{ r.allocatedFullBagCount }} bao
+            </div>
+            <div class="ob-stack-input">
+              <div class="ob-bag-stepper">
+                <button type="button" class="ob-step-btn"
+                        [disabled]="(r.pickedFullBagCount || 0) <= 0"
+                        (click)="setPickFullBagCount(i, (r.pickedFullBagCount || 0) - 1)">−</button>
+                <input type="number" min="0" [max]="r.allocatedFullBagCount"
+                       [ngModel]="r.pickedFullBagCount"
+                       (ngModelChange)="setPickFullBagCount(i, $event)" />
+                <button type="button" class="ob-step-btn"
+                        [disabled]="(r.pickedFullBagCount || 0) >= r.allocatedFullBagCount"
+                        (click)="setPickFullBagCount(i, (r.pickedFullBagCount || 0) + 1)">+</button>
+                <span class="ob-muted sm">bao nguyên</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Split / partial bag row (nếu có phần lẻ đã giữ) -->
+          <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedSplitKg > 0">
+            <div class="ob-stack-label sm">
+              ✂️ Bao xé lẻ (Đã giữ {{ fmtKg(r.allocatedSplitKg) }}):
+            </div>
+            <div class="ob-stack-input-inline">
+              <input type="number" min="0" [max]="r.standardWeightKg" step="0.1"
+                     class="ob-kg-input"
+                     [ngModel]="r.pickedSplitKg"
+                     (ngModelChange)="setPickSplitKg(i, $event)" />
+              <span class="ob-muted sm">kg thực lấy</span>
+            </div>
+          </div>
+
+          <!-- Card Total -->
+          <div class="ob-stack-total">
+            👉 Tổng thực lấy tại cột: <b>{{ fmtKg(locationPickedKg(r)) }}</b>
+            <span class="ob-muted sm" *ngIf="r.totalAllocatedKg !== locationPickedKg(r)">
+              (Đã giữ {{ fmtKg(r.totalAllocatedKg) }})
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closePick()" [disabled]="saving()">Đóng</button>
-      <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPick()" [disabled]="saving()">Lưu số lượng lấy</button>
+      <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPick()" [disabled]="saving()">
+        Lưu số lượng lấy hàng
+      </button>
     </div>
   </div>
 </div>

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   AllocateOutboundPayload,
+  AllocationCandidateRow,
   ApiResponse,
   CompleteDeliveryPayload,
   ConfirmDispatchPayload,
@@ -42,8 +43,8 @@ export class OutboundOrderService {
     );
   }
 
-  getAllocationCandidates(id: number): Observable<ApiResponse<any[]>> {
-    return this.http.get<ApiResponse<any[]>>(
+  getAllocationCandidates(id: number): Observable<ApiResponse<AllocationCandidateRow[]>> {
+    return this.http.get<ApiResponse<AllocationCandidateRow[]>>(
       `${this.base}/outbound-orders/${id}/allocation-candidates`
     );
   }
