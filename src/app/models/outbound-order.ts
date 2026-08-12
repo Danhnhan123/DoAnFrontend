@@ -79,6 +79,7 @@ export interface OutboundOrderItem {
   salesOrderItemId?: number | null;
   note?: string | null;
   allocations: OutboundOrderAllocation[];
+  allocationGroups?: OutboundOrderAllocationGroup[];
 }
 
 export interface OutboundOrderAllocation {
@@ -91,6 +92,21 @@ export interface OutboundOrderAllocation {
   quantityAllocated: number;
   quantityPicked: number;
   unitCostPrice: number;
+}
+
+/** Nhóm các dòng bao cùng lô, vị trí và trọng lượng để hiển thị gọn trên UI. */
+export interface OutboundOrderAllocationGroup {
+  groupKey: string;
+  allocationIds: number[];
+  inventoryId: number;
+  paddyLotId?: number | null;
+  paddyLotCode?: string | null;
+  locationId: number;
+  locationCode?: string | null;
+  bagCount: number;
+  weightPerBagKg: number;
+  totalAllocatedKg: number;
+  totalPickedKg: number;
 }
 
 // ── Command payloads ─────────────────────────────────────────────────

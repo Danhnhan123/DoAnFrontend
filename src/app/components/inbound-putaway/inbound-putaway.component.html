@@ -270,43 +270,174 @@
 
         @if (bagPlan(); as plan) {
           <div class="bag-plan">
-            <h3>Phương án xếp nguyên bao</h3>
+            <div class="bag-plan-heading">
+              <div>
+                <h3>Phương án xếp nguyên bao</h3>
+                <p>
+                  {{ planBagCount(plan) }} bao · {{ formatKg(planTotalKg(plan)) }}
+                  · {{ plan.columns.length }} cột
+                </p>
+              </div>
+              <span class="lifo-badge">LIFO cố định</span>
+            </div>
+            <div class="lifo-rule">
+              <strong>Nhập sau lên đỉnh, lấy trước</strong>
+              <span>STT ưu tiên được hệ thống tự tính từ đỉnh xuống đáy; không nhập tay.</span>
+            </div>
             @if (plan.unplacedBagIds.length) {
               <div class="notice error">Còn {{ plan.unplacedBagIds.length }} bao chưa có vị trí. Không thể xác nhận.</div>
             }
             @for (column of plan.columns; track column.locationId) {
               <article class="bag-column" [class.over-capacity]="column.capacityRemainAfter < 0">
-                <header>
-                  <strong>Ưu tiên {{ column.priorityRank || $index + 1 }} · {{ column.slotCode }}</strong>
-                  <span>Xếp {{ formatKg(column.totalKg) }} · sức chứa còn lại: {{ formatKg(column.totalKg + column.capacityRemainAfter) }} → {{ formatKg(column.capacityRemainAfter) }}</span>
+                <header class="bag-column-header">
+                  <div>
+                    <strong>Ưu tiên {{ column.priorityRank || $index + 1 }} · {{ column.slotCode }}</strong>
+                    <span>{{ column.bags.length }} bao · {{ formatKg(column.totalKg) }}</span>
+                  </div>
+                  <div class="capacity-summary">
+                    <span>Sức chứa khả dụng</span>
+                    <strong>
+                      {{ formatKg(column.totalKg + column.capacityRemainAfter) }}
+                      → {{ formatKg(column.capacityRemainAfter) }}
+                    </strong>
+                  </div>
                 </header>
                 @if (column.reason) {
-                  <small>{{ column.reason }}</small>
+                  <small class="column-reason">{{ column.reason }}</small>
                 }
-                <div class="bag-chips">
-                  <small>Thứ tự vật lý: đáy → đỉnh. Backend giữ nguyên đúng thứ tự này.</small>
-                  @for (bag of column.bags; track bag.id; let bagIndex = $index) {
-                    <label class="bag-chip">
-                      <span>
-                        {{ bagIndex === 0 ? 'ĐÁY · ' : (bagIndex === column.bags.length - 1 ? 'ĐỈNH · ' : '') }}
-                        Bao #{{ bag.bagNo }} · {{ formatKg(bag.weightKg) }}
-                      </span>
-                      <button type="button" (click)="moveBagOrder(column.locationId, bagIndex, -1)" [disabled]="bagIndex === 0 || actionPending()">↓</button>
-                      <button type="button" (click)="moveBagOrder(column.locationId, bagIndex, 1)" [disabled]="bagIndex === column.bags.length - 1 || actionPending()">↑</button>
-                      <select [ngModel]="column.locationId" (ngModelChange)="moveBag(bag.id, +$event)" [disabled]="actionPending()">
-                        @for (target of plan.candidateLocations; track target.locationId) {
-                          <option [value]="target.locationId">{{ target.slotCode }} · còn {{ formatKg(candidateCapacityRemain(plan, target.locationId)) }}</option>
+                <div class="stack-label top">
+                  <span>↑ Đỉnh cột · lấy trước</span>
+                  <span>STT ưu tiên</span>
+                </div>
+                <div class="bag-stack">
+                  @for (group of columnBagGroups(column, plan); track group.key) {
+                    <div class="bag-group" [class.standard]="group.isStandardWeight">
+                      <div class="priority-number">{{ groupPriorityLabel(group) }}</div>
+                      <div class="bag-group-content">
+                        <strong>{{ groupTitle(group) }}</strong>
+                        <span>{{ groupKind(group) }}</span>
+                      </div>
+                      <div class="bag-group-actions">
+                        @if (group.count > 1) {
+                          <button
+                            type="button"
+                            class="text-button"
+                            (click)="toggleBagGroup(group.key)"
+                            [disabled]="actionPending()"
+                          >
+                            {{ isBagGroupExpanded(group.key) ? "Đóng nhóm" : "Mở nhóm" }}
+                          </button>
                         }
-                      </select>
-                    </label>
+                        <button
+                          type="button"
+                          class="icon-action"
+                          title="Đưa nhóm lên đỉnh"
+                          (click)="moveBagGroupOrder(column.locationId, group.bagIds, 'top')"
+                          [disabled]="group.priorityStart === 1 || actionPending()"
+                        >↑</button>
+                        <button
+                          type="button"
+                          class="icon-action"
+                          title="Đưa nhóm xuống đáy"
+                          (click)="moveBagGroupOrder(column.locationId, group.bagIds, 'bottom')"
+                          [disabled]="group.priorityEnd === column.bags.length || actionPending()"
+                        >↓</button>
+                        <label class="group-location-select">
+                          <span>Chia/Sửa cột</span>
+                          <select
+                            [ngModel]="column.locationId"
+                            (ngModelChange)="moveBagGroup(group.bagIds, +$event)"
+                            [disabled]="actionPending()"
+                          >
+                            @for (target of plan.candidateLocations; track target.locationId) {
+                              <option
+                                [value]="target.locationId"
+                                [disabled]="
+                                  target.locationId !== column.locationId &&
+                                  candidateCapacityRemain(plan, target.locationId) + 0.001 <
+                                    group.count * group.weightKg
+                                "
+                              >
+                                {{ target.slotCode }} · còn {{ formatKg(candidateCapacityRemain(plan, target.locationId)) }}
+                              </option>
+                            }
+                          </select>
+                        </label>
+                      </div>
+                    </div>
+
+                    @if (isBagGroupExpanded(group.key)) {
+                      <div class="bag-group-details">
+                        @for (bag of visibleGroupBags(group); track bag.id) {
+                          <div class="bag-detail-row">
+                            <span class="bag-detail-priority">
+                              {{ column.bags.length - bagIndex(column, bag.id) }}
+                            </span>
+                            <span>Bao #{{ bag.bagNo }}</span>
+                            <strong>{{ formatKg(bag.weightKg) }}</strong>
+                            <div class="bag-detail-actions">
+                              <button
+                                type="button"
+                                title="Hạ xuống"
+                                (click)="moveBagOrder(column.locationId, bagIndex(column, bag.id), -1)"
+                                [disabled]="bagIndex(column, bag.id) === 0 || actionPending()"
+                              >↓</button>
+                              <button
+                                type="button"
+                                title="Đưa lên"
+                                (click)="moveBagOrder(column.locationId, bagIndex(column, bag.id), 1)"
+                                [disabled]="bagIndex(column, bag.id) === column.bags.length - 1 || actionPending()"
+                              >↑</button>
+                              <select
+                                [ngModel]="column.locationId"
+                                (ngModelChange)="moveBag(bag.id, +$event)"
+                                [disabled]="actionPending()"
+                              >
+                                @for (target of plan.candidateLocations; track target.locationId) {
+                                  <option
+                                    [value]="target.locationId"
+                                    [disabled]="
+                                      target.locationId !== column.locationId &&
+                                      candidateCapacityRemain(plan, target.locationId) + 0.001 < bag.weightKg
+                                    "
+                                  >
+                                    {{ target.slotCode }} · còn {{ formatKg(candidateCapacityRemain(plan, target.locationId)) }}
+                                  </option>
+                                }
+                              </select>
+                            </div>
+                          </div>
+                        }
+                        @if (bagGroupPageCount(group) > 1) {
+                          <div class="bag-group-pagination">
+                            <button
+                              type="button"
+                              (click)="setBagGroupPage(group.key, bagGroupPage(group.key) - 1)"
+                              [disabled]="bagGroupPage(group.key) === 1"
+                            >Trước</button>
+                            <span>
+                              Trang {{ bagGroupPage(group.key) }}/{{ bagGroupPageCount(group) }}
+                              · tối đa {{ bagGroupPageSize }} bao/trang
+                            </span>
+                            <button
+                              type="button"
+                              (click)="setBagGroupPage(group.key, bagGroupPage(group.key) + 1)"
+                              [disabled]="bagGroupPage(group.key) === bagGroupPageCount(group)"
+                            >Sau</button>
+                          </div>
+                        }
+                      </div>
+                    }
                   }
                 </div>
+                <div class="stack-label bottom">↓ Đáy cột · lấy sau cùng</div>
               </article>
             }
           </div>
         }
 
-        <div class="suggestion-list">
+        @if (!bagPlan()) {
+          <div class="suggestion-list">
           @if (suggestions().length) {
             @for (suggestion of suggestions(); track suggestion.locationId; let index = $index) {
               <button
@@ -422,46 +553,49 @@
               Kho này hiện không có khu/cột phù hợp còn sức chứa.
             </div>
           }
-        </div>
+          </div>
+        }
 
-        @if (suggestions().length) {
+        @if (suggestions().length || (bagPlan()?.columns?.length || 0) > 0) {
           <div class="confirm-area">
-            @if (canManageInbound()) {
-              <button
-                class="override-toggle"
-                type="button"
-                (click)="toggleManualOverride()"
-              >
-                {{ manualOverride() ? "Dùng vị trí đề xuất" : "Ghi đè thủ công" }}
-              </button>
-            }
+            @if (!bagPlan()) {
+              @if (canManageInbound()) {
+                <button
+                  class="override-toggle"
+                  type="button"
+                  (click)="toggleManualOverride()"
+                >
+                  {{ manualOverride() ? "Dùng vị trí đề xuất" : "Ghi đè thủ công" }}
+                </button>
+              }
 
-            @if (manualOverride()) {
-              <div class="override-fields">
-                <label>
-                  Vị trí khác trong kho
-                  <app-filter-select
-                    [clearable]="false"
-                    placeholder="Chọn khu / cột / lớp / ô"
-                    [options]="manualLocationSelectOptions()"
-                    [value]="manualLocationId()"
-                    (valueChange)="selectManualLocation($event)"
-                  ></app-filter-select>
-                  @if (!manualOverrideLocations().length) {
-                    <small>Không còn vị trí khác phù hợp trong kho này.</small>
-                  }
-                </label>
-                <label class="reason-field">
-                  Lý do ghi đè
-                  <input
-                    type="text"
-                    maxlength="250"
-                    [ngModel]="overrideReason()"
-                    (ngModelChange)="overrideReason.set($event)"
-                    placeholder="Nhập lý do chọn ngoài đề xuất"
-                  />
-                </label>
-              </div>
+              @if (manualOverride()) {
+                <div class="override-fields">
+                  <label>
+                    Vị trí khác trong kho
+                    <app-filter-select
+                      [clearable]="false"
+                      placeholder="Chọn khu / cột / lớp / ô"
+                      [options]="manualLocationSelectOptions()"
+                      [value]="manualLocationId()"
+                      (valueChange)="selectManualLocation($event)"
+                    ></app-filter-select>
+                    @if (!manualOverrideLocations().length) {
+                      <small>Không còn vị trí khác phù hợp trong kho này.</small>
+                    }
+                  </label>
+                  <label class="reason-field">
+                    Lý do ghi đè
+                    <input
+                      type="text"
+                      maxlength="250"
+                      [ngModel]="overrideReason()"
+                      (ngModelChange)="overrideReason.set($event)"
+                      placeholder="Nhập lý do chọn ngoài đề xuất"
+                    />
+                  </label>
+                </div>
+              }
             }
 
             @if (canOperateInbound()) {
@@ -474,7 +608,7 @@
                 {{
                   actionPending()
                     ? "Đang xác nhận..."
-                    : "Xác nhận xếp " + formatKg(placementWeightKg())
+                    : confirmPutawayLabel()
                 }}
               </button>
             } @else {
