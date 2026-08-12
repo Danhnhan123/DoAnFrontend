@@ -531,13 +531,20 @@ export class OutboundOrderComponent implements OnDestroy {
           const totalFullBagCount = candGroup.reduce((sum, x) => sum + (x.fullBagCount ?? 0), 0);
           const totalAvailableKg = candGroup.reduce((sum, x) => sum + Number(x.selectableQuantity || 0), 0);
 
-          // Find open bag across sublots
-          const openBagCand = candGroup.find((x) => x.hasOpenBag && x.openBagWeightKg > 0);
-          const hasOpenBag = openBagCand != null;
-          const openBagWeightKg = openBagCand ? Number(openBagCand.openBagWeightKg || 0) : 0;
-          const openBagId = openBagCand ? (openBagCand.openBagId ?? null) : null;
-          const isOpenBagBlocked = openBagCand ? (openBagCand.isOpenBagBlocked ?? false) : false;
-          const openBagLotCode = openBagCand ? openBagCand.lotCode : null;
+          const openBagCandidates = candGroup.filter((x) => x.hasOpenBag && Number(x.openBagWeightKg || 0) > 0);
+          const openBagId = openBagCandidates.find((x) => x.openBagId != null)?.openBagId ?? null;
+          const openBagWeightKg = openBagCandidates
+            .filter((x) => openBagId == null || x.openBagId === openBagId)
+            .reduce((sum, x) => sum + Number(x.openBagWeightKg || 0), 0);
+          const hasOpenBag = openBagWeightKg > 0;
+          const isOpenBagBlocked = openBagCandidates.some((x) => x.isOpenBagBlocked);
+          const openBagLotCodes = Array.from(new Set(
+            openBagCandidates
+              .filter((x) => openBagId == null || x.openBagId === openBagId)
+              .map((x) => x.lotCode)
+              .filter((x): x is string => !!x)
+          ));
+          const openBagLotCode = openBagLotCodes.length > 0 ? openBagLotCodes.join(', ') : null;
 
           return {
             locationId: first.locationId ?? null,
@@ -813,7 +820,7 @@ export class OutboundOrderComponent implements OnDestroy {
     const allocations = form
       .map((item) => {
         const useBags = this.hasBagData(item);
-        const itemLots: { inventoryId: number; quantityAllocated: number; takeOpenBag?: boolean; fullBagCount?: number }[] = [];
+        const itemLots: { inventoryId: number; quantityAllocated: number }[] = [];
 
         for (const loc of item.locations) {
           if (useBags) {
@@ -826,11 +833,9 @@ export class OutboundOrderComponent implements OnDestroy {
 
             for (const sub of loc.subLots) {
               let subOpenKg = 0;
-              let subTakeOpenBagFlag = false;
 
               if (openKgRemaining > 0 && sub.hasOpenBag && !sub.isOpenBagBlocked) {
                 subOpenKg = Math.min(openKgRemaining, sub.openBagWeightKg);
-                subTakeOpenBagFlag = Math.abs(subOpenKg - sub.openBagWeightKg) < 0.001;
                 openKgRemaining -= subOpenKg;
               }
 
@@ -852,8 +857,6 @@ export class OutboundOrderComponent implements OnDestroy {
                 itemLots.push({
                   inventoryId: sub.inventoryId,
                   quantityAllocated: subTotalKg,
-                  takeOpenBag: subTakeOpenBagFlag ? true : undefined,
-                  fullBagCount: subFullBags > 0 ? subFullBags : undefined,
                 });
               }
             }

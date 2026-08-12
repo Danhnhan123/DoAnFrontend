@@ -155,10 +155,6 @@ export interface AllocationCandidateRow {
 export interface AllocateItemLotPayload {
   inventoryId: number;
   quantityAllocated: number;
-  /** Có chọn lấy bao lẻ ở đỉnh cột hay không. */
-  takeOpenBag?: boolean;
-  /** Số bao chuẩn muốn lấy. */
-  fullBagCount?: number;
 }
 
 export interface AllocateItemPayload {
