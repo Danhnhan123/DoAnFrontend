@@ -629,7 +629,7 @@
     <!-- Quick action bar -->
     <div class="ob-pick-toolbar">
       <span class="ob-muted sm">Mặc định điền sẵn 100% số bao đã phân bổ. Điều chỉnh nếu có chênh lệch thực tế.</span>
-      <button type="button" class="btn ghost ob-auto-btn" (click)="fillAllPick100()">
+      <button type="button" class="btn ghost ob-auto-btn" (click)="confirmPick100()" [disabled]="saving()">
         <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="m15 4 2 2" />
           <path d="m7 12 5 5" />
@@ -715,8 +715,8 @@
             </div>
           </div>
 
-          <!-- Split / partial bag row (nếu có phần lẻ đã giữ) -->
-          <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedSplitKg > 0">
+          <!-- Split / partial bag row -->
+          <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedFullBagCount > 0 || r.allocatedSplitKg > 0">
             <div class="ob-stack-label sm">
               <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M5 12h14" />
@@ -725,14 +725,14 @@
                 <path d="M9 8h2" />
                 <path d="M9 16h2" />
               </svg>
-              Bao xé lẻ (Đã giữ {{ fmtKg(r.allocatedSplitKg) }}):
+              Xé 1 bao chuẩn lấy lẻ:
             </div>
             <div class="ob-stack-input-inline">
-              <input type="number" min="0" [max]="r.standardWeightKg" step="0.1"
+              <input type="number" min="0" [max]="pickSplitMaxKg(r)" step="0.1"
                      class="ob-kg-input"
                      [ngModel]="r.pickedSplitKg"
                      (ngModelChange)="setPickSplitKg(i, $event)" />
-              <span class="ob-muted sm">kg thực lấy</span>
+              <span class="ob-muted sm">kg (tối đa {{ fmtKg(pickSplitMaxKg(r)) }})</span>
             </div>
           </div>
 

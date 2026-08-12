@@ -930,6 +930,37 @@ export class OutboundOrderComponent implements OnDestroy {
     return openKg + fullKg + splitKg;
   }
 
+  pickSplitMaxKg(card: PickLocationCard): number {
+    const openKg =
+      card.hasOpenBag && card.takeOpenBag
+        ? Number(card.openBagPickedKg || 0)
+        : 0;
+    const fullKg = (card.pickedFullBagCount || 0) * card.standardWeightKg;
+    return Math.max(
+      0,
+      Math.min(card.standardWeightKg, card.totalAllocatedKg - openKg - fullKg)
+    );
+  }
+
+  private inferStandardWeightKg(
+    item: OutboundOrderItem,
+    groups: OutboundOrderAllocationGroup[]
+  ): number {
+    const text = `${item.productVariantName || ''} ${item.sku || ''}`;
+    const match = text.match(/(\d+(?:[,.]\d+)?)\s*kg/i);
+    const parsed = match ? Number(match[1].replace(',', '.')) : 0;
+    if (parsed > 0) return parsed;
+
+    const groupWeights = groups
+      .map((group) => Number(group.weightPerBagKg || 0))
+      .filter((weight) => weight > 0.001);
+    const fullBagWeight = groupWeights.find(
+      (weight) => Math.abs(weight % 10) < 0.001
+    );
+    if (fullBagWeight) return fullBagWeight;
+    return 10;
+  }
+
   openPick(order: OutboundOrderDetail): void {
     if (!this.canPick(order)) return;
     const cards: PickLocationCard[] = [];
@@ -940,9 +971,9 @@ export class OutboundOrderComponent implements OnDestroy {
         locationCode: string;
         paddyLotCode?: string | null;
         allocationIds: number[];
+        groups: OutboundOrderAllocationGroup[];
         totalAllocatedKg: number;
         totalPickedKg: number;
-        standardWeightKg: number;
       }>();
 
       for (const group of this.allocationGroups(item)) {
@@ -952,11 +983,12 @@ export class OutboundOrderComponent implements OnDestroy {
           locationCode: group.locationCode || '—',
           paddyLotCode: group.paddyLotCode,
           allocationIds: [],
+          groups: [],
           totalAllocatedKg: 0,
           totalPickedKg: 0,
-          standardWeightKg: group.weightPerBagKg > 0 && group.weightPerBagKg % 10 === 0 ? group.weightPerBagKg : 10,
         };
         current.allocationIds.push(...group.allocationIds);
+        current.groups.push(group);
         current.totalAllocatedKg += Number(group.totalAllocatedKg || 0);
         current.totalPickedKg += Number(group.totalPickedKg || 0);
         if (group.paddyLotCode && !current.paddyLotCode) current.paddyLotCode = group.paddyLotCode;
@@ -965,21 +997,49 @@ export class OutboundOrderComponent implements OnDestroy {
 
       for (const [locId, group] of locMap.entries()) {
         const totalAllocatedKg = group.totalAllocatedKg;
-        const stdWeight = group.standardWeightKg || 10;
+        const stdWeight = this.inferStandardWeightKg(item, group.groups);
 
         let hasOpenBag = false;
         let openBagWeightKg = 0;
-        let remKg = totalAllocatedKg;
+        let allocatedFullBagCount = 0;
+        let allocatedSplitKg = 0;
+        let partialBagSeen = false;
 
-        const openRem = totalAllocatedKg % stdWeight;
-        if (openRem > 0.001) {
-          hasOpenBag = true;
-          openBagWeightKg = openRem;
-          remKg = totalAllocatedKg - openRem;
+        for (const allocationGroup of group.groups) {
+          const weightPerBagKg = Number(allocationGroup.weightPerBagKg || 0);
+          const groupTotalKg = Number(allocationGroup.totalAllocatedKg || 0);
+          const bagCount = Number(allocationGroup.bagCount || 0);
+          if (groupTotalKg <= 0.001) continue;
+
+          if (Math.abs(weightPerBagKg - stdWeight) <= 0.001) {
+            allocatedFullBagCount += bagCount || Math.floor(groupTotalKg / stdWeight);
+            continue;
+          }
+
+          if (weightPerBagKg > stdWeight + 0.001) {
+            const fullCount = Math.floor(groupTotalKg / stdWeight);
+            const remainderKg = groupTotalKg - fullCount * stdWeight;
+            allocatedFullBagCount += fullCount;
+            if (remainderKg > 0.001) {
+              if (!partialBagSeen) {
+                hasOpenBag = true;
+                openBagWeightKg += remainderKg;
+                partialBagSeen = true;
+              } else {
+                allocatedSplitKg += remainderKg;
+              }
+            }
+            continue;
+          }
+
+          if (!partialBagSeen) {
+            hasOpenBag = true;
+            openBagWeightKg += groupTotalKg;
+            partialBagSeen = true;
+          } else {
+            allocatedSplitKg += groupTotalKg;
+          }
         }
-
-        const allocatedFullBagCount = Math.floor(remKg / stdWeight);
-        const allocatedSplitKg = 0;
 
         cards.push({
           key: `${item.id}:${locId}`,
@@ -999,7 +1059,7 @@ export class OutboundOrderComponent implements OnDestroy {
           takeOpenBag: hasOpenBag,
           openBagPickedKg: hasOpenBag ? openBagWeightKg : null,
           pickedFullBagCount: allocatedFullBagCount,
-          pickedSplitKg: null,
+          pickedSplitKg: allocatedSplitKg > 0 ? allocatedSplitKg : null,
         });
       }
     }
@@ -1008,7 +1068,7 @@ export class OutboundOrderComponent implements OnDestroy {
       this.alert('Phiếu chưa có phân bổ lô để lấy hàng.', false);
       return;
     }
-    this.pickForm.set(cards as any);
+    this.pickForm.set(cards);
     this.showPickModal.set(true);
   }
 
@@ -1018,16 +1078,28 @@ export class OutboundOrderComponent implements OnDestroy {
     this.pickForm.set([]);
   }
 
+  private fullPickRows(rows: PickLocationCard[]): PickLocationCard[] {
+    return rows.map((r) => ({
+      ...r,
+      takeOpenBag: r.hasOpenBag,
+      openBagPickedKg: r.hasOpenBag ? r.openBagWeightKg : null,
+      pickedFullBagCount: r.allocatedFullBagCount,
+      pickedSplitKg: r.allocatedSplitKg > 0 ? r.allocatedSplitKg : null,
+    }));
+  }
+
   fillAllPick100(): void {
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r) => ({
-        ...r,
-        takeOpenBag: r.hasOpenBag,
-        openBagPickedKg: r.hasOpenBag ? r.openBagWeightKg : null,
-        pickedFullBagCount: r.allocatedFullBagCount,
-        pickedSplitKg: r.allocatedSplitKg > 0 ? r.allocatedSplitKg : null,
-      }))
-    );
+    this.pickForm.update((rows) => this.fullPickRows(rows));
+  }
+
+  confirmPick100(): void {
+    const order = this.detail();
+    if (!order || this.saving()) return;
+    const fullRows = this.fullPickRows(this.pickForm());
+    this.pickForm.set(fullRows);
+    const payload = this.buildPickPayload(order, fullRows);
+    if (!payload) return;
+    this.pickMutation.mutate({ id: order.id, payload });
   }
 
   togglePickOpenBag(index: number): void {
@@ -1051,10 +1123,19 @@ export class OutboundOrderComponent implements OnDestroy {
         if (i !== index) return r;
         const validNum = num == null ? null : Math.min(num, r.openBagWeightKg);
         const isAll = validNum != null && Math.abs(validNum - r.openBagWeightKg) < 0.001;
+        const draft = {
+          ...r,
+          openBagPickedKg: validNum,
+          takeOpenBag: isAll || (validNum != null && validNum > 0),
+        };
+        const maxSplit = this.pickSplitMaxKg(draft);
+        const splitKg = Number(r.pickedSplitKg || 0);
         return {
           ...r,
           openBagPickedKg: validNum,
           takeOpenBag: isAll || (validNum != null && validNum > 0),
+          pickedSplitKg:
+            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
         };
       })
     );
@@ -1066,9 +1147,14 @@ export class OutboundOrderComponent implements OnDestroy {
       rows.map((r, i) => {
         if (i !== index) return r;
         const validCount = Math.min(count, r.allocatedFullBagCount);
+        const draft = { ...r, pickedFullBagCount: validCount };
+        const maxSplit = this.pickSplitMaxKg(draft);
+        const splitKg = Number(r.pickedSplitKg || 0);
         return {
           ...r,
           pickedFullBagCount: validCount,
+          pickedSplitKg:
+            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
         };
       })
     );
@@ -1079,11 +1165,22 @@ export class OutboundOrderComponent implements OnDestroy {
     this.pickForm.update((rows: any[]) =>
       rows.map((r, i) => {
         if (i !== index) return r;
-        const maxSplit = r.standardWeightKg || 10;
+        let pickedFullBagCount = r.pickedFullBagCount || 0;
+        if (
+          num != null &&
+          num > 0 &&
+          pickedFullBagCount >= r.allocatedFullBagCount &&
+          r.allocatedFullBagCount > 0
+        ) {
+          pickedFullBagCount = r.allocatedFullBagCount - 1;
+        }
+        const draft = { ...r, pickedFullBagCount };
+        const maxSplit = this.pickSplitMaxKg(draft);
         const validNum = num == null ? null : Math.min(num, maxSplit);
         return {
           ...r,
-          pickedSplitKg: validNum,
+          pickedFullBagCount,
+          pickedSplitKg: validNum != null && validNum > 0 ? validNum : null,
         };
       })
     );
@@ -1092,8 +1189,15 @@ export class OutboundOrderComponent implements OnDestroy {
   submitPick(): void {
     const order = this.detail();
     if (!order) return;
-    const cards = this.pickForm() as any[];
+    const payload = this.buildPickPayload(order, this.pickForm());
+    if (!payload) return;
+    this.pickMutation.mutate({ id: order.id, payload });
+  }
 
+  private buildPickPayload(
+    order: OutboundOrderDetail,
+    cards: PickLocationCard[]
+  ): PickOutboundPayload | null {
     for (const r of cards) {
       const picked = this.locationPickedKg(r);
       if (picked < 0 || picked > r.totalAllocatedKg + 0.001) {
@@ -1101,7 +1205,22 @@ export class OutboundOrderComponent implements OnDestroy {
           `Số lượng lấy tại vị trí ${r.locationCode} phải trong khoảng 0 – ${this.fmtKg(r.totalAllocatedKg)}.`,
           false
         );
-        return;
+        return null;
+      }
+
+      if (r.hasOpenBag && r.takeOpenBag && Number(r.openBagPickedKg || 0) > 0) {
+        const openRemaining = r.openBagWeightKg - Number(r.openBagPickedKg || 0);
+        if (
+          openRemaining > 0.001 &&
+          ((r.pickedFullBagCount || 0) > 0 || Number(r.pickedSplitKg || 0) > 0)
+        ) {
+          this.alert(
+            `Tại vị trí ${r.locationCode}: Bao lẻ còn thừa ${this.fmtKg(openRemaining)}. ` +
+              `Cần lấy hết bao lẻ trước khi lấy hoặc xé bao chuẩn bên dưới.`,
+            false
+          );
+          return null;
+        }
       }
     }
 
@@ -1119,7 +1238,7 @@ export class OutboundOrderComponent implements OnDestroy {
       });
     });
 
-    this.pickMutation.mutate({ id: order.id, payload: { picks } });
+    return { picks };
   }
 
   allocationGroups(item: OutboundOrderItem): OutboundOrderAllocationGroup[] {
