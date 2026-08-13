@@ -81,6 +81,9 @@ export interface OutboundOrderDetail {
   note?: string | null;
   /** Lý do hủy — chỉ có giá trị khi phiếu đã bị hủy. */
   cancelReason?: string | null;
+  /** Tên cân điện tử đã dùng khi đóng gói; null = nhập tay. */
+  packingScaleDevice?: string | null;
+  packedDate?: string | null;
   createdDate?: string | null;
   items: OutboundOrderItem[];
 }
@@ -95,6 +98,9 @@ export interface OutboundOrderItem {
   unitCostPrice: number;
   salesOrderItemId?: number | null;
   note?: string | null;
+  /** Khối lượng đóng gói thực tế đã ghi ở bước đóng gói. */
+  actualWeightKg?: number | null;
+  actualWeightSource?: PackingWeightSource | null;
   allocations: OutboundOrderAllocation[];
   allocationGroups?: OutboundOrderAllocationGroup[];
 }
@@ -179,10 +185,22 @@ export interface PickOutboundPayload {
   picks: PickAllocationPayload[];
 }
 
+/** Nguồn của số khối lượng đóng gói — cần cho việc truy xuất khi đối chiếu. */
+export type PackingWeightSource = 'SCALE' | 'MANUAL';
+
+export interface ConfirmPackingItemPayload {
+  outboundOrderItemId: number;
+  actualWeightKg?: number | null;
+  source?: PackingWeightSource | null;
+}
+
 export interface ConfirmPackingPayload {
   qrCode: string;
+  /** Tổng khối lượng — backend tính lại từ `items` khi có. */
   actualWeightKg?: number | null;
+  /** Chỉ gửi khi thật sự có số từ cân điện tử; nhập tay thì để null. */
   scaleDevice?: string | null;
+  items?: ConfirmPackingItemPayload[];
 }
 
 export interface ConfirmDispatchPayload {
