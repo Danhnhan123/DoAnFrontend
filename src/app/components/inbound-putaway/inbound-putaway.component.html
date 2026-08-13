@@ -15,7 +15,7 @@
         </svg>
         Store-in &amp; Put-away
       </div>
-      <h1>Nhập kho &amp; gợi ý xếp vị trí</h1>
+      <h1>Nhập kho &amp; xếp vị trí</h1>
       <p>
         Xác nhận lô lúa sau thu mua, kiểm tra điều kiện kho và chọn
         khu/cột/lớp lưu trữ thực tế.
@@ -182,7 +182,7 @@
         <header class="panel-header suggestion-header">
           <div>
             <h2>
-              Gợi ý xếp vị trí cho
+              Xếp vị trí cho
               {{ selectedLine()!.item.paddyLotCode || selectedLine()!.order.poCode }}
             </h2>
             <p>
@@ -243,7 +243,8 @@
         } @else if (
           canPrepare() &&
           canOperateInbound() &&
-          remaining(selectedLine()!.item) > 0
+          remaining(selectedLine()!.item) > 0 &&
+          suggestions().length === 0
         ) {
           <div class="receive-toolbar">
             <label>
@@ -263,7 +264,7 @@
               [disabled]="actionPending()"
               [appHasPerm]="'INBOUND_ORDERS:UPDATE'" (click)="prepareSuggestions()"
             >
-              {{ actionPending() ? "Đang tải..." : "Tải gợi ý vị trí" }}
+              {{ actionPending() ? "Đang tải..." : "Tải vị trí" }}
             </button>
           </div>
         }
@@ -542,7 +543,7 @@
                     ></span>
                   </div>
                   <small>
-                    Đây là danh sách vị trí còn chỗ; tải gợi ý để hệ thống kiểm
+                    Đây là danh sách vị trí còn chỗ; tải vị trí để hệ thống kiểm
                     tra đầy đủ trước khi xác nhận.
                   </small>
                 </div>

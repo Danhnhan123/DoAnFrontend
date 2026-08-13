@@ -42,6 +42,8 @@ export interface SalesOrderRow {
   totalAmount: number;
   depositAmount?: number | null;
   note?: string | null;
+  /** Lý do hủy — chỉ có giá trị khi đơn đã bị hủy. */
+  cancelReason?: string | null;
   createdDate?: string | null;
 }
 

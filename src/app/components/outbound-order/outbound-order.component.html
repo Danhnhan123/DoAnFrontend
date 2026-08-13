@@ -219,6 +219,20 @@
               <span class="ob-info-v">{{ fmtMoney(d.totalDispatchedSaleValue) }}</span>
             </div>
           </li>
+          <!-- Lý do hủy: chỉ hiện khi phiếu đã bị hủy -->
+          <li *ngIf="d.outboundStatusId === status.CANCELLED && d.cancelReason">
+            <span class="ob-info-ic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="m15 9-6 6" />
+                <path d="m9 9 6 6" />
+              </svg>
+            </span>
+            <div>
+              <span class="ob-info-k">Lý do hủy</span>
+              <span class="ob-info-v">{{ d.cancelReason }}</span>
+            </div>
+          </li>
         </ul>
 
         <!-- Items + allocations -->

@@ -106,10 +106,14 @@ export class OutboundOrderService {
     );
   }
 
-  cancel(id: number): Observable<ApiResponse<any>> {
+  /**
+   * Hủy phiếu xuất kèm lý do. Backend nhận `reason` là tùy chọn; ràng buộc bắt
+   * buộc nhập nằm ở UI (popup xác nhận không cho bỏ trống).
+   */
+  cancel(id: number, reason: string): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/outbound-orders/${id}/cancel`,
-      {}
+      { reason: reason.trim() }
     );
   }
 }

@@ -785,7 +785,7 @@ export class MillingOrderComponent {
   outputLocationSelectOptions(line: OutputLine): FilterSelectOption[] {
     return this.suitableOutputLocations(line).map((location, index) => ({
       id: location.id,
-      name: `${index === 0 ? 'Gợi ý · ' : ''}${this.locationLabel(location)} · còn ${this.fmtWeight(
+      name: `${index === 0 ? 'Ưu tiên · ' : ''}${this.locationLabel(location)} · còn ${this.fmtWeight(
         Math.max(0, Number(location.maxCapacity ?? 0) - Number(location.currentOccupancy ?? 0))
       )}`,
     }));
@@ -1304,6 +1304,13 @@ export class MillingOrderComponent {
           const bagWeight = Number(updated.bagWeightKg) || 0;
           if (count > 0 && bagWeight > 0) {
             updated.outputWeightKg = Number((count * bagWeight).toFixed(3));
+          }
+        }
+        if (field === 'outputWeightKg') {
+          const weight = Number(updated.outputWeightKg) || 0;
+          const bagWeight = Number(updated.bagWeightKg) || 0;
+          if (weight > 0 && bagWeight > 0) {
+            updated.bagCount = Math.ceil(weight / bagWeight);
           }
         }
         if (['bagCount', 'bagWeightKg', 'outputWeightKg'].includes(String(field))) {
