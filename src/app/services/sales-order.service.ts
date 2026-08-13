@@ -69,10 +69,10 @@ export class SalesOrderService {
     );
   }
 
-  cancel(id: number): Observable<ApiResponse<any>> {
+  cancel(id: number, reason?: string | null): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/sales-orders/${id}/cancel`,
-      {}
+      { reason: reason?.trim() || null }
     );
   }
 

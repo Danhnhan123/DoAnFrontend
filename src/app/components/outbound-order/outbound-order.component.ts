@@ -345,7 +345,9 @@ export class OutboundOrderComponent implements OnDestroy {
         case 'FAIL':
           return lastValueFrom(this.service.failDelivery(req.id, req.payload));
         default:
-          return lastValueFrom(this.service.cancel(req.id));
+          return lastValueFrom(
+            this.service.cancel(req.id, req.payload?.reason ?? ''),
+          );
       }
     },
     onSuccess: (response: ApiResponse<any>, req) => {
@@ -954,13 +956,23 @@ export class OutboundOrderComponent implements OnDestroy {
       title: 'Hủy phiếu xuất?',
       html: `Phiếu <b>${order.soCode}</b> sẽ bị hủy và phần tồn đã giữ được giải phóng.`,
       icon: 'warning',
+      input: 'textarea',
+      inputLabel: 'Lý do hủy',
+      inputPlaceholder: 'VD: Khách đổi lịch giao…',
+      inputAttributes: { maxlength: '500' },
       showCancelButton: true,
       confirmButtonText: 'Hủy phiếu',
       cancelButtonText: 'Không hủy',
       confirmButtonColor: '#dc2626',
+      inputValidator: (value) =>
+        value && value.trim() ? null : 'Vui lòng nhập lý do hủy.',
     }).then((result) => {
       if (result.isConfirmed) {
-        this.actionMutation.mutate({ id: order.id, action: 'CANCEL' });
+        this.actionMutation.mutate({
+          id: order.id,
+          action: 'CANCEL',
+          payload: { reason: (result.value as string).trim() },
+        });
       }
     });
   }

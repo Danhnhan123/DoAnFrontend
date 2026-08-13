@@ -46,6 +46,13 @@ import {
 type ChannelFilter = 'ALL' | SalesOrderChannel;
 type SalesOrderAction = 'CONFIRM' | 'RESERVE' | 'CANCEL';
 
+interface SalesOrderActionRequest {
+  id: number;
+  action: SalesOrderAction;
+  /** Lý do hủy — chỉ dùng cho action CANCEL. */
+  reason?: string | null;
+}
+
 interface SalesOrderFormLine {
   key: number;
   id?: number | null;
@@ -354,14 +361,14 @@ export class SalesOrderComponent implements OnDestroy {
   }));
 
   private readonly actionMutation = injectMutation(() => ({
-    mutationFn: (request: { id: number; action: SalesOrderAction }) => {
+    mutationFn: (request: SalesOrderActionRequest) => {
       if (request.action === 'CONFIRM') {
         return lastValueFrom(this.service.confirm(request.id));
       }
       if (request.action === 'RESERVE') {
         return lastValueFrom(this.service.reserve(request.id));
       }
-      return lastValueFrom(this.service.cancel(request.id));
+      return lastValueFrom(this.service.cancel(request.id, request.reason));
     },
     onSuccess: (response: ApiResponse<any>, request) => {
       if (!response.isSucceeded) {
@@ -657,15 +664,25 @@ export class SalesOrderComponent implements OnDestroy {
   cancelOrder(order: SalesOrderDetail): void {
     Swal.fire({
       title: 'Hủy đơn bán?',
-      text: `Đơn ${order.soCode} sẽ bị hủy và phần tồn đã giữ sẽ được giải phóng. Backend hiện chưa lưu lý do hủy.`,
+      text: `Đơn ${order.soCode} sẽ bị hủy và phần tồn đã giữ sẽ được giải phóng.`,
       icon: 'warning',
+      input: 'textarea',
+      inputLabel: 'Lý do hủy',
+      inputPlaceholder: 'VD: Khách hủy đặt hàng…',
+      inputAttributes: { maxlength: '500' },
       showCancelButton: true,
       confirmButtonText: 'Hủy đơn',
       cancelButtonText: 'Không hủy',
       confirmButtonColor: '#dc2626',
+      inputValidator: (value) =>
+        value && value.trim() ? null : 'Vui lòng nhập lý do hủy.',
     }).then((result) => {
       if (result.isConfirmed) {
-        this.actionMutation.mutate({ id: order.id, action: 'CANCEL' });
+        this.actionMutation.mutate({
+          id: order.id,
+          action: 'CANCEL',
+          reason: (result.value as string).trim(),
+        });
       }
     });
   }
