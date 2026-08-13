@@ -305,13 +305,16 @@
           <div class="remaining"><span>Còn phải thu</span><strong>{{ fmtMoney(order.remainingAmount) }}</strong></div>
         </div>
 
-        @if (order.shippingAddress || order.note) {
+        @if (order.shippingAddress || order.note || (order.statusId === status.CANCELLED && order.cancelReason)) {
         <div class="so-note-box">
           @if (order.shippingAddress) {
           <p><b>Giao đến:</b> {{ order.shippingAddress }}</p>
           }
           @if (order.note) {
           <p><b>Ghi chú:</b> {{ order.note }}</p>
+          }
+          @if (order.statusId === status.CANCELLED && order.cancelReason) {
+          <p><b>Lý do hủy:</b> {{ order.cancelReason }}</p>
           }
         </div>
         }

@@ -44,6 +44,8 @@ export interface OutboundOrderRow {
   totalDispatchedSaleValue: number;
   completedDate?: string | null;
   note?: string | null;
+  /** Lý do hủy — chỉ có giá trị khi phiếu đã bị hủy. */
+  cancelReason?: string | null;
   createdDate?: string | null;
 }
 
@@ -64,6 +66,8 @@ export interface OutboundOrderDetail {
   totalDispatchedSaleValue: number;
   completedDate?: string | null;
   note?: string | null;
+  /** Lý do hủy — chỉ có giá trị khi phiếu đã bị hủy. */
+  cancelReason?: string | null;
   createdDate?: string | null;
   items: OutboundOrderItem[];
 }
