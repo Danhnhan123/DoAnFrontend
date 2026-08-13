@@ -34,6 +34,7 @@ import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
 import { SalesOrderService } from '../../services/sales-order.service';
 import { PartyDebtService } from '../../services/party-debt.service';
+import { AuthService } from '../../services/auth.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -141,6 +142,7 @@ const PIPELINE_STEPS = [
 })
 export class OutboundOrderComponent implements OnDestroy {
   private readonly service = inject(OutboundOrderService);
+  private readonly authService = inject(AuthService);
   private readonly inventoryService = inject(InventoryService);
   private readonly salesOrderService = inject(SalesOrderService);
   private readonly partyDebtService = inject(PartyDebtService);
@@ -893,6 +895,13 @@ export class OutboundOrderComponent implements OnDestroy {
 
     for (const item of form) {
       const remaining = this.allocateRemaining(item);
+      if (remaining > 0.001) {
+        this.alert(
+          `Sản phẩm "${item.productVariantName}" còn thiếu ${this.fmtKg(remaining)}. Phải phân bổ đủ trước khi bắt đầu lấy hàng.`,
+          false
+        );
+        return;
+      }
       if (remaining < -0.001) {
         this.alert(
           `Sản phẩm "${item.productVariantName}" bị phân bổ vượt số lượng đặt.`,
@@ -1588,6 +1597,26 @@ export class OutboundOrderComponent implements OnDestroy {
     });
   }
 
+  forceUnlock(order: OutboundOrderDetail): void {
+    if (!this.canForceUnlock(order)) return;
+    Swal.fire({
+      title: 'Mở khóa cột thủ công?',
+      text: 'Chỉ dùng khi phiếu bị kẹt. Thao tác này không hủy phiếu và không hoàn tồn.',
+      icon: 'warning', input: 'textarea', inputLabel: 'Lý do mở khóa',
+      showCancelButton: true, confirmButtonText: 'Mở khóa', cancelButtonText: 'Quay lại',
+      inputValidator: value => value?.trim() ? null : 'Vui lòng nhập lý do mở khóa.'
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      lastValueFrom(this.service.forceUnlock(order.id, String(result.value).trim()))
+        .then(response => {
+          if (!response.isSucceeded) return this.alert(response.message || 'Không mở khóa được.', false);
+          this.refreshAfterWrite();
+          this.alert(response.message || 'Đã mở khóa cột.');
+        })
+        .catch(error => this.alert(this.errorText(error), false));
+    });
+  }
+
   // ── Guards ─────────────────────────────────────────────────────────
   canAllocate(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.DRAFT);
@@ -1610,6 +1639,16 @@ export class OutboundOrderComponent implements OnDestroy {
       OUTBOUND_STATUS_CODE.PICKING,
       OUTBOUND_STATUS_CODE.PACKED,
     ]);
+  }
+
+  canForceUnlock(source: OutboundStatusSource): boolean {
+    if (!this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING)) return false;
+    return (this.authService.currentUser()?.roles ?? []).some(role => {
+      const code = String((role as any).code ?? '').toUpperCase();
+      const name = String(role.name ?? '').toLowerCase();
+      return [1001, 1002].includes(Number(role.id)) || code === 'ADMIN' || code === 'OWNER' ||
+        name.includes('quản trị') || name.includes('chủ kho') || name.includes('chủ cơ sở');
+    });
   }
 
   isPickedEnough(order: OutboundOrderDetail): boolean {

@@ -17,6 +17,7 @@ type SlotStatus =
   | 'warning'
   | 'full'
   | 'quarantine'
+  | 'staging'
   | 'locked'
   | 'empty';
 
@@ -29,6 +30,8 @@ interface MapSlot {
   fillPct: number;
   isActive: boolean;
   isQuarantine: boolean;
+  isOutboundStaging: boolean;
+  outboundOrderCode: string | null;
   priority: number | null;
   // Làm giàu từ Inventory (ghép theo locationId)
   lotCode: string | null;
@@ -202,6 +205,7 @@ export class WarehouseMapComponent {
       const fillPct = cap > 0 ? Math.round((occ / cap) * 100) : 0;
       const isActive = l.isActive ?? true;
       const isQuarantine = !!l.isQuarantine;
+      const isOutboundStaging = !!l.isOutboundStaging;
 
       const rep = inv?.rows?.[0];
       const distinctLots = new Set((inv?.rows ?? []).map(x => x.lotCode).filter(Boolean));
@@ -216,12 +220,14 @@ export class WarehouseMapComponent {
       const slot: MapSlot = {
         id: l.id,
         slotCode: this.locationLabel(l),
-        zoneName: l.zoneName || '—',
+        zoneName: isOutboundStaging ? 'Chờ xuất' : (l.zoneName || '—'),
         maxCapacity: cap,
         currentOccupancy: occ,
         fillPct,
         isActive,
         isQuarantine,
+        isOutboundStaging,
+        outboundOrderCode: l.outboundLockOrderCode ?? null,
         priority: l.priority ?? null,
         lotCode: distinctLots.size > 1 ? `${distinctLots.size} lô` : (rep?.lotCode ?? null),
         productName: distinctProducts.size > 1 ? `${distinctProducts.size} mặt hàng` : (rep?.productVariantName ?? null),
@@ -231,8 +237,8 @@ export class WarehouseMapComponent {
         hasPhysicalBagData: inv?.hasPhysicalBagData ?? true,
         weightKg: inv?.weightKg ?? 0,
         quality,
-        strategy: this.strategyOf(isQuarantine || hasBlockedContent, quality),
-        status: this.computeStatus(isActive, isQuarantine || hasBlockedContent, fillPct, inv?.weightKg ?? 0, quality),
+        strategy: isOutboundStaging ? 'Chỉ dùng cho hàng đã đóng gói' : this.strategyOf(isQuarantine || hasBlockedContent, quality),
+        status: this.computeStatus(isActive, isQuarantine || hasBlockedContent, isOutboundStaging, fillPct, inv?.weightKg ?? 0, quality),
       };
 
       const arr = zoneMap.get(slot.zoneName) ?? [];
@@ -266,11 +272,13 @@ export class WarehouseMapComponent {
   private computeStatus(
     isActive: boolean,
     isQuarantine: boolean,
+    isOutboundStaging: boolean,
     fillPct: number,
     weightKg: number,
     quality: string | null
   ): SlotStatus {
     if (!isActive) return 'locked';
+    if (isOutboundStaging) return 'staging';
     const q = (quality || '').toLowerCase();
     if (isQuarantine || q.includes('cách ly') || q.includes('ẩm cao')) {
       return 'quarantine';
@@ -297,6 +305,7 @@ export class WarehouseMapComponent {
       case 'warning': return 'Cảnh báo';
       case 'full': return 'Đầy';
       case 'quarantine': return 'Cách ly/rủi ro';
+      case 'staging': return 'Chờ xuất';
       case 'locked': return 'Khóa';
       default: return 'Trống';
     }
@@ -332,6 +341,7 @@ export class WarehouseMapComponent {
   }
 
   capacityLabel(slot: MapSlot): string {
+    if (slot.isOutboundStaging) return 'Sức chứa: Không áp dụng';
     if (slot.maxCapacity > 0 && slot.currentOccupancy > slot.maxCapacity) {
       return `${slot.fillPct}% sức chứa · Vượt ${this.fmtNum(slot.currentOccupancy - slot.maxCapacity)} kg`;
     }

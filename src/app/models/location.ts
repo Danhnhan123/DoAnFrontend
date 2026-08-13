@@ -16,6 +16,11 @@ export interface LocationRow {
   currentOccupancy?: number | null;
   description?: string | null;
   isActive: boolean;
+  isOutboundStaging?: boolean;
+  isLockedForOutbound?: boolean;
+  outboundLockOrderId?: number | null;
+  outboundLockOrderCode?: string | null;
+  outboundLockedAt?: string | null;
   createdDate: string;
 }
 
@@ -46,11 +51,6 @@ export interface LocationDetailDto extends LocationRow {
   allowedCategoryName?: string | null;
   priority: number;
   isQuarantine: boolean;
-  isOutboundStaging?: boolean;
-  isLockedForOutbound?: boolean;
-  outboundLockOrderId?: number | null;
-  outboundLockOrderCode?: string | null;
-  outboundLockedAt?: string | null;
 }
 
 export interface CreateLocationDto {

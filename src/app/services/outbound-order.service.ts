@@ -116,4 +116,11 @@ export class OutboundOrderService {
       { reason: reason.trim() }
     );
   }
+
+  forceUnlock(id: number, reason: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/outbound-orders/${id}/force-unlock`,
+      { reason: reason.trim() }
+    );
+  }
 }

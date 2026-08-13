@@ -264,19 +264,24 @@ export class CustomerReturnComponent implements OnDestroy {
     this.locations().filter(
       (location) =>
         location.warehouseId === this.detail()?.warehouseId &&
-        !location.isQuarantine,
+        !location.isQuarantine &&
+        !location.isOutboundStaging &&
+        !location.isLockedForOutbound,
     ),
   );
   readonly quarantineLocations = computed(() =>
     this.locations().filter(
       (location) =>
         location.warehouseId === this.detail()?.warehouseId &&
-        location.isQuarantine,
+        location.isQuarantine &&
+        !location.isOutboundStaging &&
+        !location.isLockedForOutbound,
     ),
   );
   readonly formRestockLocations = computed(() =>
     this.locations().filter(
-      (location) => location.warehouseId === this.form().warehouseId,
+      (location) => location.warehouseId === this.form().warehouseId &&
+        !location.isOutboundStaging && !location.isLockedForOutbound,
     ),
   );
 

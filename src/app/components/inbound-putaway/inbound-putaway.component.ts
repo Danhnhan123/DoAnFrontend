@@ -290,6 +290,8 @@ export class InboundPutawayComponent {
         return (
           location.warehouseId === warehouseId &&
           location.isActive &&
+          !location.isOutboundStaging &&
+          !location.isLockedForOutbound &&
           max > occupied &&
           Boolean(location.isQuarantine) === needsQuarantine
         );

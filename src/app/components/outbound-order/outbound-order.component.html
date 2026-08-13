@@ -330,6 +330,10 @@
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="cancelOrder(d)">
             Hủy phiếu
           </button>
+          <button type="button" class="btn danger-ghost" *ngIf="canForceUnlock(d)" [disabled]="saving()"
+            [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="forceUnlock(d)">
+            Mở khóa cột
+          </button>
         </div>
       </ng-container>
       <ng-template #noDetail>
