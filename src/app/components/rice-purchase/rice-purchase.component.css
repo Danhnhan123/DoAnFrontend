@@ -597,6 +597,10 @@
   width: min(720px, 100%);
 }
 
+.quick-farmer-backdrop { z-index: 2100; }
+.quick-farmer-modal { width: min(560px, 100%); }
+.quick-farmer-footer { grid-template-columns: 1fr 1fr; }
+
 @keyframes modalIn {
   from {
     opacity: 0;
