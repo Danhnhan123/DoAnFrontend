@@ -495,14 +495,10 @@
                 <span>Cần giữ: <strong>{{ fmtWeight(createComputedPaddyKg()) }}</strong></span>
                 <span>Đã phân bổ: <strong>{{ fmtWeight(createAllocatedKg()) }}</strong></span>
                 <span
-                  [class.balance-ok]="
-                    createComputedPaddyKg() > 0 &&
-                    (createAllocatedKg() - createComputedPaddyKg() < 0.01) &&
-                    (createComputedPaddyKg() - createAllocatedKg() < 0.01)
-                  "
+                  [class.balance-ok]="allocationIsEnough(createComputedPaddyKg(), createAllocatedKg())"
                 >
-                  Còn lại:
-                  <strong>{{ fmtWeight(createComputedPaddyKg() - createAllocatedKg()) }}</strong>
+                  {{ allocationBalanceLabel(createComputedPaddyKg(), createAllocatedKg()) }}:
+                  <strong>{{ fmtWeight(allocationBalanceKg(createComputedPaddyKg(), createAllocatedKg())) }}</strong>
                 </span>
               </div>
 
@@ -614,14 +610,10 @@
           <span>Cần giữ: <strong>{{ fmtWeight(reserveRequiredKg()) }}</strong></span>
           <span>Đã phân bổ: <strong>{{ fmtWeight(reserveAllocatedKg()) }}</strong></span>
           <span
-            [class.balance-ok]="
-              reserveRequiredKg() > 0 &&
-              (reserveAllocatedKg() - reserveRequiredKg() < 0.01) &&
-              (reserveRequiredKg() - reserveAllocatedKg() < 0.01)
-            "
+            [class.balance-ok]="allocationIsEnough(reserveRequiredKg(), reserveAllocatedKg())"
           >
-            Còn lại:
-            <strong>{{ fmtWeight(reserveRequiredKg() - reserveAllocatedKg()) }}</strong>
+            {{ allocationBalanceLabel(reserveRequiredKg(), reserveAllocatedKg()) }}:
+            <strong>{{ fmtWeight(allocationBalanceKg(reserveRequiredKg(), reserveAllocatedKg())) }}</strong>
           </span>
         </div>
 

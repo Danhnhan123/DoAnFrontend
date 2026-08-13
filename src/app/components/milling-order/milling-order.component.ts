@@ -567,6 +567,20 @@ export class MillingOrderComponent {
     )
   );
 
+  allocationBalanceLabel(requiredKg: number, allocatedKg: number): string {
+    if (allocatedKg + 0.001 < requiredKg) return 'Còn thiếu';
+    if (allocatedKg > requiredKg + 0.001) return 'Dư do lấy nguyên bao';
+    return 'Đã đủ';
+  }
+
+  allocationBalanceKg(requiredKg: number, allocatedKg: number): number {
+    return Math.abs(requiredKg - allocatedKg);
+  }
+
+  allocationIsEnough(requiredKg: number, allocatedKg: number): boolean {
+    return requiredKg > 0 && allocatedKg + 0.001 >= requiredKg;
+  }
+
   completeInputKg = computed(() => {
     const order = this.activeOrder();
     if (!order) return 0;
@@ -1123,7 +1137,22 @@ export class MillingOrderComponent {
             : 'Giữ lúa cho lệnh xay thành công.'
       );
     } catch (error) {
-      this.showError(this.errorText(error, 'Không thể giữ lúa.'));
+      const status = Number((error as any)?.status ?? (error as any)?.error?.status);
+      if (status === 409) {
+        await Swal.fire({
+          icon: 'warning',
+          title: 'Nguồn lúa vừa thay đổi',
+          text: this.errorText(
+            error,
+            'Một hoặc nhiều bao vừa được thao tác khác sử dụng. Hệ thống sẽ tải lại nguồn phù hợp.',
+          ),
+          confirmButtonText: 'Tải lại nguồn',
+          confirmButtonColor: '#16a052',
+        });
+        await this.autoSuggestSources();
+      } else {
+        this.showError(this.errorText(error, 'Không thể giữ lúa.'));
+      }
     } finally {
       this.saving.set(false);
     }
@@ -1954,10 +1983,8 @@ export class MillingOrderComponent {
       selected.add(key);
       total += Number(line.consumedWeightKg);
     }
-    if (false && requiredKg > 0 && Math.abs(total - requiredKg) > 0.01) {
-      return `Tổng lượng giữ phải bằng lượng lúa dự kiến ${this.fmtWeight(
-        requiredKg
-      )}. Hiện đã phân bổ ${this.fmtWeight(total)}.`;
+    if (requiredKg > 0 && total + 0.001 < requiredKg) {
+      return `Tổng lượng giữ chưa đủ ${this.fmtWeight(requiredKg)}. Hiện đã chọn ${this.fmtWeight(total)}, còn thiếu ${this.fmtWeight(requiredKg - total)}.`;
     }
     return null;
   }
