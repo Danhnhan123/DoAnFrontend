@@ -234,6 +234,7 @@
                       {{ r.warehouseName }}
                     </div>
                     <div class="cell-sub">{{ r.locationCode || '—' }}</div>
+                    <span class="staging-badge" *ngIf="r.isOutboundStaging">Chờ xuất</span>
                   </td>
                   <td class="num">{{ fmtNum(r.bags) }}</td>
                   <td class="num">

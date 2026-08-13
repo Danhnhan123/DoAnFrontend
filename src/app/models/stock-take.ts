@@ -54,6 +54,7 @@ export interface StockTakeItem {
   zoneName?: string | null;
   lotCode?: string | null;
   isQuarantine: boolean;
+  isOutboundStaging: boolean;
   systemQuantity: number;
   actualQuantity?: number | null;
   difference: number;

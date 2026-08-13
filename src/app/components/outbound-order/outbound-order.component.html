@@ -575,9 +575,16 @@
       </div>
     </div>
     <div class="ob-modal-actions">
+      <div class="ob-card-warning" *ngIf="allocationIssues().length > 0">
+        Phải phân bổ đủ cho tất cả sản phẩm trước khi bắt đầu lấy hàng.
+        <span *ngFor="let issue of allocationIssues(); let last = last">
+          {{ issue.item.productVariantName }}:
+          {{ issue.remainingKg > 0 ? 'thiếu' : 'dư' }} {{ fmtKg(Math.abs(issue.remainingKg)) }}{{ last ? '.' : ';' }}
+        </span>
+      </div>
       <button class="btn ghost" (click)="closeAllocate()" [disabled]="saving()">Đóng</button>
       <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitAllocate()"
-        [disabled]="saving() || loadingLots()">
+        [disabled]="saving() || loadingLots() || !canSubmitAllocation()">
         Phân bổ &amp; chuyển lấy hàng
       </button>
     </div>

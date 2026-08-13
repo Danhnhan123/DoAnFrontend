@@ -201,6 +201,14 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly showAllocateModal = signal(false);
   readonly allocateForm = signal<AllocateItemForm[]>([]);
   readonly loadingLots = signal(false);
+  readonly allocationIssues = computed(() =>
+    this.allocateForm()
+      .map((item) => ({ item, remainingKg: this.allocateRemaining(item) }))
+      .filter(({ remainingKg }) => Math.abs(remainingKg) > 0.001)
+  );
+  readonly canSubmitAllocation = computed(() =>
+    this.allocateForm().length > 0 && this.allocationIssues().length === 0
+  );
 
   // Modal lấy hàng (pick)
   readonly showPickModal = signal(false);

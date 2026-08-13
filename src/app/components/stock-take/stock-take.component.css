@@ -77,6 +77,7 @@ textarea, .count-input { width: 100%; border: 1px solid #d7dee7; border-radius: 
 .check { display: inline-flex; align-items: center; gap: 7px; min-width: 112px; }
 .check span { display: inline; }
 td em { display: inline-block; margin-top: 4px; padding: 2px 6px; border-radius: 5px; background: #fef2f2; color: #b91c1c; font-size: .68rem; font-style: normal; }
+td em.staging { margin-left: 4px; background: #eff6ff; color: #1d4ed8; }
 .evidence-row td { padding: 8px 14px 12px; background: #fff7ed; color: #9a3412; }
 details summary { cursor: pointer; font-weight: 700; }
 details ul { margin: 8px 0 0; padding-left: 22px; }
