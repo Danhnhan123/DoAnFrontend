@@ -301,8 +301,13 @@
 
         <div class="so-payment">
           <div><span>Tổng tiền</span><strong>{{ fmtMoney(order.totalAmount) }}</strong></div>
-          <div><span>Đã cọc</span><strong class="paid">{{ fmtMoney(order.depositAmount) }}</strong></div>
-          <div class="remaining"><span>Còn phải thu</span><strong>{{ fmtMoney(order.remainingAmount) }}</strong></div>
+          <div><span>Tiền cọc</span><strong class="paid">{{ fmtMoney(paymentSummary().deposit) }}</strong></div>
+          <div><span>Đã thanh toán thêm</span><strong class="paid">{{ fmtMoney(paymentSummary().deliveryAndOtherPayments) }}</strong></div>
+          <div><span>Tổng đã thu</span><strong class="paid">{{ fmtMoney(paymentSummary().totalPaid) }}</strong></div>
+          <div class="remaining">
+            <span>Còn phải thu</span>
+            <strong>{{ paymentLoading() ? 'Đang tải…' : fmtMoney(paymentSummary().remaining) }}</strong>
+          </div>
         </div>
 
         @if (order.shippingAddress || order.note || (order.statusId === status.CANCELLED && order.cancelReason)) {
