@@ -46,6 +46,12 @@ import {
 type ChannelFilter = 'ALL' | SalesOrderChannel;
 type SalesOrderAction = 'CONFIRM' | 'RESERVE' | 'CANCEL';
 
+/**
+ * Trạng thái phiếu xuất được coi là đã kết thúc: không chặn việc tạo phiếu xuất mới
+ * cho cùng đơn bán (hủy → làm lại, giao thất bại → tồn kho đã hoàn trả, giao lại).
+ */
+const CLOSED_OUTBOUND_STATUS_CODES = ['CANCELLED', 'DELIVERY_FAILED'];
+
 interface SalesOrderActionRequest {
   id: number;
   action: SalesOrderAction;
@@ -713,6 +719,21 @@ export class SalesOrderComponent implements OnDestroy {
     ) ?? null;
   }
 
+  /**
+   * Phiếu xuất còn hiệu lực của đơn (chưa hủy, chưa giao thất bại).
+   * Đã hủy / giao thất bại được coi là kết thúc → cho phép tạo phiếu xuất khác.
+   */
+  activeOutbound(order: SalesOrderDetail): SalesOrderOutboundSummary | null {
+    return (
+      order.outboundOrders.find(
+        (x) =>
+          !CLOSED_OUTBOUND_STATUS_CODES.includes(
+            (x.outboundStatusCode || '').toUpperCase()
+          )
+      ) ?? null
+    );
+  }
+
   continueDraftOutbound(order: SalesOrderDetail): void {
     const draft = this.activeDraftOutbound(order);
     if (!draft) return;
@@ -781,7 +802,9 @@ export class SalesOrderComponent implements OnDestroy {
     return order.statusId === this.status.PENDING_CONFIRM;
   }
 
-  canCreateOutbound(order: SalesOrderRow): boolean {
+  canCreateOutbound(order: SalesOrderDetail): boolean {
+    // Đã có phiếu xuất còn hiệu lực → không cho tạo thêm (khớp validate backend).
+    if (this.activeOutbound(order)) return false;
     return this.isStatusIn(order.statusId, [
       this.status.RESERVED,
       this.status.PREPARING,
