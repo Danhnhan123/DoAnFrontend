@@ -16,6 +16,7 @@ import {
   ConfirmPaddyPurchaseReceiptPayload,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
+  CreateFarmerDto,
   DTResponse,
   FarmerDetailDto,
   PaddyPurchaseReceiptRow,
@@ -30,7 +31,6 @@ import {
   WarehouseDetailDto,
 } from "../../models";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
-import { BluetoothScaleService } from "../../services/bluetooth-scale.service";
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { PermissionService } from '../../services/permission.service';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
@@ -63,6 +63,14 @@ interface ScheduleFormState {
   expectedPrice: number | null;
   assignedUserId: number | null;
   note: string;
+}
+
+interface QuickFarmerFormState {
+  name: string;
+  code: string;
+  phone: string;
+  address: string;
+  region: string;
 }
 
 interface ReceiptFormState {
@@ -108,8 +116,6 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly receiptViewOnly = computed(() => !!this.editingReceipt() && !this.perm.canUpdate('RICE_PURCHASE'));
   private readonly queryClient = inject(QueryClient);
   private readonly router = inject(Router);
-  private readonly bluetoothScale = inject(BluetoothScaleService);
-  readonly readingBleScale = signal(false);
 
   readonly statuses: PaddyScheduleStatusOption[] = [
     { id: 1, code: "NEW", name: "Mới tạo", color: "#6B7280" },
@@ -149,10 +155,13 @@ export class RicePurchaseComponent implements OnDestroy {
   confirmingReceiptId = signal<number | null>(null);
   updatingScheduleId = signal<number | null>(null);
   showScheduleModal = signal(false);
+  showQuickFarmerModal = signal(false);
   showReceiptModal = signal(false);
   editingSchedule = signal<PaddyPurchaseScheduleRow | null>(null);
   editingReceipt = signal<PaddyPurchaseReceiptRow | null>(null);
   scheduleForm = signal<ScheduleFormState>(this.defaultScheduleForm());
+  quickFarmerForm = signal<QuickFarmerFormState>(this.defaultQuickFarmerForm());
+  savingQuickFarmer = signal(false);
   receiptForm = signal<ReceiptFormState>(this.defaultReceiptForm());
 
   private scheduleSearchTimer?: ReturnType<typeof setTimeout>;
@@ -409,15 +418,11 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly weightUnitSelectOptions: FilterSelectOption[] = this.weightUnits.map(
     (u) => ({ id: u.value, name: u.label }),
   );
-  readonly qualityGradeSelectOptions: FilterSelectOption[] = [
-    { id: "Xuất sắc", name: "Xuất sắc" },
-    { id: "Tốt", name: "Tốt" },
-    { id: "Đạt", name: "Đạt" },
-    { id: "Cần xử lý", name: "Cần xử lý" },
-    { id: "Cách ly", name: "Cách ly" },
-  ];
   readonly farmerScheduleSelectOptions = computed<FilterSelectOption[]>(() =>
-    this.farmers().map((f) => ({ id: f.id, name: `${f.name} · ${f.code}` })),
+    this.farmers().map((f) => ({
+      id: f.id,
+      name: `${f.name} · ${f.phone || f.code}`,
+    })),
   );
   readonly farmerReceiptSelectOptions = computed<FilterSelectOption[]>(() =>
     this.farmers().map((f) => ({
@@ -457,7 +462,7 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly scheduleSelectOptions = computed<FilterSelectOption[]>(() =>
     this.receiptScheduleOptions().map((s) => ({
       id: s.id,
-      name: `${s.scheduleCode} · ${s.farmerName} · ${this.formatDate(s.scheduleDate)}`,
+      name: `${s.scheduleCode} · ${s.farmerName} · ${this.formatDateTime(s.scheduleDate)}`,
     })),
   );
   readonly scheduleOptions = computed(() =>
@@ -651,7 +656,7 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: row.farmerId,
       statusId: row.statusId,
       riceVarietyId: row.riceVarietyId ?? null,
-      scheduleDate: this.toDateInput(row.scheduleDate),
+      scheduleDate: this.toDateTimeInput(row.scheduleDate),
       location: row.location || "",
       estimatedWeight: estimatedWeight.value,
       estimatedWeightUnit: estimatedWeight.unit,
@@ -674,6 +679,58 @@ export class RicePurchaseComponent implements OnDestroy {
     value: ScheduleFormState[K],
   ): void {
     this.scheduleForm.update((current) => ({ ...current, [field]: value }));
+  }
+
+  openQuickFarmer(name = ""): void {
+    if (!this.perm.canCreate("FARMERS")) return;
+    this.quickFarmerForm.set({ ...this.defaultQuickFarmerForm(), name });
+    this.showQuickFarmerModal.set(true);
+  }
+
+  closeQuickFarmer(): void {
+    if (this.savingQuickFarmer()) return;
+    this.showQuickFarmerModal.set(false);
+    this.quickFarmerForm.set(this.defaultQuickFarmerForm());
+  }
+
+  setQuickFarmerField<K extends keyof QuickFarmerFormState>(
+    field: K,
+    value: QuickFarmerFormState[K],
+  ): void {
+    this.quickFarmerForm.update((current) => ({ ...current, [field]: value }));
+  }
+
+  async saveQuickFarmer(): Promise<void> {
+    const form = this.quickFarmerForm();
+    if (!form.name.trim() || !form.code.trim()) {
+      this.showError("Vui lòng nhập tên và mã nông dân.");
+      return;
+    }
+
+    const payload: CreateFarmerDto = {
+      name: form.name.trim(),
+      code: form.code.trim(),
+      phone: form.phone.trim() || null,
+      address: form.address.trim() || null,
+      region: form.region.trim() || null,
+      reputationNote: null,
+      isActive: true,
+    };
+
+    this.savingQuickFarmer.set(true);
+    try {
+      const response = await lastValueFrom(this.purchaseService.createFarmer(payload));
+      const farmerId = this.unwrap(response, "Không thêm được nông dân.");
+      await this.farmersQuery.refetch();
+      this.setScheduleField("farmerId", Number(farmerId));
+      this.showQuickFarmerModal.set(false);
+      this.quickFarmerForm.set(this.defaultQuickFarmerForm());
+      await this.showSuccess("Đã thêm và chọn nông dân mới.");
+    } catch (err) {
+      this.showError(this.apiError(err, "Không thêm được nông dân."));
+    } finally {
+      this.savingQuickFarmer.set(false);
+    }
   }
 
   async saveSchedule(): Promise<void> {
@@ -705,7 +762,7 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: Number(form.farmerId),
       statusId: form.statusId || 1,
       riceVarietyId: form.riceVarietyId || null,
-      scheduleDate: this.toApiDate(form.scheduleDate),
+      scheduleDate: this.toApiDateTime(form.scheduleDate),
       location: form.location.trim(),
       estimatedQtyKg:
         form.estimatedWeight != null
@@ -868,14 +925,6 @@ export class RicePurchaseComponent implements OnDestroy {
         .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0),
       actualWeightUnit: "kg",
     }));
-  }
-
-  async readBleScaleAsBag(): Promise<void> {
-    if (this.receiptFormLocked() || this.readingBleScale()) return;
-    this.readingBleScale.set(true);
-    try { this.addReceiptBag(await this.bluetoothScale.readWeightKg()); }
-    catch (error) { this.showError(error instanceof Error ? error.message : "Không đọc được cân BLE."); }
-    finally { this.readingBleScale.set(false); }
   }
 
   updateReceiptBag(index: number, weightKg: number | null): void {
@@ -1242,7 +1291,7 @@ export class RicePurchaseComponent implements OnDestroy {
       farmerId: null,
       statusId: 1,
       riceVarietyId: null,
-      scheduleDate: this.todayInput(),
+      scheduleDate: this.nowDateTimeInput(),
       location: "",
       estimatedWeight: null,
       estimatedWeightUnit: "ton",
@@ -1250,6 +1299,10 @@ export class RicePurchaseComponent implements OnDestroy {
       assignedUserId: null,
       note: "",
     };
+  }
+
+  private defaultQuickFarmerForm(): QuickFarmerFormState {
+    return { name: "", code: "", phone: "", address: "", region: "" };
   }
 
   private defaultReceiptForm(): ReceiptFormState {
@@ -1369,28 +1422,12 @@ export class RicePurchaseComponent implements OnDestroy {
     return { start, end };
   }
 
-  private todayInput(): string {
-    const now = new Date();
-    const offset = now.getTimezoneOffset();
-    return new Date(now.getTime() - offset * 60_000).toISOString().slice(0, 10);
-  }
-
   private nowDateTimeInput(): string {
     const now = new Date();
     const offset = now.getTimezoneOffset();
     return new Date(now.getTime() - offset * 60_000)
       .toISOString()
       .slice(0, 16);
-  }
-
-  private toDateInput(value?: string | null): string {
-    if (!value) return this.todayInput();
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value.slice(0, 10);
-    const offset = date.getTimezoneOffset();
-    return new Date(date.getTime() - offset * 60_000)
-      .toISOString()
-      .slice(0, 10);
   }
 
   private toDateTimeInput(value?: string | null): string {
@@ -1401,10 +1438,6 @@ export class RicePurchaseComponent implements OnDestroy {
     return new Date(date.getTime() - offset * 60_000)
       .toISOString()
       .slice(0, 16);
-  }
-
-  private toApiDate(value: string): string {
-    return `${value}T00:00:00`;
   }
 
   private toApiDateTime(value: string): string {

@@ -68,12 +68,28 @@ export interface FilterSelectOption {
 
       @if (open()) {
       <div class="ms-menu" [ngStyle]="menuStyle()">
+        @if (searchable) {
+        <div class="ms-search" (click)="$event.stopPropagation()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            #searchInput
+            type="text"
+            [value]="searchTerm()"
+            [placeholder]="searchPlaceholder"
+            (input)="searchTerm.set($any($event.target).value)"
+            (keydown.escape)="close()"
+          />
+        </div>
+        }
         @if (!multiple && clearable) {
         <label class="ms-item" (click)="selectSingle(null)">
           <span class="ms-radio" [class.on]="!hasValue()"></span>
           <span>{{ allLabel }}</span>
         </label>
-        } @for (o of options; track o.id) { @if (multiple) {
+        } @for (o of filteredOptions(); track o.id) { @if (multiple) {
         <label class="ms-item" [class.disabled]="o.disabled">
           <input
             type="checkbox"
@@ -92,8 +108,13 @@ export interface FilterSelectOption {
           <span class="ms-radio" [class.on]="o.id === value"></span>
           <span>{{ o.name }}</span>
         </label>
-        } } @if (options.length === 0) {
-        <div class="ms-empty">Không có dữ liệu</div>
+        } } @if (filteredOptions().length === 0) {
+        <div class="ms-empty">{{ searchTerm() ? 'Không tìm thấy kết quả' : 'Không có dữ liệu' }}</div>
+        }
+        @if (allowCreate && searchTerm().trim() && filteredOptions().length === 0) {
+        <button type="button" class="ms-create" (click)="requestCreate($event)">
+          <span>＋</span> {{ createLabel }} “{{ searchTerm().trim() }}”
+        </button>
         }
       </div>
       }
@@ -151,6 +172,29 @@ export interface FilterSelectOption {
         border-radius: var(--radius-sm, 8px);
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
       }
+      .ms-search {
+        position: sticky;
+        top: -6px;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin: -2px -2px 5px;
+        padding: 7px 8px;
+        color: var(--text-muted, #94a3b8);
+        background: var(--card-bg, #fff);
+        border-bottom: 1px solid var(--border, #e2e8f0);
+      }
+      .ms-search input {
+        min-width: 0;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        color: var(--text-primary, #1e293b);
+        background: transparent;
+        font: inherit;
+      }
       .ms-item {
         display: flex;
         align-items: center;
@@ -197,6 +241,23 @@ export interface FilterSelectOption {
         font-size: 0.8rem;
         color: var(--text-muted, #94a3b8);
       }
+      .ms-create {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        margin-top: 4px;
+        padding: 8px;
+        border: 0;
+        border-top: 1px solid var(--border, #e2e8f0);
+        background: transparent;
+        color: var(--accent, #16a34a);
+        font: inherit;
+        font-weight: 650;
+        text-align: left;
+        cursor: pointer;
+      }
+      .ms-create:hover { background: var(--bg-tertiary, #eef1f7); }
     `,
   ],
 })
@@ -209,14 +270,27 @@ export class FilterSelectComponent implements AfterViewInit, OnDestroy {
   @Input() clearable = true;
   /** Vô hiệu hóa dropdown (không cho mở). */
   @Input() disabled = false;
+  /** Cho phép gõ để lọc option theo tên, không phân biệt hoa/thường và dấu tiếng Việt. */
+  @Input() searchable = false;
+  @Input() searchPlaceholder = 'Nhập để tìm kiếm...';
+  @Input() allowCreate = false;
+  @Input() createLabel = 'Thêm mới';
   @Input() value: any = null;
   @Output() valueChange = new EventEmitter<any>();
+  @Output() createRequest = new EventEmitter<string>();
 
   @ViewChild('toggleBtn') toggleBtn?: ElementRef<HTMLButtonElement>;
+  @ViewChild('searchInput') searchInput?: ElementRef<HTMLInputElement>;
 
   private readonly host = inject(ElementRef<HTMLElement>);
 
   open = signal(false);
+  searchTerm = signal('');
+  filteredOptions(): FilterSelectOption[] {
+    const keyword = this.normalize(this.searchTerm());
+    if (!this.searchable || !keyword) return this.options;
+    return this.options.filter((option) => this.normalize(option.name).includes(keyword));
+  }
   /** Toạ độ menu (position:fixed) để không bị cắt bởi overflow của ancestor. */
   private menuPos = signal<{ [k: string]: string }>({});
 
@@ -243,7 +317,7 @@ export class FilterSelectComponent implements AfterViewInit, OnDestroy {
 
   @HostListener('document:click')
   onDocClick(): void {
-    this.open.set(false);
+    this.close();
   }
 
   menuStyle(): { [k: string]: string } {
@@ -273,8 +347,35 @@ export class FilterSelectComponent implements AfterViewInit, OnDestroy {
     event.stopPropagation();
     if (this.disabled) return;
     const next = !this.open();
-    if (next) this.computePosition();
+    if (next) {
+      this.searchTerm.set('');
+      this.computePosition();
+    }
     this.open.set(next);
+    if (next && this.searchable) {
+      setTimeout(() => this.searchInput?.nativeElement.focus());
+    }
+  }
+
+  close(): void {
+    this.open.set(false);
+    this.searchTerm.set('');
+  }
+
+  requestCreate(event: Event): void {
+    event.stopPropagation();
+    const value = this.searchTerm().trim();
+    if (!value) return;
+    this.createRequest.emit(value);
+    this.close();
+  }
+
+  private normalize(value: unknown): string {
+    return String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLocaleLowerCase('vi')
+      .trim();
   }
 
   private asArray(): any[] {
@@ -299,7 +400,7 @@ export class FilterSelectComponent implements AfterViewInit, OnDestroy {
 
   selectSingle(id: any): void {
     this.valueChange.emit(id);
-    this.open.set(false);
+    this.close();
   }
 
   label(): string {
