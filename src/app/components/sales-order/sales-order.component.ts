@@ -35,8 +35,11 @@ import {
   SalesOrderOutboundSummary,
   UpdateSalesOrderPayload,
   WarehouseSalesOption,
+  DebtDocumentRow,
+  DTResponse,
 } from '../../models';
 import { SalesOrderService } from '../../services/sales-order.service';
+import { PartyDebtService } from '../../services/party-debt.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -98,6 +101,7 @@ interface OutboundLine {
 })
 export class SalesOrderComponent implements OnDestroy {
   private readonly service = inject(SalesOrderService);
+  private readonly partyDebtService = inject(PartyDebtService);
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
   private lineKey = 1;
@@ -213,6 +217,63 @@ export class SalesOrderComponent implements OnDestroy {
   readonly fetching = computed(() => this.listQuery.isFetching());
   readonly detailLoading = computed(() => this.detailQuery.isFetching());
   readonly detail = computed(() => this.detailQuery.data() || null);
+  private readonly paymentQuery = injectQuery(() => {
+    const order = this.detail();
+    return {
+      queryKey: ['sales-orders', 'payment-summary', order?.id, order?.soCode],
+      enabled: !!order,
+      queryFn: async () => {
+        if (!order) return [] as DebtDocumentRow[];
+        const request = this.partyDebtService.buildDocumentRequest(
+          1,
+          100,
+          order.soCode,
+          'RECEIVABLE',
+          false
+        );
+        const page = this.unwrap<DTResponse<DebtDocumentRow>>(
+          await lastValueFrom(this.partyDebtService.getDocuments(request)),
+          'Không tải được thông tin thanh toán của đơn bán.'
+        );
+        const effectiveOutboundIds = new Set(
+          order.outboundOrders
+            .filter((outbound) => {
+              const status = (outbound.outboundStatusCode || '').toUpperCase();
+              return status !== 'DELIVERY_FAILED' && status !== 'CANCELLED';
+            })
+            .map((outbound) => outbound.id)
+        );
+        return page.data.filter(
+          (document) =>
+            document.refType === 'OUTBOUND_ORDER' &&
+            document.refId != null &&
+            effectiveOutboundIds.has(document.refId)
+        );
+      },
+    };
+  });
+  readonly paymentLoading = computed(() => this.paymentQuery.isFetching());
+  readonly paymentSummary = computed(() => {
+    const order = this.detail();
+    const documents = this.paymentQuery.data() || [];
+    const deposit = Math.max(0, Number(order?.depositAmount || 0));
+    const paidFromDebtDocuments = documents.reduce(
+      (sum, document) => sum + Math.max(0, Number(document.paidAmount || 0)),
+      0
+    );
+    // Trước khi xuất kho chưa có chứng từ công nợ; lúc này tiền cọc trên đơn
+    // vẫn là toàn bộ số tiền đã thu. Sau khi có chứng từ, paidAmount đã bao gồm
+    // phần cọc được phân bổ nên không cộng cọc lần hai.
+    const totalPaid = documents.length > 0 ? paidFromDebtDocuments : deposit;
+    const appliedDeposit = Math.min(deposit, totalPaid);
+    return {
+      deposit,
+      deliveryAndOtherPayments: Math.max(0, totalPaid - appliedDeposit),
+      totalPaid,
+      remaining: Math.max(0, Number(order?.totalAmount || 0) - totalPaid),
+      hasDebtDocuments: documents.length > 0,
+    };
+  });
   readonly millingOrders = computed(() => this.millingQuery.data() || []);
   readonly millingFetching = computed(() => this.millingQuery.isFetching());
 
@@ -694,6 +755,10 @@ export class SalesOrderComponent implements OnDestroy {
   }
 
   openOutbound(order: SalesOrderDetail): void {
+    const onlyRetryableHistory = order.outboundOrders.every((outbound) => {
+      const status = (outbound.outboundStatusCode || '').toUpperCase();
+      return status === 'DELIVERY_FAILED' || status === 'CANCELLED';
+    });
     this.outboundLines.set(
       order.items.map((item) => ({
         productVariantId: item.productVariantId,
@@ -701,7 +766,9 @@ export class SalesOrderComponent implements OnDestroy {
         sku: item.sku,
         orderedKg: item.quantityOrdered,
         quantityToDispatch:
-          order.outboundOrders.length === 0 ? item.quantityOrdered : null,
+          order.outboundOrders.length === 0 || onlyRetryableHistory
+            ? item.quantityOrdered
+            : null,
       }))
     );
     this.showOutboundModal.set(true);

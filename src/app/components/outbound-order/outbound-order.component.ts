@@ -777,7 +777,7 @@ export class OutboundOrderComponent implements OnDestroy {
     const debt = await this.loadOutboundDebt(order);
     const outstanding = debt ? debt.outstandingAmount : null;
     const total = debt ? debt.totalAmount : null;
-    const paid = debt ? debt.totalAmount - debt.outstandingAmount : null;
+    const paid = debt ? debt.paidAmount : null;
 
     const amountBlock =
       debt != null
@@ -785,7 +785,7 @@ export class OutboundOrderComponent implements OnDestroy {
           `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Tổng tiền phiếu:</span><b>${this.fmtMoney(
             total!,
           )}</b></div>` +
-          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Đã thanh toán/cọc:</span><b>${this.fmtMoney(
+          `<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Đã thu trước khi giao:</span><b>${this.fmtMoney(
             paid!,
           )}</b></div>` +
           `<div style="display:flex;justify-content:space-between"><span>Còn phải thu:</span><b style="color:#dc2626">${this.fmtMoney(
@@ -811,7 +811,7 @@ export class OutboundOrderComponent implements OnDestroy {
         `<label style="${fieldLabel};margin-top:0" for="cd-receiver">Tên người nhận</label>` +
         `<input id="cd-receiver" class="swal2-input" style="margin:0;width:100%" placeholder="VD: Nguyễn Văn A">` +
         amountBlock +
-        `<label style="${fieldLabel}" for="cd-payment">Số tiền khách thanh toán thêm (VNĐ)</label>` +
+        `<label style="${fieldLabel}" for="cd-payment">Thu thêm khi giao hàng (VNĐ)</label>` +
         `<input id="cd-payment" class="swal2-input" style="margin:0;width:100%" inputmode="numeric" value="0">` +
         quickButtons +
         `<label style="${fieldLabel}" for="cd-note">Ghi chú giao hàng</label>` +
