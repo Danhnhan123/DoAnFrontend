@@ -18,12 +18,10 @@ import {
   CreateQualityInspectionDto,
   UpdateQualityInspectionDto,
   PaddyLotRow,
-  UserAdvancedRow,
 } from '../../models';
 import { QualityInspectionService } from '../../services/quality-inspection.service';
 import { PaddyLotService } from '../../services/paddy-lot.service';
-import { UserService } from '../../services/user.service';
-import { RoleService } from '../../services/role.service';
+import { AuthService } from '../../services/auth.service';
 import { FilterSelectComponent } from '../shared/filter-select.component';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
@@ -60,17 +58,9 @@ interface QcForm {
 export class QualityInspectionComponent {
   private qcService = inject(QualityInspectionService);
   private paddyLotService = inject(PaddyLotService);
-  private userService = inject(UserService);
-  private roleService = inject(RoleService);
+  readonly auth = inject(AuthService);
   private router = inject(Router);
   private queryClient = injectQueryClient();
-
-  /**
-   * Vai trò được phép đi kiểm định chất lượng theo tài liệu nghiệp vụ:
-   * Chủ kho (OWNER) và Nhân viên kho (WAREHOUSE). Dropdown người kiểm chỉ hiện
-   * user thuộc các vai trò này. Chỉnh danh sách này nếu nghiệp vụ thay đổi.
-   */
-  readonly allowedInspectorRoleCodes = ['OWNER', 'WAREHOUSE'];
 
   // ----- Danh mục (đúng vocab entity backend) -----
   readonly moldOptions = this.opt(['Không', 'Nhẹ', 'Nặng']);
@@ -187,18 +177,6 @@ export class QualityInspectionComponent {
     queryFn: () => lastValueFrom(this.paddyLotService.getQuarantined()),
   }));
 
-  // Dropdown người kiểm + vai trò: dùng GetAll dùng chung (chỉ [Authorize]) thay cho
-  // paged-advanced/paged (bị chặn READ USER/ROLE) để role làm QC vẫn lấy được danh sách.
-  usersQuery = injectQuery(() => ({
-    queryKey: ['qc-user-options'],
-    queryFn: () => lastValueFrom(this.userService.getAll()),
-  }));
-
-  rolesQuery = injectQuery(() => ({
-    queryKey: ['qc-roles'],
-    queryFn: () => lastValueFrom(this.roleService.getAll()),
-  }));
-
   historyQuery = injectQuery(() => ({
     queryKey: ['qc-history', this.historyLotId()],
     enabled: this.historyLotId() != null,
@@ -215,7 +193,6 @@ export class QualityInspectionComponent {
   rows = computed<QualityInspectionRow[]>(() => this.unwrapDT(this.listQuery.data()));
   totalRecords = computed<number>(() => this.unwrapTotal(this.listQuery.data()));
   lotList = computed<PaddyLotRow[]>(() => this.unwrapDT(this.lotsQuery.data()));
-  userList = computed<UserAdvancedRow[]>(() => this.unwrapDT(this.usersQuery.data()));
 
   /**
    * Danh sách lô đang CHỜ KIỂM ĐỊNH (AWAITING_QC) — đã là PaddyLotRow đầy đủ:
@@ -274,39 +251,11 @@ export class QualityInspectionComponent {
     return opts;
   });
 
-  /** Danh sách vai trò (để lọc người kiểm theo Code vai trò). */
-  rolesList = computed<any[]>(() => {
-    const res: any = this.rolesQuery.data();
-    const d = res?.data ?? res?.resources;
-    if (Array.isArray(d)) return d;
-    return d?.items ?? d?.data ?? [];
-  });
-
-  /** Id các vai trò được phép kiểm định (map từ Code -> Id). */
-  allowedRoleIds = computed<number[]>(() => {
-    const codes = this.allowedInspectorRoleCodes.map((c) => c.toUpperCase());
-    return this.rolesList()
-      .filter((r) => codes.includes(String(r.code ?? '').toUpperCase()))
-      .map((r) => r.id);
-  });
-
-  /** Người kiểm = user có vai trò được phép; trong lúc tải role thì tạm hiện tất cả. */
-  userOptions = computed(() => {
-    const allowed = new Set(this.allowedRoleIds());
-    const rolesLoaded = !this.rolesQuery.isPending();
-    return this.userList()
-      .filter((u) => {
-        if (!rolesLoaded) return true;
-        return (u.roles ?? []).some((r) => allowed.has(r.id));
-      })
-      .map((u) => ({
-        id: u.id,
-        name:
-          `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() ||
-          u.username ||
-          `#${u.id}`,
-      }));
-  });
+  inspectorDisplayName = computed(() =>
+    this.viewOnly()
+      ? this.editItem()?.inspectorName || '—'
+      : this.auth.currentUser()?.fullName || 'Người đang đăng nhập'
+  );
 
   historyRows = computed<QualityInspectionRow[]>(() => {
     const res = this.historyQuery.data();
@@ -557,7 +506,7 @@ export class QualityInspectionComponent {
       if (!result.isConfirmed) return;
       const base: CreateQualityInspectionDto = {
         paddyLotId: Number(f.paddyLotId),
-        inspectorId: f.inspectorId != null ? Number(f.inspectorId) : null,
+        inspectorId: this.auth.currentUser()?.id ?? null,
         inspectedAt: new Date(f.inspectedAt).toISOString(),
         moisturePercent: this.num(f.moisturePercent),
         impurityPercent: this.num(f.impurityPercent),
@@ -594,7 +543,7 @@ export class QualityInspectionComponent {
       if (!result.isConfirmed) return;
       const payload: CreateQualityInspectionDto = {
         paddyLotId: Number(f.paddyLotId),
-        inspectorId: f.inspectorId != null ? Number(f.inspectorId) : null,
+        inspectorId: this.auth.currentUser()?.id ?? null,
         inspectedAt: new Date(f.inspectedAt).toISOString(),
         moisturePercent: this.num(f.moisturePercent),
         impurityPercent: this.num(f.impurityPercent),

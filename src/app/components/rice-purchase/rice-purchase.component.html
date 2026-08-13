@@ -209,7 +209,7 @@
                   <td class="weight-cell">
                     {{ formatTonFromKg(row.estimatedQtyKg) }}
                   </td>
-                  <td>{{ formatDate(row.scheduleDate) }}</td>
+                  <td>{{ formatDateTime(row.scheduleDate) }}</td>
                   <td>
                     <button
                       type="button"
@@ -621,11 +621,16 @@
             <span>Nông dân <b>*</b></span>
             <app-filter-select
               [clearable]="false"
-              placeholder="Chọn nông dân..."
+              [searchable]="true"
+              [allowCreate]="perm.canCreate('FARMERS')"
+              createLabel="Thêm nông dân mới"
+              searchPlaceholder="Nhập tên hoặc số điện thoại..."
+              placeholder="Chọn hoặc nhập để tìm nông dân..."
               [disabled]="scheduleFormLocked() || loadingReference()"
               [options]="farmerScheduleSelectOptions()"
               [value]="scheduleForm().farmerId"
               (valueChange)="setScheduleField('farmerId', $event)"
+              (createRequest)="openQuickFarmer($event)"
             ></app-filter-select>
           </label>
 
@@ -642,7 +647,8 @@
           <label class="field-group">
             <span>Ngày hẹn <b>*</b></span>
             <input
-              type="date"
+              type="datetime-local"
+              step="60"
               [ngModel]="scheduleForm().scheduleDate"
               (ngModelChange)="setScheduleField('scheduleDate', $event)"
               [disabled]="scheduleFormLocked()"
@@ -744,6 +750,58 @@
             }
           </button>
         }
+      </footer>
+    </section>
+  </div>
+}
+
+@if (showQuickFarmerModal()) {
+  <div class="modal-backdrop quick-farmer-backdrop" (mousedown)="closeQuickFarmer()">
+    <section
+      class="purchase-modal quick-farmer-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quick-farmer-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="quick-farmer-title">Thêm nhanh nông dân</h2>
+          <p>Sau khi lưu, nông dân mới sẽ được tự động chọn cho lịch thu mua này.</p>
+        </div>
+        <button type="button" class="modal-close" aria-label="Đóng" (click)="closeQuickFarmer()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="form-grid two-columns">
+          <label class="field-group">
+            <span>Tên nông dân <b>*</b></span>
+            <input type="text" [ngModel]="quickFarmerForm().name" (ngModelChange)="setQuickFarmerField('name', $event)" placeholder="Nhập họ và tên" />
+          </label>
+          <label class="field-group">
+            <span>Mã nông dân <b>*</b></span>
+            <input type="text" [ngModel]="quickFarmerForm().code" (ngModelChange)="setQuickFarmerField('code', $event)" placeholder="Ví dụ: ND-001" />
+          </label>
+          <label class="field-group">
+            <span>Số điện thoại</span>
+            <input type="tel" [ngModel]="quickFarmerForm().phone" (ngModelChange)="setQuickFarmerField('phone', $event)" placeholder="Ví dụ: 0912345678" />
+          </label>
+          <label class="field-group">
+            <span>Khu vực</span>
+            <input type="text" [ngModel]="quickFarmerForm().region" (ngModelChange)="setQuickFarmerField('region', $event)" placeholder="Xã, huyện, tỉnh" />
+          </label>
+          <label class="field-group span-2">
+            <span>Địa chỉ</span>
+            <input type="text" [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer quick-farmer-footer">
+        <button type="button" class="secondary-button" [disabled]="savingQuickFarmer()" (click)="closeQuickFarmer()">Hủy</button>
+        <button type="button" class="save-button" [disabled]="savingQuickFarmer()" (click)="saveQuickFarmer()">
+          @if (savingQuickFarmer()) { <span class="button-spinner"></span> Đang thêm... } @else { Thêm và chọn }
+        </button>
       </footer>
     </section>
   </div>
@@ -872,7 +930,6 @@
             <div class="bag-editor-header">
               <span>Danh sách bao <b>*</b></span>
               <div class="bag-actions">
-                <button type="button" class="btn-ble-bag" (click)="readBleScaleAsBag()" [disabled]="receiptFormLocked() || readingBleScale()">{{ readingBleScale() ? 'Đang đọc...' : 'Đọc cân BLE' }}</button>
                 <button type="button" class="btn-add-bag" (click)="addReceiptBag()" [disabled]="receiptFormLocked()">+ Thêm bao</button>
               </div>
             </div>
@@ -905,32 +962,6 @@
               placeholder="6.350"
               [disabled]="receiptFormLocked()"
             />
-          </label>
-
-          <label class="field-group">
-            <span>Độ ẩm (%)</span>
-            <input
-              type="number"
-              min="0"
-              max="100"
-              step="0.1"
-              [ngModel]="receiptForm().moisturePercent"
-              (ngModelChange)="setReceiptField('moisturePercent', $event)"
-              placeholder="14.5"
-              [disabled]="receiptFormLocked()"
-            />
-          </label>
-
-          <label class="field-group">
-            <span>Chất lượng</span>
-            <app-filter-select
-              allLabel="Chưa đánh giá"
-              placeholder="Chưa đánh giá"
-              [disabled]="receiptFormLocked()"
-              [options]="qualityGradeSelectOptions"
-              [value]="receiptForm().qualityGrade"
-              (valueChange)="setReceiptField('qualityGrade', $event)"
-            ></app-filter-select>
           </label>
 
           <label class="field-group">

@@ -10,6 +10,7 @@ import {
   ConfirmPaddyPurchaseReceiptResult,
   CreatePaddyPurchaseReceiptDto,
   CreatePaddyPurchaseScheduleDto,
+  CreateFarmerDto,
   DTParameters,
   FarmerDetailDto,
   PaddyPurchaseReceiptRow,
@@ -168,6 +169,10 @@ export class PaddyPurchaseService {
     return this.http.get<ApiResponse<FarmerDetailDto[]>>(
       `${this.base}/farmers`,
     );
+  }
+
+  createFarmer(payload: CreateFarmerDto): Observable<ApiResponse<number>> {
+    return this.http.post<ApiResponse<number>>(`${this.base}/farmers`, payload);
   }
 
   getRiceVarieties(): Observable<ApiResponse<RiceVarietyDetailDto[]>> {
