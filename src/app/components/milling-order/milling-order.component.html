@@ -760,6 +760,18 @@
       </header>
 
       <div class="modal-body">
+        @if (lockedOutputLocations().length) {
+          <div class="locked-column-warning" role="alert">
+            <strong>Cột đang chờ lấy hàng xuất kho:</strong>
+            @for (location of lockedOutputLocations(); track location.id; let last = $last) {
+              <span>
+                {{ locationLabel(location) }}
+                ({{ location.outboundLockOrderCode || '#' + location.outboundLockOrderId }}){{ last ? '' : ', ' }}
+              </span>
+            }
+            <div>Những cột này được hiển thị để cảnh báo nhưng không thể chọn cho thành phẩm mới.</div>
+          </div>
+        }
         <div class="completion-grid">
           <section class="completion-main">
             <div class="subsection-heading">

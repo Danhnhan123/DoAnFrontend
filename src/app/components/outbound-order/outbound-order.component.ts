@@ -148,6 +148,7 @@ export class OutboundOrderComponent implements OnDestroy {
   private readonly router = inject(Router);
 
   readonly statusCode = OUTBOUND_STATUS_CODE;
+  readonly status = OUTBOUND_STATUS;
   readonly Math = Math;
   readonly pipelineSteps = PIPELINE_STEPS;
   readonly pageSizeOptions = [10, 20, 50];

@@ -477,10 +477,17 @@ export class MillingOrderComponent {
     paddyLotId: number | null,
     warehouseId: number | null
   ): FilterSelectOption[] {
-    return this.inventoryLocationsForLot(paddyLotId, warehouseId).map((inv) => ({
-      id: inv.locationId,
-      name: this.inventoryLocationLabel(inv),
-    }));
+    return this.inventoryLocationsForLot(paddyLotId, warehouseId, true).map((inv) => {
+      const location = this.locations().find((item) => item.id === inv.locationId);
+      const locked = !!location?.isLockedForOutbound;
+      return {
+        id: inv.locationId,
+        name: locked
+          ? `${this.inventoryLocationLabel(inv)} · đang khóa bởi phiếu xuất ${location?.outboundLockOrderCode || '#' + location?.outboundLockOrderId}`
+          : this.inventoryLocationLabel(inv),
+        disabled: locked || !!location?.isOutboundStaging,
+      };
+    });
   }
   variantSelectOptions(type: MillingOutputType): FilterSelectOption[] {
     return this.variantsForType(type).map((v) => ({
@@ -783,12 +790,31 @@ export class MillingOrderComponent {
   }
 
   outputLocationSelectOptions(line: OutputLine): FilterSelectOption[] {
-    return this.suitableOutputLocations(line).map((location, index) => ({
+    const selectable = this.suitableOutputLocations(line);
+    const selectableIds = new Set(selectable.map((location) => location.id));
+    const options = selectable.map((location, index) => ({
       id: location.id,
       name: `${index === 0 ? 'Ưu tiên · ' : ''}${this.locationLabel(location)} · còn ${this.fmtWeight(
         Math.max(0, Number(location.maxCapacity ?? 0) - Number(location.currentOccupancy ?? 0))
       )}`,
     }));
+    const locked = this.locations()
+      .filter((location) =>
+        location.warehouseId === this.activeOrder()?.warehouseId &&
+        location.isLockedForOutbound && !location.isOutboundStaging &&
+        !selectableIds.has(location.id))
+      .map((location) => ({
+        id: location.id,
+        name: `${this.locationLabel(location)} · đang khóa bởi phiếu xuất ${location.outboundLockOrderCode || '#' + location.outboundLockOrderId}`,
+        disabled: true,
+      }));
+    return [...options, ...locked];
+  }
+
+  lockedOutputLocations(): MillingLocationOption[] {
+    const warehouseId = this.activeOrder()?.warehouseId;
+    return this.locations().filter((location) =>
+      location.warehouseId === warehouseId && location.isLockedForOutbound && !location.isOutboundStaging);
   }
 
   selectedSalesOrderVarietyError(): string {
@@ -1443,7 +1469,8 @@ export class MillingOrderComponent {
 
   inventoryLocationsForLot(
     paddyLotId: number | null,
-    warehouseId: number | null
+    warehouseId: number | null,
+    includeLocked = false
   ): InventoryRow[] {
     if (!paddyLotId || !warehouseId) return [];
     return this.paddyInventoryRows()
@@ -1451,7 +1478,10 @@ export class MillingOrderComponent {
         (row) =>
           row.paddyLotId === paddyLotId &&
           row.warehouseId === warehouseId &&
-          !!row.locationId
+          !!row.locationId &&
+          (includeLocked || !this.locations().some((location) =>
+            location.id === row.locationId &&
+            (location.isLockedForOutbound || location.isOutboundStaging)))
       )
       .sort((a, b) =>
         this.inventoryLocationLabel(a).localeCompare(
@@ -1565,6 +1595,8 @@ export class MillingOrderComponent {
         return location.warehouseId === order.warehouseId &&
           location.isActive !== false &&
           !location.isQuarantine &&
+          !location.isOutboundStaging &&
+          !location.isLockedForOutbound &&
           (!location.allowedCategoryId || location.allowedCategoryId === variant.productCategoryId) &&
           (!location.currentProductVariantId || location.currentProductVariantId === variant.id) &&
           remaining + 0.0005 >= requiredKg;

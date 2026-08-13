@@ -176,6 +176,11 @@ export interface MillingLocationOption {
   maxCapacity?: number | null;
   currentOccupancy?: number | null;
   isQuarantine?: boolean;
+  isOutboundStaging?: boolean;
+  isLockedForOutbound?: boolean;
+  outboundLockOrderId?: number | null;
+  outboundLockOrderCode?: string | null;
+  outboundLockedAt?: string | null;
   isActive?: boolean;
   allowedCategoryId?: number | null;
   priority?: number;

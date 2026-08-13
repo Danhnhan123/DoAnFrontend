@@ -1276,3 +1276,17 @@ label b {
     min-width: 570px;
   }
 }
+.locked-column-warning {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+.locked-column-warning strong,
+.locked-column-warning div {
+  display: block;
+}

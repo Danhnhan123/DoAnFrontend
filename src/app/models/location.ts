@@ -46,6 +46,11 @@ export interface LocationDetailDto extends LocationRow {
   allowedCategoryName?: string | null;
   priority: number;
   isQuarantine: boolean;
+  isOutboundStaging?: boolean;
+  isLockedForOutbound?: boolean;
+  outboundLockOrderId?: number | null;
+  outboundLockOrderCode?: string | null;
+  outboundLockedAt?: string | null;
 }
 
 export interface CreateLocationDto {
