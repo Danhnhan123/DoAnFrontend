@@ -1,8 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Subscription, forkJoin } from 'rxjs';
 
 import {
   DebtDirection,
@@ -12,6 +19,7 @@ import {
   RecordDebtPaymentRequest,
 } from '../../models';
 import { PartyDebtService } from '../../services/party-debt.service';
+import { RealtimeService } from '../../services/realtime.service';
 
 type DebtTab =
   | 'OVERVIEW'
@@ -40,10 +48,12 @@ const EMPTY_SUMMARY: PartyDebtSummary = {
   templateUrl: './party-debt.component.html',
   styleUrl: './party-debt.component.css',
 })
-export class PartyDebtComponent implements OnInit {
+export class PartyDebtComponent implements OnInit, OnDestroy {
   readonly Math = Math;
   private readonly service = inject(PartyDebtService);
   private readonly router = inject(Router);
+  private readonly realtime = inject(RealtimeService);
+  private realtimeSub?: Subscription;
 
   activeTab = signal<DebtTab>('OVERVIEW');
   summary = signal<PartyDebtSummary>(EMPTY_SUMMARY);
@@ -80,6 +90,27 @@ export class PartyDebtComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+
+    // Màn này tự quản lý state bằng signal (không dùng TanStack Query) nên
+    // không được invalidateQueries đánh thức — phải nghe thẳng sự kiện realtime.
+    this.realtimeSub = this.realtime.onEntities(
+      [
+        'PartyDebt',
+        'DebtTransaction',
+        'PaddyPurchaseReceipt',
+        'OutboundOrder',
+        'CustomerReturnOrder',
+        'ReturnToSupplierOrder',
+        'Customer',
+        'Farmer',
+        'Supplier',
+      ],
+      () => this.reload(),
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.realtimeSub?.unsubscribe();
   }
 
   reload(): void {
