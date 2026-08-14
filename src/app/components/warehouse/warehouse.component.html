@@ -317,13 +317,13 @@
           <tr>
             <td data-label="Mã vị trí"><span class="code-link">{{ row.slotCode || row.zoneName }}</span></td>
             <td data-label="Tên khu vực">
-              <div class="u-name">{{ row.zoneName }}</div>
+              <div class="u-name">{{ row.isOutboundStaging ? 'Chờ xuất' : row.zoneName }}</div>
               @if (row.description) { <div class="u-sub text-muted small">{{ row.description }}</div> }
             </td>
             <td data-label="Kho"><span class="role-pill">{{ row.warehouseName }}</span></td>
             <td class="text-muted small" data-label="Cột xếp">{{ row.shelfRow || '—' }}</td>
             <td class="text-muted small" data-label="Ô chứa">
-              {{ (row.currentOccupancy ?? 0) | number }} / {{ row.maxCapacity != null ? (row.maxCapacity | number) : '—' }}
+              {{ (row.currentOccupancy ?? 0) | number }} / {{ row.isOutboundStaging ? 'Không áp dụng' : (row.maxCapacity != null ? (row.maxCapacity | number) : '—') }}
             </td>
             <td data-label="Lấp đầy">
               @if (row.maxCapacity) {
@@ -336,6 +336,7 @@
               </span>
             </td>
             <td class="action-cell" data-label="Thao tác">
+              @if (!row.isOutboundStaging) {
               <button class="icon-btn" type="button" (click)="printLocation(row)" title="In tem QR vị trí">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                   stroke-linecap="round" stroke-linejoin="round">
@@ -359,6 +360,9 @@
                   <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
                 </svg>
               </button>
+              } @else {
+                <span class="text-muted small">Hệ thống quản lý</span>
+              }
             </td>
           </tr>
           }

@@ -91,6 +91,7 @@
 .dot.st-warning { background: var(--amber); }
 .dot.st-full { background: var(--red); }
 .dot.st-quarantine { background: var(--orange); }
+.dot.st-staging { background: #2563eb; }
 .dot.st-locked { background: #94a3b8; }
 .dot.st-open { background: var(--green-dark); }
 
@@ -216,6 +217,10 @@
 .slot.st-quarantine .slot-badge { background: #ffedd5; color: #c2410c; }
 .slot.st-quarantine .slot-bar-fill { background: var(--orange); }
 
+.slot.st-staging { background: #eff6ff; border-color: #93c5fd; }
+.slot.st-staging .slot-badge { background: #dbeafe; color: #1d4ed8; }
+.slot.st-staging .slot-bar-fill { background: #2563eb; }
+
 .slot.st-locked { background: #f8fafc; border-color: #e2e8f0; }
 .slot.st-locked .slot-badge { background: #e2e8f0; color: #475569; }
 .slot.st-locked .slot-bar-fill { background: #94a3b8; }
@@ -238,6 +243,7 @@
 .detail-status.st-warning { background: #fef3c7; color: #b45309; }
 .detail-status.st-full { background: #fee2e2; color: #b91c1c; }
 .detail-status.st-quarantine { background: #ffedd5; color: #c2410c; }
+.detail-status.st-staging { background: #dbeafe; color: #1d4ed8; }
 .detail-status.st-locked { background: #e2e8f0; color: #475569; }
 .detail-status.st-empty { background: #eef2f6; color: #94a3b8; }
 

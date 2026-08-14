@@ -107,7 +107,7 @@
               <tbody>
                 @for (item of current.stockTakeItems; track item.id; let index = $index) {
                   <tr>
-                    <td><strong>{{ item.sku || '—' }}</strong><span>{{ item.productVariantName || '—' }}</span><small>{{ item.lotCode || 'Không theo lô' }} · {{ item.zoneName || '—' }}/{{ item.locationCode || '—' }}</small>@if (item.isQuarantine) { <em>Cách ly</em> }</td>
+                    <td><strong>{{ item.sku || '—' }}</strong><span>{{ item.productVariantName || '—' }}</span><small>{{ item.lotCode || 'Không theo lô' }} · {{ item.isOutboundStaging ? 'Chờ xuất' : (item.zoneName || '—') }}/{{ item.locationCode || '—' }}</small>@if (item.isQuarantine) { <em>Cách ly</em> } @if (item.isOutboundStaging) { <em class="staging">Chờ xuất</em> }</td>
                     <td class="number">{{ formatNumber(item.systemQuantity) }} kg</td>
                     <td class="number">
                       @if (canEditDetail()) { <input class="count-input" type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.actualQuantity" (ngModelChange)="updateCount(index, 'actualQuantity', $event)" /> }

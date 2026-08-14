@@ -180,7 +180,10 @@ export class StockTakeComponent implements OnDestroy {
           .map(x => ({ id: x, name: x }));
       case 'COLUMN':
         return this.locations().filter(x => x.warehouseId === warehouseId)
-          .map(x => ({ id: x.id, name: `${x.zoneName} / ${x.slotCode || [x.shelfRow, x.shelfLevel].filter(Boolean).join('-') || `#${x.id}`}` }));
+          .map(x => ({
+            id: x.id,
+            name: `${x.isOutboundStaging ? 'Chờ xuất' : x.zoneName} / ${x.slotCode || [x.shelfRow, x.shelfLevel].filter(Boolean).join('-') || `#${x.id}`}`,
+          }));
       case 'LOT': {
         const seen = new Set<number>();
         return this.inventories().filter(x => x.paddyLotId && !seen.has(x.paddyLotId) && seen.add(x.paddyLotId))

@@ -355,6 +355,7 @@
 .type-badge.type-rice { background: #fef3c7; color: #b45309; }
 .type-badge.type-byproduct { background: #ede9fe; color: #6d28d9; }
 .type-badge.type-purchased_good { background: #e0e7ff; color: #4338ca; }
+.staging-badge { display: inline-flex; margin-top: 4px; padding: 2px 7px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: .7rem; font-weight: 700; }
 
 .loc-main {
   display: inline-flex;

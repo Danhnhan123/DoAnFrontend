@@ -252,6 +252,8 @@ export class StockTransferComponent implements OnDestroy {
     return rows.filter(
       (row) =>
         Number(row.quantityAvailable || 0) > 0 &&
+        !this.locations().some(location => location.id === row.locationId &&
+          (location.isOutboundStaging || location.isLockedForOutbound)) &&
         Number(row.quantityQuarantine || 0) <= 0 &&
         !String(row.lotStatusName || '').toLowerCase().includes('cách ly')
     );
@@ -261,6 +263,8 @@ export class StockTransferComponent implements OnDestroy {
     this.locations().filter(
       (location) =>
         location.warehouseId === this.form().toWarehouseId &&
+        !location.isOutboundStaging &&
+        !location.isLockedForOutbound &&
         !(location as LocationRow & { isQuarantine?: boolean }).isQuarantine
     )
   );

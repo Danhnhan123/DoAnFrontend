@@ -32,6 +32,7 @@
     <span class="legend-item"><span class="dot st-warning"></span> Cảnh báo</span>
     <span class="legend-item"><span class="dot st-full"></span> Đầy</span>
     <span class="legend-item"><span class="dot st-quarantine"></span> Cách ly/rủi ro</span>
+    <span class="legend-item"><span class="dot st-staging"></span> Chờ xuất</span>
     <span class="legend-item"><span class="dot st-locked"></span> Khóa</span>
     <span class="legend-item"><span class="dot st-open"></span> Cột đang mở</span>
   </div>
@@ -124,7 +125,7 @@
             <div class="detail-row"><span>Mặt hàng</span><b>{{ s.productName || s.categoryName || '—' }}</b></div>
             <div class="detail-row"><span>Số bao</span><b>{{ bagLabel(s) }}</b></div>
             <div class="detail-row"><span>Khối lượng</span><b>{{ fmtNum(s.weightKg) }} kg</b></div>
-            <div class="detail-row"><span>Sức chứa</span><b>{{ fmtNum(s.currentOccupancy) }} / {{ fmtNum(s.maxCapacity) }}</b></div>
+            <div class="detail-row"><span>Sức chứa</span><b>{{ s.isOutboundStaging ? 'Không áp dụng' : (fmtNum(s.currentOccupancy) + ' / ' + fmtNum(s.maxCapacity)) }}</b></div>
             <div class="detail-row"><span>Chất lượng</span><b>{{ s.quality || '—' }}</b></div>
             <div class="detail-row"><span>Chiến lược</span><b>{{ s.strategy }}</b></div>
           </div>

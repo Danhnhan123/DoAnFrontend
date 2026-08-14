@@ -10,6 +10,7 @@ export interface InventoryRow {
   warehouseName: string;
   locationId?: number | null;
   locationCode?: string | null;
+  isOutboundStaging?: boolean;
 
   productVariantId: number;
   sku: string;
