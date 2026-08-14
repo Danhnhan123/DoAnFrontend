@@ -254,6 +254,30 @@
 }
 .filter-row app-filter-select { width: 180px; }
 
+/* Công tắc lọc nhanh: cách ly / tồn thấp — dùng chung cho bảng lẫn 5 thẻ KPI */
+.toggle-chip {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-chip:hover { border-color: #94a3b8; }
+.toggle-chip.danger.active {
+  background: #fef2f2;
+  border-color: #ef4444;
+  color: #b91c1c;
+}
+.toggle-chip.warn.active {
+  background: #fffbeb;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
 /* Tabs */
 .tabs {
   display: flex;
