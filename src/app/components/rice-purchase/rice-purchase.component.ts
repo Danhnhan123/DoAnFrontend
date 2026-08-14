@@ -218,20 +218,14 @@ export class RicePurchaseComponent implements OnDestroy {
   }));
 
   readonly receiptScheduleOptions = computed(() => {
-  // Khi xem phiếu cũ, vẫn giữ lịch đang liên kết để không bị trống select.
-  const editingScheduleId = this.editingReceipt()?.scheduleId ?? null;
+    // Khi xem phiếu cũ, vẫn giữ lịch đang liên kết để không bị trống select.
+    const editingScheduleId = this.editingReceipt()?.scheduleId ?? null;
 
-  return this.scheduleOptions().filter((schedule) => {
-    const statusCode = this.statusOf(schedule.statusId).code;
-
-    const canCreateReceipt =
-      statusCode !== "CANCELLED" &&
-      statusCode !== "STOCKED" &&
-      statusCode !== "PARTIALLY_STOCKED";
-
-    return canCreateReceipt || schedule.id === editingScheduleId;
+    return this.scheduleOptions().filter(
+      (schedule) =>
+        this.canCreateReceiptFor(schedule) || schedule.id === editingScheduleId,
+    );
   });
-});
 
   private readonly receiptStatsQuery = injectQuery(() => ({
     queryKey: ["rice-purchase", "receipts", "summary"],
@@ -462,7 +456,10 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly scheduleSelectOptions = computed<FilterSelectOption[]>(() =>
     this.receiptScheduleOptions().map((s) => ({
       id: s.id,
-      name: `${s.scheduleCode} · ${s.farmerName} · ${this.formatDateTime(s.scheduleDate)}`,
+      // Kèm giống lúa để người lập phiếu chọn đúng lịch mà không phải mở lại màn lịch.
+      name: `${s.scheduleCode} · ${s.farmerName} · ${
+        s.riceVarietyName || this.riceVarietyName(s.riceVarietyId)
+      } · ${this.formatDateTime(s.scheduleDate)}`,
     })),
   );
   readonly scheduleOptions = computed(() =>
@@ -856,9 +853,12 @@ export class RicePurchaseComponent implements OnDestroy {
   // ───────────────────────── FORM PHIẾU MUA LÚA ──────────────────
 
   openCreateReceipt(schedule?: PaddyPurchaseScheduleRow): void {
-    if (schedule && this.isScheduleLocked(schedule)) {
+    if (schedule && !this.canCreateReceiptFor(schedule)) {
       this.showError(
-        "Lịch thu mua đã hủy hoặc đã nhập kho nên không thể tạo phiếu mua liên kết.",
+        this.isScheduleFullyReceipted(schedule) &&
+          !this.isScheduleLocked(schedule)
+          ? `Lịch ${schedule.scheduleCode} đã có phiếu mua đủ khối lượng dự kiến nên không thể tạo thêm phiếu.`
+          : "Lịch thu mua đã hủy hoặc đã nhập kho nên không thể tạo phiếu mua liên kết.",
       );
       return;
     }
@@ -1149,6 +1149,48 @@ export class RicePurchaseComponent implements OnDestroy {
     return (
       code === "PARTIALLY_STOCKED" || code === "STOCKED" || code === "CANCELLED"
     );
+  }
+
+  /**
+   * Lịch còn được lập thêm phiếu mua hay không.
+   * Ưu tiên cờ canCreateReceipt do backend tính (đã gồm cả trạng thái lẫn khối lượng đã lập phiếu);
+   * chỉ suy ra theo trạng thái khi API cũ chưa trả cờ này.
+   */
+  canCreateReceiptFor(
+    row?: Pick<
+      PaddyPurchaseScheduleRow,
+      | "statusId"
+      | "canCreateReceipt"
+      | "estimatedQtyKg"
+      | "receiptedWeightKg"
+      | "receiptCount"
+    > | null,
+  ): boolean {
+    if (!row) return false;
+    if (typeof row.canCreateReceipt === "boolean") return row.canCreateReceipt;
+    return !this.isScheduleLocked(row) && !this.isScheduleFullyReceipted(row);
+  }
+
+  /** Lịch đã lập đủ phiếu theo khối lượng dự kiến chưa (fallback khi API chưa trả cờ). */
+  isScheduleFullyReceipted(
+    row?: Pick<
+      PaddyPurchaseScheduleRow,
+      "estimatedQtyKg" | "receiptedWeightKg" | "receiptCount"
+    > | null,
+  ): boolean {
+    if (!row) return false;
+    const estimated = Number(row.estimatedQtyKg || 0);
+    const received = Number(row.receiptedWeightKg || 0);
+    if (estimated > 0) return received >= estimated - 0.001;
+    return Number(row.receiptCount || 0) > 0;
+  }
+
+  /** Nhãn lý do không lập được phiếu, hiển thị trên nút/tooltip. */
+  scheduleBlockedReason(row: PaddyPurchaseScheduleRow): string {
+    if (this.isScheduleCancelledRow(row)) return "Lịch đã hủy";
+    if (this.isScheduleLocked(row)) return "Lịch đã nhập kho";
+    if (this.isScheduleFullyReceipted(row)) return "Lịch đã đủ phiếu mua";
+    return "";
   }
 
   isScheduleStocked(

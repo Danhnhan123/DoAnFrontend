@@ -208,6 +208,21 @@
                   </td>
                   <td class="weight-cell">
                     {{ formatTonFromKg(row.estimatedQtyKg) }}
+                    @if ((row.receiptCount || 0) > 0) {
+                      <span
+                        class="receipt-progress"
+                        [class.is-full]="isScheduleFullyReceipted(row)"
+                        [title]="
+                          'Đã lập ' +
+                          row.receiptCount +
+                          ' phiếu · ' +
+                          formatTonFromKg(row.receiptedWeightKg)
+                        "
+                      >
+                        {{ row.receiptCount }} phiếu ·
+                        {{ formatTonFromKg(row.receiptedWeightKg) }}
+                      </span>
+                    }
                   </td>
                   <td>{{ formatDateTime(row.scheduleDate) }}</td>
                   <td>
@@ -259,8 +274,12 @@
                       <button
                         type="button"
                         class="icon-action receipt"
-                        title="Tạo phiếu mua từ lịch này"
-                        [disabled]="isScheduleLocked(row)"
+                        [title]="
+                          canCreateReceiptFor(row)
+                            ? 'Tạo phiếu mua từ lịch này'
+                            : scheduleBlockedReason(row)
+                        "
+                        [disabled]="!canCreateReceiptFor(row)"
                         [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt(row)"
                       >
                         <svg
