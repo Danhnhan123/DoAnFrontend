@@ -251,11 +251,11 @@ export class QualityInspectionComponent {
     return opts;
   });
 
-  inspectorDisplayName = computed(() =>
-    this.viewOnly()
+  inspectorDisplayName(): string {
+    return this.viewOnly()
       ? this.editItem()?.inspectorName || '—'
-      : this.auth.currentUser()?.fullName || 'Người đang đăng nhập'
-  );
+      : this.auth.currentUser()?.fullName || 'Người đang đăng nhập';
+  }
 
   historyRows = computed<QualityInspectionRow[]>(() => {
     const res = this.historyQuery.data();

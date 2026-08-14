@@ -1535,7 +1535,9 @@ export class MillingOrderComponent {
             (text.includes('GAO-') || text.includes('GẠO') || text.includes('GAO '));
         }
         const tokens = tokenByType[type] ?? [];
-        return variant.isByproduct === true && tokens.some((token) => text.includes(token));
+        // Token SKU/tên là fallback cho dữ liệu cũ chưa được gắn IsByproduct.
+        // Migration sẽ chuẩn hóa cờ này, nhưng dropdown vẫn hoạt động ngay khi FE mới được deploy.
+        return tokens.some((token) => text.includes(token));
       })
       .sort((a, b) => a.name.localeCompare(b.name));
   }
