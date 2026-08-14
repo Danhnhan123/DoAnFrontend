@@ -157,6 +157,22 @@
             [value]="pageSize()"
             (valueChange)="setPageSize($event)"
           ></app-filter-select>
+          <button
+            type="button"
+            class="toggle-chip danger"
+            [class.active]="quarantinedOnly()"
+            (click)="toggleQuarantinedOnly()"
+          >
+            Chỉ lô cách ly
+          </button>
+          <button
+            type="button"
+            class="toggle-chip warn"
+            [class.active]="lowStockOnly()"
+            (click)="toggleLowStockOnly()"
+          >
+            Chỉ tồn thấp
+          </button>
         </div>
       }
 

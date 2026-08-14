@@ -68,6 +68,10 @@ export class InventoryMonitoringComponent {
   searchInput = signal(''); // giá trị gõ trực tiếp (binding ô tìm)
   search = signal(''); // giá trị đã debounce (dùng trong queryKey)
   showFilters = signal(false); // panel lọc nâng cao (mở bằng nút phễu)
+  /** Chỉ hàng đang cách ly (lô "Cách ly" hoặc nằm ở vị trí cách ly). */
+  quarantinedOnly = signal(false);
+  /** Chỉ dòng dưới mức tồn tối thiểu. */
+  lowStockOnly = signal(false);
   page = signal(1);
   pageSize = signal(10);
 
@@ -115,14 +119,23 @@ export class InventoryMonitoringComponent {
       'inventory-summary',
       this.warehouseId(),
       this.activeCategoryId(),
+      this.search(),
+      this.quarantinedOnly(),
+      this.lowStockOnly(),
     ],
     queryFn: () =>
       lastValueFrom(
-        this.inventoryService.getSummary({
-          warehouseId: this.warehouseId(),
-          productCategoryId: this.activeCategoryId(),
-          lotType: null,
-        })
+        this.inventoryService.getSummary(
+          // Cùng bộ lọc với bảng — nếu không, bật "Cách ly" thì bảng đổi mà
+          // 5 thẻ đứng yên, đọc ra như số liệu sai.
+          this.inventoryService.buildSummaryBody({
+            search: this.search(),
+            warehouseId: this.warehouseId(),
+            productCategoryId: this.activeCategoryId(),
+            isQuarantined: this.quarantinedOnly() ? true : null,
+            lowStockOnly: this.lowStockOnly() ? true : null,
+          })
+        )
       ),
   }));
 
@@ -137,6 +150,8 @@ export class InventoryMonitoringComponent {
       this.sortDir(),
       this.warehouseId(),
       this.activeCategoryId(),
+      this.quarantinedOnly(),
+      this.lowStockOnly(),
     ],
     queryFn: () => {
       const body = this.inventoryService.buildPagedBody({
@@ -148,6 +163,8 @@ export class InventoryMonitoringComponent {
         colMap: this.colMap,
         warehouseId: this.warehouseId(),
         productCategoryId: this.activeCategoryId(),
+        isQuarantined: this.quarantinedOnly() ? true : null,
+        lowStockOnly: this.lowStockOnly() ? true : null,
       });
       return lastValueFrom(this.inventoryService.getPagedAdvanced(body));
     },
@@ -281,6 +298,17 @@ export class InventoryMonitoringComponent {
 
   toggleFilters(): void {
     this.showFilters.update((v) => !v);
+  }
+
+  /** Bật/tắt lọc "chỉ lô đang cách ly" — áp cho cả bảng lẫn 5 thẻ KPI. */
+  toggleQuarantinedOnly(): void {
+    this.quarantinedOnly.update((v) => !v);
+    this.page.set(1);
+  }
+
+  toggleLowStockOnly(): void {
+    this.lowStockOnly.update((v) => !v);
+    this.page.set(1);
   }
 
   onSearchChange(value: string): void {

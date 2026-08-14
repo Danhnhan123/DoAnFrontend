@@ -82,14 +82,25 @@ export interface InventoryAdvancedRequest extends DTParameters {
   lotStatusId?: number | null;
   withLotOnly?: boolean | null;
   lowStockOnly?: boolean | null;
+  /** true = chỉ hàng đang cách ly; false = chỉ hàng KHÔNG cách ly. */
+  isQuarantined?: boolean | null;
 }
 
-/** Bộ lọc cho POST /inventories/summary. */
+/**
+ * Bộ lọc cho POST /inventories/summary — cùng bộ trường với
+ * [InventoryAdvancedRequest] để 5 thẻ KPI và bảng luôn nói một chuyện.
+ */
 export interface InventorySummaryRequest {
+  search?: string | null;
   warehouseId?: number | null;
   locationId?: number | null;
+  productVariantId?: number | null;
   productCategoryId?: number | null;
   lotType?: string | null;
+  lotStatusId?: number | null;
+  withLotOnly?: boolean | null;
+  lowStockOnly?: boolean | null;
+  isQuarantined?: boolean | null;
 }
 
 /** Một dòng lịch sử InventoryTransaction. */
