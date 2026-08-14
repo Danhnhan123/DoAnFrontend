@@ -153,6 +153,8 @@ export class RicePurchaseComponent implements OnDestroy {
   receiptSearch = signal("");
 
   confirmingReceiptId = signal<number | null>(null);
+  /** Đang tải chi tiết phiếu (danh sách bao) sau khi mở form sửa. */
+  loadingReceiptDetail = signal(false);
   updatingScheduleId = signal<number | null>(null);
   showScheduleModal = signal(false);
   showQuickFarmerModal = signal(false);
@@ -218,20 +220,14 @@ export class RicePurchaseComponent implements OnDestroy {
   }));
 
   readonly receiptScheduleOptions = computed(() => {
-  // Khi xem phiếu cũ, vẫn giữ lịch đang liên kết để không bị trống select.
-  const editingScheduleId = this.editingReceipt()?.scheduleId ?? null;
+    // Khi xem phiếu cũ, vẫn giữ lịch đang liên kết để không bị trống select.
+    const editingScheduleId = this.editingReceipt()?.scheduleId ?? null;
 
-  return this.scheduleOptions().filter((schedule) => {
-    const statusCode = this.statusOf(schedule.statusId).code;
-
-    const canCreateReceipt =
-      statusCode !== "CANCELLED" &&
-      statusCode !== "STOCKED" &&
-      statusCode !== "PARTIALLY_STOCKED";
-
-    return canCreateReceipt || schedule.id === editingScheduleId;
+    return this.scheduleOptions().filter(
+      (schedule) =>
+        this.canCreateReceiptFor(schedule) || schedule.id === editingScheduleId,
+    );
   });
-});
 
   private readonly receiptStatsQuery = injectQuery(() => ({
     queryKey: ["rice-purchase", "receipts", "summary"],
@@ -462,7 +458,10 @@ export class RicePurchaseComponent implements OnDestroy {
   readonly scheduleSelectOptions = computed<FilterSelectOption[]>(() =>
     this.receiptScheduleOptions().map((s) => ({
       id: s.id,
-      name: `${s.scheduleCode} · ${s.farmerName} · ${this.formatDateTime(s.scheduleDate)}`,
+      // Kèm giống lúa để người lập phiếu chọn đúng lịch mà không phải mở lại màn lịch.
+      name: `${s.scheduleCode} · ${s.farmerName} · ${
+        s.riceVarietyName || this.riceVarietyName(s.riceVarietyId)
+      } · ${this.formatDateTime(s.scheduleDate)}`,
     })),
   );
   readonly scheduleOptions = computed(() =>
@@ -856,9 +855,12 @@ export class RicePurchaseComponent implements OnDestroy {
   // ───────────────────────── FORM PHIẾU MUA LÚA ──────────────────
 
   openCreateReceipt(schedule?: PaddyPurchaseScheduleRow): void {
-    if (schedule && this.isScheduleLocked(schedule)) {
+    if (schedule && !this.canCreateReceiptFor(schedule)) {
       this.showError(
-        "Lịch thu mua đã hủy hoặc đã nhập kho nên không thể tạo phiếu mua liên kết.",
+        this.isScheduleFullyReceipted(schedule) &&
+          !this.isScheduleLocked(schedule)
+          ? `Lịch ${schedule.scheduleCode} đã có phiếu mua đủ khối lượng dự kiến nên không thể tạo thêm phiếu.`
+          : "Lịch thu mua đã hủy hoặc đã nhập kho nên không thể tạo phiếu mua liên kết.",
       );
       return;
     }
@@ -899,12 +901,61 @@ export class RicePurchaseComponent implements OnDestroy {
       isConfirmed: !!row.isConfirmed,
     });
     this.showReceiptModal.set(true);
+    // API danh sách chỉ trả bagCount, không kèm chi tiết từng bao.
+    // Nạp thêm chi tiết phiếu để hiện lại đúng các bao đã cân trước đó.
+    void this.loadReceiptBags(row.id);
+  }
+
+  /**
+   * Lấy chi tiết phiếu để bổ sung danh sách bao vào form đang mở.
+   * Chỉ ghi đè khi form vẫn là phiếu đó và người dùng chưa tự thêm bao,
+   * tránh xóa mất thao tác đang dở.
+   */
+  private async loadReceiptBags(receiptId: number): Promise<void> {
+    this.loadingReceiptDetail.set(true);
+    try {
+      const detail = this.unwrap(
+        await lastValueFrom(this.purchaseService.getReceiptById(receiptId)),
+        "Không tải được chi tiết phiếu mua lúa.",
+      );
+      if (!detail) return;
+      // Người dùng có thể đã đóng form hoặc mở phiếu khác trong lúc chờ.
+      if (this.receiptForm().id !== receiptId) return;
+
+      const bags = (detail.bags || [])
+        .map((x) => ({ bagNo: Number(x.bagNo), weightKg: Number(x.weightKg) }))
+        .sort((a, b) => a.bagNo - b.bagNo);
+
+      this.editingReceipt.update((current) =>
+        current && current.id === receiptId ? { ...current, bags } : current,
+      );
+
+      this.receiptForm.update((form) => {
+        if (form.id !== receiptId || form.bags.length > 0) return form;
+        return {
+          ...form,
+          bags,
+          bagCount: bags.length || form.bagCount,
+          actualWeight: bags.length
+            ? bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0)
+            : form.actualWeight,
+          actualWeightUnit: bags.length ? "kg" : form.actualWeightUnit,
+        };
+      });
+    } catch (err) {
+      this.showError(
+        this.apiError(err, "Không tải được danh sách bao của phiếu mua."),
+      );
+    } finally {
+      this.loadingReceiptDetail.set(false);
+    }
   }
 
   closeReceiptModal(): void {
     if (this.savingReceipt()) return;
     this.showReceiptModal.set(false);
     this.editingReceipt.set(null);
+    this.loadingReceiptDetail.set(false);
     this.receiptForm.set(this.defaultReceiptForm());
   }
 
@@ -1149,6 +1200,48 @@ export class RicePurchaseComponent implements OnDestroy {
     return (
       code === "PARTIALLY_STOCKED" || code === "STOCKED" || code === "CANCELLED"
     );
+  }
+
+  /**
+   * Lịch còn được lập thêm phiếu mua hay không.
+   * Ưu tiên cờ canCreateReceipt do backend tính (đã gồm cả trạng thái lẫn khối lượng đã lập phiếu);
+   * chỉ suy ra theo trạng thái khi API cũ chưa trả cờ này.
+   */
+  canCreateReceiptFor(
+    row?: Pick<
+      PaddyPurchaseScheduleRow,
+      | "statusId"
+      | "canCreateReceipt"
+      | "estimatedQtyKg"
+      | "receiptedWeightKg"
+      | "receiptCount"
+    > | null,
+  ): boolean {
+    if (!row) return false;
+    if (typeof row.canCreateReceipt === "boolean") return row.canCreateReceipt;
+    return !this.isScheduleLocked(row) && !this.isScheduleFullyReceipted(row);
+  }
+
+  /** Lịch đã lập đủ phiếu theo khối lượng dự kiến chưa (fallback khi API chưa trả cờ). */
+  isScheduleFullyReceipted(
+    row?: Pick<
+      PaddyPurchaseScheduleRow,
+      "estimatedQtyKg" | "receiptedWeightKg" | "receiptCount"
+    > | null,
+  ): boolean {
+    if (!row) return false;
+    const estimated = Number(row.estimatedQtyKg || 0);
+    const received = Number(row.receiptedWeightKg || 0);
+    if (estimated > 0) return received >= estimated - 0.001;
+    return Number(row.receiptCount || 0) > 0;
+  }
+
+  /** Nhãn lý do không lập được phiếu, hiển thị trên nút/tooltip. */
+  scheduleBlockedReason(row: PaddyPurchaseScheduleRow): string {
+    if (this.isScheduleCancelledRow(row)) return "Lịch đã hủy";
+    if (this.isScheduleLocked(row)) return "Lịch đã nhập kho";
+    if (this.isScheduleFullyReceipted(row)) return "Lịch đã đủ phiếu mua";
+    return "";
   }
 
   isScheduleStocked(

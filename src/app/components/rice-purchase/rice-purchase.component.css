@@ -315,6 +315,19 @@
   font-weight: 800;
 }
 
+/* Tiến độ lập phiếu mua của lịch: xám khi còn lập được, xanh khi đã đủ. */
+.receipt-progress {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.receipt-progress.is-full {
+  color: #159947;
+}
+
 .paid-cell {
   color: #159947 !important;
   font-weight: 800;
@@ -853,7 +866,13 @@
 .btn-add-bag { padding: 7px 11px; color: #fff; background: #2563eb; }
 .btn-ble-bag { padding: 7px 11px; color: #fff; background: #0f766e; }
 .btn-remove-bag { width: 30px; height: 30px; color: #b91c1c; background: #fee2e2; font-size: 20px; }
-.bag-empty { margin: 10px 0; color: #64748b; }
+.bag-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  color: #64748b;
+}
 .bag-total { padding-top: 10px; border-top: 1px solid #dbe3ee; }
 
 .span-2 {

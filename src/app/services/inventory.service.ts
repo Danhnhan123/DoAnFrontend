@@ -59,6 +59,7 @@ export class InventoryService {
     lotStatusId?: number | null;
     withLotOnly?: boolean | null;
     lowStockOnly?: boolean | null;
+    isQuarantined?: boolean | null;
   }): InventoryAdvancedRequest {
     const colIndex = params.colMap[params.sortField] ?? params.colMap['id'] ?? 0;
 
@@ -93,6 +94,40 @@ export class InventoryService {
       lotStatusId: params.lotStatusId ?? null,
       withLotOnly: params.withLotOnly ?? null,
       lowStockOnly: params.lowStockOnly ?? null,
+      isQuarantined: params.isQuarantined ?? null,
+    };
+  }
+
+  /**
+   * Dựng body cho /inventories/summary từ ĐÚNG bộ lọc đang áp cho bảng.
+   *
+   * Trước đây chỉ truyền kho + danh mục, nên bật lọc "Cách ly"/"Tồn thấp" hay
+   * gõ từ khoá thì bảng đổi mà 5 thẻ đứng yên — người dùng đọc ra là số liệu
+   * sai. Backend nay nhận cùng bộ lọc nên hai bên luôn nói một chuyện.
+   */
+  buildSummaryBody(params: {
+    search?: string | null;
+    warehouseId?: number | null;
+    locationId?: number | null;
+    productCategoryId?: number | null;
+    productVariantId?: number | null;
+    lotType?: string | null;
+    lotStatusId?: number | null;
+    withLotOnly?: boolean | null;
+    lowStockOnly?: boolean | null;
+    isQuarantined?: boolean | null;
+  }): InventorySummaryRequest {
+    return {
+      search: params.search?.trim() || null,
+      warehouseId: params.warehouseId ?? null,
+      locationId: params.locationId ?? null,
+      productCategoryId: params.productCategoryId ?? null,
+      productVariantId: params.productVariantId ?? null,
+      lotType: params.lotType ?? null,
+      lotStatusId: params.lotStatusId ?? null,
+      withLotOnly: params.withLotOnly ?? null,
+      lowStockOnly: params.lowStockOnly ?? null,
+      isQuarantined: params.isQuarantined ?? null,
     };
   }
 }

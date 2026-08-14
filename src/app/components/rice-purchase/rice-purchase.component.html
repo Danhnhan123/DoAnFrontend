@@ -208,6 +208,21 @@
                   </td>
                   <td class="weight-cell">
                     {{ formatTonFromKg(row.estimatedQtyKg) }}
+                    @if ((row.receiptCount || 0) > 0) {
+                      <span
+                        class="receipt-progress"
+                        [class.is-full]="isScheduleFullyReceipted(row)"
+                        [title]="
+                          'Đã lập ' +
+                          row.receiptCount +
+                          ' phiếu · ' +
+                          formatTonFromKg(row.receiptedWeightKg)
+                        "
+                      >
+                        {{ row.receiptCount }} phiếu ·
+                        {{ formatTonFromKg(row.receiptedWeightKg) }}
+                      </span>
+                    }
                   </td>
                   <td>{{ formatDateTime(row.scheduleDate) }}</td>
                   <td>
@@ -259,8 +274,12 @@
                       <button
                         type="button"
                         class="icon-action receipt"
-                        title="Tạo phiếu mua từ lịch này"
-                        [disabled]="isScheduleLocked(row)"
+                        [title]="
+                          canCreateReceiptFor(row)
+                            ? 'Tạo phiếu mua từ lịch này'
+                            : scheduleBlockedReason(row)
+                        "
+                        [disabled]="!canCreateReceiptFor(row)"
                         [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt(row)"
                       >
                         <svg
@@ -933,7 +952,12 @@
                 <button type="button" class="btn-add-bag" (click)="addReceiptBag()" [disabled]="receiptFormLocked()">+ Thêm bao</button>
               </div>
             </div>
-            @if (receiptForm().bags.length === 0) {
+            @if (loadingReceiptDetail() && receiptForm().bags.length === 0) {
+              <p class="bag-empty">
+                <span class="mini-spinner"></span>
+                Đang tải danh sách bao đã cân...
+              </p>
+            } @else if (receiptForm().bags.length === 0) {
               <p class="bag-empty">Chưa có bao. Mỗi lần cân hãy thêm một dòng bao.</p>
             } @else {
               <div class="bag-grid">

@@ -61,9 +61,9 @@
         </svg>
       </div>
       <div class="stat-body">
-        <span class="stat-label">Có mức tồn tối thiểu</span>
-        <span class="stat-value">{{ lowStockCount() }}</span>
-        <span class="stat-sub">Dùng để cảnh báo tồn kho</span>
+        <span class="stat-label">Đã cấu hình đóng bao</span>
+        <span class="stat-value">{{ bagWeightConfiguredCount() }}</span>
+        <span class="stat-sub">Trong trang hiện tại</span>
       </div>
     </div>
   </div>
@@ -135,6 +135,7 @@
             <th class="sortable" (click)="sort('productName')">Sản phẩm <span class="sort-icon">{{ sortIcon('productName') }}</span></th>
             <th class="sortable" (click)="sort('sku')">SKU <span class="sort-icon">{{ sortIcon('sku') }}</span></th>
             <th>Đơn vị</th>
+            <th class="text-right">Khối lượng bao chuẩn</th>
             <th class="sortable text-right" (click)="sort('salePrice')">Giá bán <span class="sort-icon">{{ sortIcon('salePrice') }}</span></th>
             <th>Trạng thái</th>
             <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
@@ -158,6 +159,13 @@
             <td data-label="Sản phẩm">{{ row.productName || 'Chưa có' }}</td>
             <td data-label="SKU"><span class="role-pill">{{ row.sku }}</span></td>
             <td data-label="Đơn vị">{{ row.unitOfMeasureName || row.unitOfMeasureId }}</td>
+            <td class="bag-weight-cell" data-label="Khối lượng bao chuẩn">
+              @if (row.weight > 0) {
+                <span>{{ row.weight | number:'1.0-3' }} kg/bao</span>
+              } @else {
+                <span class="config-warning" title="Biến thể không dùng quy cách bao chuẩn hoặc chưa cấu hình">Không áp dụng</span>
+              }
+            </td>
             <td class="price-cell" data-label="Giá bán">{{ row.salePrice | number:'1.0-0' }} đ</td>
             <td data-label="Trạng thái">
               <span class="status-pill" [class.active]="row.isActive" [class.inactive]="!row.isActive">
@@ -312,9 +320,10 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Khối lượng</label>
-          <input class="form-control" type="number" [ngModel]="form().weight"
+          <label class="form-label">Khối lượng bao chuẩn (kg)</label>
+          <input class="form-control" type="number" min="0" step="0.001" [ngModel]="form().weight"
             (ngModelChange)="setField('weight', +$event)" />
+          <small class="field-note">Chỉ dùng khi hệ thống tự động đóng/chia bao. Nhập 0 nếu không áp dụng; không ảnh hưởng khối lượng cân thực tế của từng bao trên phiếu mua lúa.</small>
         </div>
       </div>
 
