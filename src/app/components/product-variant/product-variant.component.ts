@@ -220,8 +220,8 @@ export class ProductVariantComponent {
     this.rows().filter((x) => !x.isActive).length
   );
 
-  lowStockCount = computed(() =>
-    this.rows().filter((x) => Number(x.minStockLevel ?? 0) > 0).length
+  bagWeightConfiguredCount = computed(() =>
+    this.rows().filter((x) => Number(x.weight ?? 0) > 0).length
   );
 
   /**
@@ -517,6 +517,11 @@ export class ProductVariantComponent {
       return;
     }
 
+    if (!Number.isFinite(Number(f.weight)) || Number(f.weight) < 0) {
+      this.showAlert('Khối lượng bao chuẩn không được nhỏ hơn 0 kg.', false);
+      return;
+    }
+
     // Build chuỗi JSON thuộc tính đúng định dạng backend: [{ attributeId, value }].
     const validAttrs = (f.attributes ?? []).filter(
       (a: any) => a.attributeId && String(a.value ?? '').trim() !== ''
@@ -549,7 +554,7 @@ export class ProductVariantComponent {
       qrCode: f.qrCode || undefined,
       costPrice: Number(f.costPrice || 0),
       salePrice: Number(f.salePrice || 0),
-      weight: Number(f.weight || 0),
+      weight: Number(f.weight ?? 0),
       attributeValues,
       imageId: f.imageId ? Number(f.imageId) : null,
       isActive: !!f.isActive,

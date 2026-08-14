@@ -16,6 +16,7 @@ export interface ProductVariantRow {
 
   costPrice: number;
   salePrice: number;
+  /** Khối lượng của một bao chuẩn, tính theo kg. */
   weight: number;
 
   attributeValues?: string | null;
@@ -63,6 +64,7 @@ export interface ProductVariantDetailDto {
 
   costPrice: number;
   salePrice: number;
+  /** Khối lượng của một bao chuẩn, tính theo kg. */
   weight: number;
 
   imageId?: number | null;
@@ -95,6 +97,7 @@ export interface CreateProductVariantDto {
 
   costPrice: number;
   salePrice: number;
+  /** Khối lượng của một bao chuẩn, tính theo kg; 0 nghĩa là không áp dụng/chưa cấu hình. */
   weight: number;
 
   /** Chuỗi JSON dạng [{ "attributeId": number, "value": string }]. */
