@@ -185,16 +185,7 @@ export interface SaveStockTakeCountsPayload {
   }>;
 }
 
-/** Kết quả tra một mã QR bao khi đang kiểm kê. */
-export interface ScanStockTakeBagResult {
-  matched: boolean;
-  reason?: string | null;
-  message: string;
-  stockTakeItemId?: number | null;
-  bag?: StockTakeItemBag | null;
-  lotCode?: string | null;
-  locationCode?: string | null;
-  productVariantName?: string | null;
-}
+// Quét QR tem bao là việc làm ngoài kho nên chỉ có ở app mobile
+// (`/stocktakes/{id}/scan-bag`); màn web chỉ tích/cân lại theo danh sách bao.
 
 export interface StockTakePagedRequest extends DTParameters {}

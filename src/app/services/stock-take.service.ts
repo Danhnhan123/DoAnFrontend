@@ -8,7 +8,6 @@ import {
   CreateStockTakePayload,
   DTResponse,
   SaveStockTakeCountsPayload,
-  ScanStockTakeBagResult,
   StockTakeDetail,
   StockTakePagedRequest,
   StockTakeRow,
@@ -43,17 +42,6 @@ export class StockTakeService {
 
   saveCounts(id: number, payload: SaveStockTakeCountsPayload): Observable<ApiResponse<unknown>> {
     return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/counts`, payload);
-  }
-
-  /**
-   * Tra một mã QR bao trong lúc kiểm kê.
-   * Luôn trả 200 — bao không thuộc phiếu vẫn cần biết đang nằm ở lô/cột nào.
-   */
-  scanBag(id: number, qrCode: string): Observable<ApiResponse<ScanStockTakeBagResult>> {
-    return this.http.post<ApiResponse<ScanStockTakeBagResult>>(
-      `${this.base}/${id}/scan-bag`,
-      { qrCode: qrCode.trim() }
-    );
   }
 
   submit(id: number, note?: string | null): Observable<ApiResponse<unknown>> {

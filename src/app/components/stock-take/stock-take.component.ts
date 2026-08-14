@@ -347,9 +347,7 @@ export class StockTakeComponent implements OnDestroy {
   /** Số thực tế đang hiển thị: theo bao nếu có, không thì theo ô kg nhập tay. */
   effectiveActual(item: StockTakeItem): number | null {
     if (!this.hasBags(item)) return this.lineFor(item)?.actualQuantity ?? null;
-    return this.countedBags(item) === 0 && !this.bagsOf(item).some(b => b.counted)
-      ? this.bagTotalKg(item)
-      : this.bagTotalKg(item);
+    return this.bagTotalKg(item);
   }
 
   bagDifference(item: StockTakeItem): number | null {
