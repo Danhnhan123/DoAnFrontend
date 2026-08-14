@@ -34,9 +34,9 @@
 
   <div class="kpi-grid">
     <article class="kpi-card">
-      <span>Gạo dự kiến tháng</span>
+      <span>Mục tiêu gạo tháng</span>
       <strong>{{ fmtTon(expectedRiceThisMonth()) }}</strong>
-      <small>Từ các lệnh chưa hủy</small>
+      <small>Tổng mục tiêu của các lệnh chưa hủy</small>
     </article>
     <article class="kpi-card">
       <span>Đang xử lý</span>
@@ -104,9 +104,9 @@
             <th class="sortable" (click)="sortBy('millingCode')">Mã lệnh</th>
             <th>Nguồn</th>
             <th>Kho / đầu vào</th>
-            <th class="number">Gạo dự kiến</th>
-            <th class="number">Yield dùng</th>
-            <th class="number">Gạo thực tế</th>
+            <th class="number">Mục tiêu gạo</th>
+            <th class="number">Yield kế hoạch</th>
+            <th class="number">Gạo thu được</th>
             <th class="sortable" (click)="sortBy('statusId')">Trạng thái</th>
             <th class="sortable" (click)="sortBy('createdDate')">Ngày tạo</th>
             <th class="action-column">Thao tác</th>
@@ -160,8 +160,8 @@
                 <td class="number">
                   @if (statusCode(row) === 'COMPLETED') {
                     <strong>{{ fmtWeight(row.totalRiceOutputKg) }}</strong>
-                    @if (row.lossKg != null) {
-                      <small>Hao hụt {{ fmtWeight(row.lossKg) }}</small>
+                    @if (row.actualYieldRate != null) {
+                      <small>Yield thực tế {{ fmtPercent(row.actualYieldRate) }}</small>
                     }
                   } @else {
                     <span class="muted-value">—</span>
@@ -405,7 +405,7 @@
           </label>
 
           <label>
-            <span>Gạo dự kiến (kg) <b>*</b></span>
+            <span>Mục tiêu gạo của lệnh (kg) <b>*</b></span>
             <input
               type="number"
               min="0.001"
@@ -421,7 +421,7 @@
           </label>
 
           <label>
-            <span>Lúa dự kiến tính ngược</span>
+            <span>Lúa cần ước tính theo yield</span>
             <div class="readonly-field">
               {{ fmtWeight(createComputedPaddyKg()) }}
             </div>
@@ -894,7 +894,7 @@
                   <dd>{{ fmtWeight(completeForm().lossKg) }}</dd>
                 </div>
                 <div class="emphasis">
-                  <dt>Lúa sẽ trừ theo yield</dt>
+                  <dt>Lúa thực tế sẽ trừ</dt>
                   <dd>{{ fmtWeight(computedPaddyToConsumeKg()) }}</dd>
                 </div>
                 <div>
@@ -922,8 +922,8 @@
                     yieldDeviationPercent() > 2 || yieldDeviationPercent() < -2
                   "
                 >
-                  Chênh yield {{ yieldDeltaPercentagePoints() >= 0 ? '+' : '' }}{{ yieldDeltaPercentagePoints().toFixed(2) }} điểm % ·
-                  Sản lượng gạo lệch {{ yieldDeviationPercent() >= 0 ? '+' : '' }}{{ yieldDeviationPercent().toFixed(2) }}%
+                  Chênh yield kế hoạch {{ yieldDeltaPercentagePoints() >= 0 ? '+' : '' }}{{ yieldDeltaPercentagePoints().toFixed(2) }} điểm % ·
+                  So với mục tiêu gạo {{ yieldDeviationPercent() >= 0 ? '+' : '' }}{{ yieldDeviationPercent().toFixed(2) }}%
                 </small>
               </div>
 
@@ -971,10 +971,10 @@
               </label>
 
               <label>
-                <span>Ghi chú / lý do sai lệch</span>
+                <span>Ghi chú kết quả / lý do lệch mục tiêu</span>
                 <textarea
                   rows="4"
-                  placeholder="Bắt buộc nếu sản lượng lệch kế hoạch trên 2%"
+                  placeholder="Nêu nguyên nhân khi kết quả lệch mục tiêu trên 2% (ví dụ: phải lấy nguyên bao)"
                   [ngModel]="completeForm().note"
                   (ngModelChange)="setCompleteField('note', $event)"
                 ></textarea>
@@ -1041,9 +1041,12 @@
           <dl class="detail-grid">
             <div><dt>Nguồn</dt><dd>{{ sourceLabel(item) }}</dd></div>
             <div><dt>Kho</dt><dd>{{ item.warehouseName || 'Kho #' + item.warehouseId }}</dd></div>
-            <div><dt>Yield dùng</dt><dd>{{ fmtPercent(item.yieldRateUsed) }}</dd></div>
-            <div><dt>Lúa tính toán</dt><dd>{{ fmtWeight(item.computedPaddyKg) }}</dd></div>
-            <div><dt>Gạo thực tế</dt><dd>{{ fmtWeight(item.totalRiceOutputKg) }}</dd></div>
+            <div><dt>Mục tiêu gạo</dt><dd>{{ fmtWeight(targetRice(item)) }}</dd></div>
+            <div><dt>Yield kế hoạch</dt><dd>{{ fmtPercent(item.yieldRateUsed) }}</dd></div>
+            <div><dt>Lúa cần ước tính</dt><dd>{{ fmtWeight(item.computedPaddyKg) }}</dd></div>
+            <div><dt>Lúa đã xay thực tế</dt><dd>{{ item.actualPaddyInputKg != null ? fmtWeight(item.actualPaddyInputKg) : '—' }}</dd></div>
+            <div><dt>Gạo thu được</dt><dd>{{ fmtWeight(item.totalRiceOutputKg) }}</dd></div>
+            <div><dt>Yield thực tế</dt><dd>{{ item.actualYieldRate != null ? fmtPercent(item.actualYieldRate) : '—' }}</dd></div>
             <div><dt>Phụ phẩm</dt><dd>{{ fmtWeight(item.byproductKg) }}</dd></div>
             <div><dt>Hao hụt</dt><dd>{{ fmtWeight(item.lossKg) }}</dd></div>
             <div><dt>Tổng giá vốn</dt><dd>{{ item.totalCost != null ? fmtMoney(item.totalCost) : '—' }}</dd></div>
