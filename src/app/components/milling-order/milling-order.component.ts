@@ -1639,16 +1639,27 @@ export class MillingOrderComponent {
   }
 
   inputLabel(row: MillingOrderRow): string {
-    if (row.inputs?.length) {
-      return row.inputs
-        .map((input) => input.lotCode || `Lô #${input.paddyLotId}`)
-        .join(', ');
+    const actualPaddyKg = Number(row.actualPaddyInputKg) || 0;
+    if (this.statusCode(row) === 'COMPLETED' && actualPaddyKg > 0) {
+      return `Đã xay ${this.fmtWeight(actualPaddyKg)} lúa`;
     }
-    return this.fmtWeight(row.computedPaddyKg);
+    if (row.inputs?.length) {
+      const selectedKg = row.inputs.reduce(
+        (sum, input) =>
+          sum + Number(input.reservedWeightKg ?? input.consumedWeightKg ?? 0),
+        0
+      );
+      if (selectedKg > 0) return `Đã chọn ${this.fmtWeight(selectedKg)} lúa`;
+    }
+    return `Cần khoảng ${this.fmtWeight(row.computedPaddyKg)} lúa`;
   }
 
   targetRice(row: MillingOrderRow): number {
-    return Number(row.targetRiceKg ?? row.totalRiceOutputKg) || 0;
+    const plannedPaddyKg = Number(row.computedPaddyKg) || 0;
+    const stampedYield = Number(row.yieldRateUsed) || 0;
+    return plannedPaddyKg > 0 && stampedYield > 0
+      ? plannedPaddyKg * stampedYield
+      : Number(row.targetRiceKg ?? row.totalRiceOutputKg) || 0;
   }
 
   statusCode(row: MillingOrderRow): MillingOrderStatusCode {
