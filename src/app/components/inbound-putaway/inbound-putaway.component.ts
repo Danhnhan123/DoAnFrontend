@@ -1122,20 +1122,10 @@ export class InboundPutawayComponent {
       order.items.map((item: InboundOrderItemDto) => ({ order, item })),
     );
     const paddyLines = allLines.filter((line) => this.isPaddyLine(line));
-    const hasPendingLine = paddyLines.some(
-      (line) => this.remaining(line.item) > 0,
-    );
-    const warning =
-      !hasPendingLine && paddyLines.length > 0
-        ? `Tìm thấy ${paddyLines.length} dòng lúa/gạo nhưng backend đã đánh dấu ` +
-          "đã nhận đủ hoặc hoàn tất. Hãy kiểm tra backend đang chạy đúng bản mới: " +
-          "phiếu sinh từ Rice Purchase phải là Draft và QuantityReceived phải bằng 0."
-        : "";
-
     return {
       lines: paddyLines,
       locations,
-      warning,
+      warning: "",
     };
   }
 

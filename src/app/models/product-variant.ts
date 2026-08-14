@@ -22,6 +22,7 @@ export interface ProductVariantRow {
   attributeValues?: string | null;
 
   riceVarietyId?: number | null;
+  isByproduct?: boolean;
 
   imageId?: number | null;
   imageUrl?: string | null;
@@ -75,6 +76,7 @@ export interface ProductVariantDetailDto {
   minStockLevel?: number | null;
 
   riceVarietyId?: number | null;
+  isByproduct?: boolean;
 
   attributeValuesJson?: AttributeValueEntry[] | null;
   legacyAttributeValues?: string | null;
@@ -104,6 +106,7 @@ export interface CreateProductVariantDto {
   attributeValues?: string | null;
 
   riceVarietyId?: number | null;
+  isByproduct: boolean;
 
   imageId?: number | null;
 

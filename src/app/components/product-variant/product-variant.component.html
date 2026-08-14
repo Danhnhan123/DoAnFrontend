@@ -344,6 +344,15 @@
       </div>
 
       <div class="form-group">
+        <label class="toggle-wrap">
+          <input type="checkbox" [ngModel]="form().isByproduct"
+            (ngModelChange)="setField('isByproduct', $event)" />
+          <span class="toggle-label">Là phụ phẩm xay xát (Tấm, Cám hoặc Trấu)</span>
+        </label>
+        <small class="field-note">Bật để SKU xuất hiện đúng trong danh sách đầu ra phụ phẩm của lệnh xay.</small>
+      </div>
+
+      <div class="form-group">
         <div class="attr-head">
           <label class="form-label">Thuộc tính biến thể</label>
           <button [hidden]="viewOnly()" class="btn btn-outline btn-sm" type="button" (click)="addAttribute()">
