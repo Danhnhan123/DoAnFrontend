@@ -34,7 +34,6 @@ import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
 import { SalesOrderService } from '../../services/sales-order.service';
 import { PartyDebtService } from '../../services/party-debt.service';
-import { AuthService } from '../../services/auth.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -142,7 +141,6 @@ const PIPELINE_STEPS = [
 })
 export class OutboundOrderComponent implements OnDestroy {
   private readonly service = inject(OutboundOrderService);
-  private readonly authService = inject(AuthService);
   private readonly inventoryService = inject(InventoryService);
   private readonly salesOrderService = inject(SalesOrderService);
   private readonly partyDebtService = inject(PartyDebtService);
@@ -1650,13 +1648,7 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   canForceUnlock(source: OutboundStatusSource): boolean {
-    if (!this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING)) return false;
-    return (this.authService.currentUser()?.roles ?? []).some(role => {
-      const code = String((role as any).code ?? '').toUpperCase();
-      const name = String(role.name ?? '').toLowerCase();
-      return [1001, 1002].includes(Number(role.id)) || code === 'ADMIN' || code === 'OWNER' ||
-        name.includes('quản trị') || name.includes('chủ kho') || name.includes('chủ cơ sở');
-    });
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
   }
 
   isPickedEnough(order: OutboundOrderDetail): boolean {
