@@ -315,6 +315,19 @@
   font-weight: 800;
 }
 
+/* Tiến độ lập phiếu mua của lịch: xám khi còn lập được, xanh khi đã đủ. */
+.receipt-progress {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.receipt-progress.is-full {
+  color: #159947;
+}
+
 .paid-cell {
   color: #159947 !important;
   font-weight: 800;

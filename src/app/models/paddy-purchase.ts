@@ -20,9 +20,23 @@ export interface PaddyPurchaseScheduleRow {
   estimatedQtyKg?: number | null;
   expectedPrice?: number | null;
   assignedUserId?: number | null;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
   note?: string | null;
   createdDate: string;
   lastModifiedDate?: string | null;
+
+  /** Số phiếu mua lúa chưa xóa thuộc lịch này. */
+  receiptCount?: number;
+  /** Tổng khối lượng thực tế (kg) của các phiếu mua thuộc lịch này. */
+  receiptedWeightKg?: number;
+  /** Khối lượng còn lại có thể lập phiếu (null khi lịch không khai báo dự kiến). */
+  remainingQtyKg?: number | null;
+  /**
+   * Backend đã tính sẵn: lịch còn được lập thêm phiếu mua hay không.
+   * false khi lịch đã hủy / đã nhập kho, hoặc đã đủ khối lượng dự kiến.
+   */
+  canCreateReceipt?: boolean;
 }
 
 export interface CreatePaddyPurchaseScheduleDto {
