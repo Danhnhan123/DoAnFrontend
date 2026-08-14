@@ -153,6 +153,8 @@ export class RicePurchaseComponent implements OnDestroy {
   receiptSearch = signal("");
 
   confirmingReceiptId = signal<number | null>(null);
+  /** Đang tải chi tiết phiếu (danh sách bao) sau khi mở form sửa. */
+  loadingReceiptDetail = signal(false);
   updatingScheduleId = signal<number | null>(null);
   showScheduleModal = signal(false);
   showQuickFarmerModal = signal(false);
@@ -899,12 +901,61 @@ export class RicePurchaseComponent implements OnDestroy {
       isConfirmed: !!row.isConfirmed,
     });
     this.showReceiptModal.set(true);
+    // API danh sách chỉ trả bagCount, không kèm chi tiết từng bao.
+    // Nạp thêm chi tiết phiếu để hiện lại đúng các bao đã cân trước đó.
+    void this.loadReceiptBags(row.id);
+  }
+
+  /**
+   * Lấy chi tiết phiếu để bổ sung danh sách bao vào form đang mở.
+   * Chỉ ghi đè khi form vẫn là phiếu đó và người dùng chưa tự thêm bao,
+   * tránh xóa mất thao tác đang dở.
+   */
+  private async loadReceiptBags(receiptId: number): Promise<void> {
+    this.loadingReceiptDetail.set(true);
+    try {
+      const detail = this.unwrap(
+        await lastValueFrom(this.purchaseService.getReceiptById(receiptId)),
+        "Không tải được chi tiết phiếu mua lúa.",
+      );
+      if (!detail) return;
+      // Người dùng có thể đã đóng form hoặc mở phiếu khác trong lúc chờ.
+      if (this.receiptForm().id !== receiptId) return;
+
+      const bags = (detail.bags || [])
+        .map((x) => ({ bagNo: Number(x.bagNo), weightKg: Number(x.weightKg) }))
+        .sort((a, b) => a.bagNo - b.bagNo);
+
+      this.editingReceipt.update((current) =>
+        current && current.id === receiptId ? { ...current, bags } : current,
+      );
+
+      this.receiptForm.update((form) => {
+        if (form.id !== receiptId || form.bags.length > 0) return form;
+        return {
+          ...form,
+          bags,
+          bagCount: bags.length || form.bagCount,
+          actualWeight: bags.length
+            ? bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0)
+            : form.actualWeight,
+          actualWeightUnit: bags.length ? "kg" : form.actualWeightUnit,
+        };
+      });
+    } catch (err) {
+      this.showError(
+        this.apiError(err, "Không tải được danh sách bao của phiếu mua."),
+      );
+    } finally {
+      this.loadingReceiptDetail.set(false);
+    }
   }
 
   closeReceiptModal(): void {
     if (this.savingReceipt()) return;
     this.showReceiptModal.set(false);
     this.editingReceipt.set(null);
+    this.loadingReceiptDetail.set(false);
     this.receiptForm.set(this.defaultReceiptForm());
   }
 
