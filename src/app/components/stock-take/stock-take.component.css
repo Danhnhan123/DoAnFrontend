@@ -1,5 +1,28 @@
 :host { display: block; color: var(--text-primary, #172033); }
 * { box-sizing: border-box; }
+/* Bảng chi tiết bao trong một dòng kiểm kê */
+.bag-row > td { background: #f8fafc; padding: 0 12px 12px; }
+.bag-row summary { cursor: pointer; font-weight: 600; font-size: 13px; padding: 8px 0; }
+.bag-row .link-btn {
+  border: none;
+  background: none;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 10px;
+  text-decoration: underline;
+}
+.bag-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bag-table th,
+.bag-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+.bag-table th.number,
+.bag-table td.number { text-align: right; }
+.bag-table code { font-size: 11.5px; color: #64748b; }
+.bag-table tr.missing { background: #fef2f2; }
+.bag-table tr.unexpected { background: #fffbeb; }
+.bag-table tr.unexpected em { color: #b45309; font-size: 11px; margin-left: 6px; }
+
 .stocktake-page { display: grid; gap: 18px; padding: 4px 0 32px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; padding: 24px 28px; border-radius: 18px; color: #fff; background: linear-gradient(128deg, #12372a, #176b45 62%, #25885d); box-shadow: 0 16px 36px rgba(16, 77, 51, .18); }
 .hero h1, .modal h2, .card h2 { margin: 4px 0; }

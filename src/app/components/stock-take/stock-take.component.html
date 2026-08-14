@@ -103,18 +103,39 @@
 
           <div class="table-wrap detail-table">
             <table>
-              <thead><tr><th>SKU / lô / vị trí</th><th class="number">Hệ thống</th><th class="number">Thực tế</th><th class="number">Chênh</th><th>Mức</th><th>Lý do</th><th>Kiểm lại</th></tr></thead>
+              <thead><tr><th>SKU / lô / vị trí</th><th class="number">Bao</th><th class="number">Hệ thống</th><th class="number">Thực tế</th><th class="number">Chênh</th><th>Mức</th><th>Chất lượng</th><th>Lý do</th><th>Kiểm lại</th></tr></thead>
               <tbody>
                 @for (item of current.stockTakeItems; track item.id; let index = $index) {
                   <tr>
                     <td><strong>{{ item.sku || '—' }}</strong><span>{{ item.productVariantName || '—' }}</span><small>{{ item.lotCode || 'Không theo lô' }} · {{ item.zoneName || '—' }}/{{ item.locationCode || '—' }}</small>@if (item.isQuarantine) { <em>Cách ly</em> }</td>
+                    <td class="number">
+                      @if (hasBags(item)) {
+                        <strong [class.negative]="(bagDifference(item) || 0) !== 0">{{ countedBags(item) }} / {{ item.systemBagCount }}</strong>
+                        <small>{{ (bagDifference(item) || 0) === 0 ? 'đủ bao' : (bagDifference(item) || 0) > 0 ? '+' + bagDifference(item) + ' bao thừa' : bagDifference(item) + ' bao thiếu' }}</small>
+                      } @else { <small>Không theo bao</small> }
+                    </td>
                     <td class="number">{{ formatNumber(item.systemQuantity) }} kg</td>
                     <td class="number">
-                      @if (canEditDetail()) { <input class="count-input" type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.actualQuantity" (ngModelChange)="updateCount(index, 'actualQuantity', $event)" /> }
-                      @else { {{ item.actualQuantity == null ? '—' : formatNumber(item.actualQuantity) + ' kg' }} }
+                      @if (hasBags(item)) {
+                        <strong>{{ formatNumber(bagTotalKg(item)) }} kg</strong>
+                        <small>{{ countedBags(item) }} bao đã kiểm</small>
+                      } @else if (canEditDetail()) {
+                        <input class="count-input" type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.actualQuantity" (ngModelChange)="updateCount(index, 'actualQuantity', $event)" />
+                      } @else { {{ item.actualQuantity == null ? '—' : formatNumber(item.actualQuantity) + ' kg' }} }
                     </td>
-                    <td class="number" [class.negative]="(lineFor(item)?.actualQuantity ?? item.actualQuantity ?? item.systemQuantity) - item.systemQuantity < 0">{{ lineFor(item)?.actualQuantity == null ? '—' : formatNumber((lineFor(item)?.actualQuantity || 0) - item.systemQuantity) + ' kg' }}</td>
+                    <td class="number" [class.negative]="(effectiveActual(item) ?? item.systemQuantity) - item.systemQuantity < 0">{{ effectiveActual(item) == null ? '—' : formatNumber((effectiveActual(item) || 0) - item.systemQuantity) + ' kg' }}</td>
                     <td><span class="severity" [ngClass]="severityClass(canEditDetail() ? lineSeverity(item) : item.varianceSeverity)">{{ canEditDetail() ? lineSeverity(item) : item.varianceSeverity }}</span></td>
+                    <td>
+                      @if (canEditDetail()) {
+                        <app-filter-select [clearable]="false" [options]="qualityOptions" [value]="lineFor(item)?.qualityStatus" (valueChange)="updateCount(index, 'qualityStatus', $event)" />
+                        @if (lineFor(item)?.qualityStatus !== 'OK') {
+                          <textarea rows="2" placeholder="Mô tả tình trạng (bắt buộc)" [ngModel]="lineFor(item)?.qualityNote" (ngModelChange)="updateCount(index, 'qualityNote', $event)"></textarea>
+                        }
+                      } @else {
+                        <span class="severity" [ngClass]="item.isQualityFailed ? 'severity-large' : 'severity-none'">{{ qualityLabel(item.qualityStatus) }}</span>
+                        @if (item.qualityNote) { <small>{{ item.qualityNote }}</small> }
+                      }
+                    </td>
                     <td>
                       @if (canEditDetail()) { <textarea rows="2" placeholder="Bắt buộc với Medium/Large" [ngModel]="lineFor(item)?.note" (ngModelChange)="updateCount(index, 'note', $event)"></textarea> }
                       @else { {{ item.note || '—' }} }
@@ -124,8 +145,50 @@
                       @else { {{ item.recountConfirmed ? 'Đã xác nhận' : '—' }} }
                     </td>
                   </tr>
+
+                  @if (hasBags(item)) {
+                    <tr class="bag-row">
+                      <td colspan="9">
+                        <details [open]="(bagDifference(item) || 0) !== 0">
+                          <summary>
+                            Chi tiết {{ item.systemBagCount }} bao — tích bao tìm thấy, chỉ cân lại bao nghi ngờ
+                            @if (canEditDetail()) {
+                              <button type="button" class="link-btn" (click)="markAllBagsCounted(item.id, true); $event.preventDefault()">Tích tất cả</button>
+                              <button type="button" class="link-btn" (click)="markAllBagsCounted(item.id, false); $event.preventDefault()">Bỏ tích</button>
+                            }
+                          </summary>
+                          <table class="bag-table">
+                            <thead><tr><th>Bao</th><th>Mã QR</th><th class="number">KL sổ sách</th><th class="number">KL cân lại</th><th class="number">Lệch</th><th>Chất lượng</th><th>Tìm thấy</th></tr></thead>
+                            <tbody>
+                              @for (bag of bagsOf(item); track bag.id) {
+                                <tr [class.missing]="!bag.counted" [class.unexpected]="bag.isUnexpected">
+                                  <td>#{{ bag.bagNo }}@if (bag.isUnexpected) { <em>ngoài danh sách</em> }</td>
+                                  <td><code>{{ bag.qrCode || '—' }}</code></td>
+                                  <td class="number">{{ formatNumber(bag.systemWeightKg) }} kg</td>
+                                  <td class="number">
+                                    @if (canEditDetail()) { <input class="count-input" type="number" min="0" step="0.1" placeholder="không cân" [ngModel]="bag.countedWeightKg" (ngModelChange)="updateBagWeight(item.id, bag.id, $event)" /> }
+                                    @else { {{ bag.countedWeightKg == null ? 'không cân' : formatNumber(bag.countedWeightKg) + ' kg' }} }
+                                  </td>
+                                  <td class="number" [class.negative]="bag.countedWeightKg != null && bag.countedWeightKg < bag.systemWeightKg">{{ bag.countedWeightKg == null ? '—' : formatNumber(bag.countedWeightKg - bag.systemWeightKg) + ' kg' }}</td>
+                                  <td>
+                                    @if (canEditDetail()) { <app-filter-select [clearable]="false" [options]="qualityOptions" [value]="bag.qualityStatus" (valueChange)="updateBagQuality(item.id, bag.id, $event)" /> }
+                                    @else { {{ qualityLabel(bag.qualityStatus) }} }
+                                  </td>
+                                  <td>
+                                    @if (canEditDetail()) { <label class="check"><input type="checkbox" [ngModel]="bag.counted" (ngModelChange)="toggleBagCounted(item.id, bag.id, $event)" /> <span>{{ bag.counted ? 'Có' : 'Không thấy' }}</span></label> }
+                                    @else { {{ bag.counted ? 'Có' : 'Không thấy' }} }
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </details>
+                      </td>
+                    </tr>
+                  }
+
                   @if (item.postSnapshotMovements.length) {
-                    <tr class="evidence-row"><td colspan="7"><details><summary>{{ item.postSnapshotMovements.length }} giao dịch sau snapshot — cần xử lý xung đột trước khi duyệt</summary><ul>@for (movement of item.postSnapshotMovements; track movement.id) { <li><b>{{ movement.transactionType }}</b> {{ formatNumber(movement.beforeQuantity) }} → {{ formatNumber(movement.afterQuantity) }} kg · {{ formatDate(movement.createdDate) }} · {{ movement.note || 'Không ghi chú' }}</li> }</ul></details></td></tr>
+                    <tr class="evidence-row"><td colspan="9"><details><summary>{{ item.postSnapshotMovements.length }} giao dịch sau snapshot — cần xử lý xung đột trước khi duyệt</summary><ul>@for (movement of item.postSnapshotMovements; track movement.id) { <li><b>{{ movement.transactionType }}</b> {{ formatNumber(movement.beforeQuantity) }} → {{ formatNumber(movement.afterQuantity) }} kg · {{ formatDate(movement.createdDate) }} · {{ movement.note || 'Không ghi chú' }}</li> }</ul></details></td></tr>
                   }
                 }
               </tbody>

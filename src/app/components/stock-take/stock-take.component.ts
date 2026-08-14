@@ -11,6 +11,8 @@ import {
   CreateStockTakePayload,
   InventoryRow,
   LocationRow,
+  STOCK_TAKE_QUALITY,
+  STOCK_TAKE_QUALITY_LABEL,
   STOCK_TAKE_STATUS,
   StockTakeDetail,
   StockTakeItem,
@@ -29,12 +31,30 @@ import { StockTakeService } from '../../services/stock-take.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { FilterSelectComponent, FilterSelectOption } from '../shared/filter-select.component';
 
+interface CountBagLine {
+  id: number;
+  paddyLotBagId: number;
+  bagNo: number;
+  qrCode: string | null;
+  systemWeightKg: number;
+  counted: boolean;
+  scannedByQr: boolean;
+  countedWeightKg: number | null;
+  qualityStatus: string;
+  note: string;
+  isUnexpected: boolean;
+}
+
 interface CountLine {
   id: number;
   actualQuantity: number | null;
   note: string;
   qrScanned: boolean;
   recountConfirmed: boolean;
+  qualityStatus: string;
+  qualityNote: string;
+  /** null = dòng không quản lý theo bao (hàng cũ / không theo lô). */
+  bags: CountBagLine[] | null;
 }
 
 interface CreateForm {
@@ -219,6 +239,23 @@ export class StockTakeComponent implements OnDestroy {
         note: item.note || '',
         qrScanned: item.qrScanned,
         recountConfirmed: item.recountConfirmed,
+        qualityStatus: item.qualityStatus || STOCK_TAKE_QUALITY.OK,
+        qualityNote: item.qualityNote || '',
+        // Dòng không có bao trong snapshot là hàng không theo lô — giữ kiểu kiểm
+        // theo kg như cũ thay vì ép người dùng đếm bao không tồn tại.
+        bags: (item.bags?.length ?? 0) === 0 ? null : item.bags.map(bag => ({
+          id: bag.id,
+          paddyLotBagId: bag.paddyLotBagId,
+          bagNo: bag.bagNo,
+          qrCode: bag.qrCode ?? null,
+          systemWeightKg: Number(bag.systemWeightKg),
+          counted: bag.counted,
+          scannedByQr: bag.scannedByQr,
+          countedWeightKg: bag.countedWeightKg == null ? null : Number(bag.countedWeightKg),
+          qualityStatus: bag.qualityStatus || STOCK_TAKE_QUALITY.OK,
+          note: bag.note || '',
+          isUnexpected: bag.isUnexpected,
+        })),
       })));
     }, { allowSignalWrites: true });
   }
@@ -279,9 +316,99 @@ export class StockTakeComponent implements OnDestroy {
   }
 
   lineFor(item: StockTakeItem): CountLine | undefined { return this.countLines().find(x => x.id === item.id); }
+
+  // ─── Kiểm đếm theo BAO ────────────────────────────────────────────────────
+
+  readonly qualityOptions: FilterSelectOption[] = Object.keys(STOCK_TAKE_QUALITY_LABEL)
+    .map(code => ({ id: code, name: STOCK_TAKE_QUALITY_LABEL[code] }));
+
+  qualityLabel(code?: string | null): string {
+    return STOCK_TAKE_QUALITY_LABEL[String(code || 'OK').toUpperCase()] || String(code);
+  }
+
+  /** Dòng này có quản lý theo bao không. */
+  hasBags(item: StockTakeItem): boolean { return (this.lineFor(item)?.bags?.length ?? 0) > 0; }
+
+  bagsOf(item: StockTakeItem): CountBagLine[] { return this.lineFor(item)?.bags ?? []; }
+
+  countedBags(item: StockTakeItem): number { return this.bagsOf(item).filter(b => b.counted).length; }
+
+  /**
+   * Tổng kg của dòng suy từ các bao ĐÃ đếm.
+   * Bao đếm được mà không cân thì giữ nguyên kg sổ sách — không quy về 0 và cũng
+   * không chia đều chênh lệch, vì cả hai đều là bịa số.
+   */
+  bagTotalKg(item: StockTakeItem): number {
+    return this.bagsOf(item)
+      .filter(b => b.counted)
+      .reduce((sum, b) => sum + (b.countedWeightKg ?? b.systemWeightKg), 0);
+  }
+
+  /** Số thực tế đang hiển thị: theo bao nếu có, không thì theo ô kg nhập tay. */
+  effectiveActual(item: StockTakeItem): number | null {
+    if (!this.hasBags(item)) return this.lineFor(item)?.actualQuantity ?? null;
+    return this.countedBags(item) === 0 && !this.bagsOf(item).some(b => b.counted)
+      ? this.bagTotalKg(item)
+      : this.bagTotalKg(item);
+  }
+
+  bagDifference(item: StockTakeItem): number | null {
+    if (!this.hasBags(item)) return null;
+    return this.countedBags(item) - Number(item.systemBagCount);
+  }
+
+  toggleBagCounted(itemId: number, bagId: number, counted: boolean): void {
+    this.updateBag(itemId, bagId, bag => ({
+      ...bag,
+      counted,
+      // Bỏ tích thì xoá luôn số cân: giữ lại sẽ tính vào tổng của một bao đã
+      // tuyên bố là không tìm thấy.
+      countedWeightKg: counted ? bag.countedWeightKg : null,
+    }));
+  }
+
+  updateBagWeight(itemId: number, bagId: number, value: unknown): void {
+    const parsed = value === '' || value == null ? null : Number(value);
+    this.updateBag(itemId, bagId, bag => ({
+      ...bag,
+      countedWeightKg: parsed,
+      counted: parsed != null ? true : bag.counted,
+    }));
+  }
+
+  updateBagQuality(itemId: number, bagId: number, value: unknown): void {
+    this.updateBag(itemId, bagId, bag => ({ ...bag, qualityStatus: String(value || 'OK') }));
+  }
+
+  /** Tích nhanh toàn bộ bao của một dòng (đếm đủ, không cân bao nào). */
+  markAllBagsCounted(itemId: number, counted: boolean): void {
+    this.countLines.update(lines => lines.map(line => line.id !== itemId || !line.bags ? line : {
+      ...line,
+      bags: line.bags.map(bag => ({
+        ...bag,
+        counted,
+        countedWeightKg: counted ? bag.countedWeightKg : null,
+      })),
+    }));
+  }
+
+  private updateBag(itemId: number, bagId: number, patch: (bag: CountBagLine) => CountBagLine): void {
+    this.countLines.update(lines => lines.map(line => line.id !== itemId || !line.bags ? line : {
+      ...line,
+      bags: line.bags.map(bag => (bag.id === bagId ? patch(bag) : bag)),
+    }));
+  }
+
   lineSeverity(item: StockTakeItem): string {
-    const actual = this.lineFor(item)?.actualQuantity;
+    const actual = this.effectiveActual(item);
     if (actual == null) return 'NONE';
+
+    // Lệch SỐ BAO luôn là LARGE: mất nguyên một bao là sự cố an ninh kho, không
+    // phải hao hụt tự nhiên — một bao 50 kg trong cột 5 tấn chỉ lệch 1% và sẽ
+    // trôi qua khâu duyệt nếu chỉ xét theo kg.
+    const bagDiff = this.bagDifference(item);
+    if (bagDiff != null && bagDiff !== 0) return 'LARGE';
+
     const abs = Math.abs(actual - Number(item.systemQuantity));
     if (abs === 0) return 'NONE';
     const pct = Number(item.systemQuantity) === 0 ? Number.POSITIVE_INFINITY : abs / Math.abs(Number(item.systemQuantity)) * 100;
@@ -297,11 +424,39 @@ export class StockTakeComponent implements OnDestroy {
     if (this.countLines().some(x => x.actualQuantity != null && x.actualQuantity < 0)) {
       this.alert('Số lượng thực tế không được âm.', false); return false;
     }
+    const qualityMissing = this.countLines().find(
+      x => x.qualityStatus !== STOCK_TAKE_QUALITY.OK && !x.qualityNote.trim()
+    );
+    if (qualityMissing) {
+      this.alert('Dòng ghi nhận chất lượng không đạt phải mô tả tình trạng.', false); return false;
+    }
     this.actionLoading.set(true);
     try {
       const response = await lastValueFrom(this.service.saveCounts(current.id, {
         note: current.note || null,
-        items: this.countLines().map(x => ({ ...x, note: x.note.trim() || null })),
+        items: this.countLines().map(line => ({
+          id: line.id,
+          // Dòng theo bao: backend tự cộng lại từ danh sách bao, gửi kèm chỉ để
+          // client cũ đọc được — đừng để hai nguồn số mâu thuẫn nhau.
+          actualQuantity: line.bags
+            ? line.bags.filter(b => b.counted).reduce((s, b) => s + (b.countedWeightKg ?? b.systemWeightKg), 0)
+            : line.actualQuantity,
+          note: line.note.trim() || null,
+          qrScanned: line.qrScanned,
+          recountConfirmed: line.recountConfirmed,
+          qualityStatus: line.qualityStatus,
+          qualityNote: line.qualityNote.trim() || null,
+          bags: line.bags?.map(bag => ({
+            id: bag.id,
+            paddyLotBagId: bag.paddyLotBagId,
+            qrCode: bag.qrCode,
+            counted: bag.counted,
+            scannedByQr: bag.scannedByQr,
+            countedWeightKg: bag.countedWeightKg,
+            qualityStatus: bag.qualityStatus,
+            note: bag.note.trim() || null,
+          })) ?? null,
+        })),
       }));
       if (!response.isSucceeded) throw new Error(response.message);
       await this.refreshDetail(current.id);
@@ -314,7 +469,21 @@ export class StockTakeComponent implements OnDestroy {
   async submit(): Promise<void> {
     const current = this.detail();
     if (!current) return;
-    if (this.countLines().some(x => x.actualQuantity == null)) return this.alert('Vui lòng nhập đủ số lượng thực tế cho mọi dòng.', false);
+    // Dòng theo bao: "chưa kiểm" nghĩa là chưa đụng tới bao nào, không phải ô kg
+    // để trống — nếu gửi duyệt lúc này backend sẽ hiểu là mất sạch bao.
+    const untouched = current.stockTakeItems.find(item => {
+      const line = this.lineFor(item);
+      if (!line) return true;
+      if (line.bags) return !line.bags.some(b => b.counted);
+      return line.actualQuantity == null;
+    });
+    if (untouched) {
+      return this.alert(
+        this.hasBags(untouched)
+          ? `Dòng ${untouched.lotCode || untouched.sku || '#' + untouched.id} chưa kiểm đếm bao nào.`
+          : 'Vui lòng nhập đủ số lượng thực tế cho mọi dòng.',
+        false);
+    }
     const invalidReason = current.stockTakeItems.find(x => {
       const severity = this.lineSeverity(x);
       return (severity === 'MEDIUM' || severity === 'LARGE') && !this.lineFor(x)?.note.trim();

@@ -41,6 +41,47 @@ export interface StockTakeMovementEvidence {
   createdBy?: number | null;
 }
 
+/** Tình trạng chất lượng ghi nhận khi kiểm kê. */
+export const STOCK_TAKE_QUALITY = {
+  OK: 'OK',
+  WET: 'WET',
+  PEST: 'PEST',
+  TORN_BAG: 'TORN_BAG',
+  OTHER: 'OTHER',
+} as const;
+
+export type StockTakeQualityStatus =
+  (typeof STOCK_TAKE_QUALITY)[keyof typeof STOCK_TAKE_QUALITY];
+
+export const STOCK_TAKE_QUALITY_LABEL: Record<string, string> = {
+  OK: 'Đạt',
+  WET: 'Ẩm/mốc',
+  PEST: 'Mọt, côn trùng',
+  TORN_BAG: 'Rách bao, đổ vãi',
+  OTHER: 'Khác',
+};
+
+/** Một bao trong dòng kiểm kê. */
+export interface StockTakeItemBag {
+  id: number;
+  stockTakeItemId: number;
+  paddyLotBagId: number;
+  bagNo: number;
+  qrCode?: string | null;
+  systemWeightKg: number;
+  /** null = không cân bao này, giữ nguyên kg sổ sách. */
+  countedWeightKg?: number | null;
+  counted: boolean;
+  scannedByQr: boolean;
+  isUnexpected: boolean;
+  isMissing: boolean;
+  weightDifference: number;
+  qualityStatus: string;
+  note?: string | null;
+  countedAt?: string | null;
+  countedByUserId?: number | null;
+}
+
 export interface StockTakeItem {
   id: number;
   stockTakeId: number;
@@ -65,6 +106,21 @@ export interface StockTakeItem {
   recountConfirmed: boolean;
   recountConfirmedBy?: number | null;
   recountConfirmedAt?: string | null;
+
+  /** Số bao sổ sách tại (lô, vị trí) lúc chụp phiếu. */
+  systemBagCount: number;
+  /** Số bao đếm được. null = chưa kiểm đếm. */
+  countedBagCount?: number | null;
+  /** Lệch số bao (âm = thiếu bao). */
+  bagDifference?: number | null;
+  /** Số bao đã cân lại. */
+  weighedBagCount: number;
+  qualityStatus: string;
+  qualityNote?: string | null;
+  qualityImageUrls?: string | null;
+  isQualityFailed: boolean;
+  bags: StockTakeItemBag[];
+
   postSnapshotMovements: StockTakeMovementEvidence[];
 }
 
@@ -101,6 +157,18 @@ export interface CreateStockTakePayload {
   stockTakeItems: [];
 }
 
+/** Kết quả kiểm đếm của một bao gửi lên backend. */
+export interface SaveStockTakeBagPayload {
+  id: number;
+  paddyLotBagId?: number | null;
+  qrCode?: string | null;
+  counted: boolean;
+  scannedByQr: boolean;
+  countedWeightKg?: number | null;
+  qualityStatus?: string | null;
+  note?: string | null;
+}
+
 export interface SaveStockTakeCountsPayload {
   note?: string | null;
   items: Array<{
@@ -109,7 +177,24 @@ export interface SaveStockTakeCountsPayload {
     note?: string | null;
     qrScanned: boolean;
     recountConfirmed: boolean;
+    qualityStatus?: string | null;
+    qualityNote?: string | null;
+    qualityImageUrls?: string | null;
+    /** null = không kiểm theo bao (giữ nguyên dữ liệu bao của dòng). */
+    bags?: SaveStockTakeBagPayload[] | null;
   }>;
+}
+
+/** Kết quả tra một mã QR bao khi đang kiểm kê. */
+export interface ScanStockTakeBagResult {
+  matched: boolean;
+  reason?: string | null;
+  message: string;
+  stockTakeItemId?: number | null;
+  bag?: StockTakeItemBag | null;
+  lotCode?: string | null;
+  locationCode?: string | null;
+  productVariantName?: string | null;
 }
 
 export interface StockTakePagedRequest extends DTParameters {}
