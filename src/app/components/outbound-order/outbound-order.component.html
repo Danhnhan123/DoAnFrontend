@@ -569,7 +569,7 @@
             </tbody>
           </table>
           <ng-template #noLot>
-            <div class="ob-muted sm">Không có vị trí khả dụng cho sản phẩm này trong kho.</div>
+            <div class="ob-muted sm">Không có vị trí khả dụng cho sản phẩm này trong kho. Hoặc cột chứa hàng này đang bị khoá, kiểm tra lại các đơn bán khác! </div>
           </ng-template>
         </ng-template>
       </div>
@@ -761,13 +761,7 @@
       </label>
       <label class="ob-field">
         <span>Khối lượng cân thực tế (kg)</span>
-        <input type="number" min="0" [ngModel]="packingActualKg()"
-          (ngModelChange)="packingActualKg.set($event === '' ? null : +$event)" />
-      </label>
-      <label class="ob-field">
-        <span>Thiết bị cân (không bắt buộc)</span>
-        <input type="text" [ngModel]="packingScale()" (ngModelChange)="packingScale.set($event)"
-          placeholder="VD: Cân BLE-01" />
+        <input type="number" [ngModel]="packingActualKg()" readonly />
       </label>
       <p class="ob-muted sm">Kế hoạch {{ fmtKg(plannedKg()) }} · đã lấy {{ fmtKg(pickedKg()) }}.</p>
     </div>

@@ -471,93 +471,6 @@
           </label>
         </div>
 
-        @if (!createForm().id) {
-          <section class="subsection">
-            <div class="subsection-heading">
-              <div>
-                <h3>Phân bổ lô/cột đầu vào</h3>
-                <p>
-                  Có thể giữ lúa ngay hoặc để trống và thực hiện sau khi tạo lệnh Nháp.
-                </p>
-              </div>
-              <button [appHasPerm]="'MILLING_ORDERS:CREATE'"
-                class="small-add-btn"
-                type="button"
-                [disabled]="!createForm().warehouseId"
-                (click)="addCreateAllocation()"
-              >
-                ＋ Thêm lô
-              </button>
-            </div>
-
-            @if (createForm().allocations.length) {
-              <div class="allocation-summary">
-                <span>Cần giữ: <strong>{{ fmtWeight(createComputedPaddyKg()) }}</strong></span>
-                <span>Đã phân bổ: <strong>{{ fmtWeight(createAllocatedKg()) }}</strong></span>
-                <span
-                  [class.balance-ok]="allocationIsEnough(createComputedPaddyKg(), createAllocatedKg())"
-                >
-                  {{ allocationBalanceLabel(createComputedPaddyKg(), createAllocatedKg()) }}:
-                  <strong>{{ fmtWeight(allocationBalanceKg(createComputedPaddyKg(), createAllocatedKg())) }}</strong>
-                </span>
-              </div>
-
-              <div class="line-list">
-                @for (
-                  line of createForm().allocations;
-                  track line.key;
-                  let i = $index
-                ) {
-                  <div class="allocation-line">
-                    <label>
-                      <span>Lô lúa</span>
-                      <app-filter-select
-                        [clearable]="false"
-                        placeholder="Chọn lô đủ điều kiện"
-                        [options]="lotSelectOptions(createForm().warehouseId)"
-                        [value]="line.paddyLotId"
-                        (valueChange)="setCreateAllocation(i, 'paddyLotId', $event)"
-                      ></app-filter-select>
-                    </label>
-                    <label>
-                      <span>Vị trí/cột</span>
-                      <app-filter-select
-                        [clearable]="false"
-                        [disabled]="!line.paddyLotId"
-                        placeholder="Chọn cột đang chứa lô"
-                        [options]="inventoryLocationSelectOptions(line.paddyLotId, createForm().warehouseId)"
-                        [value]="line.locationId"
-                        (valueChange)="setCreateAllocation(i, 'locationId', $event)"
-                      ></app-filter-select>
-                    </label>
-                    <label>
-                      <span>Khối lượng giữ (kg)</span>
-                      <input
-                        type="number"
-                        min="0.001"
-                        step="0.001"
-                        [ngModel]="line.consumedWeightKg"
-                        (ngModelChange)="setCreateAllocation(i, 'consumedWeightKg', $event)"
-                      />
-                    </label>
-                    <button
-                      class="remove-line"
-                      type="button"
-                      title="Xóa dòng"
-                      (click)="removeCreateAllocation(i)"
-                    >
-                      ×
-                    </button>
-                  </div>
-                }
-              </div>
-            } @else {
-              <div class="empty-inline">
-                Chưa phân bổ lô. Lệnh sẽ được lưu ở trạng thái Nháp.
-              </div>
-            }
-          </section>
-        }
       </div>
 
       <footer class="modal-footer">
@@ -618,8 +531,8 @@
         </div>
 
         <div class="notice">
-          Hệ thống kiểm tra thứ tự lấy bao từ trên xuống khi xác nhận. Nếu một cột bị
-          bao khác chặn, hãy chọn thêm vị trí khác hoặc đảo các bao cản trước.
+          Nhấn “Tự động phân bổ” để hệ thống chọn lô, cột và các bao lúa nguyên bao phù hợp.
+          Hệ thống sẽ kiểm tra thứ tự lấy bao từ trên xuống khi xác nhận.
         </div>
 
         @if (!reserveReadOnly()) {
@@ -629,7 +542,7 @@
           [disabled]="suggestingSources() || saving()"
           (click)="autoSuggestSources()"
         >
-          {{ suggestingSources() ? 'Đang tìm nguồn lấy được...' : '✓ Tự chọn nguồn phù hợp' }}
+          {{ suggestingSources() ? 'Đang tự động phân bổ...' : '✓ Tự động phân bổ' }}
         </button>
         }
 
@@ -666,11 +579,11 @@
                 }
               </label>
               <label>
-                <span>Bao lúa đã chọn (nguyên bao)</span>
+                <span>Bao lúa (nguyên bao)</span>
                 <input
                   type="text"
-                  readonly
-                  [value]="reserveBagText(line)"
+                  disabled
+                  [value]="line.bagIds.length ? reserveBagText(line) : 'Nhấn Tự động phân bổ để chọn bao'"
                 />
               </label>
               <label>
@@ -698,11 +611,7 @@
           }
         </div>
 
-        @if (!reserveReadOnly()) {
-        <button [appHasPerm]="'MILLING_ORDERS:CREATE'" class="small-add-btn standalone" type="button" (click)="addReserveLine()">
-          ＋ Thêm lô/cột đầu vào
-        </button>
-        }
+        <!-- Tạm ẩn nút thêm lô/cột đầu vào; việc chọn nguồn hiện dùng Tự động phân bổ. -->
       </div>
 
       <footer class="modal-footer">
@@ -861,6 +770,7 @@
                       <input
                         type="number"
                         min="0.001"
+                        [attr.max]="line.outputType === 'RICE' ? maxRiceOutputKg() : null"
                         step="0.001"
                         [ngModel]="line.outputWeightKg"
                         (ngModelChange)="setOutputField(i, 'outputWeightKg', $event)"
@@ -871,6 +781,14 @@
                 </article>
               }
             </div>
+
+            @if (riceOutputExceedsLimit()) {
+              <div class="output-limit-warning" role="alert">
+                Tổng gạo đầu ra {{ fmtWeight(totalRiceOutputKg()) }} đã vượt mức tối đa
+                {{ fmtWeight(maxRiceOutputKg()) }} (75% của
+                {{ fmtWeight(computedPaddyToConsumeKg()) }} lúa đầu vào thực tế).
+              </div>
+            }
           </section>
 
           <aside class="completion-side">
@@ -883,7 +801,13 @@
                 </div>
                 <div>
                   <dt>Gạo thành phẩm</dt>
-                  <dd>{{ fmtWeight(totalRiceOutputKg()) }}</dd>
+                  <dd [class.value-warning]="riceOutputExceedsLimit()">
+                    {{ fmtWeight(totalRiceOutputKg()) }}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Gạo tối đa (75% đầu vào)</dt>
+                  <dd>{{ fmtWeight(maxRiceOutputKg()) }}</dd>
                 </div>
                 <div>
                   <dt>Phụ phẩm</dt>
@@ -991,7 +915,7 @@
         <button
           class="primary-btn"
           type="button"
-          [disabled]="saving()"
+          [disabled]="saving() || riceOutputExceedsLimit()"
           (click)="completeOrder()"
         >
           {{ saving() ? 'Đang hoàn tất...' : 'Nhập kho & hoàn tất' }}

@@ -906,7 +906,8 @@
 }
 
 .so-form-grid input:disabled,
-.so-form-grid select:disabled {
+.so-form-grid select:disabled,
+.so-outbound-lines input:disabled {
   cursor: not-allowed;
   opacity: 0.7;
   background: var(--bg-tertiary, #f1f5f9);
@@ -1064,7 +1065,6 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 13px;
 }
 
 .so-outbound-lines label {

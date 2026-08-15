@@ -216,7 +216,6 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly showPackingModal = signal(false);
   readonly packingQr = signal('');
   readonly packingActualKg = signal<number | null>(null);
-  readonly packingScale = signal('');
 
   private searchTimer?: ReturnType<typeof setTimeout>;
 
@@ -835,8 +834,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
         for (const loc of item.locations) {
           if (useBags) {
-            const locKg = this.locationBagKg(loc);
-            if (locKg <= 0) continue;
+            if (this.locationBagKg(loc) <= 0) continue;
 
             let openKgRemaining = Number(loc.openBagTakeKg || 0);
             let fullBagsRemaining = loc.fullBagsToTake;
@@ -863,11 +861,26 @@ export class OutboundOrderComponent implements OnDestroy {
                 splitKgRemaining -= subSplitKg;
               }
 
-              const subTotalKg = subOpenKg + (subFullBags * (loc.standardWeightKg || 0)) + subSplitKg;
-              if (subTotalKg > 0) {
+              // Keep the user's bag choice in the request shape. If these values are
+              // merged into one total, the backend cannot distinguish "one full bag"
+              // from "finish an open bag, then split another bag" (for example 10 kg
+              // versus 1 kg + 9 kg from the same lot/location).
+              if (subOpenKg > 0) {
                 itemLots.push({
                   inventoryId: sub.inventoryId,
-                  quantityAllocated: subTotalKg,
+                  quantityAllocated: subOpenKg,
+                });
+              }
+              for (let bag = 0; bag < subFullBags; bag++) {
+                itemLots.push({
+                  inventoryId: sub.inventoryId,
+                  quantityAllocated: loc.standardWeightKg || 0,
+                });
+              }
+              if (subSplitKg > 0) {
+                itemLots.push({
+                  inventoryId: sub.inventoryId,
+                  quantityAllocated: subSplitKg,
                 });
               }
             }
@@ -1292,7 +1305,6 @@ export class OutboundOrderComponent implements OnDestroy {
     if (!this.canPack(order) || !this.isPickedEnough(order)) return;
     this.packingQr.set(`PACK-${order.id}-${Date.now().toString().slice(-6)}`);
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
-    this.packingScale.set('');
     this.showPackingModal.set(true);
   }
 
@@ -1315,7 +1327,6 @@ export class OutboundOrderComponent implements OnDestroy {
       payload: {
         qrCode: qr,
         actualWeightKg: this.packingActualKg(),
-        scaleDevice: this.packingScale().trim() || null,
       },
     });
   }
@@ -1420,14 +1431,6 @@ export class OutboundOrderComponent implements OnDestroy {
           `</div>`
         : `<div style="text-align:left;color:#64748b;font-size:13px;margin:12px 0">Chưa lấy được số dư công nợ của phiếu. Bạn vẫn có thể nhập số tiền; hệ thống sẽ kiểm tra khi lưu.</div>`;
 
-    const quickButtons =
-      `<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">` +
-      `<button type="button" id="pay-none" class="ob-quick-btn">Không thanh toán</button>` +
-      (outstanding != null && outstanding > 0
-        ? `<button type="button" id="pay-full" class="ob-quick-btn primary">Thanh toán toàn bộ</button>`
-        : '') +
-      `</div>`;
-
     const fieldLabel =
       'display:block;text-align:left;font-weight:600;margin:12px 0 4px';
 
@@ -1437,9 +1440,8 @@ export class OutboundOrderComponent implements OnDestroy {
         `<label style="${fieldLabel};margin-top:0" for="cd-receiver">Tên người nhận</label>` +
         `<input id="cd-receiver" class="swal2-input" style="margin:0;width:100%" placeholder="VD: Nguyễn Văn A">` +
         amountBlock +
-        `<label style="${fieldLabel}" for="cd-payment">Thu thêm khi giao hàng (VNĐ)</label>` +
-        `<input id="cd-payment" class="swal2-input" style="margin:0;width:100%" inputmode="numeric" value="0">` +
-        quickButtons +
+        `<label style="${fieldLabel}" for="cd-payment">Số tiền khách thực trả khi nhận hàng (VNĐ)</label>` +
+        `<input id="cd-payment" class="swal2-input" style="margin:0;width:100%" inputmode="numeric" placeholder="Nhập 0 nếu khách chưa thanh toán">` +
         `<label style="${fieldLabel}" for="cd-note">Ghi chú giao hàng</label>` +
         `<textarea id="cd-note" class="swal2-textarea" style="margin:0;width:100%" placeholder="Không bắt buộc…"></textarea>`,
       showCancelButton: true,
@@ -1457,18 +1459,9 @@ export class OutboundOrderComponent implements OnDestroy {
           const digits = payInput.value.replace(/\D/g, '');
           payInput.value = digits
             ? Number(digits).toLocaleString('vi-VN')
-            : '0';
+            : '';
         };
         payInput.addEventListener('input', format);
-        format();
-        document.getElementById('pay-none')?.addEventListener('click', () => {
-          payInput.value = '0';
-          format();
-        });
-        document.getElementById('pay-full')?.addEventListener('click', () => {
-          payInput.value = String(outstanding ?? 0);
-          format();
-        });
       },
       preConfirm: async () => {
         const receiver =
@@ -1478,12 +1471,26 @@ export class OutboundOrderComponent implements OnDestroy {
           Swal.showValidationMessage('Vui lòng nhập tên người nhận.');
           return false;
         }
-        const amount = this.parseMoney(
-          (document.getElementById('cd-payment') as HTMLInputElement)?.value,
-        );
+        const paymentInput = document.getElementById(
+          'cd-payment',
+        ) as HTMLInputElement;
+        const rawPayment = paymentInput?.value?.trim() || '';
+        if (!rawPayment) {
+          Swal.showValidationMessage(
+            'Vui lòng nhập số tiền khách thực trả. Nhập 0 nếu khách chưa thanh toán.',
+          );
+          return false;
+        }
+        const amount = this.parseMoney(rawPayment);
         if (amount < 0) {
           Swal.showValidationMessage(
             'Số tiền khách thanh toán thêm không được âm.',
+          );
+          return false;
+        }
+        if (outstanding != null && amount > outstanding) {
+          Swal.showValidationMessage(
+            `Số tiền khách trả không được vượt quá số còn phải thu ${this.fmtMoney(outstanding)}.`,
           );
           return false;
         }
@@ -1580,24 +1587,32 @@ export class OutboundOrderComponent implements OnDestroy {
     if (!this.canCancel(order)) return;
     Swal.fire({
       title: 'Hủy phiếu xuất?',
-      html: `Phiếu <b>${order.soCode}</b> sẽ bị hủy và phần tồn đã giữ được giải phóng.`,
+      html:
+        `<p style="margin:0 0 12px;text-align:left">Phiếu <b>${order.soCode}</b> sẽ bị hủy và phần tồn đã giữ được giải phóng.</p>` +
+        `<label style="display:block;text-align:left;font-weight:600;margin-bottom:4px" for="cancel-reason">Lý do hủy <span style="color:#dc2626">*</span></label>` +
+        `<textarea id="cancel-reason" class="swal2-textarea" style="margin:0;width:100%" maxlength="500" placeholder="VD: Khách đổi lịch giao…"></textarea>`,
       icon: 'warning',
-      input: 'textarea',
-      inputLabel: 'Lý do hủy',
-      inputPlaceholder: 'VD: Khách đổi lịch giao…',
-      inputAttributes: { maxlength: '500' },
       showCancelButton: true,
       confirmButtonText: 'Hủy phiếu',
       cancelButtonText: 'Không hủy',
       confirmButtonColor: '#dc2626',
-      inputValidator: (value) =>
-        value && value.trim() ? null : 'Vui lòng nhập lý do hủy.',
+      focusConfirm: false,
+      preConfirm: () => {
+        const reason =
+          (document.getElementById('cancel-reason') as HTMLTextAreaElement)
+            ?.value?.trim() || '';
+        if (!reason) {
+          Swal.showValidationMessage('Vui lòng nhập lý do hủy.');
+          return false;
+        }
+        return { reason };
+      },
     }).then((result) => {
-      if (result.isConfirmed) {
+      if (result.isConfirmed && result.value) {
         this.actionMutation.mutate({
           id: order.id,
           action: 'CANCEL',
-          payload: { reason: (result.value as string).trim() },
+          payload: result.value as { reason: string },
         });
       }
     });
