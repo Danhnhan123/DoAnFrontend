@@ -153,8 +153,8 @@
         </div>
         <div class="qc-detail-actions">
           <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
-            [disabled]="wasSplit(sel)"
-            [title]="wasSplit(sel) ? 'Phiếu đã tách lô cách ly — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
+            [disabled]="wasSplit(sel) || !!sel.displayRole"
+            [title]="wasSplit(sel) || sel.displayRole ? 'Kết quả tách lô là lịch sử nghiệp vụ — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
           <button class="btn btn-primary" type="button" (click)="openEditSelected()">{{ isDraft(sel) ? 'Kiểm định ngay' : (perm.canUpdate('QUALITY_INSPECTIONS') ? 'Sửa phiếu' : 'Xem phiếu') }}</button>
         </div>
         } @else {

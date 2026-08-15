@@ -16,6 +16,7 @@ export interface PaddyLotRow {
   statusCode?: string | null;
   sourceReceiptId?: number | null;
   sourceMillingOrderId?: number | null;
+  parentLotId?: number | null;
   warehouseId: number;
   warehouseName?: string | null;
   locationId?: number | null;

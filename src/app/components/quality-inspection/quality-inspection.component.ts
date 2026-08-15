@@ -190,7 +190,47 @@ export class QualityInspectionComponent {
   }));
 
   // ================= Derived =================
-  rows = computed<QualityInspectionRow[]>(() => this.unwrapDT(this.listQuery.data()));
+  private inspectionRows = computed<QualityInspectionRow[]>(() => this.unwrapDT(this.listQuery.data()));
+  rows = computed<QualityInspectionRow[]>(() =>
+    this.inspectionRows().flatMap((row) => {
+      if (!this.wasSplit(row)) return [row];
+      const child = this.findQuarantineChild(row);
+      if (!child) return [row];
+
+      const parent = this.lotInfo(row.paddyLotId);
+      const quarantineWeight = Math.max(0, Number(row.affectedWeightKg ?? 0));
+      const passedWeight = Math.max(0, Number(this.lotBasisWeight(parent) ?? 0));
+      const splitTotalWeight = Math.max(
+        Number(parent?.initialWeightKg ?? 0),
+        passedWeight + quarantineWeight
+      );
+
+      return [
+        {
+          ...row,
+          passedInspection: true,
+          affectedWeightKg: null,
+          displayWeightKg: passedWeight,
+          displayTotalWeightKg: splitTotalWeight,
+          displayRole: 'splitPassed' as const,
+          sourceInspectionId: row.id,
+        },
+        {
+          ...row,
+          id: -row.id,
+          paddyLotId: child.id,
+          lotCode: child.lotCode,
+          lotStatusCode: child.statusCode,
+          passedInspection: false,
+          affectedWeightKg: null,
+          displayWeightKg: quarantineWeight,
+          displayTotalWeightKg: splitTotalWeight,
+          displayRole: 'splitQuarantine' as const,
+          sourceInspectionId: row.id,
+        },
+      ];
+    })
+  );
   totalRecords = computed<number>(() => this.unwrapTotal(this.listQuery.data()));
   lotList = computed<PaddyLotRow[]>(() => this.unwrapDT(this.lotsQuery.data()));
 
@@ -413,13 +453,71 @@ export class QualityInspectionComponent {
     this.showModal.set(true);
   }
 
-  openEditSelected(): void {
-    this.recheckMode.set(false);
+  async openEditSelected(): Promise<void> {
     const row = this.selectedRow();
     if (!row) return;
+
+    if (row.displayRole === 'splitPassed') {
+      this.showAlert('Đây là phần lô đã đạt sơ bộ sau khi tách. Hãy chọn dòng lô -Q để kiểm tra lại phần đang cách ly.');
+      return;
+    }
+
+    if (row.displayRole === 'splitQuarantine') {
+      this.recheckMode.set(true);
+      this.editItem.set(null);
+      this.form.set({
+        ...this.rowToForm(row),
+        passedInspection: false,
+        affectedWeightKg: null,
+        affectedBagIds: [],
+        inspectedAt: this.toLocalInput(new Date().toISOString()),
+      });
+      this.showModal.set(true);
+      return;
+    }
+
+    // A split inspection is immutable audit history. Editing it from the UI means
+    // rechecking the quarantine child (-Q1/-Q2...), not changing the parent result.
+    if (this.wasSplit(row)) {
+      let quarantineLot = this.findQuarantineChild(row);
+      if (!quarantineLot) {
+        await this.quarantinedLotsQuery.refetch();
+        quarantineLot = this.findQuarantineChild(row);
+      }
+      if (!quarantineLot) {
+        this.showAlert(
+          `Không tìm thấy lô cách ly được tách từ ${row.lotCode ?? 'phiếu này'}. Vui lòng làm mới dữ liệu và thử lại.`,
+          false
+        );
+        return;
+      }
+
+      this.recheckMode.set(true);
+      this.editItem.set(null);
+      this.form.set({
+        ...this.rowToForm(row),
+        paddyLotId: quarantineLot.id,
+        passedInspection: false,
+        affectedWeightKg: null,
+        affectedBagIds: [],
+        inspectedAt: this.toLocalInput(new Date().toISOString()),
+      });
+      this.showModal.set(true);
+      return;
+    }
+
+    this.recheckMode.set(false);
     this.editItem.set(row);
     this.form.set(this.rowToForm(row));
     this.showModal.set(true);
+  }
+
+  private findQuarantineChild(row: QualityInspectionRow): PaddyLotRow | undefined {
+    const parentCode = row.lotCode?.trim().toUpperCase();
+    return this.quarantinedLots().find((lot) =>
+      lot.parentLotId === row.paddyLotId ||
+      (!!parentCode && lot.lotCode.toUpperCase().startsWith(`${parentCode}-Q`))
+    );
   }
 
   /** Phiếu đã tách lô cách ly (không đạt + có kg ảnh hưởng) — BE khóa sửa lô/kết quả/kg và cấm xóa. */
@@ -614,7 +712,22 @@ export class QualityInspectionComponent {
     return lot.warehouseName || `Kho #${lot.warehouseId}`;
   }
   lotWeightKg(row: QualityInspectionRow): number | null {
-    return this.lotBasisWeight(this.lotInfo(row.paddyLotId));
+    if (row.displayTotalWeightKg != null) return row.displayTotalWeightKg;
+
+    const lot = this.lotInfo(row.paddyLotId);
+    if (!lot) return null;
+
+    const currentParentWeight = this.lotBasisWeight(lot) ?? 0;
+    const affectedWeight = Math.max(0, Number(row.affectedWeightKg ?? 0));
+    if (affectedWeight <= 0) return currentParentWeight;
+
+    // Historical total before a partial split = remaining parent + quarantine
+    // child. For lots split after put-away, InitialWeightKg already contains the
+    // original total, so take the larger value to support both workflows.
+    return Math.max(
+      Number(lot.initialWeightKg ?? 0),
+      currentParentWeight + affectedWeight
+    );
   }
   fmtKg(kg?: number | null): string {
     if (kg == null) return '—';
@@ -657,21 +770,28 @@ export class QualityInspectionComponent {
       : { label: 'Thấp', cls: 'lvl-low' };
   }
   statusText(row: QualityInspectionRow): string {
+    if (row.displayRole === 'splitPassed') return 'Đạt sơ bộ';
+    if (row.displayRole === 'splitQuarantine') return 'Cần cách ly';
     if (this.isDraft(row)) return 'Chờ kiểm định';
     return row.passedInspection ? 'Đạt' : 'Cách ly';
   }
 
   /** Phạm vi xử lý: Tách một phần / Toàn bộ lô / —. */
   scopeText(row: QualityInspectionRow): string {
+    if (row.displayRole === 'splitPassed') return 'Phần đạt sau tách';
+    if (row.displayRole === 'splitQuarantine') return 'Phần cách ly đã tách';
     if (row.passedInspection) return '—';
     return (row.affectedWeightKg ?? 0) > 0 ? 'Tách một phần' : 'Toàn bộ lô';
   }
   /** Cột "SỐ LƯỢNG": kg bị ảnh hưởng nếu tách, ngược lại tồn còn lại của lô. */
   affectedMain(row: QualityInspectionRow): string {
+    if (row.displayWeightKg != null) return this.fmtKg(row.displayWeightKg);
     if ((row.affectedWeightKg ?? 0) > 0) return this.fmtKg(row.affectedWeightKg);
     return this.fmtKg(this.lotWeightKg(row));
   }
   affectedSub(row: QualityInspectionRow): string {
+    if (row.displayRole)
+      return `Tách • tổng lô ${this.fmtKg(this.lotWeightKg(row))}`;
     if ((row.affectedWeightKg ?? 0) > 0)
       return `Tách • tổng lô ${this.fmtKg(this.lotWeightKg(row))}`;
     return row.passedInspection ? 'Toàn lô' : 'Toàn bộ lô';

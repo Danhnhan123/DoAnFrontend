@@ -25,6 +25,12 @@ export interface QualityInspectionRow {
   affectedWeightKg?: number | null;
   createdDate: string;
   lastModifiedDate?: string | null;
+  displayRole?: 'splitPassed' | 'splitQuarantine';
+  sourceInspectionId?: number;
+  /** Khối lượng của phần được trình bày sau khi tách (đạt hoặc cách ly). */
+  displayWeightKg?: number | null;
+  /** Tổng khối lượng lịch sử của lô ngay trước khi tách. */
+  displayTotalWeightKg?: number | null;
 }
 
 export interface QualityInspectionDetailDto extends QualityInspectionRow {}
