@@ -980,7 +980,12 @@ export class RicePurchaseComponent implements OnDestroy {
 
   updateReceiptBag(index: number, weightKg: number | null): void {
     this.receiptForm.update((form) => {
-      const bags = form.bags.map((bag, i) => i === index ? { ...bag, weightKg } : bag);
+      const normalizedWeightKg = weightKg == null
+        ? null
+        : Math.min(Number(weightKg), 70);
+      const bags = form.bags.map((bag, i) =>
+        i === index ? { ...bag, weightKg: normalizedWeightKg } : bag
+      );
       return { ...form, bags, bagCount: bags.length, actualWeight: bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0), actualWeightUnit: "kg" };
     });
   }
@@ -1446,6 +1451,8 @@ export class RicePurchaseComponent implements OnDestroy {
     if (form.bags.length === 0) return "Vui lòng nhập ít nhất một bao.";
     if (form.bags.some((bag) => !Number.isFinite(Number(bag.weightKg)) || Number(bag.weightKg) <= 0))
       return "Khối lượng của mỗi bao phải lớn hơn 0.";
+    if (form.bags.some((bag) => Number(bag.weightKg) > 70))
+      return "Khối lượng của mỗi bao không được vượt quá 70 kg.";
     if (
       !form.actualWeight ||
       !Number.isFinite(Number(form.actualWeight)) ||

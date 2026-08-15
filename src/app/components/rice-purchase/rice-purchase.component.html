@@ -947,7 +947,7 @@
 
           <div class="field-group span-2 bag-editor">
             <div class="bag-editor-header">
-              <span>Danh sách bao <b>*</b></span>
+              <span>Danh sách bao (mỗi bao không quá 70 kg) <b>*</b></span>
               <div class="bag-actions">
                 <button type="button" class="btn-add-bag" (click)="addReceiptBag()" [disabled]="receiptFormLocked()">+ Thêm bao</button>
               </div>
@@ -964,8 +964,9 @@
                 @for (bag of receiptForm().bags; track bag.bagNo; let i = $index) {
                   <div class="bag-row">
                     <span class="bag-number">Bao #{{ bag.bagNo }}</span>
-                    <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
-                      (ngModelChange)="updateReceiptBag(i, $event)" [disabled]="receiptFormLocked()" aria-label="Khối lượng bao" />
+                    <input type="number" min="0.001" max="70" step="0.001" [ngModel]="bag.weightKg"
+                      (ngModelChange)="updateReceiptBag(i, $event)" [disabled]="receiptFormLocked()"
+                      aria-label="Khối lượng bao, tối đa 70 kg" />
                     <span>kg</span>
                     <button type="button" class="btn-remove-bag" (click)="removeReceiptBag(i)" [disabled]="receiptFormLocked()" aria-label="Xóa bao">×</button>
                   </div>
