@@ -194,27 +194,43 @@ export class QualityInspectionComponent {
   rows = computed<QualityInspectionRow[]>(() =>
     this.inspectionRows().flatMap((row) => {
       if (!this.wasSplit(row)) return [row];
-      const child = this.findQuarantineChild(row);
+      const child = this.findSplitChild(row);
       if (!child) return [row];
 
       const parent = this.lotInfo(row.paddyLotId);
       const quarantineWeight = Math.max(0, Number(row.affectedWeightKg ?? 0));
-      const passedWeight = Math.max(0, Number(this.lotBasisWeight(parent) ?? 0));
+      const currentParentWeight = Math.max(0, Number(this.lotBasisWeight(parent) ?? 0));
       const splitTotalWeight = Math.max(
         Number(parent?.initialWeightKg ?? 0),
-        passedWeight + quarantineWeight
+        currentParentWeight + quarantineWeight
       );
+      // Khối lượng đạt là kết quả lịch sử tại thời điểm tách, không phụ thuộc
+      // tồn hiện tại của lô cha sau các lần nhập/xuất kho về sau.
+      const passedWeight = Math.max(0, splitTotalWeight - quarantineWeight);
+
+      const passedPart: QualityInspectionRow = {
+        ...row,
+        passedInspection: true,
+        affectedWeightKg: null,
+        displayWeightKg: passedWeight,
+        displayTotalWeightKg: splitTotalWeight,
+        displayRole: 'splitPassed' as const,
+        sourceInspectionId: row.id,
+      };
+
+      // Khi lô con đã được tái kiểm tra, phiếu tái kiểm tra thật của chính lô
+      // -Q sẽ chịu trách nhiệm hiển thị kết quả. Luôn giữ lại dòng phần đạt của
+      // phiếu tách gốc, nhưng không dựng thêm một dòng cách ly ảo đã lỗi thời.
+      const childHasInspection = this.inspectionRows().some(
+        (inspection) => inspection.paddyLotId === child.id
+      );
+      const childStillQuarantined = this.quarantinedLots().some(
+        (lot) => lot.id === child.id
+      );
+      if (childHasInspection || !childStillQuarantined) return [passedPart];
 
       return [
-        {
-          ...row,
-          passedInspection: true,
-          affectedWeightKg: null,
-          displayWeightKg: passedWeight,
-          displayTotalWeightKg: splitTotalWeight,
-          displayRole: 'splitPassed' as const,
-          sourceInspectionId: row.id,
-        },
+        passedPart,
         {
           ...row,
           id: -row.id,
@@ -518,6 +534,16 @@ export class QualityInspectionComponent {
       lot.parentLotId === row.paddyLotId ||
       (!!parentCode && lot.lotCode.toUpperCase().startsWith(`${parentCode}-Q`))
     );
+  }
+
+  /** Tìm lô con của một lần tách trong toàn bộ lịch sử, kể cả khi -Q đã đạt và rời khu cách ly. */
+  private findSplitChild(row: QualityInspectionRow): PaddyLotRow | undefined {
+    const parentCode = row.lotCode?.trim().toUpperCase();
+    const matches = (lot: PaddyLotRow) =>
+      lot.parentLotId === row.paddyLotId ||
+      (!!parentCode && lot.lotCode.toUpperCase().startsWith(`${parentCode}-Q`));
+
+    return this.lotList().find(matches) ?? this.quarantinedLots().find(matches);
   }
 
   /** Phiếu đã tách lô cách ly (không đạt + có kg ảnh hưởng) — BE khóa sửa lô/kết quả/kg và cấm xóa. */
