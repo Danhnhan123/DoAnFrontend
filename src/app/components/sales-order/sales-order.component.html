@@ -479,10 +479,15 @@
             <app-filter-select
               [disabled]="isEditing()"
               [clearable]="false"
-              placeholder="Chọn khách hàng"
+              [searchable]="true"
+              [allowCreate]="perm.canCreate('CUSTOMERS')"
+              createLabel="Thêm khách hàng mới"
+              searchPlaceholder="Nhập tên hoặc số điện thoại..."
+              placeholder="Chọn hoặc nhập để tìm khách hàng..."
               [options]="customerSelectOptions()"
               [value]="form().customerId"
               (valueChange)="setCustomer($event)"
+              (createRequest)="openQuickCustomer($event)"
             ></app-filter-select>
           </label>
           <label>
@@ -669,6 +674,105 @@
       <button [hidden]="viewOnly()" class="so-btn so-btn-primary" type="button" (click)="submitForm()" [disabled]="saving()">
         @if (saving()) { <span class="so-loader small"></span> }
         {{ isEditing() ? 'Lưu thay đổi' : 'Tạo đơn bán' }}
+      </button>
+    </footer>
+  </section>
+</div>
+}
+
+@if (showQuickCustomerModal()) {
+<div class="so-modal-backdrop so-quick-customer-backdrop" (click)="closeQuickCustomer()">
+  <section
+    class="so-modal so-quick-customer-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="quick-customer-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="so-modal-head">
+      <div>
+        <span>THÊM NHANH KHÁCH HÀNG</span>
+        <h2 id="quick-customer-title">Tạo khách hàng mới</h2>
+      </div>
+      <button type="button" aria-label="Đóng" (click)="closeQuickCustomer()">×</button>
+    </header>
+
+    <div class="so-modal-body">
+      <div class="so-form-section">
+        <div class="so-form-section-title">
+          <span>1</span>
+          <div>
+            <h3>Thông tin khách hàng</h3>
+            <p>Sau khi lưu, khách hàng mới sẽ được tự động chọn cho đơn bán.</p>
+          </div>
+        </div>
+        <div class="so-form-grid">
+          <label>
+            <span>Tên khách hàng *</span>
+            <input
+              type="text"
+              maxlength="255"
+              [ngModel]="quickCustomerForm().name"
+              (ngModelChange)="setQuickCustomerField('name', $event)"
+              placeholder="Nhập tên khách hàng"
+            />
+          </label>
+          <label>
+            <span>Số điện thoại *</span>
+            <input
+              type="tel"
+              inputmode="numeric"
+              required
+              minlength="10"
+              maxlength="11"
+              pattern="[0-9]{10,11}"
+              [ngModel]="quickCustomerForm().phone"
+              (ngModelChange)="setQuickCustomerField('phone', $event)"
+              placeholder="Ví dụ: 0912345678"
+            />
+          </label>
+          <label>
+            <span>Mã khách hàng</span>
+            <input
+              class="so-readonly-input"
+              type="text"
+              [value]="quickCustomerCode()"
+              placeholder="Tự động theo số điện thoại"
+              readonly
+            />
+          </label>
+          <label>
+            <span>Loại khách hàng</span>
+            <select
+              [ngModel]="quickCustomerForm().customerType"
+              (ngModelChange)="setQuickCustomerField('customerType', $event)"
+            >
+              <option value="Lẻ">Lẻ</option>
+              <option value="Nhà buôn">Nhà buôn</option>
+            </select>
+          </label>
+          <label class="so-span-2">
+            <span>Địa chỉ *</span>
+            <input
+              type="text"
+              required
+              maxlength="500"
+              [ngModel]="quickCustomerForm().address"
+              (ngModelChange)="setQuickCustomerField('address', $event)"
+              placeholder="Nhập địa chỉ giao hàng"
+            />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <footer class="so-modal-actions">
+      <button class="so-btn so-btn-secondary" type="button" (click)="closeQuickCustomer()" [disabled]="savingQuickCustomer()">
+        Hủy
+      </button>
+      <button class="so-btn so-btn-primary" type="button" (click)="saveQuickCustomer()" [disabled]="savingQuickCustomer()">
+        @if (savingQuickCustomer()) { <span class="so-loader small"></span> }
+        {{ savingQuickCustomer() ? 'Đang thêm...' : 'Thêm và chọn' }}
       </button>
     </footer>
   </section>

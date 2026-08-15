@@ -15,12 +15,6 @@
       </p>
     </div>
     <div class="qc-banner-actions">
-      <button class="btn btn-outline qc-recheck-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:APPROVE'" (click)="openRecheck()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" />
-        </svg>
-        Kiểm tra lại (cách ly)
-      </button>
       <button class="btn btn-primary qc-create-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openCreate()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />

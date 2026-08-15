@@ -798,20 +798,20 @@
             <input type="text" [ngModel]="quickFarmerForm().name" (ngModelChange)="setQuickFarmerField('name', $event)" placeholder="Nhập họ và tên" />
           </label>
           <label class="field-group">
-            <span>Mã nông dân <b>*</b></span>
-            <input type="text" [ngModel]="quickFarmerForm().code" (ngModelChange)="setQuickFarmerField('code', $event)" placeholder="Ví dụ: ND-001" />
+            <span>Số điện thoại <b>*</b></span>
+            <input type="tel" inputmode="numeric" required minlength="10" maxlength="11" pattern="[0-9]{10,11}" [ngModel]="quickFarmerForm().phone" (ngModelChange)="setQuickFarmerField('phone', $event)" placeholder="Ví dụ: 0912345678" />
           </label>
           <label class="field-group">
-            <span>Số điện thoại</span>
-            <input type="tel" [ngModel]="quickFarmerForm().phone" (ngModelChange)="setQuickFarmerField('phone', $event)" placeholder="Ví dụ: 0912345678" />
+            <span>Mã nông dân</span>
+            <input type="text" [value]="quickFarmerCode()" placeholder="Tự động theo số điện thoại" readonly />
           </label>
           <label class="field-group">
             <span>Khu vực</span>
             <input type="text" [ngModel]="quickFarmerForm().region" (ngModelChange)="setQuickFarmerField('region', $event)" placeholder="Xã, huyện, tỉnh" />
           </label>
           <label class="field-group span-2">
-            <span>Địa chỉ</span>
-            <input type="text" [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
+            <span>Địa chỉ <b>*</b></span>
+            <input type="text" required [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
           </label>
         </div>
       </div>

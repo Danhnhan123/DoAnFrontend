@@ -766,6 +766,14 @@
   width: min(650px, 96vw);
 }
 
+.so-quick-customer-backdrop {
+  z-index: 1200;
+}
+
+.so-quick-customer-modal {
+  width: min(650px, 96vw);
+}
+
 .so-modal-head {
   display: flex;
   align-items: center;
@@ -910,6 +918,12 @@
 .so-outbound-lines input:disabled {
   cursor: not-allowed;
   opacity: 0.7;
+  background: var(--bg-tertiary, #f1f5f9);
+}
+
+.so-form-grid .so-readonly-input {
+  cursor: not-allowed;
+  color: var(--text-muted, #64748b);
   background: var(--bg-tertiary, #f1f5f9);
 }
 

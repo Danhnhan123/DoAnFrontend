@@ -67,7 +67,6 @@ interface ScheduleFormState {
 
 interface QuickFarmerFormState {
   name: string;
-  code: string;
   phone: string;
   address: string;
   region: string;
@@ -163,6 +162,10 @@ export class RicePurchaseComponent implements OnDestroy {
   editingReceipt = signal<PaddyPurchaseReceiptRow | null>(null);
   scheduleForm = signal<ScheduleFormState>(this.defaultScheduleForm());
   quickFarmerForm = signal<QuickFarmerFormState>(this.defaultQuickFarmerForm());
+  quickFarmerCode = computed(() => {
+    const phone = this.quickFarmerForm().phone.trim();
+    return phone ? `ND-${phone}` : "";
+  });
   savingQuickFarmer = signal(false);
   receiptForm = signal<ReceiptFormState>(this.defaultReceiptForm());
 
@@ -701,16 +704,25 @@ export class RicePurchaseComponent implements OnDestroy {
 
   async saveQuickFarmer(): Promise<void> {
     const form = this.quickFarmerForm();
-    if (!form.name.trim() || !form.code.trim()) {
-      this.showError("Vui lòng nhập tên và mã nông dân.");
+    const phone = form.phone.trim();
+    if (!form.name.trim()) {
+      this.showError("Vui lòng nhập tên nông dân.");
+      return;
+    }
+    if (!/^\d{10,11}$/.test(phone)) {
+      this.showError("Vui lòng nhập số điện thoại gồm 10 hoặc 11 chữ số.");
+      return;
+    }
+    if (!form.address.trim()) {
+      this.showError("Vui lòng nhập địa chỉ nông dân.");
       return;
     }
 
     const payload: CreateFarmerDto = {
       name: form.name.trim(),
-      code: form.code.trim(),
-      phone: form.phone.trim() || null,
-      address: form.address.trim() || null,
+      code: `ND-${phone}`,
+      phone,
+      address: form.address.trim(),
       region: form.region.trim() || null,
       reputationNote: null,
       isActive: true,
@@ -1400,7 +1412,7 @@ export class RicePurchaseComponent implements OnDestroy {
   }
 
   private defaultQuickFarmerForm(): QuickFarmerFormState {
-    return { name: "", code: "", phone: "", address: "", region: "" };
+    return { name: "", phone: "", address: "", region: "" };
   }
 
   private defaultReceiptForm(): ReceiptFormState {
