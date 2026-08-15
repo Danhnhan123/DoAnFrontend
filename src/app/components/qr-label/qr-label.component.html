@@ -8,7 +8,7 @@
         đa 500 tem mỗi lần.
       </p>
     </div>
-    <button class="primary-btn" type="button" (click)="openCreateModal()">
+    <button class="primary-btn" type="button" [appHasPerm]="'QR_LABELS:CREATE'" (click)="openCreateModal()">
       <span>＋</span> In tem mới
     </button>
   </header>
@@ -369,6 +369,7 @@
         <button
           class="primary-btn"
           type="button"
+          [appHasPerm]="'QR_LABELS:CREATE'"
           (click)="generateLabels()"
           [disabled]="generating() || previewLoading()"
         >

@@ -10,7 +10,7 @@
         duyệt điều chỉnh tồn theo từng lô hàng trả.
       </p>
     </div>
-    <button class="primary-btn" type="button" (click)="openCreate()">
+    <button class="primary-btn" type="button" [appHasPerm]="'CUSTOMER_RETURNS:CREATE'" (click)="openCreate()">
       <span aria-hidden="true">＋</span>Tạo phiếu trả
     </button>
   </header>
@@ -507,6 +507,7 @@
             <button
               type="button"
               class="primary-btn"
+              [appHasPerm]="'CUSTOMER_RETURNS:UPDATE'"
               [disabled]="actionLoading()"
               (click)="submitInspection()"
             >
@@ -594,6 +595,7 @@
                 <button
                   type="button"
                   class="danger-btn"
+                  [appHasPerm]="'CUSTOMER_RETURNS:UPDATE'"
                   [disabled]="actionLoading()"
                   (click)="cancelReturn()"
                 >
@@ -604,6 +606,7 @@
                 <button
                   type="button"
                   class="primary-btn"
+                  [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
                   [disabled]="actionLoading()"
                   (click)="approve()"
                 >
@@ -613,6 +616,7 @@
                 <button
                   type="button"
                   class="primary-btn"
+                  [appHasPerm]="'CUSTOMER_RETURNS:UPDATE'"
                   [disabled]="actionLoading()"
                   (click)="beginInspection()"
                 >
@@ -622,6 +626,7 @@
                 <button
                   type="button"
                   class="primary-btn"
+                  [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
                   [disabled]="actionLoading() || loadingImpact()"
                   (click)="confirmReturn()"
                 >
@@ -764,6 +769,7 @@
         <button
           type="button"
           class="primary-btn"
+          [appHasPerm]="'CUSTOMER_RETURNS:CREATE'"
           [disabled]="saving() || loadingSource()"
           (click)="submitCreate()"
         >

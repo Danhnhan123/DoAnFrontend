@@ -98,7 +98,7 @@
                   <td class="number balance">{{ formatMoney(row.outstandingAmount) }}</td>
                   <td><span [class.danger]="row.daysOverdue > 0">{{ row.dueDate ? (row.dueDate | date:'dd/MM/yyyy') : 'Chưa thiết lập' }}</span>@if (row.daysOverdue > 0) { <small class="danger">Quá hạn {{ row.daysOverdue }} ngày</small> }</td>
                   <td><span class="badge" [attr.data-status]="row.status">{{ statusLabel(row.status) }}</span></td>
-                  <td class="actions"><button class="icon-btn primary" type="button" [disabled]="row.outstandingAmount <= 0" (click)="openPayment(row)">Thanh toán</button></td>
+                  <td class="actions"><button class="icon-btn primary" type="button" [appHasPerm]="'DEBTS:UPDATE'" [disabled]="row.outstandingAmount <= 0" (click)="openPayment(row)">Thanh toán</button></td>
                 </tr>
               } @empty { <tr><td colspan="8"><div class="empty"><strong>Không có chứng từ phù hợp</strong><p>Hãy thử thay đổi từ khóa tìm kiếm.</p></div></td></tr> }
             }
@@ -148,7 +148,7 @@
         <label><span>Ngày thanh toán <b>*</b></span><input type="date" name="paymentDate" [ngModel]="paymentDate()" (ngModelChange)="paymentDate.set($event)" /></label>
         <label><span>Ghi chú</span><textarea rows="3" maxlength="500" name="note" placeholder="Ví dụ: Thanh toán tiền mặt tại quầy" [ngModel]="paymentNote()" (ngModelChange)="paymentNote.set($event)"></textarea><small>{{ paymentNote().length }}/500 ký tự</small></label>
         @if (paymentError()) { <div class="notice error">{{ paymentError() }}</div> }
-        <footer><button class="btn btn-light" type="button" [disabled]="paymentSaving()" (click)="closePayment()">Hủy</button><button class="btn btn-primary" type="submit" [disabled]="paymentSaving()">{{ paymentSaving() ? 'Đang lưu…' : 'Xác nhận thanh toán' }}</button></footer>
+        <footer><button class="btn btn-light" type="button" [disabled]="paymentSaving()" (click)="closePayment()">Hủy</button><button class="btn btn-primary" type="submit" [appHasPerm]="'DEBTS:UPDATE'" [disabled]="paymentSaving()">{{ paymentSaving() ? 'Đang lưu…' : 'Xác nhận thanh toán' }}</button></footer>
       </form>
     </section>
   </div>

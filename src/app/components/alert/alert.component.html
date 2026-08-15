@@ -111,7 +111,7 @@
           <span class="rule-title">{{ rule.title }}</span>
           <span class="rule-desc">{{ rule.description }}</span>
         </div>
-        <button class="switch" type="button" role="switch" [class.on]="rule.enabled"
+        <button class="switch" type="button" role="switch" [appHasPerm]="'ALERTS:UPDATE'" [class.on]="rule.enabled"
           [attr.aria-checked]="rule.enabled" (click)="toggleRule(rule)">
           <span class="knob"></span>
         </button>

@@ -16,19 +16,19 @@
       </p>
     </div>
     <div class="wh-page-head-actions">
-      <button class="wh-btn ghost" type="button" (click)="goToMap()">
+      <button class="wh-btn ghost" type="button" [appHasPerm]="'WAREHOUSE_MAP:READ'" (click)="goToMap()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /><path d="M15 3v18" /><path d="M3 9h18" /><path d="M3 15h18" />
         </svg>
         Bản đồ khu/cột
       </button>
-      <button class="wh-btn primary" type="button" (click)="openCreate()">
+      <button class="wh-btn primary" type="button" [appHasPerm]="'WAREHOUSES:CREATE'" (click)="openCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Thêm kho
       </button>
-      <button class="wh-btn dark" type="button" (click)="openLocCreate()">
+      <button class="wh-btn dark" type="button" [appHasPerm]="'WAREHOUSES:CREATE'" (click)="openLocCreate()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" />
         </svg>
@@ -216,7 +216,7 @@
       </div>
       <div class="loc-head-right">
         <span class="loc-count">{{ totalLocations() | number }} vị trí</span>
-        <button class="wh-btn dark sm" type="button" (click)="openLocCreate()">
+        <button class="wh-btn dark sm" type="button" [appHasPerm]="'WAREHOUSES:CREATE'" (click)="openLocCreate()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
@@ -439,7 +439,7 @@
       @if (!isEdit()) {
       <div class="section-label with-action">
         <span>Vị trí lưu trữ <span class="text-muted small">(tùy chọn — {{ form().locations.length }} vị trí)</span></span>
-        <button class="btn btn-outline btn-sm" type="button" (click)="addLine()">
+        <button class="btn btn-outline btn-sm" type="button" [appHasPerm]="'WAREHOUSES:CREATE'" (click)="addLine()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
             stroke-linecap="round" stroke-linejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />

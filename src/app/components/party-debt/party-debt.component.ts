@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   Component,
   OnDestroy,
@@ -44,7 +45,7 @@ const EMPTY_SUMMARY: PartyDebtSummary = {
 @Component({
   selector: 'app-party-debt',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HasPermissionDirective],
   templateUrl: './party-debt.component.html',
   styleUrl: './party-debt.component.css',
 })

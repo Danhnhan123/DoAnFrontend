@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -57,7 +58,7 @@ interface TransferFormState {
 @Component({
   selector: 'app-stock-transfer',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [CommonModule, FormsModule, FilterSelectComponent, HasPermissionDirective],
   templateUrl: './stock-transfer.component.html',
   styleUrl: './stock-transfer.component.css',
 })

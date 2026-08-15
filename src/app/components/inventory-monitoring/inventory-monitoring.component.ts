@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -45,7 +46,7 @@ interface WarehouseOption {
 @Component({
   selector: 'app-inventory-monitoring',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent],
+  imports: [CommonModule, FormsModule, FilterSelectComponent, HasPermissionDirective],
   templateUrl: './inventory-monitoring.component.html',
   styleUrl: './inventory-monitoring.component.css',
 })
