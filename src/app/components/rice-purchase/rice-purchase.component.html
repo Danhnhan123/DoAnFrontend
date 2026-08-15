@@ -810,8 +810,8 @@
             <input type="text" [ngModel]="quickFarmerForm().region" (ngModelChange)="setQuickFarmerField('region', $event)" placeholder="Xã, huyện, tỉnh" />
           </label>
           <label class="field-group span-2">
-            <span>Địa chỉ</span>
-            <input type="text" [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
+            <span>Địa chỉ <b>*</b></span>
+            <input type="text" required [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
           </label>
         </div>
       </div>

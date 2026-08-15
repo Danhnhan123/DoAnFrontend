@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
   ApiResponse,
+  CreateCustomerDto,
   CreateOutboundPayload,
   CreateSalesOrderPayload,
   CustomerSalesOption,
@@ -97,6 +98,15 @@ export class SalesOrderService {
   getCustomers(): Observable<ApiResponse<CustomerSalesOption[]>> {
     return this.http.get<ApiResponse<CustomerSalesOption[]>>(
       `${this.base}/customers`
+    );
+  }
+
+  createCustomer(
+    payload: CreateCustomerDto
+  ): Observable<ApiResponse<number>> {
+    return this.http.post<ApiResponse<number>>(
+      `${this.base}/customers`,
+      payload
     );
   }
 

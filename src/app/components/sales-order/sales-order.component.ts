@@ -22,6 +22,7 @@ import Swal from 'sweetalert2';
 
 import {
   ApiResponse,
+  CreateCustomerDto,
   CreateOutboundPayload,
   CreateSalesOrderPayload,
   CustomerSalesOption,
@@ -84,6 +85,13 @@ interface SalesOrderForm {
   items: SalesOrderFormLine[];
 }
 
+interface QuickCustomerForm {
+  name: string;
+  phone: string;
+  customerType: string;
+  address: string;
+}
+
 interface OutboundLine {
   productVariantId: number;
   productVariantName: string;
@@ -125,6 +133,15 @@ export class SalesOrderComponent implements OnDestroy {
   readonly showFormModal = signal(false);
   readonly editingId = signal<number | null>(null);
   readonly form = signal<SalesOrderForm>(this.blankForm());
+  readonly showQuickCustomerModal = signal(false);
+  readonly quickCustomerForm = signal<QuickCustomerForm>(
+    this.blankQuickCustomerForm()
+  );
+  readonly quickCustomerCode = computed(() => {
+    const phone = this.quickCustomerForm().phone.trim();
+    return phone ? `KH-${phone}` : '';
+  });
+  readonly savingQuickCustomer = signal(false);
 
   readonly showOutboundModal = signal(false);
   readonly outboundLines = signal<OutboundLine[]>([]);
@@ -312,7 +329,7 @@ export class SalesOrderComponent implements OnDestroy {
   readonly customerSelectOptions = computed<FilterSelectOption[]>(() =>
     this.customers().map((c) => ({
       id: c.id,
-      name: `${c.code ? c.code + ' · ' : ''}${c.name}`,
+      name: `${c.name} · ${c.phone || c.code || 'Chưa có SĐT'}`,
     }))
   );
   readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
@@ -585,6 +602,74 @@ export class SalesOrderComponent implements OnDestroy {
             : current.shippingAddress,
       };
     });
+  }
+
+  openQuickCustomer(name = ''): void {
+    if (!this.perm.canCreate('CUSTOMERS')) return;
+    this.quickCustomerForm.set({ ...this.blankQuickCustomerForm(), name });
+    this.showQuickCustomerModal.set(true);
+  }
+
+  closeQuickCustomer(): void {
+    if (this.savingQuickCustomer()) return;
+    this.showQuickCustomerModal.set(false);
+    this.quickCustomerForm.set(this.blankQuickCustomerForm());
+  }
+
+  setQuickCustomerField<K extends keyof QuickCustomerForm>(
+    field: K,
+    value: QuickCustomerForm[K]
+  ): void {
+    this.quickCustomerForm.update((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async saveQuickCustomer(): Promise<void> {
+    const current = this.quickCustomerForm();
+    const phone = current.phone.trim();
+    if (!current.name.trim()) {
+      this.alert('Vui lòng nhập tên khách hàng.', false);
+      return;
+    }
+    if (!/^\d{10,11}$/.test(phone)) {
+      this.alert('Vui lòng nhập số điện thoại gồm 10 hoặc 11 chữ số.', false);
+      return;
+    }
+    if (!current.address.trim()) {
+      this.alert('Vui lòng nhập địa chỉ khách hàng.', false);
+      return;
+    }
+
+    const payload: CreateCustomerDto = {
+      name: current.name.trim(),
+      code: `KH-${phone}`,
+      phone,
+      customerType: current.customerType.trim() || null,
+      contactPerson: null,
+      email: null,
+      address: current.address.trim(),
+      taxCode: null,
+      isActive: true,
+    };
+
+    this.savingQuickCustomer.set(true);
+    try {
+      const response = await lastValueFrom(this.service.createCustomer(payload));
+      const customerId = Number(
+        this.unwrap<number>(response, 'Không thêm được khách hàng.')
+      );
+      await this.customerQuery.refetch();
+      this.setCustomer(customerId);
+      this.showQuickCustomerModal.set(false);
+      this.quickCustomerForm.set(this.blankQuickCustomerForm());
+      this.alert('Đã thêm và chọn khách hàng mới.');
+    } catch (error) {
+      this.alert(this.errorText(error), false);
+    } finally {
+      this.savingQuickCustomer.set(false);
+    }
   }
 
   addLine(): void {
@@ -977,6 +1062,10 @@ export class SalesOrderComponent implements OnDestroy {
       note: '',
       items: [this.blankLine()],
     };
+  }
+
+  private blankQuickCustomerForm(): QuickCustomerForm {
+    return { name: '', phone: '', customerType: 'Lẻ', address: '' };
   }
 
   private blankLine(): SalesOrderFormLine {

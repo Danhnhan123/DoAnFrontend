@@ -713,12 +713,16 @@ export class RicePurchaseComponent implements OnDestroy {
       this.showError("Vui lòng nhập số điện thoại gồm 10 hoặc 11 chữ số.");
       return;
     }
+    if (!form.address.trim()) {
+      this.showError("Vui lòng nhập địa chỉ nông dân.");
+      return;
+    }
 
     const payload: CreateFarmerDto = {
       name: form.name.trim(),
       code: `ND-${phone}`,
       phone,
-      address: form.address.trim() || null,
+      address: form.address.trim(),
       region: form.region.trim() || null,
       reputationNote: null,
       isActive: true,
