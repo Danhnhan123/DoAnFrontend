@@ -18,7 +18,8 @@ import {
   BagPutawayBagDto,
 } from "../../models/inbound-order";
 import { LocationDetailDto } from "../../models/location";
-import { AuthService } from "../../services/auth.service";
+import { PermissionService } from "../../services/permission.service";
+import { MENU } from "../../constants/permission.constants";
 import { InboundOrderService } from "../../services/inbound-order.service";
 import { LocationService } from "../../services/location.service";
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
@@ -82,7 +83,7 @@ type ScreenStatus =
   styleUrl: "./inbound-putaway.component.css",
 })
 export class InboundPutawayComponent {
-  private readonly authService = inject(AuthService);
+  readonly perm = inject(PermissionService);
   private readonly inboundService = inject(InboundOrderService);
   private readonly locationService = inject(LocationService);
   private readonly queryClient = inject(QueryClient);
@@ -221,25 +222,16 @@ export class InboundPutawayComponent {
       this.confirmPutawayMutation.isPending(),
   );
 
-  readonly isAdmin = computed(() =>
-    this.hasRole(["ADMIN"], ["quản trị viên", "system admin", "admin"], [1001]),
+  /**
+   * Quyền thao tác lấy từ PermissionService (Menu INBOUND_ORDERS), KHÔNG hard-code vai trò:
+   *  - canManageInbound = APPROVE  -> duyệt phiếu, ghi đè vị trí thủ công.
+   *  - canOperateInbound = UPDATE  -> gửi duyệt, nhận hàng, xếp vị trí.
+   */
+  readonly canManageInbound = computed(() =>
+    this.perm.canApprove(MENU.INBOUND_ORDERS),
   );
-  readonly isOwner = computed(() =>
-    this.hasRole(
-      ["OWNER"],
-      ["chủ kho", "chủ cơ sở", "chủ hộ kinh doanh", "warehouse owner", "owner"],
-    ),
-  );
-  readonly isWarehouseStaff = computed(() =>
-    this.hasRole(
-      ["WAREHOUSE"],
-      ["nhân viên kho", "warehouse staff", "warehouse"],
-      [1008],
-    ),
-  );
-  readonly canManageInbound = computed(() => this.isAdmin() || this.isOwner());
-  readonly canOperateInbound = computed(
-    () => this.isAdmin() || this.isOwner() || this.isWarehouseStaff(),
+  readonly canOperateInbound = computed(() =>
+    this.perm.canUpdate(MENU.INBOUND_ORDERS),
   );
 
   readonly pendingLines = computed(() =>
@@ -429,7 +421,7 @@ export class InboundPutawayComponent {
     if (!line || this.actionPending()) return;
     if (!this.canOperateInbound()) {
       await this.showPermissionDenied(
-        "Chỉ Quản trị viên, Chủ kho hoặc Nhân viên kho được xử lý nhận và xếp hàng.",
+        "Bạn không có quyền chỉnh sửa phiếu nhập kho (cần quyền Sửa trên màn Nhập kho).",
       );
       return;
     }
@@ -909,7 +901,7 @@ export class InboundPutawayComponent {
   async toggleManualOverride(): Promise<void> {
     if (!this.canManageInbound()) {
       await this.showPermissionDenied(
-        "Chỉ Quản trị viên hoặc Chủ kho được ghi đè vị trí đề xuất.",
+        "Bạn không có quyền ghi đè vị trí đề xuất (cần quyền Duyệt trên màn Nhập kho).",
       );
       return;
     }
@@ -953,13 +945,13 @@ export class InboundPutawayComponent {
     if (!line || this.actionPending()) return;
     if (!this.canOperateInbound()) {
       await this.showPermissionDenied(
-        "Chỉ Quản trị viên, Chủ kho hoặc Nhân viên kho được xác nhận nhập kho.",
+        "Bạn không có quyền xác nhận nhập kho (cần quyền Sửa trên màn Nhập kho).",
       );
       return;
     }
     if (this.manualOverride() && !this.canManageInbound()) {
       await this.showPermissionDenied(
-        "Chỉ Quản trị viên hoặc Chủ kho được xác nhận vị trí ghi đè.",
+        "Bạn không có quyền xác nhận vị trí ghi đè (cần quyền Duyệt trên màn Nhập kho).",
       );
       return;
     }
@@ -1055,9 +1047,9 @@ export class InboundPutawayComponent {
 
   transitionPermissionMessage(): string {
     if (this.selectedStatus() === "submitted") {
-      return "Phiếu đang chờ duyệt. Chỉ Quản trị viên hoặc Chủ kho được phê duyệt.";
+      return "Phiếu đang chờ duyệt. Bạn không có quyền Duyệt trên màn Nhập kho.";
     }
-    return "Chỉ Quản trị viên, Chủ kho hoặc Nhân viên kho được chuyển bước nhận hàng.";
+    return "Bạn không có quyền Sửa trên màn Nhập kho để chuyển bước nhận hàng.";
   }
 
   canPrepare(): boolean {
@@ -1167,36 +1159,6 @@ export class InboundPutawayComponent {
     return /(lúa|lua|thóc|thoc|gạo|gao|paddy|rice)/i.test(searchableText);
   }
 
-  private hasRole(
-    codes: string[],
-    names: string[],
-    fallbackIds: number[] = [],
-  ): boolean {
-    const normalizedCodes = codes.map((value) => value.toUpperCase());
-    const normalizedNames = names.map((value) =>
-      this.normalizeRoleValue(value),
-    );
-
-    return (this.authService.currentUser()?.roles ?? []).some((role) => {
-      const roleCode = String((role as any).code ?? "").toUpperCase();
-      const roleName = this.normalizeRoleValue(role.name);
-      return (
-        fallbackIds.includes(Number(role.id)) ||
-        normalizedCodes.includes(roleCode) ||
-        normalizedNames.some(
-          (name) => roleName === name || roleName.includes(name),
-        )
-      );
-    });
-  }
-
-  private normalizeRoleValue(value: unknown): string {
-    return String(value ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .trim()
-      .toLowerCase();
-  }
 
   private async showPermissionDenied(message: string): Promise<void> {
     await Swal.fire({

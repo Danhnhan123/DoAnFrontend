@@ -9,6 +9,7 @@ import {
 import { lastValueFrom } from "rxjs";
 import Swal from "sweetalert2";
 
+import { HasPermissionDirective } from "../../directives/has-permission.directive";
 import { ApiResponse } from "../../models/common";
 import { CustomerRow } from "../../models/customer";
 import {
@@ -80,7 +81,7 @@ interface InspectionLine {
 @Component({
   selector: "app-customer-return",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, HasPermissionDirective],
   templateUrl: "./customer-return.component.html",
   styleUrl: "./customer-return.component.css",
 })

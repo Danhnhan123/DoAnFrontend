@@ -160,13 +160,9 @@ const adminChildren: Routes = [
         (m) => m.InboundPutawayComponent,
       ),
   },
-  {
-    path: "iot-devices",
-    loadComponent: () =>
-      import("./components/iot-device/iot-device.component").then(
-        (m) => m.IotDeviceComponent,
-      ),
-  },
+  // Màn "Thiết bị IoT" đã ngưng sử dụng sau khi chuyển cân sang BLE (không còn Menu
+  // trong DB nên không thể phân quyền theo menuCode). Bỏ route để mọi truy cập trực
+  // tiếp /admin/iot-devices rơi vào 404 thay vì mở được cho mọi tài khoản đăng nhập.
   {
     path: "suppliers",
     canMatch: [menuReadGuard],
@@ -329,6 +325,8 @@ const adminChildren: Routes = [
   },
   {
     path: "stock-transfers",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "STOCK_TRANSFERS" },
     loadComponent: () =>
       import("./components/stock-transfer/stock-transfer.component").then(
         (m) => m.StockTransferComponent,
@@ -336,6 +334,8 @@ const adminChildren: Routes = [
   },
   {
     path: "customer-returns",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "CUSTOMER_RETURNS" },
     loadComponent: () =>
       import("./components/customer-return/customer-return.component").then(
         (m) => m.CustomerReturnComponent,
@@ -352,6 +352,8 @@ const adminChildren: Routes = [
   },
   {
     path: "qr-labels",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "QR_LABELS" },
     loadComponent: () =>
       import("./components/qr-label/qr-label.component").then(
         (m) => m.QrLabelComponent,
@@ -395,6 +397,8 @@ const adminChildren: Routes = [
   },
   {
     path: "party-debts",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "DEBTS" },
     loadComponent: () =>
       import("./components/party-debt/party-debt.component").then(
         (m) => m.PartyDebtComponent,

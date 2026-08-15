@@ -29,7 +29,6 @@ import {
   MillingYieldOption,
   UpdateMillingOrderPayload,
 } from '../../models';
-import { AuthService } from '../../services/auth.service';
 import { InventoryService } from '../../services/inventory.service';
 import { MillingOrderService } from '../../services/milling-order.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
@@ -60,6 +59,7 @@ interface CreateOrderForm {
   millingCost: number | null;
   incidentalCost: number | null;
   reason: string;
+  allocations: AllocationLine[];
 }
 
 interface OutputLine {
@@ -105,7 +105,6 @@ export class MillingOrderComponent {
   // Xem chi tiết lệnh (đang sửa) khi không có quyền UPDATE.
   readonly viewOnly = computed(() => !!this.createForm().id && !this.perm.canUpdate('MILLING_ORDERS'));
   private readonly inventoryService = inject(InventoryService);
-  private readonly authService = inject(AuthService);
   private readonly queryClient = injectQueryClient();
   private lineSequence = 0;
 
@@ -323,39 +322,17 @@ export class MillingOrderComponent {
     });
   });
 
-  readonly isAdmin = computed(() =>
-    this.hasRole(['ADMIN'], ['quản trị viên', 'system admin', 'admin'], [1001])
-  );
-  readonly isOwner = computed(() =>
-    this.hasRole(
-      ['OWNER'],
-      ['chủ kho', 'chủ cơ sở', 'chủ hộ kinh doanh', 'warehouse owner', 'owner'],
-      [1002]
-    )
-  );
-  readonly isMillingStaff = computed(() =>
-    this.hasRole(
-      ['MILLING'],
-      ['nhân viên xay xát', 'milling staff', 'milling'],
-      [1009]
-    )
-  );
-  readonly isWarehouseStaff = computed(() =>
-    this.hasRole(
-      ['WAREHOUSE'],
-      ['nhân viên kho', 'warehouse staff', 'warehouse'],
-      [1008]
-    )
-  );
-  readonly canManageOrder = computed(
-    () => this.isAdmin() || this.isOwner() || this.isMillingStaff()
-  );
-  readonly canReservePaddy = computed(
-    () => this.canManageOrder() || this.isWarehouseStaff()
-  );
-  readonly canCompleteOrder = computed(
-    () => this.canManageOrder() || this.isWarehouseStaff()
-  );
+  /**
+   * Quyền thao tác lấy từ PermissionService (Menu MILLING_ORDERS), KHÔNG hard-code vai trò:
+   *  - canCreateOrder   = CREATE -> tạo lệnh xay mới.
+   *  - canManageOrder   = UPDATE -> hủy lệnh, bắt đầu xay, sửa lệnh nháp.
+   *  - canReservePaddy  = UPDATE -> giữ lúa / phân bổ lại nguồn.
+   *  - canCompleteOrder = UPDATE -> nhập kết quả xay, hoàn tất lệnh.
+   */
+  readonly canCreateOrder = computed(() => this.perm.canCreate('MILLING_ORDERS'));
+  readonly canManageOrder = computed(() => this.perm.canUpdate('MILLING_ORDERS'));
+  readonly canReservePaddy = computed(() => this.canManageOrder());
+  readonly canCompleteOrder = computed(() => this.canManageOrder());
 
   productVariants = computed<MillingProductVariantOption[]>(() =>
     this.resourceList<MillingProductVariantOption>(this.variantQuery.data())
@@ -555,6 +532,13 @@ export class MillingOrderComponent {
     return yieldRate > 0 ? rice / yieldRate : 0;
   });
 
+  createAllocatedKg = computed(() =>
+    this.createForm().allocations.reduce(
+      (sum, line) => sum + (Number(line.consumedWeightKg) || 0),
+      0
+    )
+  );
+
   reserveRequiredKg = computed(
     () => Number(this.activeOrder()?.computedPaddyKg) || 0
   );
@@ -615,12 +599,6 @@ export class MillingOrderComponent {
       0
     );
   });
-
-  maxRiceOutputKg = computed(() => this.computedPaddyToConsumeKg() * 0.75);
-
-  riceOutputExceedsLimit = computed(
-    () => this.totalRiceOutputKg() > this.maxRiceOutputKg() + 0.001
-  );
 
   actualYieldRate = computed(() => {
     const order = this.activeOrder();
@@ -701,8 +679,8 @@ export class MillingOrderComponent {
   }
 
   openCreate(): void {
-    if (!this.canManageOrder()) {
-      void this.showPermissionDenied('Chỉ Admin, Chủ cơ sở hoặc Nhân viên xay xát được tạo lệnh.');
+    if (!this.canCreateOrder()) {
+      void this.showPermissionDenied('Bạn không có quyền tạo lệnh xay.');
       return;
     }
     this.createForm.set(this.defaultCreateForm());
@@ -727,6 +705,7 @@ export class MillingOrderComponent {
       millingCost: row.millingCost ?? row.totalCost ?? null,
       incidentalCost: row.incidentalCost ?? null,
       reason: row.reason ?? '',
+      allocations: [],
     });
     this.showCreateModal.set(true);
   }
@@ -757,6 +736,7 @@ export class MillingOrderComponent {
         ...form,
         [field]: normalized,
       } as CreateOrderForm;
+      if (field === 'warehouseId') next.allocations = [];
       if (field === 'sourceType' && normalized === 'PRODUCTION_PLAN') {
         next.salesOrderId = null;
       }
@@ -780,6 +760,10 @@ export class MillingOrderComponent {
       expectedCompletionDate:
         this.toDateInput(order?.expectedDeliveryDate) ||
         form.expectedCompletionDate,
+      allocations:
+        order?.warehouseId && order.warehouseId !== form.warehouseId
+          ? []
+          : form.allocations,
     }));
     this.applyRecommendedYield();
   }
@@ -865,6 +849,37 @@ export class MillingOrderComponent {
     }
   }
 
+  addCreateAllocation(): void {
+    this.createForm.update((form) => ({
+      ...form,
+      allocations: [...form.allocations, this.newAllocation()],
+    }));
+  }
+
+  removeCreateAllocation(index: number): void {
+    this.createForm.update((form) => ({
+      ...form,
+      allocations: form.allocations.filter((_, i) => i !== index),
+    }));
+  }
+
+  setCreateAllocation(
+    index: number,
+    field: keyof AllocationLine,
+    value: unknown
+  ): void {
+    this.createForm.update((form) => ({
+      ...form,
+      allocations: this.updateAllocationArray(
+        form.allocations,
+        index,
+        field,
+        value,
+        this.createComputedPaddyKg()
+      ),
+    }));
+  }
+
   async saveCreate(): Promise<void> {
     if (!this.canManageOrder()) {
       await this.showPermissionDenied('Bạn không có quyền lưu lệnh xay.');
@@ -879,6 +894,10 @@ export class MillingOrderComponent {
 
     const confirmed = await Swal.fire({
       title: form.id ? 'Cập nhật lệnh xay?' : 'Tạo lệnh xay?',
+      text:
+        !form.id && form.allocations.length
+          ? 'Hệ thống sẽ tạo lệnh và giữ các lô lúa đã chọn.'
+          : undefined,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: form.id ? 'Cập nhật' : 'Tạo lệnh',
@@ -906,10 +925,40 @@ export class MillingOrderComponent {
 
       const created = await lastValueFrom(this.service.create(payload));
       this.assertSucceeded(created);
+      const orderId = this.createdId(created);
+
+      if (form.allocations.some((x) => x.bagIds.length) && orderId) {
+        const reserved = await lastValueFrom(
+          this.service.reserve(orderId, {
+            columns: Array.from(form.allocations.reduce((map, line) => {
+              if (line.locationId && line.bagIds.length) map.set(line.locationId, [...(map.get(line.locationId) || []), ...line.bagIds]);
+              return map;
+            }, new Map<number, number[]>())).map(([locationId, bagIds]) => ({ locationId, bagIds })),
+          })
+        );
+        if (!reserved?.isSucceeded) {
+          this.showCreateModal.set(false);
+          this.createForm.set(this.defaultCreateForm());
+          await this.afterCommand();
+          await Swal.fire({
+            icon: 'warning',
+            title: 'Đã tạo lệnh Nháp',
+            text:
+              reserved?.message ||
+              'Giữ lúa chưa thành công. Hãy mở lệnh Nháp và chọn “Giữ lúa”.',
+            confirmButtonColor: '#16a052',
+          });
+          return;
+        }
+      }
 
       this.showCreateModal.set(false);
       this.createForm.set(this.defaultCreateForm());
-      await this.afterCommand('Tạo lệnh xay Nháp thành công.');
+      await this.afterCommand(
+        form.allocations.length
+          ? 'Đã tạo lệnh và giữ lúa thành công.'
+          : 'Tạo lệnh xay Nháp thành công.'
+      );
     } catch (error) {
       this.showError(this.errorText(error, 'Không thể lưu lệnh xay.'));
     } finally {
@@ -1053,7 +1102,7 @@ export class MillingOrderComponent {
       return;
     }
     if (this.reserveLines().some((x) => !x.bagIds.length)) {
-      this.showError('Vui lòng bấm “Tự động phân bổ” để chọn đúng các bao vật lý trước khi xác nhận.');
+      this.showError('Vui lòng bấm “Tự chọn nguồn phù hợp” để chọn đúng các bao vật lý trước khi xác nhận.');
       return;
     }
     const error = this.validateAllocations(
@@ -1732,6 +1781,7 @@ export class MillingOrderComponent {
       millingCost: null,
       incidentalCost: null,
       reason: '',
+      allocations: [],
     };
   }
 
@@ -1888,6 +1938,12 @@ export class MillingOrderComponent {
     if (form.targetRiceKg == null || form.targetRiceKg <= 0) {
       return 'Số kg gạo dự kiến phải lớn hơn 0.';
     }
+    if (form.allocations.length) {
+      return this.validateAllocations(
+        form.allocations,
+        this.createComputedPaddyKg()
+      );
+    }
     return null;
   }
 
@@ -1987,17 +2043,6 @@ export class MillingOrderComponent {
     if (this.totalRiceOutputKg() <= 0) {
       return 'Khối lượng gạo thành phẩm phải lớn hơn 0.';
     }
-    const actualInputKg = this.computedPaddyToConsumeKg();
-    if (actualInputKg <= 0) {
-      return 'Không xác định được khối lượng lúa đầu vào thực tế của lệnh xay.';
-    }
-    if (this.riceOutputExceedsLimit()) {
-      return `Tổng gạo đầu ra ${this.fmtWeight(
-        this.totalRiceOutputKg()
-      )} không được vượt quá 75% lúa đầu vào thực tế. Tối đa ${this.fmtWeight(
-        this.maxRiceOutputKg()
-      )} từ ${this.fmtWeight(actualInputKg)} đầu vào.`;
-    }
     const currentBackendLimit = this.computedPaddyToConsumeKg() * 1.02;
     const outputAndLoss =
       this.totalAllOutputsKg() + (Number(form.lossKg) || 0);
@@ -2030,35 +2075,6 @@ export class MillingOrderComponent {
     }));
   }
 
-  private hasRole(
-    codes: string[],
-    names: string[],
-    fallbackIds: number[] = []
-  ): boolean {
-    const normalizedCodes = codes.map((value) => value.toUpperCase());
-    const normalizedNames = names.map((value) =>
-      this.normalizeRoleValue(value)
-    );
-    return (this.authService.currentUser()?.roles ?? []).some((role) => {
-      const roleCode = String((role as any).code ?? '').toUpperCase();
-      const roleName = this.normalizeRoleValue(role.name);
-      return (
-        fallbackIds.includes(Number(role.id)) ||
-        normalizedCodes.includes(roleCode) ||
-        normalizedNames.some(
-          (name) => roleName === name || roleName.includes(name)
-        )
-      );
-    });
-  }
-
-  private normalizeRoleValue(value: unknown): string {
-    return String(value ?? '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .trim()
-      .toLowerCase();
-  }
 
   private async showPermissionDenied(message: string): Promise<void> {
     await Swal.fire({
@@ -2121,6 +2137,16 @@ export class MillingOrderComponent {
     if (!response?.isSucceeded) {
       throw new Error(response?.message || 'Yêu cầu không thành công.');
     }
+  }
+
+  private createdId(response: ApiResponse<any>): number | null {
+    const resource = this.resource<any>(response);
+    const value =
+      typeof resource === 'number'
+        ? resource
+        : resource?.id ?? resource?.orderId ?? resource?.OrderId;
+    const id = Number(value);
+    return Number.isFinite(id) && id > 0 ? id : null;
   }
 
   private async afterCommand(message?: string): Promise<void> {

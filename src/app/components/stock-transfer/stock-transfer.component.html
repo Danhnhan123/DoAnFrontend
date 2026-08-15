@@ -13,7 +13,7 @@
         chuyển, tồn đích tăng khi xác nhận nhận hàng.
       </p>
     </div>
-    <button type="button" class="btn btn-primary create-button" (click)="openCreate()">
+    <button type="button" class="btn btn-primary create-button" [appHasPerm]="'STOCK_TRANSFERS:CREATE'" (click)="openCreate()">
       <span>＋</span> Tạo phiếu chuyển
     </button>
   </section>
@@ -269,11 +269,11 @@
         <footer class="modal-footer">
           <button type="button" class="btn btn-secondary" (click)="closeDetail()">Đóng</button>
           @if (current.statusCode === status.DRAFT) {
-            <button type="button" class="btn btn-danger-ghost" [disabled]="actionLoading()" (click)="confirmCancel(current)">Hủy phiếu</button>
-            <button type="button" class="btn btn-secondary" [disabled]="actionLoading()" (click)="openEdit(current)">Chỉnh sửa</button>
-            <button type="button" class="btn btn-primary" [disabled]="actionLoading()" (click)="confirmDispatch(current)">Xuất chuyển</button>
+            <button type="button" class="btn btn-danger-ghost" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmCancel(current)">Hủy phiếu</button>
+            <button type="button" class="btn btn-secondary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="openEdit(current)">Chỉnh sửa</button>
+            <button type="button" class="btn btn-primary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmDispatch(current)">Xuất chuyển</button>
           } @else if (current.statusCode === status.IN_TRANSIT) {
-            <button type="button" class="btn btn-primary" [disabled]="actionLoading()" (click)="confirmReceive(current)">Xác nhận nhận hàng</button>
+            <button type="button" class="btn btn-primary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmReceive(current)">Xác nhận nhận hàng</button>
           }
         </footer>
         }
@@ -391,7 +391,7 @@
       </div>
       <footer class="modal-footer">
         <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="closeForm()">Quay lại</button>
-        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="saveForm()">
+        <button type="button" class="btn btn-primary" [appHasPerm]="editingId() ? 'STOCK_TRANSFERS:UPDATE' : 'STOCK_TRANSFERS:CREATE'" [disabled]="saving()" (click)="saveForm()">
           {{ saving() ? 'Đang lưu…' : editingId() ? 'Lưu thay đổi' : 'Tạo phiếu nháp' }}
         </button>
       </footer>
