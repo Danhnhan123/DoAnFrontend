@@ -216,7 +216,6 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly showPackingModal = signal(false);
   readonly packingQr = signal('');
   readonly packingActualKg = signal<number | null>(null);
-  readonly packingScale = signal('');
 
   private searchTimer?: ReturnType<typeof setTimeout>;
 
@@ -835,8 +834,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
         for (const loc of item.locations) {
           if (useBags) {
-            const locKg = this.locationBagKg(loc);
-            if (locKg <= 0) continue;
+            if (this.locationBagKg(loc) <= 0) continue;
 
             let openKgRemaining = Number(loc.openBagTakeKg || 0);
             let fullBagsRemaining = loc.fullBagsToTake;
@@ -863,11 +861,26 @@ export class OutboundOrderComponent implements OnDestroy {
                 splitKgRemaining -= subSplitKg;
               }
 
-              const subTotalKg = subOpenKg + (subFullBags * (loc.standardWeightKg || 0)) + subSplitKg;
-              if (subTotalKg > 0) {
+              // Keep the user's bag choice in the request shape. If these values are
+              // merged into one total, the backend cannot distinguish "one full bag"
+              // from "finish an open bag, then split another bag" (for example 10 kg
+              // versus 1 kg + 9 kg from the same lot/location).
+              if (subOpenKg > 0) {
                 itemLots.push({
                   inventoryId: sub.inventoryId,
-                  quantityAllocated: subTotalKg,
+                  quantityAllocated: subOpenKg,
+                });
+              }
+              for (let bag = 0; bag < subFullBags; bag++) {
+                itemLots.push({
+                  inventoryId: sub.inventoryId,
+                  quantityAllocated: loc.standardWeightKg || 0,
+                });
+              }
+              if (subSplitKg > 0) {
+                itemLots.push({
+                  inventoryId: sub.inventoryId,
+                  quantityAllocated: subSplitKg,
                 });
               }
             }
@@ -1292,7 +1305,6 @@ export class OutboundOrderComponent implements OnDestroy {
     if (!this.canPack(order) || !this.isPickedEnough(order)) return;
     this.packingQr.set(`PACK-${order.id}-${Date.now().toString().slice(-6)}`);
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
-    this.packingScale.set('');
     this.showPackingModal.set(true);
   }
 
@@ -1315,7 +1327,6 @@ export class OutboundOrderComponent implements OnDestroy {
       payload: {
         qrCode: qr,
         actualWeightKg: this.packingActualKg(),
-        scaleDevice: this.packingScale().trim() || null,
       },
     });
   }
