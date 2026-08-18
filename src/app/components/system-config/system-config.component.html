@@ -1,19 +1,22 @@
 <div class="page-wrapper">
-    @if (toast()) {
-    <div class="toast-msg" [class.toast-err]="!toast()!.ok">{{ toast()!.msg }}</div>
-    }
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">⚙️ Cấu hình hệ thống</h1>
-            <p class="page-subtitle">Quản lý các tham số cấu hình — {{ totalRecords() }} bản ghi</p>
+<div class="toolbar card">
+        <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input class="search-input" placeholder="Tìm key, value..." [ngModel]="search()"
+                (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
         </div>
-        <button class="btn btn-primary" (click)="openCreate()">+ Thêm cấu hình</button>
-    </div>
-
-    <div class="toolbar card">
-        <input class="form-control search-input" placeholder="🔍 Tìm key, value..." [ngModel]="search()"
-            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
-        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
+        <button [appHasPerm]="'SYSTEM_SETTINGS:CREATE'" class="icon-btn add-btn" (click)="openCreate()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Thêm cấu hình
+        </button>
     </div>
 
     <div class="card">
@@ -29,6 +32,7 @@
                 <thead>
                     <tr>
                         <th style="width:40px">STT</th>
+                        <th>Tên</th>
                         <th>Key</th>
                         <th>Value</th>
                         <th>Mô tả</th>
@@ -40,13 +44,28 @@
                     @for (c of configs(); track c.id; let idx=$index) {
                     <tr>
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
-                        <td><code class="key-code">{{ c.key }}</code></td>
-                        <td class="val-cell">{{ c.value }}</td>
+                        <td>{{ c.name }}</td>
+                        <td><code class="key-code">{{ c.configKey }}</code></td>
+                        <td class="val-cell">{{ c.configValue }}</td>
                         <td class="text-muted small">{{ c.description || '—' }}</td>
                         <td class="text-muted small">{{ c.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
-                        <td class="action-cell">
-                            <button class="btn btn-outline btn-sm" (click)="openEdit(c)">✏️ Sửa</button>
-                            <button class="btn btn-danger btn-sm" (click)="delete(c.id, c.key)">🗑️</button>
+                        <td class="action-cell">                            <button [class.perm-view-only]="!perm.canUpdate('SYSTEM_SETTINGS')" [title]="perm.canUpdate('SYSTEM_SETTINGS') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" (click)="openEdit(c)" >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                </svg>
+                            </button>
+                            <button [appHasPerm]="'SYSTEM_SETTINGS:DELETE'" class="icon-btn delete-btn" (click)="delete(c.id, c.configKey)" title="Xóa">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6" />
+                                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                    <path d="M10 11v6" />
+                                    <path d="M14 11v6" />
+                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                                </svg>
+                            </button>
                         </td>
                     </tr>
                     }
@@ -72,20 +91,25 @@
 <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal-box" (click)="$event.stopPropagation()">
         <div class="modal-header">
-            <h3>{{ isEdit() ? '✏️ Cập nhật cấu hình' : '➕ Thêm cấu hình mới' }}</h3>
+            <h3>{{ viewOnly() ? '✏️ Chi tiết cấu hình' : isEdit() ? '✏️ Cập nhật cấu hình' : '➕ Thêm cấu hình mới' }}</h3>
             <button class="modal-close" (click)="closeModal()">✕</button>
         </div>
-        <div class="modal-body">
+        <div [appReadonlyIf]="viewOnly()" class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Tên *</label>
+                <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name',$event)"
+                    placeholder="Tên hệ thống" />
+            </div>
             <div class="form-group">
                 <label class="form-label">Key *</label>
-                <input class="form-control" [ngModel]="form().key" (ngModelChange)="setField('key',$event)"
+                <input class="form-control" [ngModel]="form().configKey" (ngModelChange)="setField('configKey',$event)"
                     placeholder="SITE_NAME" [disabled]="isEdit()" />
                 @if (isEdit()) { <span class="field-note">Key không thể thay đổi</span> }
             </div>
             <div class="form-group">
                 <label class="form-label">Value *</label>
-                <textarea class="form-control" rows="3" [ngModel]="form().value"
-                    (ngModelChange)="setField('value',$event)" placeholder="Giá trị..."></textarea>
+                <textarea class="form-control" rows="3" [ngModel]="form().configValue"
+                    (ngModelChange)="setField('configValue',$event)" placeholder="Giá trị..."></textarea>
             </div>
             <div class="form-group">
                 <label class="form-label">Mô tả</label>
@@ -94,8 +118,8 @@
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" (click)="closeModal()">Huỷ</button>
-            <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+            <button class="btn btn-outline" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Huỷ' }}</button>
+            <button [hidden]="viewOnly()" class="btn btn-primary" (click)="save()" [disabled]="saving()">
                 @if (saving()) { <span class="spin-sm"></span> }
                 {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
             </button>

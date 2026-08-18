@@ -15,15 +15,33 @@ import {
 export class MenuService {
   private http = inject(HttpClient);
   private readonly base = environment.baseUrl;
+  private sidebarMenuCache: MenuAggregate[] | null = null;
 
   /** Lấy tất cả menus (dạng phẳng, API trả về) */
   getAll(): Observable<ApiResponse<MenuAggregate[]>> {
     return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/menu`);
   }
 
+  getCachedSidebarMenus(): MenuAggregate[] | null {
+    return this.sidebarMenuCache;
+  }
+
+  setCachedSidebarMenus(menus: MenuAggregate[]): void {
+    this.sidebarMenuCache = menus;
+  }
+
   /** Lấy chi tiết menu theo ID */
   getById(id: number): Observable<ApiResponse<MenuDetailDto>> {
     return this.http.get<ApiResponse<MenuDetailDto>>(`${this.base}/menu/${id}`);
+  }
+
+  /**
+   * Lấy menu theo phân quyền của user đang đăng nhập (dùng render sidebar).
+   * Backend dựng đúng theo role/permission hiện tại trong DB nên khi cập nhật
+   * vai trò, chỉ cần refetch là sidebar tự cập nhật, không cần đăng nhập lại.
+   */
+  getMyMenus(): Observable<ApiResponse<MenuAggregate[]>> {
+    return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/auth/me/menus`);
   }
 
   /** Tạo menu mới */

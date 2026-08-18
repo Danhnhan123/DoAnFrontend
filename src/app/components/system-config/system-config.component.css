@@ -12,33 +12,6 @@
     transform: translateY(0);
   }
 }
-.toast-msg {
-  position: fixed;
-  top: 20px;
-  right: 24px;
-  z-index: 9999;
-  background: #10b981;
-  color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  animation: slideIn 0.2s ease;
-}
-.toast-err {
-  background: #ef4444;
-}
-@keyframes slideIn {
-  from {
-    transform: translateX(20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
 .toolbar {
   display: flex;
   align-items: center;
@@ -62,7 +35,7 @@
   width: 28px;
   height: 28px;
   border: 3px solid var(--border, #e2e8f0);
-  border-top-color: var(--accent, #6366f1);
+  border-top-color: var(--accent, #16a34a);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -83,11 +56,11 @@
 .key-code {
   font-family: "JetBrains Mono", monospace;
   font-size: 0.76rem;
-  background: rgba(99, 102, 241, 0.08);
-  color: var(--accent, #6366f1);
+  background: rgba(22, 163, 74, 0.08);
+  color: var(--accent, #16a34a);
   padding: 2px 8px;
   border-radius: 4px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(22, 163, 74, 0.15);
 }
 .val-cell {
   max-width: 280px;
@@ -179,4 +152,115 @@
   gap: 8px;
   padding: 14px 24px;
   border-top: 1px solid var(--border, #e2e8f0);
+}
+
+/* User page style controls */
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  color: var(--text-primary, #1e2d4d);
+  background: var(--card-bg, #fff);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.icon-btn {
+  border: none;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
+}
+
+.icon-btn:not(.add-btn) {
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
+}
+
+.icon-btn:not(.add-btn):hover {
+  transform: scale(1.12);
+}
+
+.add-btn {
+  gap: 7px;
+  padding: 8px 16px;
+  background: var(--accent, #16a34a);
+  color: #fff;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+}
+
+.add-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.edit-btn {
+  color: #f59e0b;
+}
+
+.edit-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+/* === Popup: header + footer cố định, chỉ phần thân (.modal-body) cuộn ===
+   Dùng .modal-backdrop .modal-box (specificity cao) để thắng các rule
+   .modal-box{overflow-y:auto} đặt header/footer cuộn theo nội dung. */
+.modal-backdrop .modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.modal-backdrop .modal-header,
+.modal-backdrop .modal-footer {
+  flex-shrink: 0;
+}
+.modal-backdrop .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }

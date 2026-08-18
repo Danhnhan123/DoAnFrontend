@@ -1,0 +1,149 @@
+<div class="map-page">
+  <!-- ===== Header ===== -->
+  <div class="map-head">
+    <div class="map-head-left">
+      <span class="map-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /><path d="M15 3v18" /><path d="M3 9h18" /><path d="M3 15h18" />
+        </svg>
+        Bản đồ kho / Sơ đồ bố trí khu–cột
+      </span>
+      <h1 class="map-title">Xem trực quan vị trí lô, số bao, kg và trạng thái chất lượng</h1>
+      <p class="map-sub">
+        Hỗ trợ nhập kho, chọn vị trí xếp hàng, kiểm kê, truy vết lô và chọn cột
+        xuất theo chiến lược dễ tiếp cận.
+      </p>
+    </div>
+    <div class="map-head-right">
+      <label class="map-filter-label">Kho</label>
+      <app-filter-select
+        [clearable]="false"
+        [options]="warehouseOptions()"
+        [value]="warehouseId()"
+        (valueChange)="onWarehouseChange($event)"
+        placeholder="Chọn kho"
+      ></app-filter-select>
+    </div>
+  </div>
+
+  <!-- ===== Chú thích trạng thái ===== -->
+  <div class="legend-row">
+    <span class="legend-item"><span class="dot st-available"></span> Còn chỗ</span>
+    <span class="legend-item"><span class="dot st-warning"></span> Cảnh báo</span>
+    <span class="legend-item"><span class="dot st-full"></span> Đầy</span>
+    <span class="legend-item"><span class="dot st-quarantine"></span> Cách ly/rủi ro</span>
+    <span class="legend-item"><span class="dot st-staging"></span> Chờ xuất</span>
+    <span class="legend-item"><span class="dot st-locked"></span> Khóa</span>
+    <span class="legend-item"><span class="dot st-open"></span> Cột đang mở</span>
+  </div>
+
+  <!-- ===== Nội dung ===== -->
+  <div class="map-grid">
+    <!-- Bản đồ khu/cột -->
+    <div class="card map-card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">
+            {{ selectedWarehouse()?.name || 'Kho chứa' }} · Bản đồ khu–cột
+          </h2>
+          <p class="card-sub">
+            Mỗi ô là một cột/vị trí xếp bao. Bấm vào ô để xem chi tiết.
+          </p>
+        </div>
+        <span class="path-hint">Kho → Khu → Cột → Lớp</span>
+      </div>
+
+      @if (loading()) {
+        <div class="map-empty">Đang tải bản đồ kho...</div>
+      } @else if (totalSlots() === 0) {
+        <div class="map-empty">Kho này chưa có khu/cột nào.</div>
+      } @else {
+        @for (z of zones(); track trackZone($index, z)) {
+          <div class="zone-block">
+            <div class="zone-head">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 8.35V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8.35A2 2 0 0 1 3.26 6.5l8-3.2a2 2 0 0 1 1.48 0l8 3.2A2 2 0 0 1 22 8.35Z" />
+                <path d="M6 18h12" /><path d="M6 14h12" /><path d="M6 10h12" />
+              </svg>
+              {{ z.name }}
+            </div>
+            <div class="slot-grid">
+              @for (s of z.slots; track trackSlot($index, s)) {
+                <button
+                  type="button"
+                  class="slot"
+                  [ngClass]="'st-' + s.status"
+                  [class.selected]="s.id === selectedSlotId()"
+                  (click)="selectSlot(s.id)"
+                >
+                  <div class="slot-top">
+                    <span class="slot-code">{{ s.slotCode }}</span>
+                    <span class="slot-badge">{{ statusLabel(s.status) }}</span>
+                  </div>
+                  <div class="slot-prod">{{ s.productName || s.categoryName || 'Trống' }}</div>
+                  @if (s.lotCode) {
+                    <div class="slot-lot">{{ s.lotCode }}</div>
+                  } @else {
+                    <div class="slot-lot muted">—</div>
+                  }
+                  <div class="slot-nums">
+                    <span>{{ bagLabel(s) }}</span>
+                    <span class="slot-kg">{{ fmtNum(s.weightKg) }} kg</span>
+                  </div>
+                  <div class="slot-bar">
+                    <span class="slot-bar-fill" [style.width.%]="s.fillPct > 100 ? 100 : s.fillPct"></span>
+                  </div>
+                  <div class="slot-foot">
+                    {{ capacityLabel(s) }}
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+
+    <!-- Panel phải -->
+    <div class="side-col">
+      <!-- Chi tiết cột/vị trí -->
+      <div class="card side-card">
+        <div class="card-head tight">
+          <h2 class="card-title">Chi tiết cột/vị trí</h2>
+          @if (selectedSlot(); as s) {
+            <span class="detail-status" [ngClass]="'st-' + s.status">
+              {{ statusLabel(s.status) }}
+            </span>
+          }
+        </div>
+
+        @if (selectedSlot(); as s) {
+          <div class="detail-list">
+            <div class="detail-row"><span>Mã cột/vị trí</span><b>{{ s.slotCode }}</b></div>
+            <div class="detail-row"><span>Khu</span><b>{{ s.zoneName }}</b></div>
+            <div class="detail-row"><span>Lô đang chứa</span><b class="link">{{ s.lotCode || '—' }}</b></div>
+            <div class="detail-row"><span>Mặt hàng</span><b>{{ s.productName || s.categoryName || '—' }}</b></div>
+            <div class="detail-row"><span>Số bao</span><b>{{ bagLabel(s) }}</b></div>
+            <div class="detail-row"><span>Khối lượng</span><b>{{ fmtNum(s.weightKg) }} kg</b></div>
+            <div class="detail-row"><span>Sức chứa</span><b>{{ s.isOutboundStaging ? 'Không áp dụng' : (fmtNum(s.currentOccupancy) + ' / ' + fmtNum(s.maxCapacity)) }}</b></div>
+            <div class="detail-row"><span>Chất lượng</span><b>{{ s.quality || '—' }}</b></div>
+            <div class="detail-row"><span>Chiến lược</span><b>{{ s.strategy }}</b></div>
+          </div>
+        } @else {
+          <div class="detail-empty">Bấm vào một ô trên bản đồ để xem chi tiết cột/vị trí.</div>
+        }
+      </div>
+
+      <!-- Hướng dẫn thao tác -->
+      <div class="card side-card">
+        <h2 class="card-title">Hướng dẫn thao tác</h2>
+        <ul class="tip-list">
+          <li><span class="tip-ar">→</span> Nhập kho: ưu tiên cột còn chỗ, đúng nhóm hàng, không cách ly.</li>
+          <li><span class="tip-ar">→</span> Kiểm kê: chọn khu/cột để đối chiếu bao/kg thực tế.</li>
+          <li><span class="tip-ar">→</span> Truy vết: bấm cột để xem lô, chất lượng, trạng thái giữ hàng.</li>
+          <li><span class="tip-ar">→</span> Xuất kho: ưu tiên cột đang mở hoặc cột dễ tiếp cận.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

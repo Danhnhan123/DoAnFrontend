@@ -1,4 +1,4 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
 import { CommonModule, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -20,25 +20,45 @@ import {
   FlatMenu,
 } from '../../models';
 import { RoleService, flattenMenus } from '../../services/role.service';
+import { AuthService } from '../../services/auth.service';
+import { PermissionService } from '../../services/permission.service';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 
+// Map hành động -> cờ khả dụng trong MenuPermissionDto.
+// Ưu tiên khoá theo CODE ổn định (READ/CREATE/UPDATE/DELETE/EXPORT/APPROVE);
+// kèm fallback theo TÊN hiển thị từ DB để an toàn nếu action thiếu code.
+// (Trước đây chỉ map theo tên với khoá 'Export'/'Approve' không khớp tên thật
+//  "Xuất dữ liệu"/"Duyệt" -> 2 cột Xuất & Duyệt luôn bị disable.)
 const ACTION_PROP_MAP: Record<string, string> = {
+  // theo Code
+  READ: 'hasRead',
+  CREATE: 'hasCreate',
+  UPDATE: 'hasUpdate',
+  DELETE: 'hasDelete',
+  EXPORT: 'hasExport',
+  APPROVE: 'hasApprove',
+  // fallback theo tên hiển thị
   Xem: 'hasRead',
   'Thêm mới': 'hasCreate',
   'Chỉnh sửa': 'hasUpdate',
   Xoá: 'hasDelete',
-  Export: 'hasExport',
-  Approve: 'hasApprove',
+  'Xuất dữ liệu': 'hasExport',
+  Duyệt: 'hasApprove',
 };
 
 @Component({
   selector: 'app-role',
   standalone: true,
-  imports: [CommonModule, FormsModule, NgTemplateOutlet],
+  imports: [HasPermissionDirective, ReadonlyIfDirective, CommonModule, FormsModule, NgTemplateOutlet],
   templateUrl: './role.component.html',
   styleUrl: './role.component.css',
 })
 export class RoleComponent {
   private roleService = inject(RoleService);
+  private auth = inject(AuthService);
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('ROLE'));
   private queryClient = injectQueryClient();
 
   page = signal(1);
@@ -49,6 +69,7 @@ export class RoleComponent {
   editItem = signal<RoleListDto | null>(null);
   isEdit = computed(() => !!this.editItem());
 
+  formCode = signal('');
   formName = signal('');
   formDesc = signal('');
 
@@ -142,27 +163,32 @@ export class RoleComponent {
       .sort((a, b) => a.order - b.order)
   );
 
-  // Sync selectedPerms when rolePermissions query resolves
-  private _prevRolePermsData: any = null;
-  get _rolePermsSynced(): boolean {
+  /**
+   * Đổ quyền hạn của vai trò (API GET /role/{id}/permissons) vào selectedPerms khi
+   * mở modal sửa. Dùng effect để tự chạy lại mỗi khi query có dữ liệu mới.
+   * (Trước đây dùng getter _rolePermsSynced nhưng không được template gọi nên
+   *  selectedPerms không bao giờ được nạp -> popup không tích sẵn quyền theo menu.)
+   */
+  private syncRolePerms = effect(() => {
     const d = this.rolePermissionsQuery.data();
-    if (d && d !== this._prevRolePermsData) {
-      this._prevRolePermsData = d;
-      const perms: RolePermissonDto[] =
-        (d as any)?.resources?.permissions ??
-        (d as any)?.resources ??
-        (d as any)?.data?.permissions ??
-        (d as any)?.data ??
-        [];
-      const map = new Map<number, Set<number>>();
-      for (const p of perms) {
-        if (!map.has(p.menuId)) map.set(p.menuId, new Set());
-        map.get(p.menuId)!.add(p.actionId);
-      }
-      this.selectedPerms.set(map);
+    if (!d || !this.showModal() || !this.isEdit()) return;
+
+    const raw =
+      (d as any)?.resources?.permissions ??
+      (d as any)?.data?.permissions ??
+      (d as any)?.resources ??
+      (d as any)?.data ??
+      [];
+    const perms: RolePermissonDto[] = Array.isArray(raw) ? raw : [];
+
+    const map = new Map<number, Set<number>>();
+    for (const p of perms) {
+      if (p == null || p.menuId == null || p.actionId == null) continue;
+      if (!map.has(p.menuId)) map.set(p.menuId, new Set());
+      map.get(p.menuId)!.add(p.actionId);
     }
-    return true;
-  }
+    this.selectedPerms.set(map);
+  });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -173,6 +199,11 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Thêm thành công!');
       } else this.showAlert(r.message || 'Thêm mới thất bại', false);
     },
@@ -186,6 +217,11 @@ export class RoleComponent {
       if (r.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(r.message || 'Cập nhật thất bại', false);
     },
@@ -198,6 +234,11 @@ export class RoleComponent {
     onSuccess: (r: any) => {
       if (r.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['roles'] });
+        // Quyền thay đổi -> làm mới sidebar theo quyền của user đang đăng nhập.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
+        // Nạp lại phiên (permissions + menus) vào bộ nhớ -> guard/route + directive [appHasPerm]
+        // tự cập nhật ngay, không cần tải lại cả trang.
+        this.auth.loadSession().subscribe();
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(r.message || 'Xóa thất bại', false);
     },
@@ -225,16 +266,16 @@ export class RoleComponent {
   }
 
   openCreate(): void {
-    this._prevRolePermsData = null;
     this.editItem.set(null);
+    this.formCode.set('');
     this.formName.set('');
     this.formDesc.set('');
     this.selectedPerms.set(new Map());
     this.showModal.set(true);
   }
   openEdit(role: RoleListDto): void {
-    this._prevRolePermsData = null;
     this.editItem.set(role);
+    this.formCode.set(role.code || '');
     this.formName.set(role.name);
     this.formDesc.set(role.description || '');
     this.selectedPerms.set(new Map());
@@ -250,14 +291,15 @@ export class RoleComponent {
       .filter((m) => m.parentId === parentId)
       .sort((a, b) => a.order - b.order);
   }
-  isActionAllowed(menuId: number, actionName: string): boolean {
+  isActionAllowed(menuId: number, action: ActionDto): boolean {
     const perm = this.menuPermissions().get(menuId);
     if (!perm) return false;
-    const prop = ACTION_PROP_MAP[actionName];
+    // Ưu tiên resolve theo code, fallback theo tên hiển thị.
+    const prop = ACTION_PROP_MAP[action.code ?? ''] ?? ACTION_PROP_MAP[action.name];
     return prop ? Boolean(perm[prop]) : false;
   }
   isDisabled(menu: FlatMenu, action: ActionDto): boolean {
-    return !this.isActionAllowed(menu.id, action.name);
+    return !this.isActionAllowed(menu.id, action);
   }
   isChecked(menuId: number, actionId: number): boolean {
     return this.selectedPerms().get(menuId)?.has(actionId) ?? false;
@@ -318,7 +360,7 @@ export class RoleComponent {
       text: `Bạn có chắc chắn muốn ${actionText} vai trò này?`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       cancelButtonColor: '#ef4444',
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
@@ -332,6 +374,7 @@ export class RoleComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: this.formCode(),
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),
@@ -339,6 +382,7 @@ export class RoleComponent {
         } as UpdateRoleDto);
       } else {
         this.createMutation.mutate({
+          code: this.formCode(),
           name: this.formName(),
           description: this.formDesc(),
           isCheckAll: this.isSelectAllChecked(),
@@ -368,7 +412,7 @@ export class RoleComponent {
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,
       icon: ok ? 'success' : 'error',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       confirmButtonText: 'Đóng',
       showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
       hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },

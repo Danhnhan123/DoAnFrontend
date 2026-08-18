@@ -1,1 +1,185 @@
-<p>notification-category works!</p>
+<div class="page-wrapper">
+  <div class="toolbar card">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="search-input" placeholder="Tìm tên, mô tả danh mục..." [ngModel]="search()"
+        (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+    </div>
+
+    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+      title="Bộ lọc nâng cao">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      Bộ lọc nâng cao
+      @if (activeFilterCount() > 0) { <span class="role-pill">{{ activeFilterCount() }}</span> }
+    </button>
+
+    <app-filter-select class="page-size-select" [clearable]="false"
+      style="width:132px;flex:0 0 auto"
+      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+      (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+
+    <button [appHasPerm]="'NOTIFICATION_CATEGORY:CREATE'" class="icon-btn add-btn" type="button" (click)="openCreate()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Thêm danh mục
+    </button>
+  </div>
+
+  @if (showFilter()) {
+  <div class="filter-panel card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Tên danh mục</label>
+        <input class="form-control" placeholder="Lọc theo tên..." [ngModel]="filterName()"
+          (ngModelChange)="filterName.set($event || null)" (keydown.enter)="applyFilter()" />
+      </div>
+      <div class="form-group">
+        <label>Mô tả</label>
+        <input class="form-control" placeholder="Lọc theo mô tả..." [ngModel]="filterDescription()"
+          (ngModelChange)="filterDescription.set($event || null)" (keydown.enter)="applyFilter()" />
+      </div>
+      <div class="form-group">
+        <label>Từ ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateFrom()"
+          (ngModelChange)="dateFrom.set($event || null)" />
+      </div>
+      <div class="form-group">
+        <label>Đến ngày</label>
+        <input class="form-control" type="date" [ngModel]="dateTo()"
+          (ngModelChange)="dateTo.set($event || null)" />
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+    </div>
+  </div>
+  }
+
+  <div class="card">
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải...</span></div>
+    } @else if (rows().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">🏷️</span><p>Không có dữ liệu</p></div>
+    } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">STT</th>
+            <th class="sortable" (click)="sort('name')">Danh mục <span class="sort-icon">{{ sortIcon('name') }}</span></th>
+            <th>Màu</th>
+            <th class="sortable" (click)="sort('description')">Mô tả <span class="sort-icon">{{ sortIcon('description') }}</span></th>
+            <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+            <th style="text-align:right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id; let idx = $index) {
+          <tr>
+            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
+            <td data-label="Danh mục">
+              <span class="cat-pill" [style.background]="(row.color || '#6366f1') + '22'" [style.color]="row.color || '#6366f1'">
+                <span class="dot" [style.background]="row.color || '#6366f1'"></span>{{ row.name }}
+              </span>
+            </td>
+            <td data-label="Màu">
+              <span class="color-swatch" [style.background]="row.color || '#6366f1'"></span>
+              <span class="text-muted small">{{ row.color }}</span>
+            </td>
+            <td class="text-muted small" data-label="Mô tả">{{ row.description || '—' }}</td>
+            <td class="text-muted small" data-label="Ngày tạo">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
+            <td class="action-cell" data-label="Thao tác">
+              <button [class.perm-view-only]="!perm.canUpdate('NOTIFICATION_CATEGORY')" [title]="perm.canUpdate('NOTIFICATION_CATEGORY') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" type="button" (click)="openEdit(row)" >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
+              <button [appHasPerm]="'NOTIFICATION_CATEGORY:DELETE'" class="icon-btn delete-btn" type="button" (click)="delete(row.id, row.name)" title="Xóa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6" /><path d="M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @for (p of pages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
+    }
+  </div>
+</div>
+
+@if (showModal()) {
+<div class="modal-backdrop" (click)="closeModal()">
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>{{ viewOnly() ? 'Chi tiết danh mục thông báo' : isEdit() ? 'Cập nhật danh mục thông báo' : 'Thêm danh mục thông báo' }}</h3>
+      <button class="modal-close" type="button" (click)="closeModal()">×</button>
+    </div>
+    @if (loadingDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
+    } @else {
+    <div [appReadonlyIf]="viewOnly()" class="modal-body">
+      <div class="form-row-2">
+        <div class="form-group">
+          <label class="form-label">Tên danh mục *</label>
+          <input class="form-control" [ngModel]="form().name" (ngModelChange)="setField('name', $event)"
+            placeholder="Ví dụ: Đơn hàng" maxlength="255" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Màu *</label>
+          <div class="color-input-wrap">
+            <input type="color" class="color-input" [ngModel]="form().color"
+              (ngModelChange)="setField('color', $event)" />
+            <input class="form-control" [ngModel]="form().color" (ngModelChange)="setField('color', $event)"
+              placeholder="#6366f1" maxlength="20" />
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mô tả</label>
+        <textarea class="form-control" rows="3" [ngModel]="form().description"
+          (ngModelChange)="setField('description', $event)" placeholder="Mô tả danh mục..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" type="button" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Hủy' }}</button>
+      <button [hidden]="viewOnly()" class="btn btn-primary" type="button" (click)="save()" [disabled]="saving()">
+        @if (saving()) { <span class="spin-sm"></span> }
+        {{ saving() ? 'Đang lưu...' : isEdit() ? 'Cập nhật' : 'Thêm mới' }}
+      </button>
+    </div>
+    }
+  </div>
+</div>
+}

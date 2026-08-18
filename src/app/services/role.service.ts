@@ -61,6 +61,14 @@ export class RoleService {
   }
 
   /** Lấy toàn bộ danh sách menu (cấu trúc phẳng hoặc cây) */
+  /**
+   * Lấy toàn bộ vai trò cho dropdown dùng chung — endpoint GetAll chỉ [Authorize].
+   * Dùng ở các màn cần danh sách vai trò (vd Kiểm định) mà role không có quyền READ menu Vai trò.
+   */
+  getAll(): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.base}/role`);
+  }
+
   getAllMenus(): Observable<ApiResponse<MenuAggregate[]>> {
     return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/menu`);
   }

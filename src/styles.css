@@ -141,14 +141,39 @@ input[type="number"] {
   pointer-events: none;
 }
 
+/*
+ * Fix nút footer modal bị "2 lớp chồng chéo" khi bấm Lưu (trạng thái "Đang lưu..."):
+ * nút đổi nội dung (chữ <-> spinner + chữ) nên bị co/giãn, chữ và spinner chen/đè lên nhau.
+ * - .modal-footer .btn: không cho co giãn -> giữ nguyên kích thước theo nội dung.
+ * - .modal-footer .btn-primary: min-width cố định -> width ổn định giữa 2 trạng thái.
+ * - .btn .spin-sm/.spin-lg: không bị flex bóp + tính cả viền vào kích thước.
+ * Rule TOÀN CỤC -> sửa 1 chỗ cho MỌI màn (không đụng HTML/CSS từng component).
+ */
+.modal-footer .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.modal-footer .btn-primary {
+  min-width: 124px;
+}
+.modal-footer .btn-label {
+  display: inline-block;
+  line-height: 1;
+}
+.btn .spin-sm,
+.btn .spin-lg {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+}
+
 .btn-primary {
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: white;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover, #4f46e5);
+  background: var(--accent-hover, #15803d);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.28);
 }
 
 .btn-outline {
@@ -157,8 +182,8 @@ input[type="number"] {
   color: var(--text-primary, #1e293b);
 }
 .btn-outline:hover:not(:disabled) {
-  border-color: var(--accent, #6366f1);
-  color: var(--accent, #6366f1);
+  border-color: var(--accent, #16a34a);
+  color: var(--accent, #16a34a);
 }
 
 .btn-danger {
@@ -202,8 +227,8 @@ input[type="number"] {
 }
 
 .form-control:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
 }
 
 select.form-control {
@@ -305,9 +330,9 @@ tbody td {
 }
 .page-btn:hover:not(:disabled),
 .page-btn.active {
-  background: var(--accent, #6366f1);
+  background: var(--accent, #16a34a);
   color: white;
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #16a34a);
 }
 .page-btn:disabled {
   opacity: 0.4;
@@ -319,6 +344,10 @@ tbody td {
 =================================================== */
 
 /* Áp dụng khi thẻ html có data-theme="dark" */
+.swal2-container {
+  z-index: 3000 !important;
+}
+
 html[data-theme="dark"] .swal2-popup {
   background-color: var(--bg1, #1e293b); /* Nền popup theo hệ thống */
   color: var(--tx0, #f8fafc); /* Màu chữ tiêu đề */
@@ -346,8 +375,8 @@ html[data-theme="dark"] .swal2-icon.swal2-warning {
 }
 
 html[data-theme="dark"] .swal2-icon.swal2-question {
-  border-color: var(--acc, #6366f1);
-  color: var(--acc, #6366f1);
+  border-color: var(--acc, #16a34a);
+  color: var(--acc, #16a34a);
 }
 
 html[data-theme="dark"] .swal2-icon.swal2-success {
@@ -382,4 +411,294 @@ html[data-theme="dark"] .swal2-toast {
 html[data-theme="dark"] .swal2-container.swal2-backdrop-show {
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
+}
+
+app-product-variant .toolbar {
+  flex-wrap: wrap;
+}
+
+app-product-variant .search-wrap {
+  min-width: 240px;
+}
+
+app-admin-layout .menu-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 6px 8px;
+}
+
+app-admin-layout .skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 7px 8px;
+}
+
+app-admin-layout .skeleton-icon,
+app-admin-layout .skeleton-line {
+  display: block;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.11));
+  background-size: 220% 100%;
+  animation: skeletonPulse 1.15s ease-in-out infinite;
+}
+
+app-admin-layout .skeleton-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+app-admin-layout .skeleton-line {
+  width: min(132px, 72%);
+  height: 12px;
+}
+
+app-admin-layout .skeleton-item:nth-child(2n) .skeleton-line {
+  width: min(108px, 62%);
+}
+
+app-admin-layout .skeleton-item:nth-child(3n) .skeleton-line {
+  width: min(148px, 78%);
+}
+
+@keyframes skeletonPulse {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+@media (max-width: 900px) {
+  app-product-variant table {
+    min-width: 980px;
+  }
+}
+
+@media (max-width: 600px) {
+  app-product-variant .table-wrap {
+    overflow: visible;
+  }
+
+  app-product-variant table {
+    display: block;
+    min-width: 0;
+  }
+
+  app-product-variant thead,
+  app-product-variant tbody,
+  app-product-variant tr,
+  app-product-variant td {
+    display: block;
+  }
+
+  app-product-variant thead,
+  app-product-variant th {
+    display: none;
+  }
+
+  app-product-variant tbody tr {
+    margin-bottom: 12px;
+    padding: 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: var(--radius, 12px);
+    background: var(--card-bg, #fff);
+    box-shadow: var(--card-shadow, 0 1px 3px rgba(0, 0, 0, 0.06));
+  }
+
+  app-product-variant tbody td {
+    display: grid;
+    grid-template-columns: minmax(92px, 34%) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--border, #e2e8f0);
+  }
+
+  app-product-variant tbody td::before {
+    content: attr(data-label);
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  app-product-variant tbody td:last-child {
+    border-bottom: 0;
+  }
+
+  app-product-variant .variant-cell {
+    min-width: 0;
+  }
+
+  app-product-variant .u-sub {
+    max-width: 100%;
+  }
+
+  app-product-variant .price-cell,
+  app-product-variant .action-cell {
+    text-align: left;
+  }
+
+  app-product-variant .action-cell {
+    white-space: normal;
+  }
+}
+
+/* ============================================================
+   Đồng bộ chiều cao các phần tử trên thanh toolbar danh sách
+   (ô tìm kiếm, nút Bộ lọc, dropdown chọn số dòng/trang, nút Thêm mới)
+   Selector đủ đặc thù (.toolbar.card ...) để ghi đè style scoped của từng màn.
+   ============================================================ */
+.toolbar.card {
+  align-items: center;
+}
+.toolbar.card .search-input,
+.toolbar.card .filter-btn,
+.toolbar.card .icon-btn.add-btn,
+.toolbar.card .page-size-select .ms-toggle {
+  height: 38px;
+  box-sizing: border-box;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.toolbar.card .page-size-select {
+  flex: 0 0 auto;
+}
+.toolbar.card .page-size-select .ms-toggle {
+  font-size: 0.84rem;
+}
+
+/* ===== RBAC: nút "Sửa" chuyển thành "Xem chi tiết" khi không có quyền UPDATE ===== */
+/* Ẩn icon bút gốc, thay bằng icon con mắt (giữ nguyên currentColor của nút). */
+.icon-btn.edit-btn.perm-view-only svg { display: none; }
+.icon-btn.edit-btn.perm-view-only::before {
+  content: "";
+  display: inline-block;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>') center / contain no-repeat;
+          mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>') center / contain no-repeat;
+}
+
+/* Đảm bảo [hidden]="viewOnly()" luôn ẩn (một số nút có display:flex lấn át hidden mặc định). */
+[hidden] { display: none !important; }
+
+/* ===================================================================
+   SweetAlert2 — nút & input mềm mại, bo góc, đồng bộ theme xanh
+   (áp dụng cho popup thanh toán/giao hàng & chọn ngày ở màn xuất kho)
+=================================================================== */
+.swal2-popup {
+  border-radius: 16px;
+  padding: 1.6rem 1.6rem 1.4rem;
+}
+.swal2-actions {
+  gap: 10px;
+  margin-top: 1.2rem;
+}
+.swal2-styled {
+  border-radius: 10px !important;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 20px !important;
+  box-shadow: none !important;
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+.swal2-styled:focus {
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25) !important;
+}
+.swal2-styled.swal2-confirm {
+  background-color: var(--accent, #16a34a) !important;
+}
+.swal2-styled.swal2-confirm:hover {
+  background-color: var(--accent-hover, #15803d) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.28) !important;
+}
+.swal2-styled.swal2-cancel {
+  background-color: #eef2f6 !important;
+  color: #334155 !important;
+}
+.swal2-styled.swal2-cancel:hover {
+  background-color: #e2e8f0 !important;
+  transform: translateY(-1px);
+}
+.swal2-styled:active {
+  transform: translateY(0);
+}
+
+/* Input / date / textarea trong popup */
+.swal2-popup .swal2-input,
+.swal2-popup .swal2-textarea {
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  box-shadow: none;
+  font-size: 14px;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.swal2-popup .swal2-input:focus,
+.swal2-popup .swal2-textarea:focus {
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+  outline: none;
+}
+.swal2-validation-message {
+  border-radius: 10px;
+}
+
+/* Nút nhanh "Không thanh toán" / "Thanh toán toàn bộ" (dạng pill) */
+.ob-quick-btn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: #f8fafc;
+  color: #334155;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease,
+    background-color 0.12s ease;
+}
+.ob-quick-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.ob-quick-btn:active {
+  transform: translateY(0);
+}
+.ob-quick-btn.primary {
+  background: rgba(22, 163, 74, 0.1);
+  border-color: rgba(22, 163, 74, 0.35);
+  color: var(--accent-hover, #15803d);
+}
+.ob-quick-btn.primary:hover {
+  background: rgba(22, 163, 74, 0.16);
+}
+
+/* Biến thể tối (dark theme) */
+html[data-theme="dark"] .swal2-styled.swal2-cancel {
+  background-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .swal2-styled.swal2-cancel:hover {
+  background-color: #3f4d63 !important;
+}
+html[data-theme="dark"] .swal2-popup .swal2-input,
+html[data-theme="dark"] .swal2-popup .swal2-textarea {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border-color: #334155;
+}
+html[data-theme="dark"] .ob-quick-btn {
+  background: #1e293b;
+  color: #cbd5e1;
+  border-color: #334155;
+}
+html[data-theme="dark"] .ob-quick-btn.primary {
+  background: rgba(22, 163, 74, 0.18);
+  border-color: rgba(22, 163, 74, 0.45);
+  color: #4ade80;
 }

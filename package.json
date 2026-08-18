@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "prebuild": "node scripts/generate-env.js",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
@@ -20,10 +21,12 @@
     "@angular/platform-server": "^19.2.0",
     "@angular/router": "^19.2.0",
     "@angular/ssr": "^19.2.25",
+    "@microsoft/signalr": "^10.0.0",
     "@tanstack/angular-query-experimental": "^5.100.14",
     "express": "^4.18.2",
+    "firebase": "^12.16.0",
     "rxjs": "~7.8.0",
-    "sweetalert2": "^11.26.24",
+    "sweetalert2": "^11.26.25",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
   },

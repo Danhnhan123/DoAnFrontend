@@ -1,4 +1,6 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -18,14 +20,19 @@ import {
 import { MenuService } from '../../services/menu.service';
 import { ActionService } from '../../services/action.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+
 @Component({
   selector: 'app-menu',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './menu.component.html',
   styleUrl: './menu.component.css',
 })
 export class MenuComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('MENU_LIST'));
   private menuService = inject(MenuService);
   private actionService = inject(ActionService);
   private queryClient = injectQueryClient();
@@ -36,6 +43,7 @@ export class MenuComponent {
   isReadOnly = signal(false);
 
   form = signal<{
+    code: string;
     name: string;
     url: string;
     icon: string;
@@ -46,6 +54,7 @@ export class MenuComponent {
     isAdminOnly: boolean;
     actionIds: number[];
   }>({
+    code: '',
     name: '',
     url: '',
     icon: '',
@@ -58,7 +67,6 @@ export class MenuComponent {
   });
 
   menuTypes = ['ADMIN', 'CLIENT', 'BOTH'];
-  toast = signal<{ msg: string; ok: boolean } | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -96,27 +104,33 @@ export class MenuComponent {
     return res?.resources || res?.data || [];
   });
 
-  private _prevDetailData: any = null;
-  get _detailSynced(): boolean {
+  /**
+   * Đổ dữ liệu chi tiết (từ API get-by-id) vào form khi mở modal sửa/xem.
+   * Dùng effect để tự chạy lại mỗi khi detailQuery có dữ liệu mới.
+   * (Trước đây dùng getter _detailSynced nhưng không được template gọi nên
+   *  isAdminOnly và actionIds không bao giờ được map.)
+   */
+  private syncDetail = effect(() => {
     const d = this.detailQuery.data();
-    if (d && d !== this._prevDetailData) {
-      this._prevDetailData = d;
-      const detail: MenuDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail)
-        this.form.set({
-          name: detail.name,
-          url: detail.url || '',
-          icon: detail.icon || '',
-          className: detail.className || '',
-          sortOrder: detail.sortOrder,
-          parentId: detail.parentId ?? null,
-          menuType: detail.menuType,
-          isAdminOnly: detail.isAdminOnly,
-          actionIds: detail.actionIds || [],
-        });
-    }
-    return true;
-  }
+
+    if (!d || !this.showModal() || !this.isEdit()) return;
+
+    const detail: MenuDetailDto = (d as any)?.resources ?? (d as any)?.data;
+    if (!detail) return;
+
+    this.form.set({
+      code: detail.code || '',
+      name: detail.name,
+      url: detail.url || '',
+      icon: detail.icon || '',
+      className: detail.className || '',
+      sortOrder: detail.sortOrder,
+      parentId: detail.parentId ?? null,
+      menuType: detail.menuType,
+      isAdminOnly: detail.isAdminOnly,
+      actionIds: detail.actionIds || [],
+    });
+  });
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -127,6 +141,8 @@ export class MenuComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Thêm menu thành công!');
       } else this.showAlert(res.message || 'Thất bại', false);
     },
@@ -140,6 +156,8 @@ export class MenuComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Cập nhật menu thành công!');
       } else this.showAlert(res.message || 'Thất bại', false);
     },
@@ -152,6 +170,8 @@ export class MenuComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['menus'] });
+        // Cấu trúc menu thay đổi -> làm mới sidebar theo quyền.
+        this.queryClient.invalidateQueries({ queryKey: ['sidebar-menus'] });
         this.showAlert('Đã xóa menu thành công!');
       } else this.showAlert(res.message || 'Xóa thất bại', false);
     },
@@ -176,6 +196,15 @@ export class MenuComponent {
     return !!m.child?.length;
   }
 
+  /** Icon dạng font-class (vd "fa fa-truck"); rỗng nếu là emoji/ký tự. */
+  iconClass(icon?: string | null): string {
+    const val = (icon || '').trim();
+    if (!val) return '';
+    const isFontClass =
+      val.includes(' ') || /^(fa|fas|far|fab|bi|glyphicon)-/.test(val);
+    return isFontClass ? val : '';
+  }
+
   renderParentOptions(
     items: MenuAggregate[],
     depth = 0
@@ -191,22 +220,32 @@ export class MenuComponent {
     return result;
   }
 
+  /** Options danh mục cha cho dropdown chung (bỏ mục bị khóa). */
+  parentSelectOptions = computed(() =>
+    this.renderParentOptions(this.nestedMenus())
+      .filter((o) => !o.disabled)
+      .map((o) => ({ id: o.id, name: o.label }))
+  );
+
+  /** Options loại menu cho dropdown chung. */
+  get menuTypeOptions() {
+    return this.menuTypes.map((t) => ({ id: t, name: t }));
+  }
+
   openCreate(): void {
-    this._prevDetailData = null;
     this.editItem.set(null);
     this.isReadOnly.set(false);
     this.form.set({
-      name: '', url: '', icon: '', className: '', sortOrder: 1,
+      code: '', name: '', url: '', icon: '', className: '', sortOrder: 1,
       parentId: null, menuType: 'ADMIN', isAdminOnly: false, actionIds: [],
     });
     this.showModal.set(true);
   }
   openEdit(menu: MenuAggregate, readOnly = false): void {
-    this._prevDetailData = null;
     this.editItem.set(menu);
     this.isReadOnly.set(readOnly);
     this.form.set({
-      name: menu.name, url: menu.url || '', icon: menu.icon || '',
+      code: menu.code || '', name: menu.name, url: menu.url || '', icon: menu.icon || '',
       className: '', sortOrder: menu.sortOrder, parentId: menu.parentId ?? null,
       menuType: menu.menuType, isAdminOnly: false, actionIds: [],
     });
@@ -238,7 +277,7 @@ export class MenuComponent {
       text: `Bạn có chắc chắn muốn ${actionText} menu này?`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       cancelButtonColor: '#ef4444',
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
@@ -247,6 +286,7 @@ export class MenuComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: f.code || null,
           name: f.name,
           url: f.url || '',
           icon: f.icon || '',
@@ -259,6 +299,7 @@ export class MenuComponent {
         } as UpdateMenuDto);
       } else {
         this.createMutation.mutate({
+          code: f.code || null,
           name: f.name,
           url: f.url || '',
           icon: f.icon || '',
@@ -293,7 +334,7 @@ export class MenuComponent {
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,
       icon: ok ? 'success' : 'error',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       confirmButtonText: 'Đóng',
       showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
       hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },

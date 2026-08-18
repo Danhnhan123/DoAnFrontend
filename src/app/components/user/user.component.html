@@ -1,35 +1,97 @@
 <div class="page-wrapper">
 
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">👥 Quản lý người dùng</h1>
-            <p class="page-subtitle">Tổng {{ totalRecords() }} người dùng</p>
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon-wrap blue">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <div class="stat-body">
+                <span class="stat-label">Tổng người dùng</span>
+                <span class="stat-value">{{ totalUsersStat() }}</span>
+                <span class="stat-sub">Toàn hệ thống</span>
+            </div>
         </div>
-        <button class="btn btn-primary" (click)="openCreate()">+ Thêm người dùng</button>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrap green">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+            <div class="stat-body">
+                <span class="stat-label">Đang hoạt động</span>
+                <span class="stat-value">{{ activeCount() }}</span>
+                <span class="stat-sub">{{ totalUsersStat() > 0 ? ((activeCount() * 100 / totalUsersStat()) | number:'1.0-0') : 0 }}% tổng số</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrap purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+            </div>
+            <div class="stat-body">
+                <span class="stat-label">Quản lý kho</span>
+                <span class="stat-value">{{ managerCount() }}</span>
+                <span class="stat-sub">Theo vai trò</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon-wrap orange">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+            </div>
+            <div class="stat-body">
+                <span class="stat-label">Nhân viên kho</span>
+                <span class="stat-value">{{ staffCount() }}</span>
+                <span class="stat-sub">Theo vai trò</span>
+            </div>
+        </div>
     </div>
 
     <!-- Search + Filter toolbar -->
     <div class="toolbar card">
-        <input class="form-control search-input" placeholder="🔍 Tìm tên, email, SĐT..." [ngModel]="search()"
-            (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
-        <button class="btn btn-outline" (click)="onSearch()">Tìm</button>
-        <button class="btn btn-outline" (click)="toggleFilter()" [class.active]="showFilter()">⚙️ Bộ lọc nâng
-            cao</button>
-        <select class="form-control page-size-select" [ngModel]="pageSize()"
-            (ngModelChange)="pageSize.set(+$event); page.set(1)">
-            <option [value]="5">5/trang</option>
-            <option [value]="10">10/trang</option>
-            <option [value]="20">20/trang</option>
-            <option [value]="50">50/trang</option>
-        </select>
+        <div class="search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input class="search-input" placeholder="Tìm tên, email, SĐT..." [ngModel]="search()"
+                (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+        </div>
+        <button class="icon-btn filter-btn" (click)="toggleFilter()" [class.filter-active]="showFilter()" title="Bộ lọc nâng cao">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Bộ lọc nâng cao
+        </button>
+        <app-filter-select class="page-size-select" [clearable]="false"
+          style="width:132px;flex:0 0 auto"
+          [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+          (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+        <button [appHasPerm]="'USER:CREATE'" class="icon-btn add-btn outline" (click)="openBulk()" title="Tạo nhiều người dùng cùng lúc">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            Tạo hàng loạt
+        </button>
+        <button [appHasPerm]="'USER:CREATE'" class="icon-btn add-btn" (click)="openCreate()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Thêm người dùng
+        </button>
     </div>
     @if (showFilter()) {
     <div class="filter-panel card">
         <div class="filter-grid">
-            <div class="form-group">
-                <label>Tên đăng nhập</label>
-                <input class="form-control" [(ngModel)]="filterUsername" (keydown.enter)="applyFilter()">
-            </div>
             <div class="form-group">
                 <label>Họ tên</label>
                 <input class="form-control" [(ngModel)]="filterFullname" (keydown.enter)="applyFilter()">
@@ -44,19 +106,13 @@
             </div>
             <div class="form-group">
                 <label>Trạng thái (Chọn nhiều)</label>
-                <select class="form-control" multiple [(ngModel)]="filterStatusIds">
-                    @for (s of statusOptions(); track s.id) {
-                    <option [value]="s.id">{{ s.name }}</option>
-                    }
-                </select>
+                <app-filter-select [options]="statusOptions()" [multiple]="true" placeholder="Tất cả trạng thái"
+                    [value]="filterStatusIds()" (valueChange)="filterStatusIds.set($event)"></app-filter-select>
             </div>
             <div class="form-group">
                 <label>Vai trò (Chọn nhiều)</label>
-                <select class="form-control" multiple [(ngModel)]="filterRoleIds">
-                    @for (r of roleOptions(); track r.id) {
-                    <option [value]="r.id">{{ r.name }}</option>
-                    }
-                </select>
+                <app-filter-select [options]="roleOptions()" [multiple]="true" placeholder="Tất cả vai trò"
+                    [value]="filterRoleIds()" (valueChange)="filterRoleIds.set($event)"></app-filter-select>
             </div>
             <div class="form-group full-width">
                 <label>Khoảng ngày tạo</label>
@@ -112,7 +168,13 @@
                         <td class="text-muted">{{ (page()-1)*pageSize()+idx+1 }}</td>
                         <td>
                             <div class="user-cell">
-                                <div class="av-sm">{{ getInitial(row.firstName, row.lastName) }}</div>
+                                <div class="av-sm">
+                                    @if (row.avatarUrl) {
+                                    <img [src]="row.avatarUrl" [alt]="row.firstName + ' ' + row.lastName" />
+                                    } @else {
+                                    {{ getInitial(row.firstName, row.lastName) }}
+                                    }
+                                </div>
                                 <div>
                                     <div class="u-name">{{ row.firstName }} {{ row.lastName }}</div>
                                     <div class="u-sub">{{ row.username }}</div>
@@ -135,9 +197,19 @@
                         </td>
                         <td class="text-muted small">{{ row.createdDate | date:'dd/MM/yyyy HH:mm' }}</td>
                         <td class="action-cell">
-                            <button class="btn btn-outline btn-sm" (click)="openEdit(row)" title="Sửa">✏️</button>
-                            <button class="btn btn-danger btn-sm"
-                                (click)="delete(row.id, row.firstName+' '+row.lastName)" title="Xóa">🗑️</button>
+                            <button [class.perm-view-only]="!perm.canUpdate('USER')" [title]="perm.canUpdate('USER') ? 'Sửa' : 'Xem chi tiết'"  class="icon-btn edit-btn" (click)="openEdit(row)" >
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                            </button>
+                            <button [appHasPerm]="'USER:DELETE'" class="icon-btn delete-btn" (click)="delete(row.id, row.firstName+' '+row.lastName)" title="Xóa">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                                    <path d="M10 11v6"/><path d="M14 11v6"/>
+                                    <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                                </svg>
+                            </button>
                         </td>
                     </tr>
                     }
@@ -164,23 +236,47 @@
     </div>
 </div>
 
+<!-- ==================== MODAL TẠO HÀNG LOẠT ==================== -->
+@if (showBulk()) {
+<app-user-bulk-create [roleOptions]="roleOptions()" (saved)="onBulkSaved()" (closed)="closeBulk()"></app-user-bulk-create>
+}
+
 <!-- ==================== MODAL ==================== -->
 @if (showModal()) {
 <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal-box wide" (click)="$event.stopPropagation()">
         <div class="modal-header">
-            <h3>{{ isEdit() ? '✏️ Cập nhật người dùng' : '➕ Thêm người dùng mới' }}</h3>
+            <h3>{{ viewOnly() ? '✏️ Chi tiết người dùng' : isEdit() ? '✏️ Cập nhật người dùng' : '➕ Thêm người dùng mới' }}</h3>
             <button class="modal-close" (click)="closeModal()">✕</button>
         </div>
 
         @if (loadingDetail()) {
         <div class="state-box" style="padding:40px"><span class="spin-lg"></span><span>Đang tải dữ liệu...</span></div>
         } @else {
-        <div class="modal-body">
+        <div [appReadonlyIf]="viewOnly()" class="modal-body">
             <!-- Note: Khi edit chỉ có thể thay đổi trạng thái và vai trò -->
             @if (isEdit()) {
             <div class="edit-note">
                 ℹ️ Chế độ cập nhật: chỉ có thể thay đổi <strong>trạng thái</strong> và <strong>vai trò</strong>
+            </div>
+            }
+
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Tên đăng nhập *</label>
+                    <input class="form-control" [ngModel]="form().username"
+                        (ngModelChange)="setField('username',$event)" [disabled]="isEdit()" placeholder="vd: nguyenvana" />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email *</label>
+                    <input class="form-control" type="email" [ngModel]="form().email"
+                        (ngModelChange)="setField('email',$event)" [disabled]="isEdit()" placeholder="user@email.com" />
+                </div>
+            </div>
+
+            @if (!isEdit()) {
+            <div class="edit-note">
+                ℹ️ Mật khẩu sẽ được <strong>hệ thống tự tạo và gửi vào email</strong> của người dùng. Người dùng bắt buộc đổi mật khẩu ở lần đăng nhập đầu tiên.
             </div>
             }
 
@@ -199,45 +295,25 @@
 
             <div class="form-row-2">
                 <div class="form-group">
-                    <label class="form-label">Email *</label>
-                    <input class="form-control" type="email" [ngModel]="form().email"
-                        (ngModelChange)="setField('email',$event)" [disabled]="isEdit()" placeholder="user@email.com" />
-                </div>
-                <div class="form-group">
                     <label class="form-label">Số điện thoại</label>
                     <input class="form-control" [ngModel]="form().phoneNumber"
                         (ngModelChange)="setField('phoneNumber',$event)" [disabled]="isEdit()"
                         placeholder="0901234567" />
                 </div>
-            </div>
-
-            <div class="form-row-2">
                 <div class="form-group">
                     <label class="form-label">Giới tính</label>
-                    <select class="form-control" [ngModel]="form().gender" (ngModelChange)="setField('gender',+$event)"
-                        [disabled]="isEdit()">
-                        <option [value]="1">Nam</option>
-                        <option [value]="0">Nữ</option>
-                        <option [value]="2">Khác</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Trạng thái *</label>
-                    <select class="form-control" [ngModel]="form().userStatusId"
-                        (ngModelChange)="setField('userStatusId',+$event)">
-                        <option value="">— Chọn trạng thái —</option>
-                        @for (s of statusOptions(); track s.id) {
-                        <option [value]="s.id">{{ s.name }}</option>
-                        }
-                    </select>
+                    <app-filter-select [options]="genderOptions" [clearable]="false" [disabled]="isEdit()"
+                      [value]="form().gender" (valueChange)="setField('gender', +$event)"></app-filter-select>
                 </div>
             </div>
 
-            @if (!isEdit()) {
-            <div class="form-group">
-                <label class="form-label">Mật khẩu *</label>
-                <input class="form-control" type="password" [ngModel]="form().passwordHash"
-                    (ngModelChange)="setField('passwordHash',$event)" placeholder="••••••••" />
+            @if (isEdit()) {
+            <div class="form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Trạng thái *</label>
+                    <app-filter-select [options]="statusOptions()" allLabel="— Chọn trạng thái —"
+                      [value]="form().userStatusId" (valueChange)="setField('userStatusId', +$event)"></app-filter-select>
+                </div>
             </div>
             }
 
@@ -280,8 +356,8 @@
         </div>
 
         <div class="modal-footer">
-            <button class="btn btn-outline" (click)="closeModal()">Huỷ</button>
-            <button class="btn btn-primary" (click)="save()" [disabled]="saving()">
+            <button class="btn btn-outline" (click)="closeModal()">{{ viewOnly() ? 'Đóng' : 'Huỷ' }}</button>
+            <button [hidden]="viewOnly()" class="btn btn-primary" (click)="save()" [disabled]="saving()">
                 @if (saving()) { <span class="spin-sm"></span> }
                 {{ saving() ? 'Đang lưu...' : (isEdit() ? 'Cập nhật' : 'Thêm mới') }}
             </button>

@@ -16,14 +16,21 @@ import {
 } from '../../models';
 import { ActionService } from '../../services/action.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
+
 @Component({
   selector: 'app-action',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './action.component.html',
   styleUrl: './action.component.css',
 })
 export class ActionComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('ACTIONS'));
   private actionService = inject(ActionService);
   private queryClient = injectQueryClient();
 
@@ -42,7 +49,7 @@ export class ActionComponent {
   showModal = signal(false);
   editItem = signal<ActionAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', description: '' });
+  form = signal<any>({ code: '', name: '', description: '' });
 
   private readonly colMap: Record<string, number> = {
     name: 1,
@@ -109,7 +116,7 @@ export class ActionComponent {
     if (d && d !== this._prevDetailData) {
       this._prevDetailData = d;
       const detail: ActionDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) this.form.set({ name: detail.name, description: detail.description || '' });
+      if (detail) this.form.set({ code: detail.code || '', name: detail.name, description: detail.description || '' });
     }
     return true;
   }
@@ -123,12 +130,12 @@ export class ActionComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Thêm mới thành công!');
+        this.showAlert('Thêm mới thành công!');
       } else {
-        this.showToast(res.message || 'Thêm thất bại', false);
+        this.showAlert(res.message || 'Thêm thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -138,12 +145,12 @@ export class ActionComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Cập nhật thành công!');
+        this.showAlert('Cập nhật thành công!');
       } else {
-        this.showToast(res.message || 'Cập nhật thất bại', false);
+        this.showAlert(res.message || 'Cập nhật thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi hệ thống', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -152,12 +159,12 @@ export class ActionComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['actions'] });
-        this.showToast('Đã xóa thành công!');
+        this.showAlert('Đã xóa thành công!');
       } else {
-        this.showToast(res.message || 'Xóa thất bại', false);
+        this.showAlert(res.message || 'Xóa thất bại', false);
       }
     },
-    onError: (err: any) => this.showToast(err?.error?.message || 'Lỗi xóa hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.error?.message || 'Lỗi xóa hệ thống', false),
   }));
 
   saving = computed(
@@ -198,13 +205,13 @@ export class ActionComponent {
   openCreate(): void {
     this.editItem.set(null);
     this._prevDetailData = null;
-    this.form.set({ name: '', description: '' });
+    this.form.set({ code: '', name: '', description: '' });
     this.showModal.set(true);
   }
   openEdit(row: ActionAdvancedRow): void {
     this._prevDetailData = null;
     this.editItem.set(row);
-    this.form.set({ name: row.name, description: row.description || '' });
+    this.form.set({ code: row.code || '', name: row.name, description: row.description || '' });
     this.showModal.set(true);
   }
   closeModal(): void {
@@ -217,23 +224,23 @@ export class ActionComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.name) { this.showToast('Vui lòng điền đầy đủ tên hành động (*)', false); return; }
+    if (!f.name) { this.showAlert('Vui lòng điền đầy đủ tên hành động (*)', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
       title: `Xác nhận ${actionText}`,
       text: `Bạn có chắc chắn muốn ${actionText} hành động này?`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       cancelButtonColor: '#ef4444',
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
-        this.updateMutation.mutate({ id: this.editItem()!.id, name: f.name, description: f.description });
+        this.updateMutation.mutate({ id: this.editItem()!.id, code: f.code, name: f.name, description: f.description });
       } else {
-        this.createMutation.mutate({ name: f.name, description: f.description });
+        this.createMutation.mutate({ code: f.code, name: f.name, description: f.description });
       }
     });
   }
@@ -257,12 +264,12 @@ export class ActionComponent {
     if (this.sortField() !== field) return '⇅';
     return this.sortDir() === 'asc' ? '▲' : '▼';
   }
-  private showToast(msg: string, ok = true): void {
+  private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,
       icon: ok ? 'success' : 'error',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       confirmButtonText: 'Đóng',
       showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
       hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },

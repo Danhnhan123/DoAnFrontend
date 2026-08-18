@@ -16,14 +16,21 @@ import {
 } from '../../models';
 import { UserStatusService } from '../../services/user-status.service';
 
+import { FilterSelectComponent } from '../shared/filter-select.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
+
 @Component({
   selector: 'app-user-status',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent],
   templateUrl: './user-status.component.html',
   styleUrl: './user-status.component.css',
 })
 export class UserStatusComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('USER_STATUS'));
   private userStatusService = inject(UserStatusService);
   private queryClient = injectQueryClient();
 
@@ -42,7 +49,7 @@ export class UserStatusComponent {
   showModal = signal(false);
   editItem = signal<UserStatusAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
-  form = signal<any>({ name: '', color: '#000000', description: '' });
+  form = signal<any>({ code: '', name: '', color: '#000000', description: '' });
 
   private readonly colMap: Record<string, number> = {
     name: 1,
@@ -110,7 +117,7 @@ export class UserStatusComponent {
       this._prevDetailData = d;
       const detail: UserStatusDetailDto = (d as any)?.resources ?? (d as any)?.data;
       if (detail)
-        this.form.set({ name: detail.name, color: detail.color, description: detail.description || '' });
+        this.form.set({ code: detail.code || '', name: detail.name, color: detail.color, description: detail.description || '' });
     }
     return true;
   }
@@ -124,10 +131,10 @@ export class UserStatusComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Thêm mới thành công!');
-      } else this.showToast(res.message || 'Thêm thất bại', false);
+        this.showAlert('Thêm mới thành công!');
+      } else this.showAlert(res.message || 'Thêm thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi hệ thống', false),
   }));
 
   updateMutation = injectMutation(() => ({
@@ -137,10 +144,10 @@ export class UserStatusComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Cập nhật thành công!');
-      } else this.showToast(res.message || 'Cập nhật thất bại', false);
+        this.showAlert('Cập nhật thành công!');
+      } else this.showAlert(res.message || 'Cập nhật thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi hệ thống', false),
   }));
 
   deleteMutation = injectMutation(() => ({
@@ -149,10 +156,10 @@ export class UserStatusComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['user-statuses'] });
-        this.showToast('Đã xóa thành công!');
-      } else this.showToast(res.message || 'Xóa thất bại', false);
+        this.showAlert('Đã xóa thành công!');
+      } else this.showAlert(res.message || 'Xóa thất bại', false);
     },
-    onError: (err: any) => this.showToast(err?.errors?.message || 'Lỗi xóa hệ thống', false),
+    onError: (err: any) => this.showAlert(err?.errors?.message || 'Lỗi xóa hệ thống', false),
   }));
 
   saving = computed(
@@ -193,13 +200,13 @@ export class UserStatusComponent {
   openCreate(): void {
     this.editItem.set(null);
     this._prevDetailData = null;
-    this.form.set({ name: '', color: '#000000', description: '' });
+    this.form.set({ code: '', name: '', color: '#000000', description: '' });
     this.showModal.set(true);
   }
   openEdit(row: UserStatusAdvancedRow): void {
     this._prevDetailData = null;
     this.editItem.set(row);
-    this.form.set({ name: row.name, color: row.color, description: row.description || '' });
+    this.form.set({ code: row.code || '', name: row.name, color: row.color, description: row.description || '' });
     this.showModal.set(true);
   }
   closeModal(): void {
@@ -212,14 +219,14 @@ export class UserStatusComponent {
 
   save(): void {
     const f = this.form();
-    if (!f.name) { this.showToast('Vui lòng điền đầy đủ tên trạng thái người dùng (*)', false); return; }
+    if (!f.name) { this.showAlert('Vui lòng điền đầy đủ tên trạng thái người dùng (*)', false); return; }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
     Swal.fire({
       title: `Xác nhận ${actionText}`,
       text: `Bạn có chắc chắn muốn ${actionText} trạng thái người dùng này?`,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       cancelButtonColor: '#ef4444',
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
@@ -228,12 +235,14 @@ export class UserStatusComponent {
       if (this.isEdit()) {
         this.updateMutation.mutate({
           id: this.editItem()!.id,
+          code: f.code,
           name: f.name,
           color: f.color,
           description: f.description,
         } as UpdateUserStatusDto);
       } else {
         this.createMutation.mutate({
+          code: f.code,
           name: f.name,
           color: f.color,
           description: f.description,
@@ -261,12 +270,12 @@ export class UserStatusComponent {
     if (this.sortField() !== field) return '⇅';
     return this.sortDir() === 'asc' ? '▲' : '▼';
   }
-  private showToast(msg: string, ok = true): void {
+  private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
       text: msg,
       icon: ok ? 'success' : 'error',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
       confirmButtonText: 'Đóng',
       showClass: { popup: 'animate__animated animate__fadeInDown animate__faster' },
       hideClass: { popup: 'animate__animated animate__fadeOutUp animate__faster' },

@@ -1,4 +1,6 @@
-import { Component, signal, inject, computed } from '@angular/core';
+import { Component, signal, inject, computed, effect } from '@angular/core';
+import { PermissionService } from '../../services/permission.service';
+import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { lastValueFrom } from 'rxjs';
@@ -15,17 +17,23 @@ import {
   UpdateUserDto,
   UserStatusDetailDto,
   DataItem,
+  UserStatistics,
 } from '../../models';
 import { UserService } from '../../services/user.service';
+import { FilterSelectComponent } from '../shared/filter-select.component';
+import { UserBulkCreateComponent } from '../user-bulk-create/user-bulk-create.component';
+import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 @Component({
   selector: 'app-user',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [ReadonlyIfDirective, HasPermissionDirective, CommonModule, FormsModule, FilterSelectComponent, UserBulkCreateComponent],
   templateUrl: './user.component.html',
   styleUrl: './user.component.css',
 })
 export class UserComponent {
+  perm = inject(PermissionService);
+  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('USER'));
   private userService = inject(UserService);
   private queryClient = injectQueryClient();
 
@@ -36,7 +44,6 @@ export class UserComponent {
   sortDir = signal<'asc' | 'desc'>('desc');
 
   showFilter = signal(false);
-  filterUsername = signal('');
   filterFullname = signal('');
   filterEmail = signal('');
   filterPhone = signal('');
@@ -46,12 +53,13 @@ export class UserComponent {
   filterDateTo = signal('');
 
   showModal = signal(false);
+  showBulk = signal(false);
   editItem = signal<UserAdvancedRow | null>(null);
   isEdit = computed(() => !!this.editItem());
 
   form = signal<any>({
+    username: '',
     email: '',
-    passwordHash: 'Abc@123456',
     phoneNumber: '',
     gender: 1,
     firstName: '',
@@ -81,7 +89,6 @@ export class UserComponent {
       this.search(),
       this.sortField(),
       this.sortDir(),
-      this.filterUsername(),
       this.filterFullname(),
       this.filterEmail(),
       this.filterPhone(),
@@ -98,7 +105,6 @@ export class UserComponent {
         sortField: this.sortField(),
         sortDir: this.sortDir(),
         colMap: this.colMap,
-        filterUsername: this.filterUsername(),
         filterFullname: this.filterFullname(),
         filterEmail: this.filterEmail(),
         filterPhone: this.filterPhone(),
@@ -121,6 +127,12 @@ export class UserComponent {
     queryFn: () => lastValueFrom(this.userService.getRoles()),
   }));
 
+  // Thống kê tính trên TOÀN BỘ user (không phụ thuộc trang đang xem).
+  statsQuery = injectQuery(() => ({
+    queryKey: ['user-statistics'],
+    queryFn: () => lastValueFrom(this.userService.getUserStatistics()),
+  }));
+
   detailQuery = injectQuery(() => ({
     queryKey: ['user-detail', this.editItem()?.id],
     enabled: !!this.editItem()?.id && this.showModal(),
@@ -141,6 +153,12 @@ export class UserComponent {
   loading = computed(() => this.listQuery.isPending());
   loadingDetail = computed(() => this.detailQuery.isFetching());
 
+  readonly genderOptions = [
+    { id: 1, name: 'Nam' },
+    { id: 0, name: 'Nữ' },
+    { id: 2, name: 'Khác' },
+  ];
+
   statusOptions = computed<UserStatusDetailDto[]>(
     () => (this.statusesQuery.data() as any)?.resources ?? []
   );
@@ -148,29 +166,53 @@ export class UserComponent {
     () => (this.rolesQuery.data() as any)?.resources ?? []
   );
 
-  private _prevDetailData: any = null;
-  get _detailSynced(): boolean {
-    const d = this.detailQuery.data();
-    if (d && d !== this._prevDetailData) {
-      this._prevDetailData = d;
-      const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
-      if (detail) {
-        this.form.set({
-          email: detail.email,
-          passwordHash: '',
-          phoneNumber: detail.phoneNumber || '',
-          gender: detail.gender ?? 1,
-          firstName: detail.firstName,
-          lastName: detail.lastName,
-          userStatusId: detail.userStatus?.id || 0,
-          lockEnabled: detail.lockEnabled || false,
-          lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
-          roles: detail.roles?.map((r: any) => r.id) || [],
-        });
-      }
-    }
-    return true;
+  stats = computed<UserStatistics | null>(
+    () => (this.statsQuery.data() as any)?.resources ?? null
+  );
+
+  /** Tổng người dùng toàn hệ thống (không theo trang). */
+  totalUsersStat = computed<number>(
+    () => this.stats()?.totalUsers ?? this.totalRecords()
+  );
+  activeCount = computed<number>(() => this.stats()?.activeUsers ?? 0);
+
+  /** Cộng số user của các vai trò có tên khớp từ khóa (khớp khi bạn tạo role sau). */
+  private countByRoleKeyword(...keywords: string[]): number {
+    const rc = this.stats()?.roleCounts ?? [];
+    return rc
+      .filter(r => {
+        const name = (r.roleName || '').toLowerCase();
+        return keywords.some(k => name.includes(k));
+      })
+      .reduce((sum, r) => sum + (r.count || 0), 0);
   }
+  managerCount = computed<number>(() =>
+    this.countByRoleKeyword('quản lý kho', 'quản lý', 'manager')
+  );
+  staffCount = computed<number>(() =>
+    this.countByRoleKeyword('nhân viên kho', 'nhân viên', 'staff')
+  );
+
+ private syncDetail = effect(() => {
+  const d = this.detailQuery.data();
+  if (!d || !this.showModal() || !this.isEdit()) return;
+
+  const detail: UserDetailDto = (d as any)?.resources ?? (d as any)?.data;
+  if (!detail) return;
+
+  this.form.set({
+    username: detail.username,
+    email: detail.email,
+    phoneNumber: detail.phoneNumber || '',
+    gender: detail.gender ?? 1,
+    firstName: detail.firstName,
+    lastName: detail.lastName,
+    userStatusId: detail.userStatus?.id || 0,
+    lockEnabled: detail.lockEnabled || false,
+    lockEndDate: detail.lockEndDate ? this.formatDateTimeLocal(detail.lockEndDate) : '',
+    roles: detail.roles?.map((r: any) => r.id) || [],
+  });
+});
 
   // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -181,6 +223,7 @@ export class UserComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Thêm thành công!');
       } else this.showAlert(res.message || 'Lỗi', false);
     },
@@ -194,6 +237,7 @@ export class UserComponent {
       if (res.isSucceeded) {
         this.closeModal();
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Cập nhật thành công!');
       } else this.showAlert(res.message || 'Lỗi', false);
     },
@@ -206,6 +250,7 @@ export class UserComponent {
     onSuccess: (res: any) => {
       if (res.isSucceeded) {
         this.queryClient.invalidateQueries({ queryKey: ['users'] });
+        this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
         this.showAlert('Đã xóa thành công!');
       } else this.showAlert(res.message, false);
     },
@@ -221,7 +266,6 @@ export class UserComponent {
   toggleFilter(): void { this.showFilter.set(!this.showFilter()); }
   applyFilter(): void { this.page.set(1); }
   clearFilter(): void {
-    this.filterUsername.set('');
     this.filterFullname.set('');
     this.filterEmail.set('');
     this.filterPhone.set('');
@@ -252,13 +296,16 @@ export class UserComponent {
     return pages;
   }
 
+  openView(row: UserAdvancedRow): void {
+    this.openEdit(row);
+  }
+
   openCreate(): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(null);
     this.form.set({
+      username: '',
       email: '',
-      passwordHash: 'Abc@123456',
       phoneNumber: '',
       gender: 1,
       firstName: '',
@@ -281,11 +328,10 @@ export class UserComponent {
 
   openEdit(row: UserAdvancedRow): void {
     this.previousStatusId = null;
-    this._prevDetailData = null;
     this.editItem.set(row);
     this.form.set({
+      username: row.username,
       email: row.email,
-      passwordHash: '',
       phoneNumber: '',
       gender: 1,
       firstName: row.firstName,
@@ -301,6 +347,18 @@ export class UserComponent {
   closeModal(): void {
     this.showModal.set(false);
     this.editItem.set(null);
+  }
+
+  openBulk(): void {
+    this.showBulk.set(true);
+  }
+  closeBulk(): void {
+    this.showBulk.set(false);
+  }
+  onBulkSaved(): void {
+    this.showBulk.set(false);
+    this.queryClient.invalidateQueries({ queryKey: ['users'] });
+    this.queryClient.invalidateQueries({ queryKey: ['user-statistics'] });
   }
   setField(f: string, v: any): void {
     this.form.update((x) => ({ ...x, [f]: v }));
@@ -339,8 +397,16 @@ export class UserComponent {
 
   save(): void {
     const f = this.form();
+    if (!this.isEdit() && !f.username) {
+      this.showAlert('Vui lòng nhập tên đăng nhập', false);
+      return;
+    }
     if (!f.email || !f.firstName || !f.lastName) {
       this.showAlert('Vui lòng điền các trường bắt buộc', false);
+      return;
+    }
+    if (!f.roles || f.roles.length === 0) {
+      this.showAlert('Vui lòng chọn ít nhất một vai trò', false);
       return;
     }
     const actionText = this.isEdit() ? 'cập nhật' : 'thêm mới';
@@ -351,7 +417,7 @@ export class UserComponent {
       showCancelButton: true,
       confirmButtonText: 'Đồng ý',
       cancelButtonText: 'Hủy',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     }).then((result) => {
       if (!result.isConfirmed) return;
       if (this.isEdit()) {
@@ -365,12 +431,12 @@ export class UserComponent {
         this.updateMutation.mutate(payload);
       } else {
         const payload: CreateUserDto = {
+          username: f.username,
           firstName: f.firstName,
           lastName: f.lastName,
           email: f.email,
           gender: f.gender,
           phoneNumber: f.phoneNumber,
-          passwordHash: f.password,
           roles: f.roles,
         };
         this.createMutation.mutate(payload);
@@ -405,7 +471,7 @@ export class UserComponent {
       text: msg,
       icon: ok ? 'success' : 'error',
       confirmButtonText: 'Đóng',
-      confirmButtonColor: '#4f46e5',
+      confirmButtonColor: '#15803d',
     });
   }
 }

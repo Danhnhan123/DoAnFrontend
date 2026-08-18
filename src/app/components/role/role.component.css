@@ -51,9 +51,10 @@
   width: 28px;
   height: 28px;
   border: 3px solid var(--border, #e2e8f0);
-  border-top-color: var(--accent, #6366f1);
+  border-top-color: var(--accent, #16a34a);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  will-change: transform;
 }
 .spin-sm {
   display: inline-block;
@@ -63,6 +64,7 @@
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
+  will-change: transform;
 }
 @keyframes spin {
   to {
@@ -91,11 +93,11 @@
   transition: all 0.2s;
 }
 .add-card:hover {
-  border-color: var(--accent, #6366f1) !important;
+  border-color: var(--accent, #16a34a) !important;
   transform: translateY(-2px);
 }
 .add-card:hover .add-icon {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
 }
 .add-icon {
   font-size: 2rem;
@@ -109,7 +111,7 @@
   color: var(--text-secondary, #64748b);
 }
 .add-card:hover .add-label {
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
 }
 
 /* Role card */
@@ -130,7 +132,7 @@
 .role-name {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--accent, #6366f1);
+  color: var(--accent, #16a34a);
   margin-bottom: 6px;
 }
 .role-desc {
@@ -183,8 +185,10 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
+  /* Không dùng backdrop-filter: blur() ở đây vì khi spinner trong nút quay,
+     Chrome không vẽ lại sạch vùng dưới spinner -> để lại "bóng ma" của nút ở
+     trạng thái cũ (hiện 2 lớp button chồng nhau). Dùng nền tối đặc thay thế. */
+  background: rgba(15, 23, 42, 0.62);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -198,6 +202,10 @@
   max-width: 460px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.2s ease;
+  /* Đưa modal lên layer hợp thành riêng để việc quay của spinner không gây
+     lỗi vẽ chồng (ghosting) lên các phần khác. */
+  transform: translateZ(0);
+  isolation: isolate;
 }
 .modal-box.perm-modal {
   max-width: min(1100px, 95vw);
@@ -267,10 +275,33 @@
 .modal-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 8px;
   padding: 14px 24px;
   border-top: 1px solid var(--border, #e2e8f0);
   flex-shrink: 0;
+}
+
+/* Nút trong footer: giữ kích thước ổn định để không bị co/giãn khi đổi
+   trạng thái (text <-> spinner + "Đang lưu..."), tránh chữ và spinner bị chen/cắt. */
+.modal-footer .btn {
+  flex: 0 0 auto;
+  gap: 8px;
+  white-space: nowrap;
+}
+.modal-footer .cancel-btn {
+  min-width: 80px;
+}
+.modal-footer .save-btn {
+  min-width: 124px;
+}
+.modal-footer .btn-label {
+  display: inline-block;
+  line-height: 1;
+}
+.modal-footer .spin-sm {
+  flex: 0 0 auto;
+  box-sizing: border-box;
 }
 
 .form-row-2 {
@@ -331,7 +362,7 @@
   background: var(--bg-tertiary, #eef1f7);
 }
 .perm-table tbody tr.root-perm-row {
-  background: rgba(99, 102, 241, 0.04);
+  background: rgba(22, 163, 74, 0.04);
 }
 .perm-table tbody tr.root-perm-row .menu-name-cell {
   font-weight: 700;
@@ -354,7 +385,7 @@
   width: 15px;
   height: 15px;
   cursor: pointer;
-  accent-color: var(--accent, #6366f1);
+  accent-color: var(--accent, #16a34a);
 }
 .perm-ck:disabled {
   cursor: not-allowed;
@@ -374,7 +405,7 @@
 .check-label input {
   width: 15px;
   height: 15px;
-  accent-color: var(--accent, #6366f1);
+  accent-color: var(--accent, #16a34a);
   cursor: pointer;
 }
 
@@ -382,6 +413,98 @@
   color: var(--text-muted, #94a3b8);
   margin-right: 2px;
   font-size: 0.85em;
+}
+
+/* User page style controls */
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 12px 8px 34px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  color: var(--text-primary, #1e2d4d);
+  background: var(--card-bg, #fff);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--accent, #16a34a);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.08);
+}
+
+.search-input::placeholder {
+  color: var(--text-muted, #94a3b8);
+}
+
+.icon-btn {
+  border: none;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: transparent;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.2s;
+}
+
+.icon-btn:not(.add-btn) {
+  width: 30px;
+  height: 30px;
+}
+
+.icon-btn:not(.add-btn):hover {
+  transform: scale(1.12);
+}
+
+.add-btn {
+  gap: 7px;
+  padding: 8px 16px;
+  background: var(--accent, #16a34a);
+  color: #fff;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.84rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.25);
+}
+
+.add-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.edit-btn {
+  color: #f59e0b;
+}
+
+.edit-btn:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
 }
 
 @media (max-width: 600px) {
@@ -395,4 +518,22 @@
   .role-grid {
     grid-template-columns: 1fr;
   }
+}
+/* === Popup: header + footer cố định, chỉ phần thân (.modal-body) cuộn ===
+   Dùng .modal-backdrop .modal-box (specificity cao) để thắng các rule
+   .modal-box{overflow-y:auto} đặt header/footer cuộn theo nội dung. */
+.modal-backdrop .modal-box {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+}
+.modal-backdrop .modal-header,
+.modal-backdrop .modal-footer {
+  flex-shrink: 0;
+}
+.modal-backdrop .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }

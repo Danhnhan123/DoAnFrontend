@@ -1,0 +1,465 @@
+<section class="lot-page">
+  <header class="hero">
+    <div>
+      <span class="eyebrow">
+        <span class="leaf-mark" aria-hidden="true">⌁</span>
+        Quản lý lô &amp; truy vết
+      </span>
+      <h1>Lô lúa/gạo là đơn vị truy vết chính</h1>
+      <p>
+        Mỗi lô lưu nguồn mua, phiếu mua, ngày nhập, giống, số bao, kg, vị trí
+        khu/cột/lớp, chất lượng và giá vốn để truy ngược từ gạo bán ra về nông
+        dân.
+      </p>
+    </div>
+
+    <a class="primary-btn" routerLink="/admin/rice-purchase">
+      Tạo/cập nhật lô từ phiếu mua
+    </a>
+  </header>
+
+  <div class="kpi-grid" aria-label="Tổng hợp lô">
+    <article class="kpi-card">
+      <span>Tổng lô</span>
+      <strong>{{ fmtNumber(summary().totalLots) }}</strong>
+    </article>
+    <article class="kpi-card">
+      <span>Tồn lúa</span>
+      <strong>{{ fmtTon(summary().totalPaddyKg) }}</strong>
+    </article>
+    <article class="kpi-card">
+      <span>Tồn gạo</span>
+      <strong>{{ fmtTon(summary().totalRiceKg) }}</strong>
+    </article>
+    <article class="kpi-card attention">
+      <span>Lô cần chú ý</span>
+      <strong>{{ fmtNumber(summary().attentionLots) }}</strong>
+    </article>
+  </div>
+
+  <div class="filter-bar">
+    <label class="search-box">
+      <span aria-hidden="true">⌕</span>
+      <input
+        type="search"
+        placeholder="Tìm mã lô, giống, SKU, kho..."
+        [ngModel]="searchInput()"
+        (ngModelChange)="onSearch($event)"
+      />
+    </label>
+
+    <label>
+      <span class="sr-only">Loại lô</span>
+      <app-filter-select
+        [options]="lotTypeOptions"
+        [value]="lotType()"
+        (valueChange)="setLotType($event)"
+        allLabel="Tất cả loại lô"
+        placeholder="Tất cả loại lô"
+      ></app-filter-select>
+    </label>
+
+    <label>
+      <span class="sr-only">Kho</span>
+      <app-filter-select
+        [options]="warehouseOptions()"
+        [value]="warehouseId()"
+        (valueChange)="setWarehouse($event)"
+        allLabel="Tất cả kho"
+        placeholder="Tất cả kho"
+      ></app-filter-select>
+    </label>
+
+    <label>
+      <span class="sr-only">Trạng thái</span>
+      <app-filter-select
+        [options]="statusOptions"
+        [value]="statusId()"
+        (valueChange)="setStatus($event)"
+        allLabel="Tất cả trạng thái"
+        placeholder="Tất cả trạng thái"
+      ></app-filter-select>
+    </label>
+  </div>
+
+  <div class="workspace-grid">
+    <article class="panel list-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Danh sách lô lúa/gạo</h2>
+          <p>{{ fmtNumber(total()) }} lô phù hợp bộ lọc</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sortBy('lotCode')">Mã lô</th>
+              <th>Loại / giống</th>
+              <th>Nguồn</th>
+              <th>Khối lượng</th>
+              <th>Vị trí</th>
+              <th class="sortable" (click)="sortBy('statusId')">Trạng thái</th>
+              <th class="sortable money" (click)="sortBy('costPricePerKg')">
+                Giá vốn
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading()) {
+              @for (item of [1, 2, 3, 4, 5]; track item) {
+                <tr class="skeleton-row">
+                  <td colspan="7"><span></span></td>
+                </tr>
+              }
+            } @else if (errorMessage()) {
+              <tr>
+                <td class="state-cell error-state" colspan="7">
+                  <strong>Không tải được danh sách lô</strong>
+                  <span>{{ errorMessage() }}</span>
+                  <button type="button" (click)="refresh()">Thử lại</button>
+                </td>
+              </tr>
+            } @else if (!rows().length) {
+              <tr>
+                <td class="state-cell" colspan="7">
+                  <strong>Chưa có lô phù hợp</strong>
+                  <span
+                    >Hãy đổi bộ lọc hoặc chốt và nhập kho một phiếu mua
+                    lúa.</span
+                  >
+                </td>
+              </tr>
+            } @else {
+              @for (row of rows(); track row.id) {
+                <tr
+                  class="data-row"
+                  [class.selected]="activeLotId() === row.id"
+                  (click)="selectLot(row.id)"
+                >
+                  <td>
+                    <button class="lot-code" type="button">
+                      {{ row.lotCode }}
+                    </button>
+                    <small>{{ fmtDate(row.inboundDate) }}</small>
+                  </td>
+                  <td>
+                    <span class="type-badge" [ngClass]="typeClass(row.lotType)">
+                      {{ typeLabel(row.lotType) }}
+                    </span>
+                    <strong class="product-name">
+                      {{
+                        row.riceVarietyName ||
+                          row.productVariantName ||
+                          row.sku ||
+                          "—"
+                      }}
+                    </strong>
+                  </td>
+                  <td>
+                    <span>{{ sourceLabel(row) }}</span>
+                    <small>{{
+                      row.warehouseName || "Kho #" + row.warehouseId
+                    }}</small>
+                  </td>
+                  <td>
+                    <strong>{{ fmtWeight(row.remainingWeightKg) }}</strong>
+                    <small>
+                      Ban đầu {{ fmtWeight(row.initialWeightKg) }}
+                    </small>
+                  </td>
+                  <td class="location-cell">
+                    {{ locationLabel(row.locationId) }}
+                  </td>
+                  <td>
+                    <span
+                      class="status-badge"
+                      [style.--status-color]="statusColor(row)"
+                    >
+                      {{ statusLabel(row) }}
+                    </span>
+                    <small
+                      class="quality-label"
+                      [ngClass]="qualityClass(row.qualityStatus)"
+                    >
+                      {{ qualityLabel(row.qualityStatus) }}
+                    </small>
+                  </td>
+                  <td class="money">
+                    <strong>{{ fmtMoney(row.costPricePerKg) }}</strong>
+                    <small>/kg</small>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="pagination">
+        <span>
+          Trang {{ page() }}/{{ totalPages() }} · {{ fmtNumber(total()) }} bản
+          ghi
+        </span>
+        <div class="pagination-controls">
+          <button
+            type="button"
+            aria-label="Trang trước"
+            [disabled]="page() <= 1 || loading()"
+            (click)="setPage(page() - 1)"
+          >
+            ‹
+          </button>
+          <div class="pagination-pages">
+            @for (pageNumber of visiblePages(); track pageNumber) {
+              <button
+                type="button"
+                [class.active]="pageNumber === page()"
+                [attr.aria-current]="pageNumber === page() ? 'page' : undefined"
+                [disabled]="loading()"
+                (click)="setPage(pageNumber)"
+              >
+                {{ pageNumber }}
+              </button>
+            }
+          </div>
+          <button
+            type="button"
+            aria-label="Trang tiếp theo"
+            [disabled]="page() >= totalPages() || loading()"
+            (click)="setPage(page() + 1)"
+          >
+            ›
+          </button>
+          <div class="page-jump">
+            <label for="paddy-lot-page-input">Đến trang</label>
+            <input
+              id="paddy-lot-page-input"
+              type="number"
+              min="1"
+              [max]="totalPages()"
+              [ngModel]="pageInput()"
+              (ngModelChange)="pageInput.set($event)"
+              (keydown.enter)="goToPageInput()"
+              placeholder="#"
+            />
+            <button
+              type="button"
+              [disabled]="!pageInput() || loading()"
+              (click)="goToPageInput()"
+            >
+              Đi
+            </button>
+          </div>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="detail-column">
+      <article class="panel detail-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Chi tiết lô</h2>
+          </div>
+          @if (selectedLot(); as lot) {
+            <div class="qr-actions">
+              <button
+                type="button"
+                [routerLink]="['/admin/qr-labels']"
+                [queryParams]="{ labelType: 'PADDY_LOT', subjectId: lot.id }"
+              >In tem lô</button>
+              <button
+                type="button"
+                [routerLink]="['/admin/qr-labels']"
+                [queryParams]="{ labelType: 'BAG', subjectId: lot.id }"
+              >In tem bao</button>
+            </div>
+          } @else {
+            <span class="view-icon" aria-hidden="true">◉</span>
+          }
+        </div>
+
+        @if (loadingDetail() || loadingTrace()) {
+          <div class="detail-loading">
+            @for (item of [1, 2, 3, 4, 5]; track item) {
+              <span></span>
+            }
+          </div>
+        } @else {
+          @if (selectedLot(); as lot) {
+            <div class="detail-code-row">
+              <div>
+                <small>Mã lô</small>
+                <strong>{{ lot.lotCode }}</strong>
+              </div>
+              <span
+                class="status-badge"
+                [style.--status-color]="statusColor(lot)"
+              >
+                {{ statusLabel(lot) }}
+              </span>
+            </div>
+
+            @if (traceErrorMessage()) {
+              <div class="inline-error">
+                <strong>Chưa tải được dữ liệu truy vết</strong>
+                <span>{{ traceErrorMessage() }}</span>
+                <button type="button" (click)="refresh()">Thử lại</button>
+              </div>
+            } @else {
+              <dl class="detail-list figma-detail-list">
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">♙</span>Nguồn
+                    mua
+                  </dt>
+                  <dd>{{ detailSourceLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">▣</span>Phiếu
+                    tham chiếu
+                  </dt>
+                  <dd>{{ detailReferenceLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">⌾</span>Vị
+                    trí/cột
+                  </dt>
+                  <dd>{{ detailLocationLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">◇</span>Số
+                    lượng
+                  </dt>
+                  <dd>{{ detailQuantityLabel(lot) }}</dd>
+                </div>
+                <div>
+                  <dt>
+                    <span class="detail-icon" aria-hidden="true">▤</span>Chất
+                    lượng
+                  </dt>
+                  <dd [ngClass]="qualityClass(lot.qualityStatus)">
+                    {{ detailQualityLabel(lot) }}
+                  </dd>
+                </div>
+              </dl>
+            }
+          } @else {
+            <div class="empty-detail">
+              <span aria-hidden="true">◎</span>
+              <strong>Chưa chọn lô</strong>
+              <p>Chọn một dòng trong bảng để xem thông tin truy vết.</p>
+            </div>
+          }
+        }
+      </article>
+
+      <article class="panel trace-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Lịch sử luân chuyển</h2>
+          </div>
+        </div>
+
+        @if (selectedLot(); as lot) {
+          @if (loadingTrace()) {
+            <div class="detail-loading trace-loading">
+              @for (item of [1, 2, 3, 4]; track item) {
+                <span></span>
+              }
+            </div>
+          } @else if (traceErrorMessage()) {
+            <div class="empty-detail compact trace-error">
+              <strong>Không tải được lịch sử luân chuyển</strong>
+              <p>{{ traceErrorMessage() }}</p>
+              <button type="button" (click)="refresh()">Thử lại</button>
+            </div>
+          } @else if (traceEvents().length) {
+            <ol class="timeline">
+              @for (
+                event of pagedTraceEvents();
+                track event.referenceType +
+                  "-" +
+                  event.referenceId +
+                  "-" +
+                  event.eventAt
+              ) {
+                <li>
+                  <span
+                    class="timeline-icon"
+                    [ngClass]="traceEventClass(event.eventType)"
+                    aria-hidden="true"
+                    >{{ traceEventGlyph(event.eventType) }}</span
+                  >
+                  <div>
+                    <strong>{{ event.title }}</strong>
+                    <p class="event-description">{{ event.description }}</p>
+                    <p class="event-meta">
+                      {{ fmtDate(event.eventAt, true) }}
+                      @if (event.referenceCode) {
+                        <span>· {{ event.referenceCode }}</span>
+                      }
+                    </p>
+                  </div>
+                </li>
+              }
+            </ol>
+
+            @if (traceEvents().length > tracePageSize) {
+              <nav
+                class="trace-pagination"
+                aria-label="Phân trang lịch sử luân chuyển"
+              >
+                <span>
+                  {{ traceRangeStart() }}–{{ traceRangeEnd() }} /
+                  {{ traceEvents().length }} sự kiện
+                </span>
+                <div>
+                  <button
+                    type="button"
+                    aria-label="Trang lịch sử trước"
+                    [disabled]="traceCurrentPage() <= 1"
+                    (click)="setTracePage(traceCurrentPage() - 1)"
+                  >
+                    ‹
+                  </button>
+                  <strong
+                    >{{ traceCurrentPage() }} / {{ traceTotalPages() }}</strong
+                  >
+                  <button
+                    type="button"
+                    aria-label="Trang lịch sử tiếp theo"
+                    [disabled]="traceCurrentPage() >= traceTotalPages()"
+                    (click)="setTracePage(traceCurrentPage() + 1)"
+                  >
+                    ›
+                  </button>
+                </div>
+              </nav>
+            }
+
+            @if (traceability()?.isTruncated) {
+              <p class="trace-warning">
+                Chuỗi liên kết vượt giới hạn truy vấn; lịch sử đang hiển thị một
+                phần.
+              </p>
+            }
+          } @else {
+            <div class="empty-detail compact">
+              <strong>Chưa có giao dịch</strong>
+              <p>Lô {{ lot.lotCode }} chưa phát sinh dấu mốc truy vết.</p>
+            </div>
+          }
+        } @else {
+          <div class="empty-detail compact">
+            <p>Chọn một lô để xem dấu mốc.</p>
+          </div>
+        }
+      </article>
+    </aside>
+  </div>
+</section>

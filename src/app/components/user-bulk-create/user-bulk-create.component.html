@@ -1,0 +1,102 @@
+<div class="modal-backdrop" (click)="cancel()">
+  <div class="modal-box bulk" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>➕ Tạo người dùng hàng loạt</h3>
+      <button class="modal-close" (click)="cancel()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Import từ file -->
+      <div class="bulk-import">
+        <div class="bi-left">
+          <span class="bi-label">Import từ file:</span>
+          <button class="btn btn-outline sm" type="button" (click)="downloadTemplate('xlsx')">⬇ Mẫu Excel</button>
+          <button class="btn btn-outline sm" type="button" (click)="downloadTemplate('csv')">⬇ Mẫu CSV</button>
+          <label class="btn btn-outline sm file-btn">
+            📎 Chọn file Excel/CSV
+            <input type="file" accept=".xlsx,.xls,.csv" (change)="onFileSelected($event)" hidden />
+          </label>
+          @if (importing()) { <span class="bi-loading">Đang đọc file...</span> }
+        </div>
+        <div class="bi-hint">Tải mẫu về, điền dữ liệu rồi chọn file để nạp vào bảng. Có thể sửa lại trước khi tạo.</div>
+      </div>
+
+      <!-- Vai trò áp cho cả lô -->
+      <div class="batch-roles">
+        <span class="br-label">Vai trò cho cả lô:</span>
+        <div class="br-select">
+          <app-filter-select [options]="roleOptions" [multiple]="true" placeholder="Chọn vai trò"
+            [value]="batchRoles()" (valueChange)="batchRoles.set($event)"></app-filter-select>
+        </div>
+        <button class="btn btn-outline sm" type="button" (click)="applyBatchRolesToAll()">Áp cho tất cả dòng</button>
+      </div>
+
+      @if (generalError()) {
+      <div class="bulk-error">{{ generalError() }}</div>
+      }
+
+      <!-- Bảng nhập -->
+      <div class="bulk-table-wrap">
+        <table class="bulk-table">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th>Tên đăng nhập *</th>
+              <th>Email *</th>
+              <th>Họ *</th>
+              <th>Tên *</th>
+              <th>SĐT</th>
+              <th style="width:90px">Giới tính</th>
+              <th style="width:180px">Vai trò *</th>
+              <th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track $index; let i = $index) {
+            <tr [class.row-error]="rowError(i).length > 0">
+              <td class="idx">{{ i + 1 }}</td>
+              <td><input class="cell-input" [ngModel]="row.username" (ngModelChange)="setCell(i,'username',$event)" placeholder="nguyenvana" /></td>
+              <td><input class="cell-input" type="email" [ngModel]="row.email" (ngModelChange)="setCell(i,'email',$event)" placeholder="email@..." /></td>
+              <td><input class="cell-input" [ngModel]="row.firstName" (ngModelChange)="setCell(i,'firstName',$event)" placeholder="Nguyễn Văn" /></td>
+              <td><input class="cell-input" [ngModel]="row.lastName" (ngModelChange)="setCell(i,'lastName',$event)" placeholder="A" /></td>
+              <td><input class="cell-input" [ngModel]="row.phoneNumber" (ngModelChange)="setCell(i,'phoneNumber',$event)" placeholder="0901234567" /></td>
+              <td>
+                <app-filter-select [clearable]="false" [options]="genderOptions"
+                  [value]="row.gender" (valueChange)="setCell(i,'gender', $event)"></app-filter-select>
+              </td>
+              <td>
+                <app-filter-select [options]="roleOptions" [multiple]="true" placeholder="Vai trò"
+                  [value]="row.roles" (valueChange)="setRowRoles(i, $event)"></app-filter-select>
+              </td>
+              <td class="idx">
+                <button class="row-del" type="button" (click)="removeRow(i)" title="Xóa dòng">✕</button>
+              </td>
+            </tr>
+            @if (rowError(i).length > 0) {
+            <tr class="err-row">
+              <td></td>
+              <td colspan="8">
+                <span class="err-item" *ngFor="let e of rowError(i)">⚠ {{ e }}</span>
+              </td>
+            </tr>
+            }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <button class="btn btn-outline sm add-row" type="button" (click)="addRow()">＋ Thêm dòng</button>
+    </div>
+
+    <div class="modal-footer">
+      <span class="foot-count">Tổng: {{ rows().length }} dòng</span>
+      <div class="foot-actions">
+        <button class="btn btn-outline" type="button" (click)="cancel()">Hủy</button>
+        <button class="btn btn-primary" type="button" (click)="submit()" [disabled]="saving()">
+          @if (saving()) { <span class="spin-sm"></span> }
+          {{ saving() ? 'Đang tạo...' : 'Tạo tất cả' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

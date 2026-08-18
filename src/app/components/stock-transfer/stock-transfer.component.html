@@ -1,0 +1,400 @@
+<div class="transfer-page">
+  <section class="hero">
+    <div class="hero-copy">
+      <span class="feature-chip">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M7 7h11l-3-3m3 3-3 3M17 17H6l3 3m-3-3 3-3" />
+        </svg>
+        Kho nội bộ
+      </span>
+      <h1>Chuyển kho nội bộ</h1>
+      <p>
+        Tạo và xử lý phiếu chuyển giữa các kho theo lô. Tồn nguồn giảm khi xuất
+        chuyển, tồn đích tăng khi xác nhận nhận hàng.
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary create-button" [appHasPerm]="'STOCK_TRANSFERS:CREATE'" (click)="openCreate()">
+      <span>＋</span> Tạo phiếu chuyển
+    </button>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Trạng thái phiếu chuyển">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="activeTab() === tab.key"
+        [class.active]="activeTab() === tab.key"
+        (click)="selectTab(tab.key)"
+      >
+        {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  <section class="kpi-grid">
+    <article class="kpi-card">
+      <span>Phiếu tháng này</span>
+      <strong>{{ summary().transfersThisMonth }}</strong>
+      <small>Nội bộ</small>
+    </article>
+    <article class="kpi-card">
+      <span>Đang chuyển</span>
+      <strong>{{ summary().inTransitCount }}</strong>
+      <small>Chờ nhận hàng</small>
+    </article>
+    <article class="kpi-card">
+      <span>Tổng KL chuyển</span>
+      <strong>{{ formatTon(summary().totalTransferredWeightKg) }}</strong>
+      <small>Theo kg decimal</small>
+    </article>
+  </section>
+
+  <section class="card list-card">
+    <header class="card-header">
+      <div>
+        <h2>Chuyển kho nội bộ</h2>
+        <p>
+          Tab:
+          {{
+            activeTab() === 'ALL'
+              ? 'Tất cả'
+              : activeTab()
+          }}
+        </p>
+      </div>
+      <div class="list-actions">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-4-4"></path>
+          </svg>
+          <input
+            type="search"
+            placeholder="Mã phiếu, kho, SKU, lô…"
+            [ngModel]="searchInput()"
+            (ngModelChange)="onSearch($event)"
+          />
+        </label>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [class.active]="showFilters()"
+          (click)="toggleFilters()"
+        >
+          Bộ lọc
+        </button>
+      </div>
+    </header>
+
+    @if (showFilters()) {
+      <div class="filters">
+        <div class="field">
+          <label>Kho đi</label>
+          <app-filter-select
+            [options]="warehouseOptions()"
+            [value]="fromWarehouseFilter()"
+            allLabel="Tất cả kho đi"
+            (valueChange)="setFromFilter($event)"
+          />
+        </div>
+        <div class="field">
+          <label>Kho đến</label>
+          <app-filter-select
+            [options]="warehouseOptions()"
+            [value]="toWarehouseFilter()"
+            allLabel="Tất cả kho đến"
+            (valueChange)="setToFilter($event)"
+          />
+        </div>
+        <div class="field">
+          <label>Từ ngày</label>
+          <input
+            class="form-control"
+            type="date"
+            [ngModel]="dateFrom()"
+            (ngModelChange)="setDateFrom($event)"
+          />
+        </div>
+        <div class="field">
+          <label>Đến ngày</label>
+          <input
+            class="form-control"
+            type="date"
+            [ngModel]="dateTo()"
+            (ngModelChange)="setDateTo($event)"
+          />
+        </div>
+        <button type="button" class="btn btn-link reset-button" (click)="resetFilters()">
+          Xóa bộ lọc
+        </button>
+      </div>
+    }
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Mã phiếu</th>
+            <th>Kho đi</th>
+            <th>Kho đến</th>
+            <th>Hàng hóa/lô</th>
+            <th class="number">Số dòng</th>
+            <th class="number">Tổng KL</th>
+            <th>Nhận hàng</th>
+            <th>Trạng thái</th>
+            <th>Ngày</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (listLoading() && rows().length === 0) {
+            <tr>
+              <td colspan="9" class="state-cell">
+                <span class="spinner"></span> Đang tải phiếu chuyển kho…
+              </td>
+            </tr>
+          } @else if (rows().length === 0) {
+            <tr>
+              <td colspan="9" class="state-cell">
+                Chưa có phiếu phù hợp với bộ lọc.
+              </td>
+            </tr>
+          } @else {
+            @for (row of rows(); track row.id) {
+              <tr class="data-row" tabindex="0" (click)="openDetail(row.id)" (keydown.enter)="openDetail(row.id)">
+                <td><strong>{{ row.transferCode }}</strong></td>
+                <td>{{ row.fromWarehouseName }}</td>
+                <td>{{ row.toWarehouseName }}</td>
+                <td>
+                  <span>{{ row.itemDisplay || '—' }}</span>
+                  @if (row.itemCount > 1) {
+                    <small class="more-items">+{{ row.itemCount - 1 }} dòng</small>
+                  }
+                </td>
+                <td class="number">{{ row.itemCount }}</td>
+                <td class="number">{{ formatWeight(row.totalWeightKg) }}</td>
+                <td>{{ receivingLabel(row.statusCode) }}</td>
+                <td>
+                  <span class="status-pill" [ngClass]="statusClass(row.statusCode)">
+                    {{ row.statusName }}
+                  </span>
+                </td>
+                <td>{{ formatDate(row.transferDate) }}</td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pager">
+      <span>Hiển thị {{ rows().length }} / {{ total() }} phiếu</span>
+      <div class="pager-actions">
+        <app-filter-select
+          class="page-size"
+          [clearable]="false"
+          [options]="pageSizeOptions"
+          [value]="pageSize()"
+          (valueChange)="changePageSize($event)"
+        />
+        <button type="button" class="icon-button" [disabled]="page() <= 1" (click)="changePage(page() - 1)">
+          ‹
+        </button>
+        <span>Trang {{ page() }} / {{ totalPages() }}</span>
+        <button type="button" class="icon-button" [disabled]="page() >= totalPages()" (click)="changePage(page() + 1)">
+          ›
+        </button>
+      </div>
+    </footer>
+  </section>
+</div>
+
+@if (selectedId() !== null) {
+  <div class="modal-backdrop" (mousedown)="closeDetail()">
+    <section class="modal detail-modal" role="dialog" aria-modal="true" aria-label="Chi tiết phiếu chuyển kho" (mousedown)="$event.stopPropagation()">
+      @if (detailLoading() && !detail()) {
+        <div class="modal-state"><span class="spinner"></span> Đang tải chi tiết…</div>
+      } @else {
+        @if (detail(); as current) {
+        <header class="modal-header">
+          <div>
+            <span class="eyebrow">Phiếu chuyển kho</span>
+            <h2>{{ current.transferCode }}</h2>
+          </div>
+          <button type="button" class="close-button" aria-label="Đóng" (click)="closeDetail()">×</button>
+        </header>
+        <div class="modal-body">
+          <div class="detail-summary">
+            <div>
+              <span>Trạng thái</span>
+              <strong><span class="status-pill" [ngClass]="statusClass(current.statusCode)">{{ current.statusName }}</span></strong>
+            </div>
+            <div><span>Kho đi</span><strong>{{ current.fromWarehouseName }}</strong></div>
+            <div><span>Kho đến</span><strong>{{ current.toWarehouseName }}</strong></div>
+            <div><span>Ngày chuyển</span><strong>{{ formatDate(current.transferDate) }}</strong></div>
+            <div><span>Số dòng</span><strong>{{ current.itemCount }}</strong></div>
+            <div><span>Tổng khối lượng</span><strong>{{ formatWeight(current.totalWeightKg) }}</strong></div>
+          </div>
+
+          @if (current.note) {
+            <div class="note-box"><span>Ghi chú</span><p>{{ current.note }}</p></div>
+          }
+
+          <h3>Hàng hóa chuyển kho</h3>
+          <div class="table-wrap detail-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>SKU / hàng hóa</th>
+                  <th>Lô</th>
+                  <th>Vị trí đi</th>
+                  <th>Vị trí đến</th>
+                  <th class="number">Khối lượng</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of current.items; track item.id) {
+                  <tr>
+                    <td><strong>{{ item.sku || '—' }}</strong><small>{{ item.productVariantName }}</small></td>
+                    <td>{{ item.lotCode || 'Không theo lô' }}</td>
+                    <td>{{ item.fromLocationName || 'Tồn cấp kho nguồn' }}</td>
+                    <td>{{ item.toLocationName || 'Không gán vị trí' }}</td>
+                    <td class="number">{{ formatWeight(item.weightKg) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeDetail()">Đóng</button>
+          @if (current.statusCode === status.DRAFT) {
+            <button type="button" class="btn btn-danger-ghost" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmCancel(current)">Hủy phiếu</button>
+            <button type="button" class="btn btn-secondary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="openEdit(current)">Chỉnh sửa</button>
+            <button type="button" class="btn btn-primary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmDispatch(current)">Xuất chuyển</button>
+          } @else if (current.statusCode === status.IN_TRANSIT) {
+            <button type="button" class="btn btn-primary" [appHasPerm]="'STOCK_TRANSFERS:UPDATE'" [disabled]="actionLoading()" (click)="confirmReceive(current)">Xác nhận nhận hàng</button>
+          }
+        </footer>
+        }
+      }
+    </section>
+  </div>
+}
+
+@if (showFormModal()) {
+  <div class="modal-backdrop" (mousedown)="closeForm()">
+    <section class="modal form-modal" role="dialog" aria-modal="true" aria-label="Phiếu chuyển kho" (mousedown)="$event.stopPropagation()">
+      <header class="modal-header">
+        <div>
+          <span class="eyebrow">{{ editingId() ? 'Cập nhật phiếu nháp' : 'Tạo mới' }}</span>
+          <h2>{{ editingId() ? 'Chỉnh sửa phiếu chuyển kho' : 'Tạo phiếu chuyển kho' }}</h2>
+        </div>
+        <button type="button" class="close-button" aria-label="Đóng" (click)="closeForm()">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field">
+            <label>Kho nguồn <em>*</em></label>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="-- Chọn kho nguồn --"
+              [options]="fromWarehouseSelectOptions()"
+              [value]="form().fromWarehouseId"
+              (valueChange)="setFormWarehouse('fromWarehouseId', $event)"
+            />
+          </div>
+          <div class="field">
+            <label>Kho đích <em>*</em></label>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="-- Chọn kho đích --"
+              [options]="toWarehouseSelectOptions()"
+              [value]="form().toWarehouseId"
+              (valueChange)="setFormWarehouse('toWarehouseId', $event)"
+            />
+          </div>
+          <div class="field">
+            <label>Ngày chuyển <em>*</em></label>
+            <input class="form-control" type="date" [ngModel]="form().transferDate" (ngModelChange)="setFormText('transferDate', $event)" />
+          </div>
+          <div class="field span-two">
+            <label>Ghi chú</label>
+            <textarea class="form-control" rows="2" placeholder="Ghi chú chung của phiếu…" [ngModel]="form().note" (ngModelChange)="setFormText('note', $event)"></textarea>
+          </div>
+        </div>
+
+        <div class="line-picker">
+          <div class="field">
+            <label>Chọn tồn kho nguồn</label>
+            <app-filter-select
+              [clearable]="false"
+              [disabled]="!form().fromWarehouseId || sourceLoading()"
+              [placeholder]="sourceLoading() ? 'Đang tải tồn kho…' : '-- Chọn lô / hàng hóa / vị trí --'"
+              [options]="sourceInventoryOptions()"
+              [value]="selectedInventoryId()"
+              (valueChange)="selectedInventoryId.set($event ?? null)"
+            />
+          </div>
+          <button type="button" class="btn btn-secondary" [disabled]="!selectedInventoryId()" (click)="addInventoryLine()">Thêm dòng</button>
+        </div>
+
+        <div class="table-wrap edit-lines">
+          <table>
+            <thead>
+              <tr>
+                <th>Hàng hóa / lô</th>
+                <th>Vị trí nguồn</th>
+                <th>Vị trí đích <em>*</em></th>
+                <th>Khối lượng (kg) <em>*</em></th>
+                <th>Ghi chú</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (form().items.length === 0) {
+                <tr><td colspan="6" class="state-cell">Chọn tồn kho nguồn và thêm ít nhất một dòng.</td></tr>
+              } @else {
+                @for (line of form().items; track line.clientId; let index = $index) {
+                  <tr>
+                    <td>
+                      <strong>{{ line.lotCode || line.sku }}</strong>
+                      <small>{{ line.productVariantName }}</small>
+                    </td>
+                    <td>{{ line.fromLocationName }}</td>
+                    <td>
+                      <app-filter-select
+                        class="in-cell"
+                        [clearable]="false"
+                        placeholder="-- Chọn vị trí --"
+                        [options]="destinationLocationOptions()"
+                        [value]="line.toLocationId"
+                        (valueChange)="updateLine(index, 'toLocationId', $event)"
+                      />
+                    </td>
+                    <td>
+                      <input class="form-control compact number-input" type="number" min="0.001" step="0.001" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
+                      @if (lineAvailable(line) > 0) {
+                        <small>Khả dụng: {{ formatWeight(lineAvailable(line)) }}</small>
+                      }
+                    </td>
+                    <td>
+                      <input class="form-control compact" type="text" placeholder="Tùy chọn" [ngModel]="line.note" (ngModelChange)="updateLine(index, 'note', $event)" />
+                    </td>
+                    <td><button type="button" class="remove-button" aria-label="Xóa dòng" (click)="removeLine(index)">×</button></td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" [disabled]="saving()" (click)="closeForm()">Quay lại</button>
+        <button type="button" class="btn btn-primary" [appHasPerm]="editingId() ? 'STOCK_TRANSFERS:UPDATE' : 'STOCK_TRANSFERS:CREATE'" [disabled]="saving()" (click)="saveForm()">
+          {{ saving() ? 'Đang lưu…' : editingId() ? 'Lưu thay đổi' : 'Tạo phiếu nháp' }}
+        </button>
+      </footer>
+    </section>
+  </div>
+}

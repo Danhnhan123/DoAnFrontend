@@ -1,75 +1,131 @@
-<div class="login-shell" [class.dark]="isDark()">
-
-    <!-- Theme toggle top right -->
-    <button class="theme-btn" (click)="themeService.toggle()" title="Đổi giao diện">
-      {{ isDark() ? '☀️' : '🌙' }}
-    </button>
-  
-    <div class="login-card">
-      <div class="login-brand">
-        <div class="brand-icon">⚡</div>
-        <h1 class="brand-name">AdminPanel</h1>
-        <p class="brand-sub">Hệ thống quản trị</p>
+<div class="login-page">
+  <!-- Left branding panel -->
+  <aside class="brand-panel" aria-hidden="true">
+    <header class="brand-top">
+      <div class="brand-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+          <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+        </svg>
       </div>
-  
-      <form class="login-form" (ngSubmit)="submit()">
+      <div class="brand-title">
+        <span class="brand-name">Tuấn Mây</span>
+        <span class="brand-tagline">Quản lý chuỗi cung ứng lúa gạo</span>
+      </div>
+    </header>
+
+    <div class="brand-hero">
+      <h1 class="hero-heading">Từ đồng ruộng<br />đến tay khách hàng</h1>
+      <p class="hero-desc">
+        Quản lý toàn bộ chuỗi: thu mua lúa, tồn kho, bán hàng và công nợ — tất cả trong một nền tảng.
+      </p>
+      <div class="hero-tags">
+        <span class="tag">Thu mua lúa</span>
+        <span class="tag">Tồn kho lúa gạo</span>
+        <span class="tag">Bán trực tiếp</span>
+        <span class="tag">IoT cân điện tử</span>
+        <span class="tag">Công nợ 2 chiều</span>
+      </div>
+    </div>
+
+    <p class="brand-copy">© 2026 Cơ sở Kinh doanh Tuấn Mây · Phiên bản 1.0 MVP</p>
+  </aside>
+
+  <!-- Right form panel -->
+  <main class="form-panel">
+    <div class="form-wrap">
+      <h2 class="form-title">Đăng nhập</h2>
+      <p class="form-subtitle">Nhập thông tin tài khoản của bạn để tiếp tục</p>
+
+      <form class="login-card" (ngSubmit)="submit()">
         @if (errorMsg()) {
-          <div class="error-banner">
-            <span>⚠️</span> {{ errorMsg() }}
-          </div>
+        <div class="error-banner">
+          <span>{{ errorMsg() }}</span>
+        </div>
         }
-  
+
         <div class="field">
-          <label class="field-label">Tên đăng nhập</label>
+          <label class="field-label" for="login-email">Email / Tên đăng nhập</label>
           <div class="field-wrap">
-            <span class="field-icon">👤</span>
-            <input class="field-input"
+            <span class="field-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+            </span>
+            <input
+              id="login-email"
+              class="field-input"
               type="text"
-              placeholder="Nhập tên đăng nhập"
+              placeholder="chukhoa@tuanmay.vn"
               [ngModel]="username()"
               (ngModelChange)="username.set($event)"
               name="username"
               autocomplete="username"
-              [disabled]="loading()" />
+              [disabled]="loading()"
+            />
           </div>
         </div>
-  
+
         <div class="field">
-          <label class="field-label">Mật khẩu</label>
+          <label class="field-label" for="login-password">Mật khẩu</label>
           <div class="field-wrap">
-            <span class="field-icon">🔒</span>
-            <input class="field-input"
+            <span class="field-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <input
+              id="login-password"
+              class="field-input has-trailing"
               [type]="showPass() ? 'text' : 'password'"
-              placeholder="Nhập mật khẩu"
+              placeholder="••••••••"
               [ngModel]="password()"
               (ngModelChange)="password.set($event)"
               name="password"
               autocomplete="current-password"
-              [disabled]="loading()" />
-            <button type="button" class="show-pass" (click)="togglePass()">
-              {{ showPass() ? '🙈' : '👁️' }}
+              [disabled]="loading()"
+            />
+            <button
+              type="button"
+              class="pass-toggle"
+              (click)="togglePass()"
+              [attr.aria-label]="showPass() ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'"
+            >
+              @if (showPass()) {
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                <line x1="2" x2="22" y1="2" y2="22" />
+              </svg>
+              } @else {
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              }
             </button>
           </div>
         </div>
-  
+
+        <a class="forgot-link" href="javascript:void(0)" (click)="router.navigate(['/quen-mat-khau'])">Quên mật khẩu?</a>
+
         <button type="submit" class="login-btn" [disabled]="loading()">
           @if (loading()) {
-            <span class="spinner"></span>
-            Đang đăng nhập...
+          <span class="spinner"></span>
+          <span>Đang đăng nhập...</span>
           } @else {
-            <span>Đăng nhập</span> →
+          <span>Đăng nhập</span>
           }
         </button>
       </form>
-  
-      <p class="login-footer">
-        © 2025 AdminPanel — Hệ thống quản trị nội bộ
-      </p>
     </div>
-  
-    <div class="login-bg">
-      <div class="bg-orb orb1"></div>
-      <div class="bg-orb orb2"></div>
-      <div class="bg-orb orb3"></div>
-    </div>
-  </div>
+  </main>
+</div>

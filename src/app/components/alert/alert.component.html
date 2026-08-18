@@ -1,0 +1,203 @@
+<div class="alert-page page-wrapper">
+
+  <!-- ═══════════════ TRẠNG THÁI: LỖI ═══════════════ -->
+  @if (isError()) {
+  <div class="card state-card">
+    <span class="state-ic red">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+      </svg>
+    </span>
+    <h3 class="state-title">Không tải được danh sách cảnh báo</h3>
+    <p class="state-desc">Lỗi kết nối. Thử lại.</p>
+    <button class="btn-retry" type="button" (click)="retry()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+      </svg>
+      Thử lại
+    </button>
+  </div>
+
+  <!-- ═══════════════ TRẠNG THÁI: ĐANG TẢI ═══════════════ -->
+  } @else if (loading()) {
+  <div class="stat-row">
+    @for (i of [1,2,3,4]; track i) {
+    <div class="stat-box sk"></div>
+    }
+  </div>
+  <div class="card list-block">
+    <div class="sk-line big"></div>
+    @for (i of [1,2,3,4,5,6]; track i) {
+    <div class="sk-line"></div>
+    }
+  </div>
+
+  <!-- ═══════════════ TRẠNG THÁI: CÓ DỮ LIỆU ═══════════════ -->
+  } @else {
+
+  @if (allHandled()) {
+  <div class="banner-ok">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+    <span>Tất cả cảnh báo đã được đọc và xử lý.</span>
+  </div>
+  }
+
+  <!-- 4 thẻ KPI -->
+  <div class="stat-row">
+    <div class="stat-box sc-critical">
+      <span class="sc-num">{{ summary().openCritical }}</span>
+      <div class="sc-text"><span class="sc-label">Nghiêm trọng</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-warning">
+      <span class="sc-num">{{ summary().openWarning }}</span>
+      <div class="sc-text"><span class="sc-label">Cảnh báo</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-info">
+      <span class="sc-num">{{ summary().openInfo }}</span>
+      <div class="sc-text"><span class="sc-label">Thông tin</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+    <div class="stat-box sc-resolved">
+      <span class="sc-num">{{ summary().totalResolved }}</span>
+      <div class="sc-text"><span class="sc-label">Đã xử lý</span><span class="sc-sub">cảnh báo</span></div>
+    </div>
+  </div>
+
+  <!-- ─────────── TRẠNG THÁI: KHÔNG CÓ CẢNH BÁO ─────────── -->
+  @if (isEmpty()) {
+  <div class="card state-card">
+    <span class="state-ic green">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+    </span>
+    <h3 class="state-title">Không có cảnh báo nào đang hoạt động</h3>
+    <p class="state-desc">Hệ thống đang hoạt động bình thường. Không có tồn kho thấp hoặc sự kiện bất thường.</p>
+  </div>
+
+  <!-- ─────────── CÓ CẢNH BÁO: QUY TẮC + DANH SÁCH ─────────── -->
+  } @else {
+
+  <!-- Quy tắc cảnh báo -->
+  <div class="card rules-card">
+    <div class="card-head">
+      <h3 class="card-title">Quy tắc cảnh báo</h3>
+      <button class="link-btn" type="button" [appHasPerm]="'ALERTS:CREATE'" (click)="goAddRule()">Thêm quy tắc</button>
+    </div>
+    <div class="rules-grid">
+      @for (rule of rules(); track rule.code) {
+      <div class="rule-tile">
+        <span class="rule-icon rk-{{ ruleIcon(rule.code) }}">
+          @switch (ruleIcon(rule.code)) {
+          @case ('warehouse') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          }
+          @case ('expiry') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          }
+          @default {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6" /><polyline points="17 18 23 18 23 12" />
+          </svg>
+          }
+          }
+        </span>
+        <div class="rule-text">
+          <span class="rule-title">{{ rule.title }}</span>
+          <span class="rule-desc">{{ rule.description }}</span>
+        </div>
+        <button class="switch" type="button" role="switch" [appHasPerm]="'ALERTS:UPDATE'" [class.on]="rule.enabled"
+          [attr.aria-checked]="rule.enabled" (click)="toggleRule(rule)">
+          <span class="knob"></span>
+        </button>
+      </div>
+      }
+    </div>
+  </div>
+
+  <!-- Danh sách cảnh báo -->
+  <div class="card list-card">
+    <div class="card-head">
+      <h3 class="card-title">Danh sách cảnh báo</h3>
+      <button class="link-btn" type="button" [appHasPerm]="'ALERTS:UPDATE'" (click)="markAllRead()"
+        [disabled]="summary().totalOpen === 0 || markAllReadMutation.isPending()">
+        Đánh dấu tất cả đã đọc
+      </button>
+    </div>
+
+    <div class="alert-list">
+      @for (row of rows(); track row.id) {
+      <div class="alert-item" [class.row-critical]="row.severity === 'CRITICAL' && isUnread(row)"
+        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)" [appHasPerm]="'ALERTS:UPDATE'" (click)="markRead(row)">
+        <span class="ai-icon {{ iconClass(row) }}">
+          @switch (iconKind(row)) {
+          @case ('alert') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          }
+          @case ('bell') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          }
+          @case ('box') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+          }
+          @case ('check') {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          }
+          @default {
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+          }
+          }
+        </span>
+
+        <div class="ai-body">
+          <div class="ai-top">
+            <span class="ai-badge {{ badgeClass(row) }}">{{ badgeLabel(row) }}</span>
+            @if (isUnread(row)) { <span class="ai-dot" title="Chưa đọc"></span> }
+          </div>
+          <div class="ai-title">{{ alertTitle(row) }}</div>
+          <div class="ai-sub">{{ alertSubtitle(row) }}</div>
+        </div>
+
+        <div class="ai-meta">
+          <span class="ai-time">{{ relativeTime(row.createdDate) }}</span>
+          <button class="ai-x" type="button" [appHasPerm]="'ALERTS:UPDATE'" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
+        </div>
+      </div>
+      }
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <span class="page-total">{{ total() }} cảnh báo</span>
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of visiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
+  </div>
+
+  }
+  }
+</div>

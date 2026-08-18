@@ -1,0 +1,244 @@
+<div class="page-wrapper">
+  <div class="toolbar card">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input class="search-input" placeholder="Tìm mã phiếu, nhà cung cấp, ghi chú..." [ngModel]="search()"
+        (ngModelChange)="search.set($event)" (keydown.enter)="onSearch()" />
+    </div>
+
+    <button class="icon-btn filter-btn" type="button" (click)="toggleFilter()" [class.filter-active]="showFilter()"
+      title="Bộ lọc nâng cao">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+      </svg>
+      Bộ lọc nâng cao
+    </button>
+
+    <app-filter-select class="page-size-select" [clearable]="false"
+      style="width:132px;flex:0 0 auto"
+      [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
+      (valueChange)="setPageSize($event)"></app-filter-select>
+  </div>
+
+  @if (showFilter()) {
+  <div class="filter-panel card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Trạng thái</label>
+        <app-filter-select [options]="statusOptions" allLabel="Tất cả" [value]="filterStatus()"
+          (valueChange)="filterStatus.set($event)"></app-filter-select>
+      </div>
+
+      <div class="form-group">
+        <label>Ngày dự kiến từ</label>
+        <input class="form-control" type="date" [ngModel]="expectedFrom()"
+          (ngModelChange)="expectedFrom.set($event || null)" />
+      </div>
+
+      <div class="form-group">
+        <label>Đến ngày</label>
+        <input class="form-control" type="date" [ngModel]="expectedTo()"
+          (ngModelChange)="expectedTo.set($event || null)" />
+      </div>
+    </div>
+
+    <div class="filter-actions">
+      <button class="btn btn-outline" type="button" (click)="clearFilter()">Xóa lọc</button>
+      <button class="btn btn-primary" type="button" (click)="applyFilter()">Áp dụng lọc</button>
+    </div>
+  </div>
+  }
+
+  <div class="card">
+    @if (loading()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải danh sách...</span></div>
+    } @else if (listQuery.isError()) {
+    <div class="state-box"><span style="font-size:2.5rem">!</span><p>Không thể tải dữ liệu</p></div>
+    } @else if (rows().length === 0) {
+    <div class="state-box"><span style="font-size:2.5rem">□</span><p>Không có phiếu nhập phù hợp</p></div>
+    } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px">STT</th>
+            <th class="sortable" (click)="sort('poCode')">Mã phiếu <span class="sort-icon">{{ sortIcon('poCode') }}</span></th>
+            <th class="sortable" (click)="sort('supplierName')">Nhà cung cấp <span class="sort-icon">{{ sortIcon('supplierName') }}</span></th>
+            <th class="sortable" (click)="sort('warehouseName')">Kho <span class="sort-icon">{{ sortIcon('warehouseName') }}</span></th>
+            <th class="sortable" (click)="sort('inboundOrderStatusName')">Trạng thái <span class="sort-icon">{{ sortIcon('inboundOrderStatusName') }}</span></th>
+            <th class="sortable" (click)="sort('expectedDate')">Ngày dự kiến <span class="sort-icon">{{ sortIcon('expectedDate') }}</span></th>
+            <th class="sortable right" (click)="sort('totalAssetValue')">Tổng giá trị <span class="sort-icon">{{ sortIcon('totalAssetValue') }}</span></th>
+            <th class="sortable" (click)="sort('createdDate')">Ngày tạo <span class="sort-icon">{{ sortIcon('createdDate') }}</span></th>
+            <th style="text-align:right">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (order of rows(); track order.id; let idx = $index) {
+          <tr class="clickable-row" (click)="openDetail(order)">
+            <td class="text-muted" data-label="STT">{{ (page() - 1) * pageSize() + idx + 1 }}</td>
+            <td data-label="Mã phiếu"><span class="role-pill">{{ order.poCode }}</span></td>
+            <td data-label="Nhà cung cấp">{{ order.supplierName || '—' }}</td>
+            <td class="text-muted small" data-label="Kho">{{ order.warehouseName }}</td>
+            <td data-label="Trạng thái">
+              <span class="status-pill" [class]="'status-pill ' + statusClass(order.inboundOrderStatusName)">
+                {{ statusLabel(order.inboundOrderStatusName) }}
+              </span>
+            </td>
+            <td class="text-muted small" data-label="Ngày dự kiến">{{ formatDate(order.expectedDate) }}</td>
+            <td class="right currency" data-label="Tổng giá trị">{{ formatCurrency(order.totalAssetValue) }}</td>
+            <td class="text-muted small" data-label="Ngày tạo">{{ formatDate(order.createdDate) }}</td>
+            <td class="action-cell" data-label="Thao tác">
+              @if (canAct(order)) {
+              @if (!isCreatedByMe(order)) {
+              <button class="action-btn approve" type="button" [disabled]="actionPending()"
+                [appHasPerm]="'INBOUND_ORDERS:APPROVE'" (click)="approve(order); $event.stopPropagation()">Duyệt</button>
+              }
+              <button class="action-btn reject" type="button" [disabled]="actionPending()"
+                [appHasPerm]="'INBOUND_ORDERS:APPROVE'" (click)="reject(order); $event.stopPropagation()">Từ chối</button>
+              <button class="action-btn danger" type="button" [disabled]="actionPending()"
+                (click)="cancel(order); $event.stopPropagation()">Hủy</button>
+              } @else {
+              <button class="action-btn ghost" type="button" (click)="openDetail(order); $event.stopPropagation()">Xem</button>
+              }
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages() > 1) {
+    <div class="pagination">
+      <button class="page-btn" type="button" (click)="setPage(1)" [disabled]="page() === 1">«</button>
+      <button class="page-btn" type="button" (click)="setPage(page() - 1)" [disabled]="page() === 1">‹</button>
+      @if (visiblePages()[0] > 1) { <span class="page-dots">...</span> }
+      @for (p of visiblePages(); track p) {
+      <button class="page-btn" type="button" [class.active]="p === page()" (click)="setPage(p)">{{ p }}</button>
+      }
+      @if ((visiblePages().at(-1) ?? 0) < totalPages()) { <span class="page-dots">...</span> }
+      <button class="page-btn" type="button" (click)="setPage(page() + 1)" [disabled]="page() === totalPages()">›</button>
+      <button class="page-btn" type="button" (click)="setPage(totalPages())" [disabled]="page() === totalPages()">»</button>
+      <span class="page-info">{{ page() }}/{{ totalPages() }}</span>
+    </div>
+    }
+    }
+  </div>
+</div>
+
+@if (showDetail()) {
+<div class="modal-backdrop" (click)="closeDetail()">
+  <div class="modal-box wide" (click)="$event.stopPropagation()">
+    @if (loadingDetail()) {
+    <div class="state-box"><span class="spin-lg"></span><span>Đang tải chi tiết...</span></div>
+    } @else {
+    @if (detail(); as order) {
+    <div class="modal-header">
+      <h3>Chi tiết phiếu nhập — {{ order.poCode }}</h3>
+      <span class="status-pill" [class]="'status-pill ' + statusClass(order.inboundOrderStatusName)">
+        {{ statusLabel(order.inboundOrderStatusName) }}
+      </span>
+      <button class="modal-close" type="button" (click)="closeDetail()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="info-grid">
+        <div class="info-item"><span>Mã phiếu</span><strong>{{ order.poCode }}</strong></div>
+        <div class="info-item"><span>Nhà cung cấp</span><strong>{{ order.supplierName || 'Chưa chọn' }}</strong></div>
+        <div class="info-item"><span>Kho</span><strong>{{ order.warehouseName }}</strong></div>
+        <div class="info-item"><span>Ngày dự kiến</span><strong>{{ formatDate(order.expectedDate) }}</strong></div>
+        <div class="info-item"><span>Ngày tạo</span><strong>{{ formatDate(order.createdDate) }}</strong></div>
+        <div class="info-item"><span>Tổng giá trị</span><strong>{{ formatCurrency(order.totalAssetValue) }}</strong></div>
+        <div class="info-item span-2"><span>Ghi chú</span><strong>{{ order.note || '—' }}</strong></div>
+      </div>
+
+      <div class="section-title">Danh sách sản phẩm</div>
+      <div class="line-table-wrap">
+        <table class="line-table">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Tên sản phẩm</th>
+              <th class="right">SL đặt</th>
+              <th class="right">Đã nhận</th>
+              <th class="right">Đơn giá</th>
+              <th class="right">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of order.items; track item.id) {
+            <tr>
+              <td class="sku">{{ item.sku || '—' }}</td>
+              <td>{{ item.productVariantName || '—' }}</td>
+              <td class="right">{{ item.quantityOrdered }}</td>
+              <td class="right">{{ item.quantityReceived }}</td>
+              <td class="right">{{ formatCurrency(item.unitCostPrice) }}</td>
+              <td class="right strong">{{ formatCurrency(item.quantityOrdered * item.unitCostPrice) }}</td>
+            </tr>
+            } @empty {
+            <tr><td colspan="6" class="text-muted" style="text-align:center">Không có sản phẩm</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-title">Chứng từ nhập kho</div>
+      @if (order.deliveryNote; as dn) {
+      <div class="delivery-note">
+        <div class="dn-image">
+          @if (dn.imageUrl) {
+          <img [src]="dn.imageUrl" alt="Ảnh chứng từ nhập kho" (click)="openImage(dn.imageUrl)"
+            title="Bấm để xem ảnh gốc" />
+          <a class="dn-view-link" [href]="dn.imageUrl" target="_blank" rel="noopener">Xem ảnh gốc ↗</a>
+          } @else {
+          <div class="dn-noimage">Không có ảnh chứng từ</div>
+          }
+        </div>
+        <div class="dn-info">
+          <div class="dn-row"><span>Mã vận đơn</span><strong>{{ dn.trackingCode || '—' }}</strong></div>
+          <div class="dn-row"><span>Đơn vị vận chuyển</span><strong>{{ dn.carrierName || '—' }}</strong></div>
+          <div class="dn-row"><span>Người gửi</span><strong>{{ dn.senderName || '—' }}{{ dn.senderPhone ? ' · ' + dn.senderPhone : '' }}</strong></div>
+          <div class="dn-row"><span>Người nhận</span><strong>{{ dn.receiverName || '—' }}{{ dn.receiverPhone ? ' · ' + dn.receiverPhone : '' }}</strong></div>
+          <div class="dn-row"><span>Khối lượng khai báo</span><strong>{{ dn.declaredWeight != null ? dn.declaredWeight + ' kg' : '—' }}</strong></div>
+          <div class="dn-row"><span>COD</span><strong>{{ dn.codAmount != null ? formatCurrency(dn.codAmount) : '—' }}</strong></div>
+          <div class="dn-row"><span>Trạng thái</span>
+            <strong [class.dn-confirmed]="dn.isConfirmed">{{ dn.isConfirmed ? 'Đã xác nhận' : 'Chưa xác nhận' }}</strong>
+          </div>
+          @if (dn.rawOcrText) {
+          <div class="dn-ocr"><span>Nội dung OCR</span><pre>{{ dn.rawOcrText }}</pre></div>
+          }
+        </div>
+      </div>
+      } @else {
+      <p class="dn-empty-text">Phiếu nhập chưa có chứng từ giao hàng.</p>
+      }
+    </div>
+
+    <div class="modal-footer">
+      <div class="total-box">
+        <span>Tổng cộng</span>
+        <strong>{{ formatCurrency(order.totalAssetValue) }}</strong>
+      </div>
+      <button class="btn btn-outline" type="button" (click)="closeDetail()">Đóng</button>
+      @if (canAct(order)) {
+      <button class="btn btn-outline danger-outline" type="button" [disabled]="actionPending()"
+        (click)="cancel(order)">Hủy phiếu</button>
+      <button class="btn btn-outline danger-outline" type="button" [disabled]="actionPending()"
+        [appHasPerm]="'INBOUND_ORDERS:APPROVE'" (click)="reject(order)">Từ chối</button>
+      @if (!isCreatedByMe(order)) {
+      <button class="btn btn-primary" type="button" [disabled]="actionPending()"
+        [appHasPerm]="'INBOUND_ORDERS:APPROVE'" (click)="approve(order)">Duyệt phiếu</button>
+      }
+      }
+    </div>
+    } @else {
+    <div class="state-box">Không tìm thấy chi tiết phiếu nhập.</div>
+    }
+    }
+  </div>
+</div>
+}

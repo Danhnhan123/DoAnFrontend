@@ -1,0 +1,60 @@
+import { DTParameters } from './search';
+
+/**
+ * Một dòng Phiếu kiểm định chất lượng lô lúa/gạo.
+ * Khớp QualityInspectionDetailDto của backend.
+ */
+export interface QualityInspectionRow {
+  id: number;
+  paddyLotId: number;
+  lotCode?: string | null;
+  /** Code trạng thái lô. 'AWAITING_QC' = phiếu kiểm định nháp (chờ nhập kết quả). */
+  lotStatusCode?: string | null;
+  inspectorId?: number | null;
+  inspectorName?: string | null;
+  inspectedAt: string;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  passedInspection: boolean;
+  handling?: string | null;
+  note?: string | null;
+  /** Kg bị ảnh hưởng — khi Không đạt sẽ tách phần này sang lô cách ly. */
+  affectedWeightKg?: number | null;
+  createdDate: string;
+  lastModifiedDate?: string | null;
+  displayRole?: 'splitPassed' | 'splitQuarantine';
+  sourceInspectionId?: number;
+  /** Khối lượng của phần được trình bày sau khi tách (đạt hoặc cách ly). */
+  displayWeightKg?: number | null;
+  /** Tổng khối lượng lịch sử của lô ngay trước khi tách. */
+  displayTotalWeightKg?: number | null;
+}
+
+export interface QualityInspectionDetailDto extends QualityInspectionRow {}
+
+export interface CreateQualityInspectionDto {
+  paddyLotId: number;
+  inspectorId?: number | null;
+  inspectedAt: string;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  passedInspection: boolean;
+  handling?: string | null;
+  note?: string | null;
+  /** Kg bị ảnh hưởng (tách một phần sang cách ly). Bỏ trống = cách ly toàn bộ lô. */
+  affectedWeightKg?: number | null;
+  affectedBagIds?: number[];
+}
+
+export interface UpdateQualityInspectionDto extends CreateQualityInspectionDto {
+  id: number;
+}
+
+/** Body DataTables của POST /quality-inspections/paged-advanced. */
+export interface QualityInspectionPagedRequest extends DTParameters {}

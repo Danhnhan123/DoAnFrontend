@@ -1,0 +1,1072 @@
+<section class="rice-purchase-page">
+  <div class="purchase-toolbar">
+    <div
+      class="purchase-tabs"
+      role="tablist"
+      aria-label="Lịch và phiếu mua lúa"
+    >
+      <button
+        type="button"
+        class="purchase-tab"
+        [class.active]="activeTab() === 'schedule'"
+        (click)="switchTab('schedule')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+          <path d="M16 3v4M8 3v4M3 10h18"></path>
+        </svg>
+        <span>Lịch thu mua</span>
+        <span class="tab-count">{{ scheduleTotal() }}</span>
+      </button>
+
+      <button
+        type="button"
+        class="purchase-tab"
+        [class.active]="activeTab() === 'receipt'"
+        (click)="switchTab('receipt')"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
+          <path d="M9 8h6M9 12h6"></path>
+        </svg>
+        <span>Phiếu mua lúa</span>
+        <span class="tab-count">{{ receiptTotal() }}</span>
+      </button>
+    </div>
+
+    @if (activeTab() === "schedule") {
+      <button
+        type="button"
+        class="primary-action"
+        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateSchedule()"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+        >
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        Tạo lịch thu mua
+      </button>
+    } @else {
+      <button
+        type="button"
+        class="primary-action"
+        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt()"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+        >
+          <path d="M12 5v14M5 12h14"></path>
+        </svg>
+        Tạo phiếu mua
+      </button>
+    }
+  </div>
+
+  @if (activeTab() === "schedule") {
+    <div class="search-row">
+      <label class="search-box">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          type="search"
+          [ngModel]="scheduleSearch()"
+          (ngModelChange)="onScheduleSearch($event)"
+          placeholder="Tìm mã lịch, nông dân, khu vực..."
+          aria-label="Tìm lịch thu mua"
+        />
+      </label>
+    </div>
+
+    <div class="data-card">
+      <div class="table-scroll">
+        <table class="purchase-table schedule-table">
+          <thead>
+            <tr>
+              <th>Mã lịch</th>
+              <th>Nông dân</th>
+              <th>Giống lúa</th>
+              <th>Dự kiến</th>
+              <th>Ngày hẹn</th>
+              <th>Trạng thái</th>
+              <th class="text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loadingSchedules()) {
+              @for (_ of [1, 2, 3, 4, 5]; track _) {
+                <tr class="skeleton-row">
+                  @for (__ of [1, 2, 3, 4, 5, 6, 7]; track __) {
+                    <td><span class="skeleton-line"></span></td>
+                  }
+                </tr>
+              }
+            } @else if (scheduleRows().length === 0) {
+              <tr>
+                <td colspan="7">
+                  <div class="empty-state">
+                    <svg
+                      width="38"
+                      height="38"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    >
+                      <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+                      <path d="M16 3v4M8 3v4M3 10h18"></path>
+                    </svg>
+                    <strong>Chưa có lịch thu mua</strong>
+                    <span
+                      >Tạo lịch mới để hẹn ngày đến thu lúa từ nông dân.</span
+                    >
+                  </div>
+                </td>
+              </tr>
+            } @else {
+              @for (row of scheduleRows(); track row.id) {
+                <tr
+                  [class.stocked-row]="isScheduleStocked(row)"
+                  [class.cancelled-row]="isScheduleCancelledRow(row)"
+                >
+                  <td>
+                    <button
+                      type="button"
+                      class="code-link"
+                      [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditSchedule(row)"
+                    >
+                      {{ row.scheduleCode }}
+                    </button>
+                    @if (isScheduleStocked(row)) {
+                      <span
+                        class="confirmed-mark schedule-stocked-mark"
+                        title="Lịch đã nhập kho"
+                        >✓</span
+                      >
+                    }
+                  </td>
+                  <td>
+                    <div class="person-cell">
+                      <strong>{{ row.farmerName || "Chưa rõ" }}</strong>
+                      <span>
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z"
+                          ></path>
+                        </svg>
+                        {{ farmerPhone(row.farmerId) }}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="variety-badge">
+                      {{
+                        row.riceVarietyName ||
+                          riceVarietyName(row.riceVarietyId)
+                      }}
+                    </span>
+                  </td>
+                  <td class="weight-cell">
+                    {{ formatTonFromKg(row.estimatedQtyKg) }}
+                    @if ((row.receiptCount || 0) > 0) {
+                      <span
+                        class="receipt-progress"
+                        [class.is-full]="isScheduleFullyReceipted(row)"
+                        [title]="
+                          'Đã lập ' +
+                          row.receiptCount +
+                          ' phiếu · ' +
+                          formatTonFromKg(row.receiptedWeightKg)
+                        "
+                      >
+                        {{ row.receiptCount }} phiếu ·
+                        {{ formatTonFromKg(row.receiptedWeightKg) }}
+                      </span>
+                    }
+                  </td>
+                  <td>{{ formatDateTime(row.scheduleDate) }}</td>
+                  <td>
+                    <button
+                      type="button"
+                      class="status-badge"
+                      [class]="'status-badge ' + statusClass(row.statusId)"
+                      [disabled]="
+                        !nextStatus(row.statusId) ||
+                        updatingScheduleId() === row.id
+                      "
+                      [title]="
+                        nextStatus(row.statusId)
+                          ? 'Chuyển tiếp sang ' + nextStatus(row.statusId)?.name
+                          : statusOf(row.statusId).name
+                      "
+                      [appHasPerm]="'RICE_PURCHASE:UPDATE'" (click)="advanceSchedule(row)"
+                    >
+                      @if (updatingScheduleId() === row.id) {
+                        <span class="mini-spinner"></span>
+                      } @else {
+                        <span class="status-dot"></span>
+                      }
+                      {{ statusOf(row.statusId).name }}
+                    </button>
+                  </td>
+                  <td>
+                    <div class="action-cell">
+                      <button
+                        type="button"
+                        class="icon-action view"
+                        title="Xem và sửa lịch"
+                        [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditSchedule(row)"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
+                          ></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        class="icon-action receipt"
+                        [title]="
+                          canCreateReceiptFor(row)
+                            ? 'Tạo phiếu mua từ lịch này'
+                            : scheduleBlockedReason(row)
+                        "
+                        [disabled]="!canCreateReceiptFor(row)"
+                        [appHasPerm]="'RICE_PURCHASE:CREATE'" (click)="openCreateReceipt(row)"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
+                          <path d="M9 8h6M9 12h6"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (scheduleTotalPages() > 1) {
+        <div class="pagination-bar">
+          <span>Trang {{ schedulePage() }} / {{ scheduleTotalPages() }}</span>
+          <div class="pagination-actions">
+            <button
+              type="button"
+              [disabled]="schedulePage() <= 1"
+              (click)="setSchedulePage(schedulePage() - 1)"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              [disabled]="schedulePage() >= scheduleTotalPages()"
+              (click)="setSchedulePage(schedulePage() + 1)"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="summary-grid">
+      <article class="summary-card green">
+        <span>Tổng mua tuần</span>
+        <strong>{{ formatTonFromKg(totalPurchaseThisWeekKg()) }}</strong>
+      </article>
+      <article class="summary-card orange">
+        <span>Giá trung bình</span>
+        <strong>{{ formatPrice(averagePurchasePrice()) }}</strong>
+      </article>
+      <article class="summary-card blue">
+        <span>Chi phí mua</span>
+        <strong>{{ formatCompactMoney(totalPurchaseCost()) }}</strong>
+      </article>
+      <article class="summary-card red">
+        <span>Còn nợ nông dân</span>
+        <strong>{{ formatCompactMoney(totalFarmerDebt()) }}</strong>
+      </article>
+    </div>
+
+    <div class="search-row">
+      <label class="search-box">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8"></circle>
+          <path d="m21 21-4.3-4.3"></path>
+        </svg>
+        <input
+          type="search"
+          [ngModel]="receiptSearch()"
+          (ngModelChange)="onReceiptSearch($event)"
+          placeholder="Tìm mã phiếu, nông dân, giống lúa..."
+          aria-label="Tìm phiếu mua lúa"
+        />
+      </label>
+    </div>
+
+    <div class="data-card">
+      <div class="table-scroll">
+        <table class="purchase-table receipt-table">
+          <thead>
+            <tr>
+              <th>Mã phiếu</th>
+              <th>Nông dân</th>
+              <th>Giống</th>
+              <th>Thực cân</th>
+              <th>Giá</th>
+              <th>Thành tiền</th>
+              <th>Ẩm %</th>
+              <th>CL</th>
+              <th>Đã trả</th>
+              <th>Còn nợ</th>
+              <th>Ngày</th>
+              <th class="text-center">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loadingReceipts()) {
+              @for (_ of [1, 2, 3, 4, 5]; track _) {
+                <tr class="skeleton-row">
+                  @for (
+                    __ of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+                    track __
+                  ) {
+                    <td><span class="skeleton-line"></span></td>
+                  }
+                </tr>
+              }
+            } @else if (receiptRows().length === 0) {
+              <tr>
+                <td colspan="12">
+                  <div class="empty-state">
+                    <svg
+                      width="38"
+                      height="38"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                    >
+                      <path d="M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2Z"></path>
+                      <path d="M9 8h6M9 12h6"></path>
+                    </svg>
+                    <strong>Chưa có phiếu mua lúa</strong>
+                    <span>Tạo phiếu sau khi cân thực tế và chốt giá mua.</span>
+                  </div>
+                </td>
+              </tr>
+            } @else {
+              @for (row of receiptRows(); track row.id) {
+                <tr [class.cancelled-row]="isReceiptCancelled(row)">
+                  <td>
+                    <button
+                      type="button"
+                      class="code-link"
+                      [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditReceipt(row)"
+                    >
+                      {{ row.receiptCode }}
+                    </button>
+                    @if (row.isConfirmed) {
+                      <span class="confirmed-mark" title="Phiếu đã chốt"
+                        >✓</span
+                      >
+                    }
+                  </td>
+                  <td>
+                    <strong>{{ row.farmerName || "Chưa rõ" }}</strong>
+                  </td>
+                  <td>
+                    <span class="variety-badge">{{
+                      row.riceVarietyName || riceVarietyName(row.riceVarietyId)
+                    }}</span>
+                  </td>
+                  <td class="weight-cell">
+                    {{ formatTonFromKg(row.actualWeightKg) }}
+                  </td>
+                  <td>{{ formatPrice(row.agreedPrice) }}</td>
+                  <td class="money-strong">
+                    {{ formatCompactMoney(row.totalAmount) }}
+                  </td>
+                  <td>
+                    <span
+                      class="moisture-badge"
+                      [class]="
+                        'moisture-badge ' +
+                        moistureClass(qualityOf(row).moisturePercent)
+                      "
+                    >
+                      {{
+                        qualityOf(row).moisturePercent != null
+                          ? qualityOf(row).moisturePercent + "%"
+                          : "—"
+                      }}
+                    </span>
+                  </td>
+                  <td>{{ qualityOf(row).grade || "—" }}</td>
+                  <td class="paid-cell">
+                    {{ formatCompactMoney(row.paidAmount) }}
+                  </td>
+                  <td>
+                    @if (row.debtAmount > 0) {
+                      <span class="debt-cell">{{
+                        formatCompactMoney(row.debtAmount)
+                      }}</span>
+                    } @else {
+                      <span class="debt-cleared" title="Đã thanh toán đủ"
+                        >✓</span
+                      >
+                    }
+                  </td>
+                  <td>{{ formatDateTime(row.receiptDate) }}</td>
+                  <td>
+                    <div class="action-cell">
+                      <button
+                        type="button"
+                        class="icon-action view"
+                        title="Xem phiếu"
+                        [class.perm-view-only]="!perm.canUpdate('RICE_PURCHASE')" (click)="openEditReceipt(row)"
+                      >
+                        <svg
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                        >
+                          <path
+                            d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
+                          ></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                      </button>
+                      @if (
+                        !isReceiptCancelled(row) &&
+                        (!row.isConfirmed ||
+                          !row.scheduleId ||
+                          !isReceiptStocked(row))
+                      ) {
+                        <button
+                          type="button"
+                          class="location-action"
+                          [appHasPerm]="'RICE_PURCHASE:UPDATE'"
+                          [title]="
+                            row.isConfirmed
+                              ? 'Mở màn Chất lượng & cách ly'
+                              : 'Chốt phiếu và tạo phiếu kiểm định chất lượng'
+                          "
+                          [disabled]="confirmingReceiptId() === row.id"
+                          (click)="chooseLocationForReceipt(row)"
+                        >
+                          @if (confirmingReceiptId() === row.id) {
+                            <span class="mini-spinner"></span>
+                          } @else {
+                            <svg
+                              width="15"
+                              height="15"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                            >
+                              <path
+                                d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"
+                              ></path>
+                              <circle cx="12" cy="10" r="2.5"></circle>
+                            </svg>
+                            {{
+                              row.isConfirmed
+                                ? "Mở kiểm định"
+                                : "Chốt & tạo phiếu kiểm định"
+                            }}
+                          }
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (receiptTotalPages() > 1) {
+        <div class="pagination-bar">
+          <span>Trang {{ receiptPage() }} / {{ receiptTotalPages() }}</span>
+          <div class="pagination-actions">
+            <button
+              type="button"
+              [disabled]="receiptPage() <= 1"
+              (click)="setReceiptPage(receiptPage() - 1)"
+            >
+              Trước
+            </button>
+            <button
+              type="button"
+              [disabled]="receiptPage() >= receiptTotalPages()"
+              (click)="setReceiptPage(receiptPage() + 1)"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</section>
+
+@if (showScheduleModal()) {
+  <div class="modal-backdrop" (mousedown)="closeScheduleModal()">
+    <section
+      class="purchase-modal schedule-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="schedule-modal-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="schedule-modal-title">
+            {{
+              scheduleViewOnly()
+                ? "Chi tiết lịch thu mua lúa"
+                : editingSchedule()
+                ? "Cập nhật lịch thu mua lúa"
+                : "Tạo lịch thu mua lúa"
+            }}
+          </h2>
+          <p>
+            Dùng để hẹn nông dân, ghi khu vực và sản lượng dự kiến trước khi đi
+            thu mua.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="modal-close"
+          aria-label="Đóng"
+          (click)="closeScheduleModal()"
+        >
+          ×
+        </button>
+      </header>
+
+      @if (isScheduleStocked(editingSchedule())) {
+        <div class="confirmed-banner">
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+          >
+            <path d="M20 6 9 17l-5-5"></path>
+          </svg>
+          Lịch đã nhập kho. Dữ liệu không thể chỉnh sửa.
+        </div>
+      } @else if (isScheduleCancelledRow(editingSchedule())) {
+        <div class="cancelled-banner">
+          Lịch đã hủy. Dữ liệu không thể chỉnh sửa.
+        </div>
+      }
+
+      <div class="modal-body" [appReadonlyIf]="scheduleViewOnly()">
+        <div class="form-grid two-columns">
+          <label class="field-group span-2">
+            <span>Nông dân <b>*</b></span>
+            <app-filter-select
+              [clearable]="false"
+              [searchable]="true"
+              [allowCreate]="perm.canCreate('FARMERS')"
+              createLabel="Thêm nông dân mới"
+              searchPlaceholder="Nhập tên hoặc số điện thoại..."
+              placeholder="Chọn hoặc nhập để tìm nông dân..."
+              [disabled]="scheduleFormLocked() || loadingReference()"
+              [options]="farmerScheduleSelectOptions()"
+              [value]="scheduleForm().farmerId"
+              (valueChange)="setScheduleField('farmerId', $event)"
+              (createRequest)="openQuickFarmer($event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field-group">
+            <span>Số điện thoại</span>
+            <input
+              type="text"
+              [value]="scheduleFarmer()?.phone || ''"
+              placeholder="Tự động theo nông dân"
+              readonly
+            />
+          </label>
+
+          <label class="field-group">
+            <span>Ngày hẹn <b>*</b></span>
+            <input
+              type="datetime-local"
+              step="60"
+              [ngModel]="scheduleForm().scheduleDate"
+              (ngModelChange)="setScheduleField('scheduleDate', $event)"
+              [disabled]="scheduleFormLocked()"
+            />
+          </label>
+
+          <label class="field-group span-2">
+            <span>Khu vực ruộng / Điểm hẹn <b>*</b></span>
+            <input
+              type="text"
+              [ngModel]="scheduleForm().location"
+              (ngModelChange)="setScheduleField('location', $event)"
+              [disabled]="scheduleFormLocked()"
+              placeholder="Ấp, xã, huyện, ghi chú đường vào..."
+            />
+          </label>
+
+          <label class="field-group">
+            <span>Giống lúa</span>
+            <app-filter-select
+              allLabel="Chưa xác định"
+              placeholder="Chưa xác định"
+              [disabled]="scheduleFormLocked()"
+              [options]="varietySelectOptions()"
+              [value]="scheduleForm().riceVarietyId"
+              (valueChange)="setScheduleField('riceVarietyId', $event)"
+            ></app-filter-select>
+          </label>
+
+          <div class="field-group">
+            <span>Sản lượng dự kiến</span>
+            <div class="weight-input-group">
+              <input
+                type="number"
+                min="0"
+                step="any"
+                [ngModel]="scheduleForm().estimatedWeight"
+                (ngModelChange)="setScheduleField('estimatedWeight', $event)"
+                [disabled]="scheduleFormLocked()"
+                placeholder="Nhập khối lượng"
+                aria-label="Sản lượng dự kiến"
+              />
+              <app-filter-select
+                class="unit-select"
+                [clearable]="false"
+                [disabled]="scheduleFormLocked()"
+                [options]="weightUnitSelectOptions"
+                [value]="scheduleForm().estimatedWeightUnit"
+                (valueChange)="setScheduleField('estimatedWeightUnit', $event)"
+              ></app-filter-select>
+            </div>
+          </div>
+
+          <label class="field-group span-2">
+            <span>Ghi chú lịch hẹn</span>
+            <textarea
+              rows="3"
+              [ngModel]="scheduleForm().note"
+              (ngModelChange)="setScheduleField('note', $event)"
+              [disabled]="scheduleFormLocked()"
+              placeholder="Ví dụ: gọi trước 30 phút, xe vào được tới bờ kênh..."
+            ></textarea>
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <div class="footer-danger-zone">
+          @if (editingSchedule() && !scheduleFormLocked()) {
+            <button
+              type="button"
+              class="danger-link"
+              [appHasPerm]="'RICE_PURCHASE:UPDATE'" (click)="cancelSchedule(editingSchedule()!)"
+            >
+              Hủy lịch
+            </button>
+          }
+        </div>
+        <button
+          type="button"
+          class="secondary-button"
+          [disabled]="savingSchedule()"
+          (click)="closeScheduleModal()"
+        >
+          Đóng
+        </button>
+        @if (!scheduleFormLocked()) {
+          <button
+            type="button"
+            class="save-button"
+            [disabled]="savingSchedule()"
+            (click)="saveSchedule()"
+          >
+            @if (savingSchedule()) {
+              <span class="button-spinner"></span>
+              Đang lưu...
+            } @else {
+              {{ editingSchedule() ? "Lưu thay đổi" : "Lưu lịch thu mua" }}
+            }
+          </button>
+        }
+      </footer>
+    </section>
+  </div>
+}
+
+@if (showQuickFarmerModal()) {
+  <div class="modal-backdrop quick-farmer-backdrop" (mousedown)="closeQuickFarmer()">
+    <section
+      class="purchase-modal quick-farmer-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="quick-farmer-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="quick-farmer-title">Thêm nhanh nông dân</h2>
+          <p>Sau khi lưu, nông dân mới sẽ được tự động chọn cho lịch thu mua này.</p>
+        </div>
+        <button type="button" class="modal-close" aria-label="Đóng" (click)="closeQuickFarmer()">×</button>
+      </header>
+
+      <div class="modal-body">
+        <div class="form-grid two-columns">
+          <label class="field-group">
+            <span>Tên nông dân <b>*</b></span>
+            <input type="text" [ngModel]="quickFarmerForm().name" (ngModelChange)="setQuickFarmerField('name', $event)" placeholder="Nhập họ và tên" />
+          </label>
+          <label class="field-group">
+            <span>Số điện thoại <b>*</b></span>
+            <input type="tel" [ngModel]="quickFarmerForm().phone" (ngModelChange)="setQuickFarmerField('phone', $event)" placeholder="Ví dụ: 0912345678" />
+          </label>
+          <label class="field-group">
+            <span>Mã nông dân</span>
+            <!-- Mã tự sinh theo số điện thoại dạng ND-0912345678, không nhập tay (xem quickFarmerCode) -->
+            <input type="text" [value]="quickFarmerCode()" readonly placeholder="Tự sinh từ số điện thoại" />
+          </label>
+          <label class="field-group">
+            <span>Khu vực</span>
+            <input type="text" [ngModel]="quickFarmerForm().region" (ngModelChange)="setQuickFarmerField('region', $event)" placeholder="Xã, huyện, tỉnh" />
+          </label>
+          <label class="field-group span-2">
+            <span>Địa chỉ <b>*</b></span>
+            <input type="text" [ngModel]="quickFarmerForm().address" (ngModelChange)="setQuickFarmerField('address', $event)" placeholder="Nhập địa chỉ chi tiết" />
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer quick-farmer-footer">
+        <button type="button" class="secondary-button" [disabled]="savingQuickFarmer()" (click)="closeQuickFarmer()">Hủy</button>
+        <button type="button" class="save-button" [disabled]="savingQuickFarmer()" (click)="saveQuickFarmer()">
+          @if (savingQuickFarmer()) { <span class="button-spinner"></span> Đang thêm... } @else { Thêm và chọn }
+        </button>
+      </footer>
+    </section>
+  </div>
+}
+
+@if (showReceiptModal()) {
+  <div class="modal-backdrop" (mousedown)="closeReceiptModal()">
+    <section
+      class="purchase-modal receipt-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="receipt-modal-title"
+      (mousedown)="$event.stopPropagation()"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="receipt-modal-title">
+            {{
+              editingReceipt() ? "Chi tiết phiếu mua lúa" : "Tạo phiếu mua lúa"
+            }}
+          </h2>
+          <p>
+            Dùng khi đã cân/nhận lúa thực tế, nhập khối lượng, giá mua, chất
+            lượng và thanh toán.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="modal-close"
+          aria-label="Đóng"
+          (click)="closeReceiptModal()"
+        >
+          ×
+        </button>
+      </header>
+
+      @if (receiptForm().isConfirmed) {
+        <div class="confirmed-banner">
+          <svg
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+          >
+            <path d="M20 6 9 17l-5-5"></path>
+          </svg>
+          Phiếu đã chốt và đã sinh lô. Tồn kho thực tế chỉ tăng khi xác nhận vị
+          trí lưu; dữ liệu phiếu không thể chỉnh sửa.
+        </div>
+      }
+
+      @if (receiptFormCancelled()) {
+        <div class="cancelled-banner">
+          Phiếu liên kết với lịch đã hủy. Dữ liệu không thể chỉnh sửa hoặc chốt
+          kho.
+        </div>
+      }
+
+      <div class="modal-body" [appReadonlyIf]="receiptViewOnly()">
+        <div class="form-grid receipt-form-grid">
+          <label class="field-group span-2">
+            <span>Mã lịch / Nông dân</span>
+            <app-filter-select
+              allLabel="Không gắn lịch — chọn nông dân trực tiếp"
+              placeholder="Không gắn lịch — chọn nông dân trực tiếp"
+              [disabled]="receiptFormLocked()"
+              [options]="scheduleSelectOptions()"
+              [value]="receiptForm().scheduleId"
+              (valueChange)="onReceiptScheduleChange($event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field-group">
+            <span>Ngày mua thực tế <b>*</b></span>
+            <input
+              type="datetime-local"
+              step="60"
+              [ngModel]="receiptForm().receiptDate"
+              (ngModelChange)="setReceiptField('receiptDate', $event)"
+              [disabled]="receiptFormLocked()"
+            />
+          </label>
+
+          <label class="field-group">
+            <span>Nông dân <b>*</b></span>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn nông dân..."
+              [disabled]="receiptFormLocked() || !!receiptForm().scheduleId"
+              [options]="farmerReceiptSelectOptions()"
+              [value]="receiptForm().farmerId"
+              (valueChange)="setReceiptField('farmerId', $event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field-group">
+            <span>Giống lúa <b>*</b></span>
+            <app-filter-select
+              placeholder="Chọn giống lúa..."
+              [disabled]="receiptFormLocked()"
+              [options]="varietySelectOptions()"
+              [value]="receiptForm().riceVarietyId"
+              (valueChange)="onReceiptVarietyChange($event)"
+            ></app-filter-select>
+          </label>
+
+          <label class="field-group">
+            <span>Sản phẩm <b>*</b></span>
+            <app-filter-select
+              [clearable]="false"
+              [placeholder]="
+                receiptForm().riceVarietyId
+                  ? 'Chọn sản phẩm...'
+                  : 'Chọn giống lúa trước'
+              "
+              [disabled]="receiptFormLocked() || !receiptForm().riceVarietyId"
+              [options]="receiptVariantSelectOptions()"
+              [value]="receiptForm().productVariantId"
+              (valueChange)="setReceiptField('productVariantId', $event)"
+            ></app-filter-select>
+          </label>
+
+          <div class="field-group span-2 bag-editor">
+            <div class="bag-editor-header">
+              <span>Danh sách bao <b>*</b></span>
+              <div class="bag-actions">
+                <button type="button" class="btn-add-bag" (click)="addReceiptBag()" [disabled]="receiptFormLocked()">+ Thêm bao</button>
+              </div>
+            </div>
+            @if (loadingReceiptDetail() && receiptForm().bags.length === 0) {
+              <p class="bag-empty">
+                <span class="mini-spinner"></span>
+                Đang tải danh sách bao đã cân...
+              </p>
+            } @else if (receiptForm().bags.length === 0) {
+              <p class="bag-empty">Chưa có bao. Mỗi lần cân hãy thêm một dòng bao.</p>
+            } @else {
+              <div class="bag-grid">
+                @for (bag of receiptForm().bags; track bag.bagNo; let i = $index) {
+                  <div class="bag-row">
+                    <span class="bag-number">Bao #{{ bag.bagNo }}</span>
+                    <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
+                      (ngModelChange)="updateReceiptBag(i, $event)" [disabled]="receiptFormLocked()" aria-label="Khối lượng bao" />
+                    <span>kg</span>
+                    <button type="button" class="btn-remove-bag" (click)="removeReceiptBag(i)" [disabled]="receiptFormLocked()" aria-label="Xóa bao">×</button>
+                  </div>
+                }
+              </div>
+            }
+            <div class="bag-total"><span>{{ receiptForm().bags.length }} bao</span><strong>Tổng: {{ receiptForm().actualWeight || 0 | number:'1.0-3' }} kg</strong></div>
+          </div>
+
+          <label class="field-group">
+            <span>Giá mua/kg <b>*</b></span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              [ngModel]="receiptForm().agreedPrice"
+              (ngModelChange)="setReceiptField('agreedPrice', $event)"
+              placeholder="6.350"
+              [disabled]="receiptFormLocked()"
+            />
+          </label>
+
+          <label class="field-group">
+            <span>Đã trả (đ)</span>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              [ngModel]="receiptForm().paidAmount"
+              (ngModelChange)="setReceiptField('paidAmount', $event)"
+              placeholder="20.000.000"
+              [disabled]="receiptFormLocked()"
+            />
+          </label>
+
+          <label class="field-group">
+            <span>Nhập vào kho <b>*</b></span>
+            <app-filter-select
+              [clearable]="false"
+              placeholder="Chọn kho nhập..."
+              [disabled]="receiptFormLocked()"
+              [options]="warehouseSelectOptions()"
+              [value]="receiptForm().warehouseId"
+              (valueChange)="setReceiptField('warehouseId', $event)"
+            ></app-filter-select>
+          </label>
+
+          <div class="calculation-card span-2">
+            <div>
+              <span>Thành tiền</span>
+              <strong>{{ formatMoney(receiptTotalAmount()) }}</strong>
+            </div>
+            <div>
+              <span>Còn nợ</span>
+              <strong [class.has-debt]="receiptDebtAmount() > 0">{{
+                formatMoney(receiptDebtAmount())
+              }}</strong>
+            </div>
+          </div>
+
+          <label class="field-group span-2">
+            <span>Ghi chú phiếu mua / Lý do điều chỉnh giá</span>
+            <textarea
+              rows="3"
+              [ngModel]="receiptForm().priceAdjustReason"
+              (ngModelChange)="setReceiptField('priceAdjustReason', $event)"
+              placeholder="Số bao, tạp chất, công nợ còn lại, ghi chú cân..."
+              [disabled]="receiptFormLocked()"
+            ></textarea>
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <div class="footer-danger-zone"></div>
+        <button
+          type="button"
+          class="secondary-button"
+          [disabled]="savingReceipt()"
+          (click)="closeReceiptModal()"
+        >
+          Đóng
+        </button>
+        @if (!receiptFormLocked()) {
+          <button
+            type="button"
+            class="save-button"
+            [disabled]="savingReceipt()"
+            (click)="saveReceipt()"
+          >
+            @if (savingReceipt()) {
+              <span class="button-spinner"></span>
+              Đang lưu...
+            } @else {
+              {{ editingReceipt() ? "Lưu thay đổi" : "Lưu phiếu mua" }}
+            }
+          </button>
+        }
+      </footer>
+    </section>
+  </div>
+}

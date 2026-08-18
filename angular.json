@@ -44,8 +44,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "15kB",
+                  "maximumError": "25kB"
                 }
               ],
               "outputHashing": "all"
@@ -68,10 +68,12 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "DoAnFrontend:build:production"
+              "buildTarget": "DoAnFrontend:build:production",
+              "hmr": true
             },
             "development": {
-              "buildTarget": "DoAnFrontend:build:development"
+              "buildTarget": "DoAnFrontend:build:development",
+              "hmr": true
             }
           },
           "defaultConfiguration": "development"
