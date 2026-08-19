@@ -18,6 +18,11 @@ import {
   CreateQualityInspectionDto,
   UpdateQualityInspectionDto,
   PaddyLotRow,
+  BagDisposition,
+  BagQualityResult,
+  QualityInspectionBagProgressDto,
+  QualityInspectionBagResultDto,
+  SaveBagInspectionResultDto,
 } from '../../models';
 import { QualityInspectionService } from '../../services/quality-inspection.service';
 import { PaddyLotService } from '../../services/paddy-lot.service';
@@ -39,6 +44,18 @@ interface QcForm {
   note: string;
   affectedWeightKg: number | null;
   affectedBagIds: number[];
+}
+
+interface BagQcForm {
+  moisturePercent: number | null;
+  impurityPercent: number | null;
+  moldLevel: string | null;
+  pestLevel: string | null;
+  packagingStatus: string | null;
+  qualityResult: BagQualityResult;
+  disposition: BagDisposition;
+  handling: string | null;
+  note: string;
 }
 
 /**
@@ -95,12 +112,24 @@ export class QualityInspectionComponent {
 
   // ----- Modal -----
   showModal = signal(false);
+  showBagModal = signal(false);
+  bagProgress = signal<QualityInspectionBagProgressDto | null>(null);
+  bagProgressLoading = signal(false);
+  selectedBagId = signal<number | null>(null);
+  savingBagId = signal<number | null>(null);
+  completingBagInspection = signal(false);
+  completeNote = signal('');
+  bagSaveMessage = signal('');
+  bagForm = signal<BagQcForm>(this.blankBagForm());
   // Chế độ KIỂM TRA LẠI lô đang cách ly (khác luồng kiểm định lần đầu).
   recheckMode = signal(false);
   editItem = signal<QualityInspectionRow | null>(null);
   isEdit = computed(() => !!this.editItem());
   perm = inject(PermissionService);
   viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('QUALITY_INSPECTIONS'));
+  bagReadOnly = computed(
+    () => !!this.bagProgress()?.isCompleted || !this.perm.canUpdate('QUALITY_INSPECTIONS')
+  );
   form = signal<QcForm>(this.blankForm());
 
   private readonly colMap: Record<string, number> = {
@@ -369,6 +398,45 @@ export class QualityInspectionComponent {
     Math.max(0, this.eligibleBags().reduce((sum, bag) => sum + Number(bag.weightKg), 0) - this.selectedBagWeightKg())
   );
 
+  selectedBag = computed<QualityInspectionBagResultDto | null>(() => {
+    const id = this.selectedBagId();
+    return this.bagProgress()?.items.find((bag) => bag.bagId === id) ?? null;
+  });
+  bagProgressPercent = computed(() => {
+    const progress = this.bagProgress();
+    if (!progress?.totalBags) return 0;
+    return Math.round((progress.inspectedBags / progress.totalBags) * 100);
+  });
+  bagDispositionOptions = computed<{ id: BagDisposition; name: string }[]>(() => {
+    const type = this.bagProgress()?.inspectionType ?? null;
+    const isPass = this.bagForm().qualityResult === 'PASS';
+    if (isPass) {
+      switch (type) {
+        case 'STORAGE':
+          return [{ id: 'KEEP_STORED', name: 'Giữ nguyên trong kho' }];
+        case 'RECHECK':
+        case 'OUTBOUND_EXCEPTION':
+          return [{ id: 'RELEASE', name: 'Giải phóng / cho phép xuất' }];
+        case 'RECEIVING':
+        default:
+          return [{ id: 'ACCEPT_NORMAL', name: 'Chấp nhận nhập kho thường' }];
+      }
+    }
+    switch (type) {
+      case 'STORAGE':
+      case 'OUTBOUND_EXCEPTION':
+        return [{ id: 'QUARANTINE', name: 'Chuyển bao sang cách ly' }];
+      case 'RECHECK':
+        return [{ id: 'KEEP_QUARANTINE', name: 'Tiếp tục giữ cách ly' }];
+      case 'RECEIVING':
+      default:
+        return [
+          { id: 'ACCEPT_QUARANTINE', name: 'Chấp nhận nhưng cách ly' },
+          { id: 'REJECT_RETURN', name: 'Từ chối và trả nhà cung cấp' },
+        ];
+    }
+  });
+
   // ================= Effects =================
   private autoSelect = effect(() => {
     const rs = this.rows();
@@ -452,6 +520,195 @@ export class QualityInspectionComponent {
     for (let i = Math.max(1, cur - 2); i <= Math.min(total, cur + 2); i++)
       pages.push(i);
     return pages;
+  }
+
+  async openBagInspection(row: QualityInspectionRow): Promise<void> {
+    const inspectionId = row.sourceInspectionId ?? row.id;
+    if (inspectionId <= 0) return;
+
+    this.showBagModal.set(true);
+    this.bagProgress.set(null);
+    this.selectedBagId.set(null);
+    this.completeNote.set('');
+    this.bagSaveMessage.set('');
+    await this.loadBagProgress(inspectionId);
+  }
+
+  closeBagModal(): void {
+    if (this.savingBagId() != null || this.completingBagInspection()) return;
+    this.showBagModal.set(false);
+    this.bagProgress.set(null);
+    this.selectedBagId.set(null);
+    this.bagSaveMessage.set('');
+  }
+
+  selectBagForInspection(bag: QualityInspectionBagResultDto): void {
+    this.selectedBagId.set(bag.bagId);
+    this.bagForm.set(this.bagToForm(bag));
+    this.bagSaveMessage.set('');
+  }
+
+  setBagField(field: keyof BagQcForm, value: unknown): void {
+    this.bagForm.update((current) => ({ ...current, [field]: value } as BagQcForm));
+    this.bagSaveMessage.set('');
+  }
+
+  setBagQualityResult(result: BagQualityResult): void {
+    const disposition = this.defaultDisposition(
+      this.bagProgress()?.inspectionType ?? null,
+      result
+    );
+    this.bagForm.update((current) => ({
+      ...current,
+      qualityResult: result,
+      disposition,
+    }));
+    this.bagSaveMessage.set('');
+  }
+
+  async saveCurrentBag(goToNext = false): Promise<void> {
+    const progress = this.bagProgress();
+    const bag = this.selectedBag();
+    if (!progress || !bag || this.bagReadOnly()) return;
+
+    const form = this.bagForm();
+    const moisture = this.num(form.moisturePercent);
+    const impurity = this.num(form.impurityPercent);
+    if ((moisture != null && (moisture < 0 || moisture > 100)) ||
+        (impurity != null && (impurity < 0 || impurity > 100))) {
+      this.showAlert('Độ ẩm và tạp chất phải nằm trong khoảng 0–100%.', false);
+      return;
+    }
+
+    const payload: SaveBagInspectionResultDto = {
+      bagId: bag.bagId,
+      moisturePercent: moisture,
+      impurityPercent: impurity,
+      moldLevel: form.moldLevel || null,
+      pestLevel: form.pestLevel || null,
+      packagingStatus: form.packagingStatus || null,
+      qualityResult: form.qualityResult,
+      disposition: form.disposition,
+      handling: form.handling || null,
+      note: form.note.trim() || null,
+    };
+
+    this.savingBagId.set(bag.bagId);
+    this.bagSaveMessage.set('');
+    try {
+      const response = await lastValueFrom(
+        this.qcService.saveBagResult(progress.inspectionId, bag.bagId, payload)
+      );
+      if (!response.isSucceeded) {
+        this.showAlert(response.message || 'Không thể lưu kết quả bao.', false);
+        return;
+      }
+
+      await this.loadBagProgress(progress.inspectionId, bag.bagId, goToNext);
+      this.bagSaveMessage.set(response.message || `Đã lưu kết quả bao #${bag.bagNo}.`);
+    } catch (error: any) {
+      this.showAlert(error?.error?.message || 'Không thể lưu kết quả bao.', false);
+    } finally {
+      this.savingBagId.set(null);
+    }
+  }
+
+  async completeBagSession(): Promise<void> {
+    const progress = this.bagProgress();
+    if (!progress || progress.isCompleted || progress.remainingBags > 0) return;
+
+    const confirmation = await Swal.fire({
+      title: 'Hoàn tất phiếu kiểm tra?',
+      text: 'Hệ thống sẽ chốt kết quả và áp dụng hướng xử lý của từng bao. Sau đó không thể sửa kết quả bao.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Hoàn tất',
+      cancelButtonText: 'Kiểm tra lại',
+      confirmButtonColor: '#15803d',
+    });
+    if (!confirmation.isConfirmed) return;
+
+    this.completingBagInspection.set(true);
+    try {
+      const response = await lastValueFrom(
+        this.qcService.complete(progress.inspectionId, {
+          note: this.completeNote().trim() || null,
+        })
+      );
+      if (!response.isSucceeded) {
+        this.showAlert(response.message || 'Không thể hoàn tất phiếu kiểm tra.', false);
+        return;
+      }
+
+      await this.loadBagProgress(progress.inspectionId, this.selectedBagId());
+      this.queryClient.invalidateQueries({ queryKey: ['quality-inspections'] });
+      this.queryClient.invalidateQueries({ queryKey: ['quality-inspection-detail'] });
+      this.queryClient.invalidateQueries({ queryKey: ['qc-history'] });
+      this.queryClient.invalidateQueries({ queryKey: ['qc-awaiting-qc-lots'] });
+      this.queryClient.invalidateQueries({ queryKey: ['qc-quarantined-lots'] });
+      this.showAlert(response.message || 'Đã hoàn tất phiếu kiểm tra cấp bao.');
+    } catch (error: any) {
+      this.showAlert(error?.error?.message || 'Không thể hoàn tất phiếu kiểm tra.', false);
+    } finally {
+      this.completingBagInspection.set(false);
+    }
+  }
+
+  inspectionTypeText(type?: string | null): string {
+    switch ((type ?? '').toUpperCase()) {
+      case 'RECEIVING': return 'Kiểm tra khi nhận hàng';
+      case 'STORAGE': return 'Kiểm tra định kỳ trong kho';
+      case 'RECHECK': return 'Tái kiểm tra hàng cách ly';
+      case 'OUTBOUND_EXCEPTION': return 'Kiểm tra ngoại lệ khi xuất';
+      default: return 'Phiếu dữ liệu cũ';
+    }
+  }
+
+  dispositionText(value?: string | null): string {
+    const labels: Record<string, string> = {
+      ACCEPT_NORMAL: 'Nhập kho thường',
+      ACCEPT_QUARANTINE: 'Chấp nhận & cách ly',
+      REJECT_RETURN: 'Trả nhà cung cấp',
+      KEEP_STORED: 'Giữ nguyên trong kho',
+      QUARANTINE: 'Chuyển cách ly',
+      RELEASE: 'Giải phóng',
+      KEEP_QUARANTINE: 'Tiếp tục cách ly',
+    };
+    return value ? labels[value] ?? value : 'Chưa có quyết định';
+  }
+
+  private async loadBagProgress(
+    inspectionId: number,
+    preferredBagId: number | null = null,
+    advance = false
+  ): Promise<void> {
+    this.bagProgressLoading.set(true);
+    try {
+      const response = await lastValueFrom(this.qcService.getBagProgress(inspectionId));
+      if (!response.isSucceeded || !response.resources) {
+        this.showAlert(response.message || 'Không thể tải danh sách bao.', false);
+        this.closeBagModal();
+        return;
+      }
+
+      const progress = response.resources;
+      this.bagProgress.set(progress);
+      let next: QualityInspectionBagResultDto | undefined;
+      if (advance) {
+        next = progress.items.find(
+          (item) => item.bagId !== preferredBagId && !item.qualityResult
+        );
+      }
+      next ??= progress.items.find((item) => item.bagId === preferredBagId);
+      next ??= progress.items.find((item) => !item.qualityResult);
+      next ??= progress.items[0];
+      if (next) this.selectBagForInspection(next);
+    } catch (error: any) {
+      this.showAlert(error?.error?.message || 'Không thể tải danh sách bao của phiếu.', false);
+      this.showBagModal.set(false);
+    } finally {
+      this.bagProgressLoading.set(false);
+    }
   }
 
   openCreate(): void {
@@ -879,6 +1136,51 @@ export class QualityInspectionComponent {
       affectedWeightKg: r.affectedWeightKg ?? null,
       affectedBagIds: [],
     };
+  }
+
+  private bagToForm(bag: QualityInspectionBagResultDto): BagQcForm {
+    const qualityResult = bag.qualityResult ?? 'PASS';
+    return {
+      moisturePercent: bag.moisturePercent ?? null,
+      impurityPercent: bag.impurityPercent ?? null,
+      moldLevel: bag.moldLevel || null,
+      pestLevel: bag.pestLevel || null,
+      packagingStatus: bag.packagingStatus || null,
+      qualityResult,
+      disposition:
+        bag.disposition ??
+        this.defaultDisposition(this.bagProgress()?.inspectionType ?? null, qualityResult),
+      handling: bag.handling || null,
+      note: bag.note || '',
+    };
+  }
+
+  private blankBagForm(): BagQcForm {
+    return {
+      moisturePercent: null,
+      impurityPercent: null,
+      moldLevel: null,
+      pestLevel: null,
+      packagingStatus: null,
+      qualityResult: 'PASS',
+      disposition: 'ACCEPT_NORMAL',
+      handling: null,
+      note: '',
+    };
+  }
+
+  private defaultDisposition(
+    type: string | null,
+    result: BagQualityResult
+  ): BagDisposition {
+    if (result === 'PASS') {
+      if (type === 'STORAGE') return 'KEEP_STORED';
+      if (type === 'RECHECK' || type === 'OUTBOUND_EXCEPTION') return 'RELEASE';
+      return 'ACCEPT_NORMAL';
+    }
+    if (type === 'STORAGE' || type === 'OUTBOUND_EXCEPTION') return 'QUARANTINE';
+    if (type === 'RECHECK') return 'KEEP_QUARANTINE';
+    return 'ACCEPT_QUARANTINE';
   }
 
   private blankForm(): QcForm {

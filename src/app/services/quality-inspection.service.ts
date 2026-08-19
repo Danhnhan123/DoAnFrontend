@@ -10,6 +10,9 @@ import {
   CreateQualityInspectionDto,
   UpdateQualityInspectionDto,
   QualityInspectionPagedRequest,
+  QualityInspectionBagProgressDto,
+  SaveBagInspectionResultDto,
+  CompleteInspectionDto,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -81,6 +84,38 @@ export class QualityInspectionService {
   delete(id: number): Observable<ApiResponse<any>> {
     return this.http.delete<ApiResponse<any>>(
       `${this.base}/quality-inspections/${id}`
+    );
+  }
+
+  /** Lấy toàn bộ bao và tiến độ của một phiên kiểm tra cấp bao. */
+  getBagProgress(
+    inspectionId: number
+  ): Observable<ApiResponse<QualityInspectionBagProgressDto>> {
+    return this.http.get<ApiResponse<QualityInspectionBagProgressDto>>(
+      `${this.base}/quality-inspections/${inspectionId}/bags`
+    );
+  }
+
+  /** Upsert idempotent kết quả QC của một bao; chưa tạo side-effect nghiệp vụ. */
+  saveBagResult(
+    inspectionId: number,
+    bagId: number,
+    payload: SaveBagInspectionResultDto
+  ): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(
+      `${this.base}/quality-inspections/${inspectionId}/bags/${bagId}`,
+      payload
+    );
+  }
+
+  /** Finalize khi 100% bao đã có kết quả và áp dụng disposition lên hàng hóa. */
+  complete(
+    inspectionId: number,
+    payload: CompleteInspectionDto
+  ): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(
+      `${this.base}/quality-inspections/${inspectionId}/complete`,
+      payload
     );
   }
 

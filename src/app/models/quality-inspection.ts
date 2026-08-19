@@ -58,3 +58,75 @@ export interface UpdateQualityInspectionDto extends CreateQualityInspectionDto {
 
 /** Body DataTables của POST /quality-inspections/paged-advanced. */
 export interface QualityInspectionPagedRequest extends DTParameters {}
+
+export type QualityInspectionType =
+  | 'RECEIVING'
+  | 'STORAGE'
+  | 'RECHECK'
+  | 'OUTBOUND_EXCEPTION';
+
+export type BagQualityResult = 'PASS' | 'ISSUE_DETECTED';
+
+export type BagDisposition =
+  | 'ACCEPT_NORMAL'
+  | 'ACCEPT_QUARANTINE'
+  | 'REJECT_RETURN'
+  | 'KEEP_STORED'
+  | 'QUARANTINE'
+  | 'RELEASE'
+  | 'KEEP_QUARANTINE';
+
+/** Kết quả QC hiện tại của một bao trong inspection session. */
+export interface QualityInspectionBagResultDto {
+  bagId: number;
+  bagNo: number;
+  weightKg: number;
+  status: string;
+  locationId?: number | null;
+  locationCode?: string | null;
+  qualityResult?: BagQualityResult | null;
+  disposition?: BagDisposition | null;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  handling?: string | null;
+  note?: string | null;
+  inspectedAt?: string | null;
+  inspectorName?: string | null;
+}
+
+/** Tiến độ kiểm tra cấp bao của một QualityInspection session. */
+export interface QualityInspectionBagProgressDto {
+  inspectionId: number;
+  inspectionType?: QualityInspectionType | null;
+  lotId: number;
+  lotCode?: string | null;
+  isCompleted: boolean;
+  totalBags: number;
+  inspectedBags: number;
+  remainingBags: number;
+  normalBags: number;
+  quarantineBags: number;
+  rejectedBags: number;
+  releasedBags: number;
+  items: QualityInspectionBagResultDto[];
+}
+
+export interface SaveBagInspectionResultDto {
+  bagId: number;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  qualityResult: BagQualityResult;
+  disposition: BagDisposition;
+  handling?: string | null;
+  note?: string | null;
+}
+
+export interface CompleteInspectionDto {
+  note?: string | null;
+}
