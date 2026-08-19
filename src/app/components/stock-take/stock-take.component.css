@@ -95,3 +95,36 @@ details li { margin: 4px 0; }
   .search { width: 100%; }
   .action-group { display: grid; }
 }
+
+
+/* ── Kiểm kê theo BAO ─────────────────────────────────────────────────────── */
+.quarantine-note { margin-bottom: 10px; padding: 10px 14px; border-radius: 10px; background: #fff7ed; color: #9a3412; font-weight: 600; }
+.bag-summary { display: flex; flex-wrap: wrap; gap: 18px; margin-bottom: 10px; padding: 10px 14px; border-radius: 10px; background: #f0fdf4; color: #14532d; }
+.bag-summary strong { margin-left: 6px; font-size: 1.05rem; }
+.bag-summary .negative { color: #b91c1c; }
+
+.qr-scope .qr-row { display: flex; gap: 8px; }
+.qr-scope .qr-row input { flex: 1; }
+.qr-scope small { display: block; margin-top: 4px; color: #64748b; }
+
+.scan-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; padding: 10px 12px; border: 1px dashed #86efac; border-radius: 10px; background: #f8fafc; }
+.scan-bar input[type="text"] { flex: 1 1 240px; }
+.scan-bar input[type="number"] { width: 140px; }
+.scan-message { color: #166534; font-weight: 600; }
+
+.expander .link { border: 0; background: none; color: #15803d; cursor: pointer; font-weight: 700; }
+.adjust-cell label { display: flex; align-items: center; gap: 4px; font-size: .72rem; color: #64748b; }
+.adjust-cell input { width: 76px; }
+
+.bag-row > td { padding: 0 10px 12px; background: #f8fafc; }
+.bag-empty { margin: 10px 0; color: #64748b; }
+.bag-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.bag-table th { padding: 6px 8px; background: #e2e8f0; color: #0f172a; text-align: left; }
+.bag-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+.bag-table td small { display: block; color: #64748b; font-size: .7rem; }
+.bag-table .count-input { width: 96px; }
+.bag-table textarea { width: 100%; min-width: 140px; }
+.bag-table .quality-cell { display: table-cell; min-width: 150px; }
+.bag-table .quality-cell app-filter-select { display: block; margin-bottom: 4px; }
+.bag-unexpected { background: #fefce8; }
+em.scanned { background: #ecfdf5; color: #047857; }
