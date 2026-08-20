@@ -8,9 +8,11 @@ import {
   CreateStockTakePayload,
   DTResponse,
   SaveStockTakeCountsPayload,
+  StockTakeBagTargetSuggestion,
   StockTakeDetail,
   StockTakePagedRequest,
   StockTakeRow,
+  StockTakeScopeOptions,
   StockTakeSummary,
   StockTakeThresholds,
 } from '../models';
@@ -54,6 +56,17 @@ export class StockTakeService {
 
   reject(id: number, reason: string): Observable<ApiResponse<unknown>> {
     return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/reject`, { reason: reason.trim() });
+  }
+
+  /** Cột đang có bao — nguồn dropdown chọn cột cần kiểm kê. */
+  getScopeOptions(warehouseId: number, quarantineOnly?: boolean | null): Observable<ApiResponse<StockTakeScopeOptions>> {
+    const query = quarantineOnly == null ? '' : `&quarantineOnly=${quarantineOnly}`;
+    return this.http.get<ApiResponse<StockTakeScopeOptions>>(`${this.base}/scope-options?warehouseId=${warehouseId}${query}`);
+  }
+
+  /** Gợi ý ô cách ly / cột thường cho một bao (vẫn chọn lại được). */
+  getBagTargetSuggestions(id: number, bagId: number): Observable<ApiResponse<StockTakeBagTargetSuggestion[]>> {
+    return this.http.get<ApiResponse<StockTakeBagTargetSuggestion[]>>(`${this.base}/${id}/bags/${bagId}/target-suggestions`);
   }
 
   buildPagedBody(params: {

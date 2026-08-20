@@ -234,6 +234,9 @@
             <div><span>Ngày chuyển</span><strong>{{ formatDate(current.transferDate) }}</strong></div>
             <div><span>Số dòng</span><strong>{{ current.itemCount }}</strong></div>
             <div><span>Tổng khối lượng</span><strong>{{ formatWeight(current.totalWeightKg) }}</strong></div>
+            @if (current.destinationInboundOrderCode) {
+              <div><span>Phiếu nhập kho đích</span><strong>{{ current.destinationInboundOrderCode }}</strong></div>
+            }
           </div>
 
           @if (current.note) {
@@ -261,6 +264,38 @@
                     <td>{{ item.toLocationName || 'Không gán vị trí' }}</td>
                     <td class="number">{{ formatWeight(item.weightKg) }}</td>
                   </tr>
+                  @if (item.bags && item.bags.length) {
+                    <tr class="bag-detail-row">
+                      <td colspan="5">
+                        <table class="bag-table">
+                          <thead>
+                            <tr>
+                              <th>Bao</th>
+                              <th>Lô nguồn</th>
+                              <th class="number">KL</th>
+                              <th>Chất lượng</th>
+                              <th>Xử lý</th>
+                              <th>Ô cách ly</th>
+                              <th>Lô đích</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (bag of item.bags; track bag.id) {
+                              <tr>
+                                <td>#{{ bag.bagNo }}</td>
+                                <td>{{ bag.sourceLotCode || '—' }}</td>
+                                <td class="number">{{ formatWeight(bag.weightKg) }}</td>
+                                <td>{{ bagQualityLabel(bag.qualityResult) }}</td>
+                                <td>{{ bagDispositionLabel(bag.disposition) }}</td>
+                                <td>{{ bag.quarantineLocationName || '—' }}</td>
+                                <td>{{ bag.targetLotCode || '—' }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -360,6 +395,7 @@
                     <td>
                       <strong>{{ line.lotCode || line.sku }}</strong>
                       <small>{{ line.productVariantName }}</small>
+                      @if (line.hasBags) { <small class="bag-flag">Theo bao</small> }
                     </td>
                     <td>{{ line.fromLocationName }}</td>
                     <td>
@@ -373,9 +409,16 @@
                       />
                     </td>
                     <td>
-                      <input class="form-control compact number-input" type="number" min="0.001" step="0.001" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
-                      @if (lineAvailable(line) > 0) {
-                        <small>Khả dụng: {{ formatWeight(lineAvailable(line)) }}</small>
+                      @if (line.hasBags) {
+                        <div class="bag-weight">
+                          <strong>{{ formatWeight(lineTransferWeight(line)) }}</strong>
+                          <small>{{ lineSelectedBags(line) }} bao chọn · {{ lineQuarantineBags(line) }} cách ly · {{ lineDisposeBags(line) }} bỏ</small>
+                        </div>
+                      } @else {
+                        <input class="form-control compact number-input" type="number" min="0.001" step="0.001" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
+                        @if (lineAvailable(line) > 0) {
+                          <small>Khả dụng: {{ formatWeight(lineAvailable(line)) }}</small>
+                        }
                       }
                     </td>
                     <td>
@@ -383,6 +426,69 @@
                     </td>
                     <td><button type="button" class="remove-button" aria-label="Xóa dòng" (click)="removeLine(index)">×</button></td>
                   </tr>
+                  @if (line.hasBags) {
+                    <tr class="bag-editor-row">
+                      <td colspan="6">
+                        <div class="bag-editor">
+                          <div class="bag-editor-head">Kiểm định &amp; chọn bao — bao đạt mới chuyển, bao không đạt cách ly (tự chọn ô ở kho nguồn) hoặc bỏ</div>
+                          <table class="bag-table">
+                            <thead>
+                              <tr>
+                                <th>Lấy</th>
+                                <th>Bao</th>
+                                <th>Lô</th>
+                                <th class="number">KL</th>
+                                <th>Chất lượng</th>
+                                <th>Độ ẩm %</th>
+                                <th>Tạp chất %</th>
+                                <th>Bao bì</th>
+                                <th>Xử lý khi không đạt</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (bag of line.bags; track bag.bagId) {
+                                <tr [class.bag-off]="!bag.selected">
+                                  <td>
+                                    <input type="checkbox" [checked]="bag.selected" (change)="toggleBag(index, bag.bagId, $any($event.target).checked)" />
+                                  </td>
+                                  <td>#{{ bag.bagNo }}</td>
+                                  <td>{{ bag.lotCode || '—' }}</td>
+                                  <td class="number">{{ formatWeight(bag.weightKg) }}</td>
+                                  <td>
+                                    <select class="form-control compact" [ngModel]="bag.qualityResult" (ngModelChange)="setBagQuality(index, bag.bagId, $event)" [disabled]="!bag.selected">
+                                      @for (opt of bagQualityOptions; track opt.value) {
+                                        <option [value]="opt.value">{{ opt.label }}</option>
+                                      }
+                                    </select>
+                                  </td>
+                                  <td>
+                                    <input class="form-control compact number-input" type="number" min="0" step="0.1" [ngModel]="bag.moisturePercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'moisturePercent', $event)" [disabled]="!bag.selected" />
+                                  </td>
+                                  <td>
+                                    <input class="form-control compact number-input" type="number" min="0" step="0.1" [ngModel]="bag.impurityPercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'impurityPercent', $event)" [disabled]="!bag.selected" />
+                                  </td>
+                                  <td>
+                                    <input class="form-control compact" type="text" placeholder="Nguyên/Rách/Ẩm" [ngModel]="bag.packagingStatus" (ngModelChange)="setBagText(index, bag.bagId, 'packagingStatus', $event)" [disabled]="!bag.selected" />
+                                  </td>
+                                  <td>
+                                    @if (bag.qualityResult === 'ISSUE_DETECTED') {
+                                      <select class="form-control compact" [ngModel]="bag.disposition" (ngModelChange)="setBagDisposition(index, bag.bagId, $event)" [disabled]="!bag.selected">
+                                        @for (opt of bagDispositionOptions; track opt.value) {
+                                          <option [value]="opt.value">{{ opt.label }}</option>
+                                        }
+                                      </select>
+                                    } @else {
+                                      <span class="muted">Chuyển đi</span>
+                                    }
+                                  </td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  }
                 }
               }
             </tbody>

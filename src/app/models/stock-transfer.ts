@@ -1,4 +1,5 @@
 import { DTParameters } from './search';
+import type { BagQualityResult } from './stock-take';
 
 // Dùng CODE ổn định (đồng bộ cột Code ở bảng trạng thái) thay cho tên hiển thị tiếng Việt.
 export const STOCK_TRANSFER_STATUS = {
@@ -29,6 +30,31 @@ export interface StockTransferRow {
   createdDate: string;
 }
 
+export type StockTransferBagDisposition = 'TRANSFER' | 'QUARANTINE' | 'DISPOSE';
+
+export interface StockTransferBagDetail {
+  id: number;
+  bagId: number;
+  bagNo?: number | null;
+  qrCode?: string | null;
+  sourceLotId?: number | null;
+  sourceLotCode?: string | null;
+  weightKg: number;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  qualityResult?: string | null;
+  qualityNote?: string | null;
+  disposition: string;
+  quarantineLocationId?: number | null;
+  quarantineLocationName?: string | null;
+  targetLotId?: number | null;
+  targetLotCode?: string | null;
+  note?: string | null;
+}
+
 export interface StockTransferItemDetail {
   id: number;
   productVariantId: number;
@@ -43,17 +69,49 @@ export interface StockTransferItemDetail {
   weightKg: number;
   note?: string | null;
   bagIds?: number[];
+  bags?: StockTransferBagDetail[];
 }
 
 export interface StockTransferDetail extends StockTransferRow {
   items: StockTransferItemDetail[];
+  destinationInboundOrderId?: number | null;
+  destinationInboundOrderCode?: string | null;
   lastModifiedDate?: string | null;
+}
+
+/** Bao ở đỉnh cột nguồn để chọn khi chuyển kho theo BAO. */
+export interface SourceColumnBag {
+  bagId: number;
+  bagNo: number;
+  qrCode?: string | null;
+  stackOrder: number;
+  weightKg: number;
+  isFull: boolean;
+  lotId?: number | null;
+  lotCode?: string | null;
+  productVariantId: number;
+  productVariantName?: string | null;
+  lotQualityStatus?: string | null;
 }
 
 export interface StockTransferSummary {
   transfersThisMonth: number;
   inTransitCount: number;
   totalTransferredWeightKg: number;
+}
+
+export interface StockTransferBagPayload {
+  bagId: number;
+  moisturePercent?: number | null;
+  impurityPercent?: number | null;
+  moldLevel?: string | null;
+  pestLevel?: string | null;
+  packagingStatus?: string | null;
+  qualityResult: BagQualityResult;
+  disposition: StockTransferBagDisposition;
+  quarantineLocationId?: number | null;
+  qualityNote?: string | null;
+  note?: string | null;
 }
 
 export interface StockTransferItemPayload {
@@ -64,6 +122,7 @@ export interface StockTransferItemPayload {
   weightKg: number;
   note?: string | null;
   bagIds?: number[];
+  bags?: StockTransferBagPayload[];
 }
 
 export interface CreateStockTransferPayload {

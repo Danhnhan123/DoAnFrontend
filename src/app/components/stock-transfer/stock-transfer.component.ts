@@ -12,9 +12,12 @@ import Swal from 'sweetalert2';
 
 import {
   ApiResponse,
+  BagQualityResult,
   InventoryRow,
   LocationRow,
   STOCK_TRANSFER_STATUS,
+  StockTransferBagDisposition,
+  StockTransferBagPayload,
   StockTransferDetail,
   StockTransferItemPayload,
   StockTransferRow,
@@ -32,6 +35,23 @@ import {
 
 type TransferTab = 'ALL' | 'IN_TRANSIT' | 'COMPLETED';
 
+interface BagFormLine {
+  bagId: number;
+  bagNo: number;
+  lotId: number | null;
+  lotCode: string;
+  weightKg: number;
+  selected: boolean;
+  qualityResult: BagQualityResult;
+  disposition: StockTransferBagDisposition;
+  moisturePercent: number | null;
+  impurityPercent: number | null;
+  moldLevel: string;
+  pestLevel: string;
+  packagingStatus: string;
+  qualityNote: string;
+}
+
 interface TransferFormLine {
   clientId: string;
   inventoryId: number;
@@ -45,6 +65,9 @@ interface TransferFormLine {
   toLocationId: number | null;
   weightKg: number | null;
   note: string;
+  // Chuyển kho THEO BAO: khi cột nguồn có bao thì chọn bao + kiểm định chất lượng.
+  hasBags: boolean;
+  bags: BagFormLine[];
 }
 
 interface TransferFormState {
@@ -92,6 +115,16 @@ export class StockTransferComponent implements OnDestroy {
   readonly selectedInventoryId = signal<number | null>(null);
   readonly saving = signal(false);
   readonly actionLoading = signal(false);
+  readonly addingLine = signal(false);
+
+  readonly bagQualityOptions: { value: BagQualityResult; label: string }[] = [
+    { value: 'PASS', label: 'Đạt' },
+    { value: 'ISSUE_DETECTED', label: 'Không đạt' },
+  ];
+  readonly bagDispositionOptions: { value: StockTransferBagDisposition; label: string }[] = [
+    { value: 'QUARANTINE', label: 'Chuyển cách ly' },
+    { value: 'DISPOSE', label: 'Bỏ bao' },
+  ];
 
   readonly form = signal<TransferFormState>(this.emptyForm());
   private searchTimer?: ReturnType<typeof setTimeout>;
@@ -400,20 +433,43 @@ export class StockTransferComponent implements OnDestroy {
       toWarehouseId: detail.toWarehouseId,
       transferDate: this.toDateInput(detail.transferDate),
       note: detail.note || '',
-      items: detail.items.map((item) => ({
-        clientId: this.clientId(),
-        inventoryId: 0,
-        productVariantId: item.productVariantId,
-        sku: item.sku || '',
-        productVariantName: item.productVariantName || '',
-        paddyLotId: item.paddyLotId ?? null,
-        lotCode: item.lotCode || '',
-        fromLocationId: item.fromLocationId ?? null,
-        fromLocationName: item.fromLocationName || '',
-        toLocationId: item.toLocationId ?? null,
-        weightKg: Number(item.weightKg),
-        note: item.note || '',
-      })),
+      items: detail.items.map((item) => {
+        const bags: BagFormLine[] = (item.bags || []).map((bag) => ({
+          bagId: bag.bagId,
+          bagNo: Number(bag.bagNo || 0),
+          lotId: bag.sourceLotId ?? null,
+          lotCode: bag.sourceLotCode || '',
+          weightKg: Number(bag.weightKg || 0),
+          selected: true,
+          qualityResult: (bag.qualityResult === 'ISSUE_DETECTED'
+            ? 'ISSUE_DETECTED'
+            : 'PASS') as BagQualityResult,
+          disposition: ((bag.disposition as StockTransferBagDisposition) ||
+            'TRANSFER') as StockTransferBagDisposition,
+          moisturePercent: bag.moisturePercent ?? null,
+          impurityPercent: bag.impurityPercent ?? null,
+          moldLevel: bag.moldLevel || '',
+          pestLevel: bag.pestLevel || '',
+          packagingStatus: bag.packagingStatus || '',
+          qualityNote: bag.qualityNote || '',
+        }));
+        return {
+          clientId: this.clientId(),
+          inventoryId: 0,
+          productVariantId: item.productVariantId,
+          sku: item.sku || '',
+          productVariantName: item.productVariantName || '',
+          paddyLotId: item.paddyLotId ?? null,
+          lotCode: item.lotCode || '',
+          fromLocationId: item.fromLocationId ?? null,
+          fromLocationName: item.fromLocationName || '',
+          toLocationId: item.toLocationId ?? null,
+          weightKg: bags.length > 0 ? null : Number(item.weightKg),
+          note: item.note || '',
+          hasBags: bags.length > 0,
+          bags,
+        };
+      }),
     });
     this.selectedId.set(null);
     this.showFormModal.set(true);
@@ -449,7 +505,7 @@ export class StockTransferComponent implements OnDestroy {
     this.form.update((current) => ({ ...current, [field]: value }));
   }
 
-  addInventoryLine(): void {
+  async addInventoryLine(): Promise<void> {
     const inventoryId = this.selectedInventoryId();
     const inventory = this.sourceInventories().find(
       (row) => row.id === inventoryId
@@ -470,6 +526,52 @@ export class StockTransferComponent implements OnDestroy {
       return;
     }
 
+    // Hàng CÓ BAO → tải bao đỉnh cột nguồn để chọn + kiểm định chất lượng theo BAO.
+    let bags: BagFormLine[] = [];
+    const fromWarehouseId = this.form().fromWarehouseId;
+    if (
+      Number(inventory.bags || 0) > 0 &&
+      inventory.locationId != null &&
+      fromWarehouseId
+    ) {
+      this.addingLine.set(true);
+      try {
+        const response = await lastValueFrom(
+          this.service.getSourceBags(
+            Number(fromWarehouseId),
+            Number(inventory.locationId),
+            inventory.productVariantId
+          )
+        );
+        const sourceBags = response?.resources ?? [];
+        bags = sourceBags.map((bag) => ({
+          bagId: bag.bagId,
+          bagNo: bag.bagNo,
+          lotId: bag.lotId ?? null,
+          lotCode: bag.lotCode || '',
+          weightKg: Number(bag.weightKg || 0),
+          selected: true,
+          qualityResult: 'PASS' as BagQualityResult,
+          disposition: 'TRANSFER' as StockTransferBagDisposition,
+          moisturePercent: null,
+          impurityPercent: null,
+          moldLevel: '',
+          pestLevel: '',
+          packagingStatus: '',
+          qualityNote: '',
+        }));
+      } catch (error) {
+        this.alert(this.errorText(error), false);
+        return;
+      } finally {
+        this.addingLine.set(false);
+      }
+      if (bags.length === 0) {
+        this.alert('Cột nguồn này không còn bao khả dụng ở đỉnh chồng.', false);
+        return;
+      }
+    }
+
     this.form.update((current) => ({
       ...current,
       items: [
@@ -487,10 +589,101 @@ export class StockTransferComponent implements OnDestroy {
           toLocationId: null,
           weightKg: null,
           note: '',
+          hasBags: bags.length > 0,
+          bags,
         },
       ],
     }));
     this.selectedInventoryId.set(null);
+  }
+
+  // ─── Thao tác trên bao trong một dòng chuyển kho theo BAO ────────────────────
+  private patchBag(lineIndex: number, bagId: number, patch: Partial<BagFormLine>): void {
+    this.form.update((current) => ({
+      ...current,
+      items: current.items.map((item, index) =>
+        index !== lineIndex
+          ? item
+          : {
+              ...item,
+              bags: item.bags.map((bag) =>
+                bag.bagId === bagId ? { ...bag, ...patch } : bag
+              ),
+            }
+      ),
+    }));
+  }
+
+  toggleBag(lineIndex: number, bagId: number, selected: boolean): void {
+    this.patchBag(lineIndex, bagId, { selected });
+  }
+
+  setBagQuality(lineIndex: number, bagId: number, value: string): void {
+    const quality = (value === 'ISSUE_DETECTED' ? 'ISSUE_DETECTED' : 'PASS') as BagQualityResult;
+    this.form.update((current) => ({
+      ...current,
+      items: current.items.map((item, index) =>
+        index !== lineIndex
+          ? item
+          : {
+              ...item,
+              bags: item.bags.map((bag) => {
+                if (bag.bagId !== bagId) return bag;
+                const disposition: StockTransferBagDisposition =
+                  quality === 'PASS'
+                    ? 'TRANSFER'
+                    : bag.disposition === 'TRANSFER'
+                    ? 'QUARANTINE'
+                    : bag.disposition;
+                return { ...bag, qualityResult: quality, disposition };
+              }),
+            }
+      ),
+    }));
+  }
+
+  setBagDisposition(lineIndex: number, bagId: number, value: string): void {
+    const disposition = (value === 'DISPOSE' ? 'DISPOSE' : 'QUARANTINE') as StockTransferBagDisposition;
+    this.patchBag(lineIndex, bagId, { disposition });
+  }
+
+  setBagNumber(
+    lineIndex: number,
+    bagId: number,
+    field: 'moisturePercent' | 'impurityPercent',
+    rawValue: string
+  ): void {
+    const parsed = rawValue === '' ? null : Number(rawValue);
+    this.patchBag(lineIndex, bagId, {
+      [field]: parsed != null && !Number.isNaN(parsed) ? parsed : null,
+    } as Partial<BagFormLine>);
+  }
+
+  setBagText(
+    lineIndex: number,
+    bagId: number,
+    field: 'moldLevel' | 'pestLevel' | 'packagingStatus' | 'qualityNote',
+    value: string
+  ): void {
+    this.patchBag(lineIndex, bagId, { [field]: value } as Partial<BagFormLine>);
+  }
+
+  lineTransferWeight(line: TransferFormLine): number {
+    return line.bags
+      .filter((bag) => bag.selected && bag.disposition === 'TRANSFER')
+      .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0);
+  }
+
+  lineSelectedBags(line: TransferFormLine): number {
+    return line.bags.filter((bag) => bag.selected).length;
+  }
+
+  lineQuarantineBags(line: TransferFormLine): number {
+    return line.bags.filter((bag) => bag.selected && bag.disposition === 'QUARANTINE').length;
+  }
+
+  lineDisposeBags(line: TransferFormLine): number {
+    return line.bags.filter((bag) => bag.selected && bag.disposition === 'DISPOSE').length;
   }
 
   removeLine(index: number): void {
@@ -537,14 +730,42 @@ export class StockTransferComponent implements OnDestroy {
     }
 
     const current = this.form();
-    const items: StockTransferItemPayload[] = current.items.map((item) => ({
-      productVariantId: item.productVariantId,
-      paddyLotId: item.paddyLotId,
-      fromLocationId: item.fromLocationId,
-      toLocationId: item.toLocationId,
-      weightKg: Number(item.weightKg),
-      note: item.note.trim() || null,
-    }));
+    const items: StockTransferItemPayload[] = current.items.map((item) => {
+      if (item.hasBags) {
+        const bags: StockTransferBagPayload[] = item.bags
+          .filter((bag) => bag.selected)
+          .map((bag) => ({
+            bagId: bag.bagId,
+            moisturePercent: bag.moisturePercent,
+            impurityPercent: bag.impurityPercent,
+            moldLevel: bag.moldLevel.trim() || null,
+            pestLevel: bag.pestLevel.trim() || null,
+            packagingStatus: bag.packagingStatus.trim() || null,
+            qualityResult: bag.qualityResult,
+            disposition: bag.disposition,
+            quarantineLocationId: null,
+            qualityNote: bag.qualityNote.trim() || null,
+            note: null,
+          }));
+        return {
+          productVariantId: item.productVariantId,
+          paddyLotId: item.paddyLotId,
+          fromLocationId: item.fromLocationId,
+          toLocationId: item.toLocationId,
+          weightKg: this.lineTransferWeight(item),
+          note: item.note.trim() || null,
+          bags,
+        };
+      }
+      return {
+        productVariantId: item.productVariantId,
+        paddyLotId: item.paddyLotId,
+        fromLocationId: item.fromLocationId,
+        toLocationId: item.toLocationId,
+        weightKg: Number(item.weightKg),
+        note: item.note.trim() || null,
+      };
+    });
     const payload = {
       fromWarehouseId: Number(current.fromWarehouseId),
       toWarehouseId: Number(current.toWarehouseId),
@@ -669,6 +890,25 @@ export class StockTransferComponent implements OnDestroy {
     })} kg`;
   }
 
+  bagQualityLabel(value?: string | null): string {
+    if (value === 'ISSUE_DETECTED') return 'Không đạt';
+    if (value === 'PASS') return 'Đạt';
+    return '—';
+  }
+
+  bagDispositionLabel(value?: string | null): string {
+    switch (value) {
+      case 'TRANSFER':
+        return 'Chuyển đi';
+      case 'QUARANTINE':
+        return 'Cách ly';
+      case 'DISPOSE':
+        return 'Bỏ bao';
+      default:
+        return value || '—';
+    }
+  }
+
   formatTon(weightKg: number): string {
     const tons = Number(weightKg || 0) / 1000;
     return `${tons.toLocaleString('vi-VN', {
@@ -714,6 +954,18 @@ export class StockTransferComponent implements OnDestroy {
       if (!item.toLocationId) {
         return `Vui lòng chọn vị trí đích cho dòng ${lineNumber}.`;
       }
+
+      if (item.hasBags) {
+        const selected = this.lineSelectedBags(item);
+        if (selected === 0) {
+          return `Dòng ${lineNumber}: hãy chọn ít nhất một bao để chuyển.`;
+        }
+        if (this.lineTransferWeight(item) <= 0) {
+          return `Dòng ${lineNumber}: cần ít nhất một bao ĐẠT chất lượng để chuyển sang kho đích.`;
+        }
+        continue;
+      }
+
       if (!item.weightKg || item.weightKg <= 0) {
         return `Khối lượng dòng ${lineNumber} phải lớn hơn 0.`;
       }
