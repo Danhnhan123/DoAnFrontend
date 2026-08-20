@@ -19,7 +19,6 @@ import {
   StockTakeItemBag,
   StockTakeRow,
   StockTakeScopeOptions,
-  StockTakeScopeType,
   StockTakeStatusAdvancedRow,
   StockTakeSummary,
   StockTakeThresholds,
@@ -31,18 +30,20 @@ import { StockTakeService } from '../../services/stock-take.service';
 import { WarehouseService } from '../../services/warehouse.service';
 import { FilterSelectComponent, FilterSelectOption } from '../shared/filter-select.component';
 
-/** Một BAO trong bảng kiểm đếm — đơn vị kiểm kê thật sự. */
+/**
+ * Một BAO trong bảng kiểm đếm.
+ * `itemId` là dòng (lô) mà bao thuộc về ở phía backend — màn hình KHÔNG hiện
+ * theo lô nữa, nhưng vẫn phải giữ để gửi kết quả về đúng dòng.
+ */
 interface CountBagLine {
   id: number;
+  itemId: number;
   paddyLotBagId: number;
   bagNo: number;
-  qrCode: string | null;
-  lotCode: string | null;
   systemWeightKg: number;
   pickSequence: number;
   restowSequence: number;
   counted: boolean;
-  scannedByQr: boolean;
   countedWeightKg: number | null;
   qualityResult: BagQualityResult | null;
   moldLevel: string | null;
@@ -55,6 +56,7 @@ interface CountBagLine {
   targetZoneName: string | null;
   dispositionNote: string;
   isUnexpected: boolean;
+  scannedByQr: boolean;
 }
 
 interface CountLine {
@@ -62,22 +64,25 @@ interface CountLine {
   hasBags: boolean;
   /** Chỉ dùng cho dòng tồn kho cũ chưa quản lý theo bao. */
   actualQuantity: number | null;
-  note: string;
+  systemBagCount: number;
+  systemQuantity: number;
+  lotCode: string | null;
+  bags: CountBagLine[];
+}
+
+/** Lý do lệch + chỉnh lý: nhập MỘT lần cho cả cột, không bắt gõ lại theo từng lô. */
+interface ColumnDecision {
   varianceReason: string;
   adjustedBagCount: number | null;
   adjustedWeightKg: number | null;
   recountConfirmed: boolean;
-  systemBagCount: number;
-  systemQuantity: number;
-  bags: CountBagLine[];
 }
 
 interface CreateForm {
   warehouseId: number | null;
-  scopeType: StockTakeScopeType;
-  scopeValue: string | number | null;
+  locationId: number | null;
   note: string;
-  /** Kiểm kê khu cách ly: chỉ liệt kê ô cách ly trong dropdown. */
+  /** Kiểm kê lại khu cách ly: dropdown chỉ liệt kê ô cách ly. */
   quarantineOnly: boolean;
 }
 
@@ -108,13 +113,9 @@ export class StockTakeComponent implements OnDestroy {
   readonly saving = signal(false);
   readonly actionLoading = signal(false);
   readonly countLines = signal<CountLine[]>([]);
-  readonly expandedItems = signal<Set<number>>(new Set());
+  readonly decision = signal<ColumnDecision>({ varianceReason: '', adjustedBagCount: null, adjustedWeightKg: null, recountConfirmed: false });
   readonly bagTargets = signal<Record<number, StockTakeBagTargetSuggestion[]>>({});
-  readonly scanInput = signal('');
-  readonly scanWeight = signal<number | null>(null);
-  readonly scanMessage = signal<string>('');
-  readonly scopeQrInput = signal('');
-  readonly createForm = signal<CreateForm>({ warehouseId: null, scopeType: 'COLUMN', scopeValue: null, note: '', quarantineOnly: false });
+  readonly createForm = signal<CreateForm>({ warehouseId: null, locationId: null, note: '', quarantineOnly: false });
   private searchTimer?: ReturnType<typeof setTimeout>;
 
   private readonly warehousesQuery = injectQuery(() => ({
@@ -165,9 +166,9 @@ export class StockTakeComponent implements OnDestroy {
     },
   }));
 
-  /** Nguồn dropdown phạm vi: chỉ khu/cột/lô ĐANG CÓ BAO — kiểm kê theo bao thì cột rỗng không có gì để đếm. */
+  /** Chỉ liệt kê cột ĐANG CÓ BAO — cột rỗng thì không có gì để đếm. */
   private readonly scopeOptionsQuery = injectQuery(() => ({
-    queryKey: ['stock-take-scope-options', this.createForm().warehouseId, this.createForm().quarantineOnly],
+    queryKey: ['stock-take-columns', this.createForm().warehouseId, this.createForm().quarantineOnly],
     enabled: this.showCreate() && !!this.createForm().warehouseId,
     queryFn: () => lastValueFrom(this.service.getScopeOptions(
       this.createForm().warehouseId!,
@@ -178,7 +179,12 @@ export class StockTakeComponent implements OnDestroy {
   readonly warehouses = computed<WarehouseRow[]>(() => this.resourceArray<WarehouseRow>(this.warehousesQuery.data()).filter(x => x.isActive));
   readonly warehouseOptions = computed<FilterSelectOption[]>(() => this.warehouses().map(x => ({ id: x.id, name: `${x.code} — ${x.name}` })));
   readonly scopeData = computed<StockTakeScopeOptions>(() =>
-    (this.scopeOptionsQuery.data() as ApiResponse<StockTakeScopeOptions> | undefined)?.resources ?? { zones: [], columns: [], lots: [] });
+    (this.scopeOptionsQuery.data() as ApiResponse<StockTakeScopeOptions> | undefined)?.resources ?? { columns: [] });
+  readonly columnOptions = computed<FilterSelectOption[]>(() => this.scopeData().columns.map(x => ({
+    id: x.locationId,
+    name: `${x.isQuarantine ? '🚧 ' : ''}${x.zoneName} / ${x.locationCode || `#${x.locationId}`} — ${x.bagCount} bao`,
+  })));
+  readonly columnsLoading = computed(() => this.scopeOptionsQuery.isPending() || this.scopeOptionsQuery.isFetching());
 
   readonly statusOptions = computed<FilterSelectOption[]>(() => {
     const response = this.statusesQuery.data() as ApiResponse<any> | undefined;
@@ -193,12 +199,6 @@ export class StockTakeComponent implements OnDestroy {
       .map(x => ({ id: x.id, name: x.name }));
   });
 
-  readonly scopeTypeOptions: FilterSelectOption[] = [
-    { id: 'ZONE', name: 'Theo khu' },
-    { id: 'COLUMN', name: 'Theo cột/vị trí' },
-    { id: 'LOT', name: 'Theo lô' },
-    { id: 'WAREHOUSE', name: 'Toàn kho' },
-  ];
   readonly pageSizeOptions: FilterSelectOption[] = [
     { id: 10, name: '10 / trang' }, { id: 20, name: '20 / trang' }, { id: 50, name: '50 / trang' },
   ];
@@ -207,19 +207,18 @@ export class StockTakeComponent implements OnDestroy {
     { id: 'ISSUE_DETECTED', name: 'Có vấn đề' },
   ];
   readonly moldOptions: FilterSelectOption[] = [
-    { id: 'Không', name: 'Mốc: Không' }, { id: 'Nhẹ', name: 'Mốc: Nhẹ' }, { id: 'Nặng', name: 'Mốc: Nặng' },
+    { id: 'Không', name: 'Không mốc' }, { id: 'Nhẹ', name: 'Mốc nhẹ' }, { id: 'Nặng', name: 'Mốc nặng' },
   ];
   readonly pestOptions: FilterSelectOption[] = [
-    { id: 'Không', name: 'Mọt: Không' }, { id: 'Có dấu hiệu', name: 'Mọt: Có dấu hiệu' }, { id: 'Cần xử lý', name: 'Mọt: Cần xử lý' },
+    { id: 'Không', name: 'Không mọt' }, { id: 'Có dấu hiệu', name: 'Có dấu hiệu mọt' }, { id: 'Cần xử lý', name: 'Mọt cần xử lý' },
   ];
   readonly packagingOptions: FilterSelectOption[] = [
-    { id: 'Nguyên', name: 'Bao bì: Nguyên' }, { id: 'Rách', name: 'Bao bì: Rách' }, { id: 'Ẩm', name: 'Bao bì: Ẩm' },
+    { id: 'Nguyên', name: 'Bao nguyên' }, { id: 'Rách', name: 'Bao rách' }, { id: 'Ẩm', name: 'Bao ẩm' },
   ];
 
   /** Phiếu kiểm kê ô cách ly mới có lựa chọn "Rút về khu thường". */
-  readonly dispositionOptions = computed<FilterSelectOption[]>(() => {
-    const quarantineScope = this.detail()?.isQuarantineScope === true;
-    return quarantineScope
+  readonly dispositionOptions = computed<FilterSelectOption[]>(() =>
+    this.detail()?.isQuarantineScope === true
       ? [
           { id: BAG_DISPOSITION.KEEP, name: 'Giữ trong khu cách ly' },
           { id: BAG_DISPOSITION.RELEASE, name: 'Đạt — rút về khu thường' },
@@ -229,31 +228,7 @@ export class StockTakeComponent implements OnDestroy {
           { id: BAG_DISPOSITION.KEEP, name: 'Giữ nguyên vị trí' },
           { id: BAG_DISPOSITION.QUARANTINE, name: 'Chuyển sang khu cách ly' },
           { id: BAG_DISPOSITION.DISPOSE, name: 'Bao hỏng — bỏ cả bao' },
-        ];
-  });
-
-  readonly scopeValueOptions = computed<FilterSelectOption[]>(() => {
-    const data = this.scopeData();
-    switch (this.createForm().scopeType) {
-      case 'ZONE':
-        return data.zones.map(x => ({
-          id: x.zoneName,
-          name: `${x.isQuarantine ? '🚧 ' : ''}${x.zoneName} — ${x.columnCount} cột, ${x.bagCount} bao`,
-        }));
-      case 'COLUMN':
-        return data.columns.map(x => ({
-          id: x.locationId,
-          name: `${x.isQuarantine ? '🚧 ' : ''}${x.zoneName} / ${x.locationCode || `#${x.locationId}`} — ${x.bagCount} bao`,
-        }));
-      case 'LOT':
-        return data.lots.map(x => ({
-          id: x.paddyLotId,
-          name: `${x.lotCode} — ${x.bagCount} bao / ${x.columnCount} cột`,
-        }));
-      default:
-        return [];
-    }
-  });
+        ]);
 
   readonly rows = computed<StockTakeRow[]>(() => (this.listQuery.data() as ApiResponse<any> | undefined)?.resources?.data ?? []);
   readonly total = computed(() => Number((this.listQuery.data() as ApiResponse<any> | undefined)?.resources?.recordsFiltered ?? 0));
@@ -267,11 +242,67 @@ export class StockTakeComponent implements OnDestroy {
   readonly canEditDetail = computed(() =>
     this.isStatus(this.detail()?.stockTakeStatusCode, this.status.DRAFT) && this.perm.canUpdate('STOCKTAKE'));
 
+  // ── Danh sách BAO phẳng: kiểm kê theo cột nên không tách theo lô ───────────
+  readonly bags = computed<CountBagLine[]>(() =>
+    this.countLines()
+      .flatMap(line => line.bags)
+      .sort((a, b) => a.pickSequence - b.pickSequence || a.bagNo - b.bagNo));
+
+  /** Dòng tồn kho cũ chưa quản lý theo bao — vẫn cho nhập tổng kg. */
+  readonly legacyLines = computed<CountLine[]>(() => this.countLines().filter(x => !x.hasBags));
+
+  readonly systemBagCount = computed(() => this.countLines().reduce((sum, x) => sum + x.systemBagCount, 0));
+  readonly systemKg = computed(() => this.countLines().reduce((sum, x) => sum + x.systemQuantity, 0));
+  readonly countedBagCount = computed(() =>
+    this.decision().adjustedBagCount ?? this.bags().filter(x => x.counted).length);
+  readonly countedKg = computed(() =>
+    this.decision().adjustedWeightKg ??
+    (this.bags().filter(x => x.counted).reduce((sum, x) => sum + (x.countedWeightKg ?? x.systemWeightKg), 0)
+      + this.legacyLines().reduce((sum, x) => sum + (x.actualQuantity ?? 0), 0)));
+  readonly bagVariance = computed(() => this.countedBagCount() - this.systemBagCount());
+  readonly kgVariance = computed(() => this.countedKg() - this.systemKg());
+  readonly touched = computed(() =>
+    this.bags().some(x => x.counted || x.countedWeightKg != null) ||
+    this.legacyLines().some(x => x.actualQuantity != null));
+
+  readonly quarantineCount = computed(() => this.bags().filter(x => x.disposition === BAG_DISPOSITION.QUARANTINE).length);
+  readonly disposeCount = computed(() => this.bags().filter(x => x.disposition === BAG_DISPOSITION.DISPOSE).length);
+  readonly releaseCount = computed(() => this.bags().filter(x => x.disposition === BAG_DISPOSITION.RELEASE).length);
+  readonly issueCount = computed(() => this.bags().filter(x => x.qualityResult === 'ISSUE_DETECTED').length);
+
+  /** Chỉnh lý tổng chỉ hiện khi cột có đúng một lô — nhiều lô thì không chia được. */
+  readonly canAdjustTotals = computed(() => this.countLines().filter(x => x.hasBags).length <= 1);
+
+  /** Lệch SỐ BAO luôn là LARGE: mất nguyên một bao là sự cố an ninh kho. */
+  readonly severity = computed(() => {
+    if (!this.touched()) return 'NONE';
+    if (this.bagVariance() !== 0) return 'LARGE';
+    const abs = Math.abs(this.kgVariance());
+    if (abs < 0.001) return 'NONE';
+    const system = this.systemKg();
+    const pct = system === 0 ? Number.POSITIVE_INFINITY : (abs / Math.abs(system)) * 100;
+    const t = this.thresholds();
+    if (pct > t.mediumVariancePercent || abs > t.mediumVarianceKg) return 'LARGE';
+    if (pct > t.smallVariancePercent || abs > t.smallVarianceKg) return 'MEDIUM';
+    return 'SMALL';
+  });
+
+  readonly hasVariance = computed(() =>
+    this.touched() && (this.bagVariance() !== 0 || Math.abs(this.kgVariance()) > 0.001));
+
   constructor() {
     effect(() => {
       const current = this.detail();
       if (!current || current.id !== this.selectedId()) return;
       this.countLines.set(current.stockTakeItems.map(item => this.toCountLine(item)));
+      const withReason = current.stockTakeItems.find(x => (x.varianceReason || '').trim());
+      const withAdjust = current.stockTakeItems.find(x => x.adjustedBagCount != null || x.adjustedWeightKg != null);
+      this.decision.set({
+        varianceReason: withReason?.varianceReason || '',
+        adjustedBagCount: withAdjust?.adjustedBagCount ?? null,
+        adjustedWeightKg: withAdjust?.adjustedWeightKg == null ? null : Number(withAdjust.adjustedWeightKg),
+        recountConfirmed: current.stockTakeItems.some(x => x.recountConfirmed),
+      });
     }, { allowSignalWrites: true });
   }
 
@@ -282,29 +313,23 @@ export class StockTakeComponent implements OnDestroy {
       id: item.id,
       hasBags: (item.bags?.length ?? 0) > 0,
       actualQuantity: item.actualQuantity == null ? null : Number(item.actualQuantity),
-      note: item.note || '',
-      varianceReason: item.varianceReason || '',
-      adjustedBagCount: item.adjustedBagCount ?? null,
-      adjustedWeightKg: item.adjustedWeightKg == null ? null : Number(item.adjustedWeightKg),
-      recountConfirmed: item.recountConfirmed,
       systemBagCount: item.systemBagCount ?? 0,
       systemQuantity: Number(item.systemQuantity || 0),
-      bags: (item.bags || []).map(bag => this.toBagLine(bag)),
+      lotCode: item.lotCode ?? null,
+      bags: (item.bags || []).map(bag => this.toBagLine(bag, item.id)),
     };
   }
 
-  private toBagLine(bag: StockTakeItemBag): CountBagLine {
+  private toBagLine(bag: StockTakeItemBag, itemId: number): CountBagLine {
     return {
       id: bag.id,
+      itemId,
       paddyLotBagId: bag.paddyLotBagId,
       bagNo: bag.bagNo,
-      qrCode: bag.qrCode ?? null,
-      lotCode: bag.lotCode ?? null,
       systemWeightKg: Number(bag.systemWeightKg || 0),
       pickSequence: bag.pickSequence,
       restowSequence: bag.restowSequence,
       counted: bag.counted,
-      scannedByQr: bag.scannedByQr,
       countedWeightKg: bag.countedWeightKg == null ? null : Number(bag.countedWeightKg),
       qualityResult: bag.qualityResult ?? null,
       moldLevel: bag.moldLevel ?? null,
@@ -317,6 +342,7 @@ export class StockTakeComponent implements OnDestroy {
       targetZoneName: bag.targetZoneName ?? null,
       dispositionNote: bag.dispositionNote || '',
       isUnexpected: bag.isUnexpected,
+      scannedByQr: bag.scannedByQr,
     };
   }
 
@@ -330,55 +356,31 @@ export class StockTakeComponent implements OnDestroy {
   setStatusFilter(value: number | null): void { this.statusFilter.set(value); this.page.set(1); }
   changePage(next: number): void { if (next >= 1 && next <= this.totalPages()) this.page.set(next); }
   changePageSize(value: number): void { this.pageSize.set(Number(value) || 10); this.page.set(1); }
-  openDetail(id: number): void { this.selectedId.set(id); this.expandedItems.set(new Set()); this.scanMessage.set(''); }
+  openDetail(id: number): void { this.selectedId.set(id); this.bagTargets.set({}); }
   closeDetail(): void { if (!this.actionLoading()) this.selectedId.set(null); }
 
   // ── Tạo phiếu ──────────────────────────────────────────────────────────────
   openCreateForm(): void {
-    this.createForm.set({ warehouseId: null, scopeType: 'COLUMN', scopeValue: null, note: '', quarantineOnly: false });
-    this.scopeQrInput.set('');
+    this.createForm.set({ warehouseId: null, locationId: null, note: '', quarantineOnly: false });
     this.showCreate.set(true);
   }
   closeCreateForm(): void { if (!this.saving()) this.showCreate.set(false); }
-  setCreateWarehouse(value: number | null): void { this.createForm.update(x => ({ ...x, warehouseId: value, scopeValue: null })); }
-  setScopeType(value: StockTakeScopeType | null): void { this.createForm.update(x => ({ ...x, scopeType: value || 'COLUMN', scopeValue: null })); }
-  setScopeValue(value: string | number | null): void { this.createForm.update(x => ({ ...x, scopeValue: value })); }
+  setCreateWarehouse(value: number | null): void { this.createForm.update(x => ({ ...x, warehouseId: value, locationId: null })); }
+  setCreateLocation(value: number | null): void { this.createForm.update(x => ({ ...x, locationId: value })); }
   setCreateNote(value: string): void { this.createForm.update(x => ({ ...x, note: value })); }
-  toggleQuarantineOnly(value: boolean): void { this.createForm.update(x => ({ ...x, quarantineOnly: value, scopeValue: null })); }
-
-  /** Quét (hoặc dán) QR dán trên cột/khu/lô để chọn phạm vi thay vì mò dropdown. */
-  async resolveScopeQr(): Promise<void> {
-    const code = this.scopeQrInput().trim();
-    if (!code) return;
-    const form = this.createForm();
-    try {
-      const response = await lastValueFrom(this.service.resolveScopeQr(code, form.warehouseId));
-      const data = response.resources;
-      if (!response.isSucceeded || !data?.matched) { this.alert(data?.message || 'Mã QR không khớp cột/khu hay lô nào.', false); return; }
-      this.createForm.update(x => ({
-        ...x,
-        warehouseId: data.warehouseId ?? x.warehouseId,
-        scopeType: (data.scopeType as StockTakeScopeType) || x.scopeType,
-        scopeValue: data.scopeType === 'LOT' ? (data.paddyLotId ?? null) : (data.locationId ?? null),
-        quarantineOnly: data.isQuarantine,
-      }));
-      this.scopeQrInput.set('');
-      this.alert(`${data.message} (${data.bagCount} bao)`);
-    } catch (error) { this.alert(this.errorText(error), false); }
-  }
+  toggleQuarantineOnly(value: boolean): void { this.createForm.update(x => ({ ...x, quarantineOnly: value, locationId: null })); }
 
   async createStockTake(): Promise<void> {
     const form = this.createForm();
     if (!form.warehouseId) return this.alert('Vui lòng chọn kho.', false);
-    if (form.scopeType !== 'WAREHOUSE' && (form.scopeValue == null || form.scopeValue === ''))
-      return this.alert('Vui lòng chọn khu, cột hoặc lô cần kiểm kê.', false);
+    if (!form.locationId) return this.alert('Vui lòng chọn cột cần kiểm kê.', false);
     const payload: CreateStockTakePayload = {
-      warehouseId: form.warehouseId, stockTakeStatusId: 0, scopeType: form.scopeType,
-      note: form.note.trim() || null, stockTakeItems: [],
-      zoneName: form.scopeType === 'ZONE' ? String(form.scopeValue) : null,
-      locationId: form.scopeType === 'COLUMN' ? Number(form.scopeValue) : null,
-      paddyLotId: form.scopeType === 'LOT' ? Number(form.scopeValue) : null,
-      productVariantId: null,
+      warehouseId: form.warehouseId,
+      stockTakeStatusId: 0,
+      scopeType: 'COLUMN',
+      note: form.note.trim() || null,
+      stockTakeItems: [],
+      locationId: form.locationId,
     };
     this.saving.set(true);
     try {
@@ -386,34 +388,14 @@ export class StockTakeComponent implements OnDestroy {
       if (!response.isSucceeded) throw new Error(response.message);
       this.showCreate.set(false);
       await this.refresh();
-      this.alert(response.message || 'Đã tạo phiếu và chụp danh sách bao trong phạm vi.');
+      this.alert(response.message || 'Đã tạo phiếu và chụp danh sách bao của cột.');
     } catch (error) { this.alert(this.errorText(error), false); }
     finally { this.saving.set(false); }
   }
 
   // ── Kiểm đếm theo bao ──────────────────────────────────────────────────────
-  lineFor(item: StockTakeItem): CountLine | undefined { return this.countLines().find(x => x.id === item.id); }
-
-  isExpanded(itemId: number): boolean { return this.expandedItems().has(itemId); }
-  toggleExpand(itemId: number): void {
-    this.expandedItems.update(set => {
-      const next = new Set(set);
-      if (next.has(itemId)) next.delete(itemId); else next.add(itemId);
-      return next;
-    });
-  }
-
-  updateLine(itemId: number, field: keyof CountLine, value: unknown): void {
-    this.countLines.update(lines => lines.map(line => line.id !== itemId ? line : {
-      ...line,
-      [field]: (field === 'actualQuantity' || field === 'adjustedWeightKg' || field === 'adjustedBagCount')
-        ? (value === '' || value == null ? null : Number(value))
-        : value,
-    }));
-  }
-
-  updateBag(itemId: number, bagId: number, field: keyof CountBagLine, value: unknown): void {
-    this.countLines.update(lines => lines.map(line => line.id !== itemId ? line : {
+  updateBag(bagId: number, field: keyof CountBagLine, value: unknown): void {
+    this.countLines.update(lines => lines.map(line => ({
       ...line,
       bags: line.bags.map(bag => {
         if (bag.id !== bagId) return bag;
@@ -423,97 +405,59 @@ export class StockTakeComponent implements OnDestroy {
             ? (value === '' || value == null ? null : Number(value))
             : value,
         } as CountBagLine;
-        // Chọn cách xử lý nghĩa là đã cầm bao trên tay → tự tick "tìm thấy".
-        if (field === 'disposition' && next.disposition !== BAG_DISPOSITION.KEEP) next.counted = true;
+        // Chấm chất lượng hay chọn cách xử lý nghĩa là đã cầm bao trên tay.
+        if ((field === 'disposition' || field === 'qualityResult') && value != null && value !== BAG_DISPOSITION.KEEP) {
+          next.counted = true;
+        }
+        // Bỏ tích "tìm thấy" thì mọi quyết định trên bao đó không còn hiệu lực.
+        if (field === 'counted' && value === false) {
+          next.countedWeightKg = null;
+          next.disposition = BAG_DISPOSITION.KEEP;
+          next.targetLocationId = null;
+        }
         // Đổi cách xử lý thì vị trí đích cũ không còn hợp lệ (ô cách ly vs cột thường).
         if (field === 'disposition' && next.disposition !== bag.disposition) next.targetLocationId = null;
         return next;
       }),
-    }));
+    })));
     if (field === 'disposition' && (value === BAG_DISPOSITION.QUARANTINE || value === BAG_DISPOSITION.RELEASE)) {
       void this.loadBagTargets(bagId);
     }
   }
 
-  /** Số bao tìm thấy của dòng (đã tính chỉnh lý nếu thủ kho chốt lại). */
-  countedBagsOf(line?: CountLine): number | null {
-    if (!line) return null;
-    if (!line.hasBags) return null;
-    if (line.adjustedBagCount != null) return line.adjustedBagCount;
-    if (!line.bags.some(x => x.counted || x.countedWeightKg != null || x.isUnexpected)) return null;
-    return line.bags.filter(x => x.counted).length;
+  updateLegacyLine(itemId: number, value: unknown): void {
+    this.countLines.update(lines => lines.map(line => line.id !== itemId ? line : {
+      ...line,
+      actualQuantity: value === '' || value == null ? null : Number(value),
+    }));
   }
 
-  /** Tổng kg tìm thấy của dòng — bao không cân thì giữ kg sổ sách. */
-  foundKgOf(line?: CountLine): number | null {
-    if (!line) return null;
-    if (!line.hasBags) return line.actualQuantity;
-    if (line.adjustedWeightKg != null) return line.adjustedWeightKg;
-    if (!line.bags.some(x => x.counted || x.countedWeightKg != null || x.isUnexpected)) return null;
-    return line.bags.filter(x => x.counted).reduce((sum, x) => sum + (x.countedWeightKg ?? x.systemWeightKg), 0);
+  updateDecision(field: keyof ColumnDecision, value: unknown): void {
+    this.decision.update(current => ({
+      ...current,
+      [field]: (field === 'adjustedBagCount' || field === 'adjustedWeightKg')
+        ? (value === '' || value == null ? null : Number(value))
+        : value,
+    }));
   }
 
-  bagDiffOf(line?: CountLine): number | null {
-    const counted = this.countedBagsOf(line);
-    return counted == null || !line ? null : counted - line.systemBagCount;
+  markAll(counted: boolean): void {
+    this.countLines.update(lines => lines.map(line => ({
+      ...line,
+      bags: line.bags.map(bag => counted
+        ? { ...bag, counted: true }
+        : { ...bag, counted: false, countedWeightKg: null, disposition: BAG_DISPOSITION.KEEP, targetLocationId: null }),
+    })));
   }
 
-  kgDiffOf(line?: CountLine): number | null {
-    const found = this.foundKgOf(line);
-    return found == null || !line ? null : found - line.systemQuantity;
+  needsTarget(bag: CountBagLine): boolean {
+    return bag.disposition === BAG_DISPOSITION.QUARANTINE || bag.disposition === BAG_DISPOSITION.RELEASE;
   }
 
-  dispositionCount(line: CountLine | undefined, value: BagDisposition): number {
-    return line ? line.bags.filter(x => x.disposition === value).length : 0;
-  }
-
-  /** Lệch SỐ BAO luôn là LARGE — mất nguyên một bao là sự cố an ninh kho, không phải sai số cân. */
-  lineSeverity(item: StockTakeItem): string {
-    const line = this.lineFor(item);
-    const bagDiff = this.bagDiffOf(line);
-    if (bagDiff != null && bagDiff !== 0) return 'LARGE';
-    const kgDiff = this.kgDiffOf(line);
-    if (kgDiff == null) return 'NONE';
-    const abs = Math.abs(kgDiff);
-    if (abs === 0) return 'NONE';
-    const system = Number(item.systemQuantity) || 0;
-    const pct = system === 0 ? Number.POSITIVE_INFINITY : (abs / Math.abs(system)) * 100;
-    const t = this.thresholds();
-    if (pct > t.mediumVariancePercent || abs > t.mediumVarianceKg) return 'LARGE';
-    if (pct > t.smallVariancePercent || abs > t.smallVarianceKg) return 'MEDIUM';
-    return 'SMALL';
-  }
-
-  hasVariance(item: StockTakeItem): boolean {
-    const line = this.lineFor(item);
-    const bagDiff = this.bagDiffOf(line);
-    const kgDiff = this.kgDiffOf(line);
-    return (bagDiff != null && bagDiff !== 0) || (kgDiff != null && Math.abs(kgDiff) > 0.001);
-  }
-
-  // ── Quét QR bao ────────────────────────────────────────────────────────────
-  async scanBag(): Promise<void> {
-    const current = this.detail();
-    const code = this.scanInput().trim();
-    if (!current || !code) return;
-    this.actionLoading.set(true);
-    try {
-      const response = await lastValueFrom(this.service.scanBag(current.id, {
-        qrCode: code,
-        countedWeightKg: this.scanWeight(),
-      }));
-      const data = response.resources;
-      this.scanMessage.set(data?.message || response.message || '');
-      if (data?.matched && data.stockTakeItemId) this.toggleExpandOn(data.stockTakeItemId);
-      this.scanInput.set('');
-      this.scanWeight.set(null);
-      await this.refreshDetail(current.id);
-    } catch (error) { this.alert(this.errorText(error), false); }
-    finally { this.actionLoading.set(false); }
-  }
-
-  private toggleExpandOn(itemId: number): void {
-    this.expandedItems.update(set => new Set(set).add(itemId));
+  bagKgDiff(bag: CountBagLine): number | null {
+    if (!bag.counted) return -bag.systemWeightKg;
+    if (bag.countedWeightKg == null) return null;
+    return bag.countedWeightKg - bag.systemWeightKg;
   }
 
   // ── Gợi ý vị trí đích ──────────────────────────────────────────────────────
@@ -522,28 +466,39 @@ export class StockTakeComponent implements OnDestroy {
     if (!current || this.bagTargets()[bagId]) return;
     try {
       const response = await lastValueFrom(this.service.getBagTargetSuggestions(current.id, bagId));
-      this.bagTargets.update(map => ({ ...map, [bagId]: response.resources ?? [] }));
+      const targets = response.resources ?? [];
+      this.bagTargets.update(map => ({ ...map, [bagId]: targets }));
+      // Vẫn để backend chọn sẵn vị trí đầu danh sách cho đỡ một thao tác, nhưng
+      // KHÔNG gắn nhãn "gợi ý/★" ra màn hình: khi bảo vệ, chữ đó dễ bị hiểu nhầm
+      // là hệ thống dùng AI để quyết định thay người.
+      const recommended = targets[0];
+      if (recommended) {
+        this.countLines.update(lines => lines.map(line => ({
+          ...line,
+          bags: line.bags.map(bag =>
+            bag.id === bagId && bag.targetLocationId == null
+              ? { ...bag, targetLocationId: recommended.locationId }
+              : bag),
+        })));
+      }
     } catch { this.bagTargets.update(map => ({ ...map, [bagId]: [] })); }
   }
 
   bagTargetOptions(bagId: number): FilterSelectOption[] {
     return (this.bagTargets()[bagId] ?? []).map(x => ({
       id: x.locationId,
-      name: `${x.isRecommended ? '★ ' : ''}${x.zoneName} / ${x.locationCode || `#${x.locationId}`} — ${x.reason}`,
+      name: `${x.zoneName} / ${x.locationCode || `#${x.locationId}`}`,
     }));
-  }
-
-  needsTarget(bag: CountBagLine): boolean {
-    return bag.disposition === BAG_DISPOSITION.QUARANTINE || bag.disposition === BAG_DISPOSITION.RELEASE;
   }
 
   // ── Lưu / gửi duyệt ────────────────────────────────────────────────────────
   async saveCounts(showSuccess = true): Promise<boolean> {
     const current = this.detail();
     if (!current) return false;
-    if (this.countLines().some(line => line.bags.some(bag => bag.countedWeightKg != null && bag.countedWeightKg < 0))) {
+    if (this.bags().some(bag => bag.countedWeightKg != null && bag.countedWeightKg < 0)) {
       this.alert('Khối lượng cân của bao không được âm.', false); return false;
     }
+    const decision = this.decision();
     this.actionLoading.set(true);
     try {
       const response = await lastValueFrom(this.service.saveCounts(current.id, {
@@ -551,11 +506,12 @@ export class StockTakeComponent implements OnDestroy {
         items: this.countLines().map(line => ({
           id: line.id,
           actualQuantity: line.hasBags ? null : line.actualQuantity,
-          note: line.note.trim() || null,
-          varianceReason: line.varianceReason.trim() || null,
-          adjustedBagCount: line.adjustedBagCount,
-          adjustedWeightKg: line.adjustedWeightKg,
-          recountConfirmed: line.recountConfirmed,
+          note: null,
+          // Lý do lệch nhập một lần cho cả cột rồi áp cho mọi lô trong cột đó.
+          varianceReason: decision.varianceReason.trim() || null,
+          adjustedBagCount: this.canAdjustTotals() ? decision.adjustedBagCount : null,
+          adjustedWeightKg: this.canAdjustTotals() ? decision.adjustedWeightKg : null,
+          recountConfirmed: decision.recountConfirmed,
           bags: line.bags.map(bag => ({
             id: bag.id,
             paddyLotBagId: bag.paddyLotBagId,
@@ -585,31 +541,23 @@ export class StockTakeComponent implements OnDestroy {
     const current = this.detail();
     if (!current) return;
 
-    const untouched = this.countLines().find(line =>
-      line.hasBags ? this.countedBagsOf(line) == null : line.actualQuantity == null);
-    if (untouched) return this.alert('Còn dòng chưa kiểm bao nào. Vui lòng kiểm đủ trước khi gửi duyệt.', false);
+    if (!this.touched()) return this.alert('Chưa kiểm bao nào. Vui lòng kiểm đếm trước khi gửi duyệt.', false);
+    if (this.legacyLines().some(x => x.actualQuantity == null))
+      return this.alert('Còn dòng chưa nhập khối lượng thực tế.', false);
+    if (this.hasVariance() && !this.decision().varianceReason.trim())
+      return this.alert('Cột có chênh lệch bao hoặc kg — bắt buộc nêu lý do.', false);
+    if (this.severity() === 'LARGE' && !this.decision().recountConfirmed)
+      return this.alert('Chênh lệch mức LARGE — bắt buộc xác nhận đã kiểm đếm lại.', false);
 
-    const missingReason = current.stockTakeItems.find(item =>
-      this.hasVariance(item) && !this.lineFor(item)?.varianceReason.trim());
-    if (missingReason) return this.alert('Dòng có chênh lệch bao hoặc kg phải nêu lý do.', false);
-
-    const missingRecount = current.stockTakeItems.find(item =>
-      this.lineSeverity(item) === 'LARGE' && !this.lineFor(item)?.recountConfirmed);
-    if (missingRecount) return this.alert('Dòng chênh lệch LARGE phải xác nhận đã kiểm đếm lại.', false);
-
-    const missingTarget = this.countLines()
-      .flatMap(line => line.bags)
-      .find(bag => this.needsTarget(bag) && bag.targetLocationId == null);
+    const missingTarget = this.bags().find(bag => this.needsTarget(bag) && bag.targetLocationId == null);
     if (missingTarget) return this.alert(`Bao #${missingTarget.bagNo} chưa chọn vị trí đích.`, false);
 
-    const missingDisposeNote = this.countLines()
-      .flatMap(line => line.bags)
-      .find(bag => bag.disposition === BAG_DISPOSITION.DISPOSE && !bag.dispositionNote.trim());
+    const missingDisposeNote = this.bags().find(bag => bag.disposition === BAG_DISPOSITION.DISPOSE && !bag.dispositionNote.trim());
     if (missingDisposeNote) return this.alert(`Bao #${missingDisposeNote.bagNo} bị bỏ vì hỏng — phải ghi rõ lý do.`, false);
 
     const confirmed = await Swal.fire({
       title: 'Gửi phiếu để duyệt?',
-      text: 'Sau khi gửi, kết quả kiểm đếm theo bao sẽ bị khóa.',
+      text: `Đã kiểm ${this.countedBagCount()}/${this.systemBagCount()} bao. Sau khi gửi, kết quả sẽ bị khóa.`,
       icon: 'question', showCancelButton: true, confirmButtonText: 'Gửi duyệt', cancelButtonText: 'Hủy',
     });
     if (!confirmed.isConfirmed || !(await this.saveCounts(false))) return;
@@ -653,6 +601,7 @@ export class StockTakeComponent implements OnDestroy {
     return String(code || '').trim().toUpperCase() === expected.trim().toUpperCase();
   }
   severityClass(value?: string | null): string { return `severity-${String(value || 'NONE').toLowerCase()}`; }
+  dispositionClass(value?: string | null): string { return `disp-${String(value || 'KEEP').toLowerCase()}`; }
   dispositionLabel(value?: string | null): string {
     switch (value) {
       case BAG_DISPOSITION.QUARANTINE: return 'Cách ly';
@@ -660,6 +609,9 @@ export class StockTakeComponent implements OnDestroy {
       case BAG_DISPOSITION.RELEASE: return 'Rút về khu thường';
       default: return 'Giữ nguyên';
     }
+  }
+  qualityLabel(value?: string | null): string {
+    return value === 'ISSUE_DETECTED' ? 'Có vấn đề' : (value === 'PASS' ? 'Đạt' : '—');
   }
   formatNumber(value?: number | null): string { return new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 3 }).format(Number(value || 0)); }
   formatDate(value?: string | null): string { return value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)) : '—'; }

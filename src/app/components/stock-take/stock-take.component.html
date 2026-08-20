@@ -3,7 +3,7 @@
     <div>
       <span class="eyebrow">Kho · Kiểm kê</span>
       <h1>Kiểm kê kho</h1>
-      <p>Kiểm kê theo BAO: chụp danh sách bao của khu/cột/lô, đếm và cân từng bao, chấm chất lượng, xử lý bao lỗi rồi duyệt điều chỉnh tồn.</p>
+      <p>Kiểm kê theo CỘT và theo BAO: dỡ cột từ trên xuống, tích từng bao, cân lại bao nghi ngờ, chấm chất lượng rồi duyệt điều chỉnh tồn.</p>
     </div>
     <button type="button" class="btn btn-primary" [appHasPerm]="'STOCKTAKE:CREATE'" (click)="openCreateForm()">＋ Tạo phiên kiểm kê</button>
   </section>
@@ -34,7 +34,7 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Mã phiếu</th><th>Kho / phạm vi</th><th class="number">Số dòng</th><th class="number">Chênh lệch</th><th class="number">Điều chỉnh ròng</th><th>Trạng thái</th><th>Người tạo</th><th>Ngày tạo</th></tr></thead>
+        <thead><tr><th>Mã phiếu</th><th>Kho / cột</th><th class="number">Số dòng</th><th class="number">Chênh lệch</th><th class="number">Điều chỉnh ròng</th><th>Trạng thái</th><th>Người tạo</th><th>Ngày tạo</th></tr></thead>
         <tbody>
           @if (listLoading() && rows().length === 0) {
             <tr><td colspan="8" class="empty"><span class="spinner"></span> Đang tải dữ liệu…</td></tr>
@@ -69,24 +69,45 @@
 @if (showCreate()) {
   <div class="modal-backdrop" (mousedown)="closeCreateForm()">
     <section class="modal create-modal" role="dialog" aria-modal="true" (mousedown)="$event.stopPropagation()">
-      <header><div><span class="eyebrow">Bước 1 · Chụp snapshot</span><h2>Tạo phiên kiểm kê</h2></div><button type="button" class="close" (click)="closeCreateForm()">×</button></header>
+      <header>
+        <div><span class="eyebrow">Bước 1 · Chọn cột</span><h2>Tạo phiên kiểm kê</h2></div>
+        <button type="button" class="close" (click)="closeCreateForm()">×</button>
+      </header>
       <div class="modal-body form-grid">
-        <div class="field full"><label>Kho <b>*</b></label><app-filter-select [options]="warehouseOptions()" [value]="createForm().warehouseId" allLabel="Chọn kho" (valueChange)="setCreateWarehouse($event)" /></div>
-        <div class="field full qr-scope">
-          <label>Quét QR khu / cột / lô</label>
-          <div class="qr-row">
-            <input type="text" placeholder="Quét hoặc dán mã QR dán trên cột, khu, lô…" [ngModel]="scopeQrInput()" (ngModelChange)="scopeQrInput.set($event)" (keydown.enter)="resolveScopeQr()" />
-            <button type="button" class="btn btn-secondary" [disabled]="!scopeQrInput().trim()" (click)="resolveScopeQr()">Nhận diện</button>
-          </div>
-          <small>Quét QR sẽ tự điền kho và phạm vi bên dưới; vẫn chọn tay bằng dropdown được.</small>
+        <div class="field full">
+          <label>Kho <b>*</b></label>
+          <app-filter-select [options]="warehouseOptions()" [value]="createForm().warehouseId" allLabel="Chọn kho" (valueChange)="setCreateWarehouse($event)" />
         </div>
-        <div class="field"><label>Loại phạm vi <b>*</b></label><app-filter-select [clearable]="false" [options]="scopeTypeOptions" [value]="createForm().scopeType" (valueChange)="setScopeType($event)" /></div>
-        <div class="field"><label>Khu / cột / lô <b>*</b></label><app-filter-select [disabled]="createForm().scopeType === 'WAREHOUSE' || !createForm().warehouseId" [clearable]="false" [options]="scopeValueOptions()" [value]="createForm().scopeValue" [allLabel]="createForm().scopeType === 'WAREHOUSE' ? 'Toàn bộ bao trong kho' : 'Chọn phạm vi'" (valueChange)="setScopeValue($event)" /></div>
-        <div class="field full"><label class="check"><input type="checkbox" [ngModel]="createForm().quarantineOnly" (ngModelChange)="toggleQuarantineOnly($event)" /> <span>Kiểm kê lại KHU CÁCH LY (chỉ hiện ô cách ly — bao đạt sẽ được rút về khu thường)</span></label></div>
-        <div class="field full"><label>Ghi chú</label><textarea rows="3" placeholder="Mục đích hoặc hướng dẫn kiểm kê" [ngModel]="createForm().note" (ngModelChange)="setCreateNote($event)"></textarea></div>
-        <div class="scope-note full"><strong>Backend chụp danh sách bao</strong><span>Từng bao trong phạm vi được cố định tại thời điểm tạo phiếu, kèm thứ tự lấy ra từ trên cột xuống. Phạm vi không có bao nào sẽ không tạo được phiếu.</span></div>
+        <div class="field full">
+          <label>Cột cần kiểm kê <b>*</b></label>
+          <app-filter-select [disabled]="!createForm().warehouseId" [searchable]="true" [options]="columnOptions()" [value]="createForm().locationId"
+            [allLabel]="!createForm().warehouseId ? 'Chọn kho trước' : (columnsLoading() ? 'Đang tải danh sách cột…' : 'Chọn cột')"
+            (valueChange)="setCreateLocation($event)" />
+          @if (createForm().warehouseId && !columnsLoading() && columnOptions().length === 0) {
+            <small class="hint warn">Kho này chưa có cột nào đang chứa bao.</small>
+          } @else {
+            <small class="hint">Chỉ hiện cột đang có bao — cột rỗng thì không có gì để đếm.</small>
+          }
+        </div>
+        <div class="field full">
+          <label class="check">
+            <input type="checkbox" [ngModel]="createForm().quarantineOnly" (ngModelChange)="toggleQuarantineOnly($event)" />
+            <span>Kiểm kê lại KHU CÁCH LY — chỉ hiện ô cách ly, bao đạt sẽ được rút về khu thường</span>
+          </label>
+        </div>
+        <div class="field full">
+          <label>Ghi chú</label>
+          <textarea rows="3" placeholder="Mục đích hoặc hướng dẫn kiểm kê" [ngModel]="createForm().note" (ngModelChange)="setCreateNote($event)"></textarea>
+        </div>
+        <div class="scope-note full">
+          <strong>Backend chụp danh sách bao</strong>
+          <span>Từng bao trong cột được cố định tại thời điểm tạo phiếu, kèm thứ tự lấy ra từ trên cột xuống.</span>
+        </div>
       </div>
-      <footer><button type="button" class="btn btn-secondary" (click)="closeCreateForm()">Hủy</button><button type="button" class="btn btn-primary" [disabled]="saving()" (click)="createStockTake()">{{ saving() ? 'Đang tạo…' : 'Tạo & bắt đầu kiểm' }}</button></footer>
+      <footer>
+        <button type="button" class="btn btn-secondary" (click)="closeCreateForm()">Hủy</button>
+        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="createStockTake()">{{ saving() ? 'Đang tạo…' : 'Tạo & bắt đầu kiểm' }}</button>
+      </footer>
     </section>
   </div>
 }
@@ -99,151 +120,220 @@
       } @else {
         @if (detail(); as current) {
         <header>
-          <div><span class="eyebrow">{{ current.warehouseName }} · {{ current.scopeDisplay }}</span><h2>{{ current.stCode }}</h2><p>Tạo bởi {{ current.createdByName || '—' }} lúc {{ formatDate(current.createdDate) }}</p></div>
-          <div class="header-side"><span class="pill" [ngClass]="statusClass(current.stockTakeStatusCode)">{{ current.stockTakeStatusName }}</span><button type="button" class="close" (click)="closeDetail()">×</button></div>
+          <div>
+            <span class="eyebrow">{{ current.warehouseName }} · {{ current.scopeDisplay }}</span>
+            <h2>{{ current.stCode }}</h2>
+            <p>Tạo bởi {{ current.createdByName || '—' }} lúc {{ formatDate(current.createdDate) }}</p>
+          </div>
+          <div class="header-side">
+            <span class="pill" [ngClass]="statusClass(current.stockTakeStatusCode)">{{ current.stockTakeStatusName }}</span>
+            <button type="button" class="close" (click)="closeDetail()">×</button>
+          </div>
         </header>
 
         <div class="modal-body detail-body">
+          <div class="detail-top">
           @if (!isStatus(current.stockTakeStatusCode, status.DRAFT)) {
-            <div class="lock-note">🔒 Phiếu đã gửi duyệt; kết quả kiểm đếm theo bao được khóa để bảo toàn bằng chứng.</div>
+            <div class="note-bar lock">🔒 Phiếu đã gửi duyệt — kết quả kiểm đếm được khóa để bảo toàn bằng chứng.</div>
           }
           @if (current.isQuarantineScope) {
-            <div class="quarantine-note">🚧 Phiếu kiểm kê KHU CÁCH LY — bao đạt chọn “Rút về khu thường”, hệ thống gợi ý sẵn cột và vẫn cho chọn lại.</div>
+            <div class="note-bar quarantine">🚧 Kiểm kê KHU CÁCH LY — bao đạt chọn “Rút về khu thường” rồi chọn cột thường để cất lại.</div>
           }
-          @if (current.approveNote) { <div class="decision-note"><strong>Ghi chú quyết định:</strong> {{ current.approveNote }}</div> }
+          @if (current.approveNote) {
+            <div class="note-bar decision"><strong>Ghi chú quyết định:</strong> {{ current.approveNote }}</div>
+          }
 
-          <div class="bag-summary">
-            <span>Bao sổ sách <strong>{{ current.systemBagCount }}</strong></span>
-            <span>Bao đếm được <strong>{{ current.countedBagCount }}</strong></span>
-            <span [class.negative]="current.netBagVariance < 0">Lệch bao <strong>{{ current.netBagVariance }}</strong></span>
+          <section class="count-stats">
+            <article><span>Bao sổ sách</span><strong>{{ systemBagCount() }}</strong></article>
+            <article><span>Bao đếm được</span><strong>{{ touched() ? countedBagCount() : '—' }}</strong></article>
+            <article [class.bad]="bagVariance() !== 0"><span>Lệch bao</span><strong>{{ touched() ? bagVariance() : '—' }}</strong></article>
+            <article><span>Kg sổ sách</span><strong>{{ formatNumber(systemKg()) }}</strong></article>
+            <article><span>Kg thực tế</span><strong>{{ touched() ? formatNumber(countedKg()) : '—' }}</strong></article>
+            <article [class.bad]="kgVariance() < -0.001"><span>Lệch kg</span><strong>{{ touched() ? formatNumber(kgVariance()) : '—' }}</strong></article>
+            <article class="sev"><span>Mức</span><strong class="severity" [ngClass]="severityClass(severity())">{{ severity() }}</strong></article>
+          </section>
+
+          <div class="bags-header">
+            <div class="bags-title">
+              <h3>Bao trong cột ({{ bags().length }})</h3>
+              <p>Dỡ từ TRÊN xuống theo cột “Lấy”, cất lại theo cột “Cất”.</p>
+            </div>
+            <div class="chip-row">
+              @if (issueCount()) { <span class="chip issue">{{ issueCount() }} bao có vấn đề</span> }
+              @if (quarantineCount()) { <span class="chip quarantine">{{ quarantineCount() }} chuyển cách ly</span> }
+              @if (disposeCount()) { <span class="chip dispose">{{ disposeCount() }} bỏ vì hỏng</span> }
+              @if (releaseCount()) { <span class="chip release">{{ releaseCount() }} rút về khu thường</span> }
+            </div>
+            @if (canEditDetail()) {
+              <div class="bulk">
+                <button type="button" class="btn btn-ghost" (click)="markAll(true)">Tích tất cả</button>
+                <button type="button" class="btn btn-ghost" (click)="markAll(false)">Bỏ tích</button>
+              </div>
+            }
           </div>
 
-          <div class="threshold-note">Lấy hàng từ TRÊN cột xuống theo thứ tự “Lấy”; cất lại theo thứ tự “Cất” (bao lấy ra sau cùng vào cột trước). Lệch số bao luôn xếp mức LARGE.</div>
+          </div>
 
-          @if (canEditDetail()) {
-            <div class="scan-bar">
-              <input type="text" placeholder="Quét QR bao…" [ngModel]="scanInput()" (ngModelChange)="scanInput.set($event)" (keydown.enter)="scanBag()" />
-              <input type="number" min="0" step="0.001" placeholder="kg cân (tuỳ chọn)" [ngModel]="scanWeight()" (ngModelChange)="scanWeight.set($event === '' || $event == null ? null : +$event)" />
-              <button type="button" class="btn btn-secondary" [disabled]="actionLoading() || !scanInput().trim()" (click)="scanBag()">Quét bao</button>
-              @if (scanMessage()) { <span class="scan-message">{{ scanMessage() }}</span> }
-            </div>
-          }
-
-          <div class="table-wrap detail-table">
-            <table>
-              <thead><tr><th></th><th>SKU / lô / vị trí</th><th class="number">Bao (đếm/sổ)</th><th class="number">Kg (thực/sổ)</th><th class="number">Chênh</th><th>Mức</th><th>Lý do lệch</th><th>Chỉnh lý</th><th>Kiểm lại</th></tr></thead>
-              <tbody>
-                @for (item of current.stockTakeItems; track item.id) {
+          @if (bags().length === 0) {
+            <div class="bag-wrap empty-wrap"><p class="bag-empty">Cột này chưa quản lý theo bao — nhập tổng kg ở phần dưới.</p></div>
+          } @else {
+            <div class="table-wrap bag-wrap">
+              <table class="bag-table">
+                <thead>
                   <tr>
-                    <td class="expander">
-                      <button type="button" class="link" (click)="toggleExpand(item.id)">{{ isExpanded(item.id) ? '▾' : '▸' }} {{ item.bags.length }} bao</button>
-                    </td>
-                    <td><strong>{{ item.sku || '—' }}</strong><span>{{ item.productVariantName || '—' }}</span><small>{{ item.lotCode || 'Không theo lô' }} · {{ item.isOutboundStaging ? 'Chờ xuất' : (item.zoneName || '—') }}/{{ item.locationCode || '—' }}</small>@if (item.isQuarantine) { <em>Cách ly</em> } @if (item.isOutboundStaging) { <em class="staging">Chờ xuất</em> }</td>
-                    <td class="number">
-                      <strong>{{ countedBagsOf(lineFor(item)) ?? '—' }}</strong> / {{ item.systemBagCount }}
-                      @if (dispositionCount(lineFor(item), disposition.QUARANTINE) > 0) { <small>{{ dispositionCount(lineFor(item), disposition.QUARANTINE) }} cách ly</small> }
-                      @if (dispositionCount(lineFor(item), disposition.DISPOSE) > 0) { <small>{{ dispositionCount(lineFor(item), disposition.DISPOSE) }} bỏ hỏng</small> }
-                      @if (dispositionCount(lineFor(item), disposition.RELEASE) > 0) { <small>{{ dispositionCount(lineFor(item), disposition.RELEASE) }} rút ra</small> }
-                    </td>
-                    <td class="number">
-                      @if (lineFor(item)?.hasBags) {
-                        <strong>{{ foundKgOf(lineFor(item)) == null ? '—' : formatNumber(foundKgOf(lineFor(item))) }}</strong> / {{ formatNumber(item.systemQuantity) }}
-                      } @else if (canEditDetail()) {
-                        <input class="count-input" type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.actualQuantity" (ngModelChange)="updateLine(item.id, 'actualQuantity', $event)" />
-                      } @else {
-                        {{ item.actualQuantity == null ? '—' : formatNumber(item.actualQuantity) + ' kg' }}
-                      }
-                    </td>
-                    <td class="number" [class.negative]="(kgDiffOf(lineFor(item)) ?? 0) < 0">
-                      @if (bagDiffOf(lineFor(item)) != null && bagDiffOf(lineFor(item)) !== 0) { <b>{{ bagDiffOf(lineFor(item)) }} bao</b><br /> }
-                      {{ kgDiffOf(lineFor(item)) == null ? '—' : formatNumber(kgDiffOf(lineFor(item))) + ' kg' }}
-                    </td>
-                    <td><span class="severity" [ngClass]="severityClass(canEditDetail() ? lineSeverity(item) : item.varianceSeverity)">{{ canEditDetail() ? lineSeverity(item) : item.varianceSeverity }}</span></td>
-                    <td>
-                      @if (canEditDetail()) { <textarea rows="2" placeholder="Bắt buộc khi lệch bao hoặc lệch kg" [ngModel]="lineFor(item)?.varianceReason" (ngModelChange)="updateLine(item.id, 'varianceReason', $event)"></textarea> }
-                      @else { {{ item.varianceReason || '—' }} }
-                    </td>
-                    <td class="adjust-cell">
-                      @if (canEditDetail()) {
-                        <label>Bao<input type="number" min="0" step="1" [ngModel]="lineFor(item)?.adjustedBagCount" (ngModelChange)="updateLine(item.id, 'adjustedBagCount', $event)" /></label>
-                        <label>Kg<input type="number" min="0" step="0.001" [ngModel]="lineFor(item)?.adjustedWeightKg" (ngModelChange)="updateLine(item.id, 'adjustedWeightKg', $event)" /></label>
-                      } @else {
-                        {{ item.adjustedBagCount ?? '—' }} bao / {{ item.adjustedWeightKg == null ? '—' : formatNumber(item.adjustedWeightKg) + ' kg' }}
-                      }
-                    </td>
-                    <td>
-                      @if (canEditDetail()) { <label class="check"><input type="checkbox" [ngModel]="lineFor(item)?.recountConfirmed" (ngModelChange)="updateLine(item.id, 'recountConfirmed', $event)" /> <span>Đã kiểm lại</span></label> }
-                      @else { {{ item.recountConfirmed ? 'Đã xác nhận' : '—' }} }
-                    </td>
+                    <th class="number">Lấy</th>
+                    <th class="number">Cất</th>
+                    <th>Bao</th>
+                    <th class="number">Kg sổ</th>
+                    <th>Tìm thấy</th>
+                    <th class="number">Kg cân</th>
+                    <th class="number">Chênh</th>
+                    <th>Chất lượng</th>
+                    <th>Xử lý</th>
+                    <th>Vị trí đích</th>
+                    <th>Ghi chú</th>
                   </tr>
-
-                  @if (isExpanded(item.id)) {
-                    <tr class="bag-row">
-                      <td colspan="9">
-                        @if (!item.bags.length) {
-                          <p class="bag-empty">Vị trí này chưa quản lý theo bao — nhập tổng kg ở cột bên trên.</p>
+                </thead>
+                <tbody>
+                  @for (bag of bags(); track bag.id) {
+                    <tr [class.missing]="!bag.counted" [class.unexpected]="bag.isUnexpected">
+                      <td class="number seq">{{ bag.pickSequence }}</td>
+                      <td class="number seq muted">{{ bag.restowSequence }}</td>
+                      <td>
+                        <strong>#{{ bag.bagNo }}</strong>
+                        @if (bag.isUnexpected) { <em class="tag warn">Phát sinh</em> }
+                      </td>
+                      <td class="number">{{ formatNumber(bag.systemWeightKg) }}</td>
+                      <td>
+                        @if (canEditDetail()) {
+                          <label class="check"><input type="checkbox" [ngModel]="bag.counted" (ngModelChange)="updateBag(bag.id, 'counted', $event)" /><span [class.negative]="!bag.counted">{{ bag.counted ? 'Có' : 'Mất' }}</span></label>
                         } @else {
-                          <table class="bag-table">
-                            <thead><tr><th class="number">Lấy</th><th class="number">Cất</th><th>Bao</th><th class="number">Kg sổ</th><th>Tìm thấy</th><th class="number">Cân lại</th><th>Chất lượng</th><th>Xử lý</th><th>Vị trí đích</th><th>Ghi chú</th></tr></thead>
-                            <tbody>
-                              @for (bag of lineFor(item)?.bags || []; track bag.id) {
-                                <tr [class.bag-unexpected]="bag.isUnexpected">
-                                  <td class="number">{{ bag.pickSequence }}</td>
-                                  <td class="number">{{ bag.restowSequence }}</td>
-                                  <td><strong>#{{ bag.bagNo }}</strong><small>{{ bag.qrCode || '—' }}</small>@if (bag.isUnexpected) { <em>Phát sinh</em> }@if (bag.scannedByQr) { <em class="scanned">Đã quét QR</em> }</td>
-                                  <td class="number">{{ formatNumber(bag.systemWeightKg) }}</td>
-                                  <td>
-                                    @if (canEditDetail()) { <label class="check"><input type="checkbox" [ngModel]="bag.counted" (ngModelChange)="updateBag(item.id, bag.id, 'counted', $event)" /> <span>Có</span></label> }
-                                    @else { {{ bag.counted ? 'Có' : 'Mất' }} }
-                                  </td>
-                                  <td class="number">
-                                    @if (canEditDetail()) { <input class="count-input" type="number" min="0" step="0.001" placeholder="Không cân" [ngModel]="bag.countedWeightKg" (ngModelChange)="updateBag(item.id, bag.id, 'countedWeightKg', $event)" /> }
-                                    @else { {{ bag.countedWeightKg == null ? 'Không cân' : formatNumber(bag.countedWeightKg) }} }
-                                  </td>
-                                  <td class="quality-cell">
-                                    @if (canEditDetail()) {
-                                      <app-filter-select [options]="qualityOptions" [value]="bag.qualityResult" allLabel="Chưa chấm" (valueChange)="updateBag(item.id, bag.id, 'qualityResult', $event)" />
-                                      @if (bag.qualityResult === 'ISSUE_DETECTED') {
-                                        <app-filter-select [options]="moldOptions" [value]="bag.moldLevel" allLabel="Mốc" (valueChange)="updateBag(item.id, bag.id, 'moldLevel', $event)" />
-                                        <app-filter-select [options]="pestOptions" [value]="bag.pestLevel" allLabel="Mọt" (valueChange)="updateBag(item.id, bag.id, 'pestLevel', $event)" />
-                                        <app-filter-select [options]="packagingOptions" [value]="bag.packagingStatus" allLabel="Bao bì" (valueChange)="updateBag(item.id, bag.id, 'packagingStatus', $event)" />
-                                      }
-                                    } @else {
-                                      {{ bag.qualityResult === 'ISSUE_DETECTED' ? 'Có vấn đề' : (bag.qualityResult === 'PASS' ? 'Đạt' : '—') }}
-                                    }
-                                  </td>
-                                  <td>
-                                    @if (canEditDetail()) { <app-filter-select [clearable]="false" [options]="dispositionOptions()" [value]="bag.disposition" (valueChange)="updateBag(item.id, bag.id, 'disposition', $event)" /> }
-                                    @else { {{ dispositionLabel(bag.disposition) }} }
-                                  </td>
-                                  <td>
-                                    @if (needsTarget(bag)) {
-                                      @if (canEditDetail()) {
-                                        <app-filter-select [options]="bagTargetOptions(bag.id)" [value]="bag.targetLocationId" allLabel="Chọn vị trí (★ gợi ý)" (valueChange)="updateBag(item.id, bag.id, 'targetLocationId', $event)" />
-                                      } @else {
-                                        {{ bag.targetZoneName || '—' }} / {{ bag.targetLocationCode || '—' }}
-                                      }
-                                    } @else { — }
-                                  </td>
-                                  <td>
-                                    @if (canEditDetail()) { <textarea rows="2" [placeholder]="bag.disposition === disposition.DISPOSE ? 'Bắt buộc: lý do bỏ bao' : 'Ghi chú'" [ngModel]="bag.dispositionNote" (ngModelChange)="updateBag(item.id, bag.id, 'dispositionNote', $event)"></textarea> }
-                                    @else { {{ bag.dispositionNote || bag.qualityNote || '—' }} }
-                                  </td>
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
+                          <span [class.negative]="!bag.counted">{{ bag.counted ? 'Có' : 'Mất' }}</span>
+                        }
+                      </td>
+                      <td class="number">
+                        @if (canEditDetail()) {
+                          <input class="kg-input" type="number" min="0" step="0.001" placeholder="Chưa cân" [disabled]="!bag.counted"
+                            [ngModel]="bag.countedWeightKg" (ngModelChange)="updateBag(bag.id, 'countedWeightKg', $event)" />
+                        } @else {
+                          {{ bag.countedWeightKg == null ? 'Không cân' : formatNumber(bag.countedWeightKg) }}
+                        }
+                      </td>
+                      <td class="number" [class.negative]="(bagKgDiff(bag) ?? 0) < 0">
+                        {{ bagKgDiff(bag) == null ? '—' : formatNumber(bagKgDiff(bag)) }}
+                      </td>
+                      <td class="cell-select">
+                        @if (canEditDetail()) {
+                          <app-filter-select [options]="qualityOptions" [value]="bag.qualityResult" allLabel="Chưa chấm" (valueChange)="updateBag(bag.id, 'qualityResult', $event)" />
+                        } @else {
+                          {{ qualityLabel(bag.qualityResult) }}
+                        }
+                      </td>
+                      <td class="cell-select">
+                        @if (canEditDetail()) {
+                          <app-filter-select [clearable]="false" [options]="dispositionOptions()" [value]="bag.disposition" (valueChange)="updateBag(bag.id, 'disposition', $event)" />
+                        } @else {
+                          <span class="tag" [ngClass]="dispositionClass(bag.disposition)">{{ dispositionLabel(bag.disposition) }}</span>
+                        }
+                      </td>
+                      <td class="cell-select">
+                        @if (needsTarget(bag)) {
+                          @if (canEditDetail()) {
+                            <app-filter-select [options]="bagTargetOptions(bag.id)" [value]="bag.targetLocationId" allLabel="Chọn vị trí" (valueChange)="updateBag(bag.id, 'targetLocationId', $event)" />
+                          } @else {
+                            {{ bag.targetZoneName || '—' }} / {{ bag.targetLocationCode || '—' }}
+                          }
+                        } @else { <span class="muted">—</span> }
+                      </td>
+                      <td>
+                        @if (canEditDetail()) {
+                          <input class="note-input" type="text" [placeholder]="bag.disposition === disposition.DISPOSE ? 'Bắt buộc: lý do bỏ bao' : 'Ghi chú'"
+                            [ngModel]="bag.dispositionNote" (ngModelChange)="updateBag(bag.id, 'dispositionNote', $event)" />
+                        } @else {
+                          {{ bag.dispositionNote || bag.qualityNote || '—' }}
                         }
                       </td>
                     </tr>
-                  }
 
-                  @if (item.postSnapshotMovements.length) {
-                    <tr class="evidence-row"><td colspan="9"><details><summary>{{ item.postSnapshotMovements.length }} giao dịch sau snapshot — cần xử lý xung đột trước khi duyệt</summary><ul>@for (movement of item.postSnapshotMovements; track movement.id) { <li><b>{{ movement.transactionType }}</b> {{ formatNumber(movement.beforeQuantity) }} → {{ formatNumber(movement.afterQuantity) }} kg · {{ formatDate(movement.createdDate) }} · {{ movement.note || 'Không ghi chú' }}</li> }</ul></details></td></tr>
+                    @if (bag.qualityResult === 'ISSUE_DETECTED') {
+                      <tr class="quality-row">
+                        <td colspan="4"></td>
+                        <td colspan="7">
+                          @if (canEditDetail()) {
+                            <div class="quality-detail">
+                              <app-filter-select [options]="moldOptions" [value]="bag.moldLevel" allLabel="Mốc" (valueChange)="updateBag(bag.id, 'moldLevel', $event)" />
+                              <app-filter-select [options]="pestOptions" [value]="bag.pestLevel" allLabel="Mọt" (valueChange)="updateBag(bag.id, 'pestLevel', $event)" />
+                              <app-filter-select [options]="packagingOptions" [value]="bag.packagingStatus" allLabel="Bao bì" (valueChange)="updateBag(bag.id, 'packagingStatus', $event)" />
+                              <input class="note-input" type="text" placeholder="Mô tả tình trạng" [ngModel]="bag.qualityNote" (ngModelChange)="updateBag(bag.id, 'qualityNote', $event)" />
+                            </div>
+                          } @else {
+                            <span class="muted">{{ bag.moldLevel || '—' }} · {{ bag.pestLevel || '—' }} · {{ bag.packagingStatus || '—' }} · {{ bag.qualityNote || '—' }}</span>
+                          }
+                        </td>
+                      </tr>
+                    }
                   }
+                </tbody>
+              </table>
+            </div>
+          }
+
+          <div class="detail-bottom">
+          @if (legacyLines().length) {
+            <section class="legacy">
+              <h3>Dòng chưa quản lý theo bao</h3>
+              @for (line of legacyLines(); track line.id) {
+                <div class="legacy-line">
+                  <span>{{ line.lotCode || 'Không theo lô' }} · sổ sách {{ formatNumber(line.systemQuantity) }} kg</span>
+                  @if (canEditDetail()) {
+                    <input class="kg-input" type="number" min="0" step="0.001" placeholder="Kg thực tế"
+                      [ngModel]="line.actualQuantity" (ngModelChange)="updateLegacyLine(line.id, $event)" />
+                  } @else {
+                    <strong>{{ line.actualQuantity == null ? '—' : formatNumber(line.actualQuantity) + ' kg' }}</strong>
+                  }
+                </div>
+              }
+            </section>
+          }
+
+          <section class="decision-card" [class.required]="hasVariance()">
+            <div class="decision-grid">
+              <div class="field reason">
+                <label>Lý do lệch @if (hasVariance()) { <b>*</b> }</label>
+                @if (canEditDetail()) {
+                  <textarea rows="2" placeholder="Bắt buộc khi lệch bao hoặc lệch kg — ghi rõ nguyên nhân"
+                    [ngModel]="decision().varianceReason" (ngModelChange)="updateDecision('varianceReason', $event)"></textarea>
+                } @else {
+                  <p class="readonly-value">{{ decision().varianceReason || '—' }}</p>
                 }
-              </tbody>
-            </table>
+              </div>
+              @if (canAdjustTotals()) {
+                <div class="field">
+                  <label>Chỉnh lý số bao</label>
+                  @if (canEditDetail()) {
+                    <input type="number" min="0" step="1" placeholder="Theo số đếm"
+                      [ngModel]="decision().adjustedBagCount" (ngModelChange)="updateDecision('adjustedBagCount', $event)" />
+                  } @else { <p class="readonly-value">{{ decision().adjustedBagCount ?? '—' }}</p> }
+                </div>
+                <div class="field">
+                  <label>Chỉnh lý tổng kg</label>
+                  @if (canEditDetail()) {
+                    <input type="number" min="0" step="0.001" placeholder="Theo kg cân"
+                      [ngModel]="decision().adjustedWeightKg" (ngModelChange)="updateDecision('adjustedWeightKg', $event)" />
+                  } @else { <p class="readonly-value">{{ decision().adjustedWeightKg == null ? '—' : formatNumber(decision().adjustedWeightKg) }}</p> }
+                </div>
+              } @else {
+                <div class="field span2"><small class="hint">Cột đang chứa nhiều lô nên không chỉnh lý tổng được — sửa trực tiếp trên từng bao.</small></div>
+              }
+              <div class="field recount">
+                @if (canEditDetail()) {
+                  <label class="check"><input type="checkbox" [ngModel]="decision().recountConfirmed" (ngModelChange)="updateDecision('recountConfirmed', $event)" /><span>Đã kiểm đếm lại lần hai (bắt buộc khi mức LARGE)</span></label>
+                } @else {
+                  <span>{{ decision().recountConfirmed ? 'Đã xác nhận kiểm đếm lại' : 'Chưa xác nhận kiểm đếm lại' }}</span>
+                }
+              </div>
+            </div>
+          </section>
           </div>
         </div>
 
