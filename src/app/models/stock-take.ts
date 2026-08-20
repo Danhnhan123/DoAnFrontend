@@ -7,7 +7,11 @@ export const STOCK_TAKE_STATUS = {
   REJECTED: 'REJECTED',
 } as const;
 
-export type StockTakeScopeType = 'WAREHOUSE' | 'ZONE' | 'COLUMN' | 'LOT' | 'SKU';
+/**
+ * Kiểm kê chỉ thực hiện theo CỘT: kho chỉ dán QR theo cột và thủ kho dỡ hàng
+ * theo cột. Các phạm vi cũ chỉ còn tồn tại trong phiếu đã tạo trước đây.
+ */
+export type StockTakeScopeType = 'COLUMN' | 'WAREHOUSE' | 'ZONE' | 'LOT' | 'SKU';
 
 /** Cách xử lý một bao sau khi kiểm kê. */
 export const BAG_DISPOSITION = {
@@ -65,32 +69,6 @@ export interface StockTakeBagTargetSuggestion {
   isRecommended: boolean;
 }
 
-export interface ScanStockTakeBagResult {
-  matched: boolean;
-  reason: 'NOT_FOUND' | 'OUT_OF_SCOPE' | 'ALREADY_COUNTED' | 'PULLED_IN' | 'OK';
-  message: string;
-  stockTakeItemId?: number | null;
-  stockTakeItemBagId?: number | null;
-  paddyLotBagId?: number | null;
-  bagNo?: number | null;
-  lotCode?: string | null;
-  zoneName?: string | null;
-  locationCode?: string | null;
-  systemWeightKg?: number | null;
-  countedWeightKg?: number | null;
-  pickSequence?: number | null;
-  restowSequence?: number | null;
-  isUnexpected: boolean;
-}
-
-export interface StockTakeZoneOption {
-  zoneName: string;
-  columnCount: number;
-  bagCount: number;
-  totalWeightKg: number;
-  isQuarantine: boolean;
-}
-
 export interface StockTakeColumnOption {
   locationId: number;
   zoneName: string;
@@ -101,21 +79,8 @@ export interface StockTakeColumnOption {
   isQuarantine: boolean;
 }
 
-export interface StockTakeLotOption {
-  paddyLotId: number;
-  lotCode: string;
-  qrCode?: string | null;
-  productVariantName?: string | null;
-  bagCount: number;
-  totalWeightKg: number;
-  columnCount: number;
-  isQuarantine: boolean;
-}
-
 export interface StockTakeScopeOptions {
-  zones: StockTakeZoneOption[];
   columns: StockTakeColumnOption[];
-  lots: StockTakeLotOption[];
 }
 
 export interface StockTakeScopeResolve {
@@ -125,8 +90,6 @@ export interface StockTakeScopeResolve {
   zoneName?: string | null;
   locationId?: number | null;
   locationCode?: string | null;
-  paddyLotId?: number | null;
-  lotCode?: string | null;
   warehouseId?: number | null;
   isQuarantine: boolean;
   bagCount: number;

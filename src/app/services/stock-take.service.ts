@@ -8,13 +8,11 @@ import {
   CreateStockTakePayload,
   DTResponse,
   SaveStockTakeCountsPayload,
-  ScanStockTakeBagResult,
   StockTakeBagTargetSuggestion,
   StockTakeDetail,
   StockTakePagedRequest,
   StockTakeRow,
   StockTakeScopeOptions,
-  StockTakeScopeResolve,
   StockTakeSummary,
   StockTakeThresholds,
 } from '../models';
@@ -60,21 +58,10 @@ export class StockTakeService {
     return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/reject`, { reason: reason.trim() });
   }
 
-  /** Quét QR một bao khi đang kiểm kê. API luôn trả 200 kèm lý do nếu không khớp. */
-  scanBag(id: number, body: { qrCode?: string | null; paddyLotBagId?: number | null; countedWeightKg?: number | null }): Observable<ApiResponse<ScanStockTakeBagResult>> {
-    return this.http.post<ApiResponse<ScanStockTakeBagResult>>(`${this.base}/${id}/scan-bag`, body);
-  }
-
-  /** Khu / cột / lô đang có bao — nguồn dropdown chọn phạm vi kiểm kê. */
+  /** Cột đang có bao — nguồn dropdown chọn cột cần kiểm kê. */
   getScopeOptions(warehouseId: number, quarantineOnly?: boolean | null): Observable<ApiResponse<StockTakeScopeOptions>> {
     const query = quarantineOnly == null ? '' : `&quarantineOnly=${quarantineOnly}`;
     return this.http.get<ApiResponse<StockTakeScopeOptions>>(`${this.base}/scope-options?warehouseId=${warehouseId}${query}`);
-  }
-
-  /** Quét QR dán trên khu/cột hoặc lô để chọn nhanh phạm vi. */
-  resolveScopeQr(qrCode: string, warehouseId?: number | null): Observable<ApiResponse<StockTakeScopeResolve>> {
-    const query = warehouseId ? `&warehouseId=${warehouseId}` : '';
-    return this.http.get<ApiResponse<StockTakeScopeResolve>>(`${this.base}/scope-resolve?qrCode=${encodeURIComponent(qrCode)}${query}`);
   }
 
   /** Gợi ý ô cách ly / cột thường cho một bao (vẫn chọn lại được). */
