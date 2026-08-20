@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 import { environment } from '../../environments/environment';
@@ -7,6 +7,7 @@ import {
   ApiResponse,
   CreateStockTransferPayload,
   DTResponse,
+  SourceColumnBag,
   StockTransferDetail,
   StockTransferPagedRequest,
   StockTransferRow,
@@ -37,6 +38,23 @@ export class StockTransferService {
 
   getById(id: number): Observable<ApiResponse<StockTransferDetail>> {
     return this.http.get<ApiResponse<StockTransferDetail>>(`${this.base}/${id}`);
+  }
+
+  getSourceBags(
+    fromWarehouseId: number,
+    fromLocationId: number,
+    productVariantId?: number | null
+  ): Observable<ApiResponse<SourceColumnBag[]>> {
+    let params = new HttpParams()
+      .set('fromWarehouseId', String(fromWarehouseId))
+      .set('fromLocationId', String(fromLocationId));
+    if (productVariantId != null) {
+      params = params.set('productVariantId', String(productVariantId));
+    }
+    return this.http.get<ApiResponse<SourceColumnBag[]>>(
+      `${this.base}/source-bags`,
+      { params }
+    );
   }
 
   create(

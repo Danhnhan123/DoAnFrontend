@@ -710,3 +710,63 @@ td small {
     flex-wrap: wrap;
   }
 }
+
+/* ─── Chuyển kho theo BAO: chọn bao + kiểm định chất lượng ─────────────────── */
+.bag-flag {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0e7490;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bag-weight strong { display: block; }
+.bag-weight small { color: #64748b; }
+
+.bag-editor-row > td,
+.bag-detail-row > td {
+  background: #f8fafc;
+  padding: 10px 12px;
+}
+
+.bag-editor-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.bag-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.bag-table th,
+.bag-table td {
+  border: 1px solid #e2e8f0;
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.bag-table th {
+  background: #eef2f7;
+  font-weight: 600;
+  color: #475569;
+}
+
+.bag-table td.number,
+.bag-table th.number { text-align: right; }
+
+.bag-table .number-input { width: 84px; }
+.bag-table select.form-control.compact { min-width: 120px; }
+
+.bag-table tr.bag-off td {
+  opacity: 0.5;
+}
+
+.bag-table .muted { color: #94a3b8; }
