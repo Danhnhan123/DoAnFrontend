@@ -409,22 +409,6 @@
   transform: scale(1.12);
 }
 
-.qr-btn {
-  color: #3b82f6;
-}
-
-.qr-btn:hover {
-  background: rgba(59, 130, 246, 0.1);
-}
-
-.pdf-btn {
-  color: #0f766e;
-}
-
-.pdf-btn:hover {
-  background: rgba(15, 118, 110, 0.1);
-}
-
 .edit-btn {
   color: #f59e0b;
 }

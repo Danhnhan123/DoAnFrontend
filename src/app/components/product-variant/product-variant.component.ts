@@ -507,7 +507,7 @@ export class ProductVariantComponent {
   }
 
   // =========================
-  // 8. Save/delete/QR
+  // 8. Save/delete
   // =========================
 
   save(): void {
@@ -629,14 +629,6 @@ export class ProductVariantComponent {
       if (!result.isConfirmed) return;
       this.statusMutation.mutate({ id: row.id, activate });
     });
-  }
-
-  openQrCode(row: ProductVariantRow): void {
-    window.open(this.variantService.getQrCodeUrl(row.id), '_blank');
-  }
-
-  openQrLabel(row: ProductVariantRow): void {
-    window.open(this.variantService.getQrLabelUrl(row.id), '_blank');
   }
 
   private showAlert(message: string, ok = true): void {
