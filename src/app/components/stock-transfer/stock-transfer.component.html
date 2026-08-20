@@ -472,11 +472,21 @@
                                   </td>
                                   <td>
                                     @if (bag.qualityResult === 'ISSUE_DETECTED') {
-                                      <select class="form-control compact" [ngModel]="bag.disposition" (ngModelChange)="setBagDisposition(index, bag.bagId, $event)" [disabled]="!bag.selected">
-                                        @for (opt of bagDispositionOptions; track opt.value) {
-                                          <option [value]="opt.value">{{ opt.label }}</option>
+                                      <div class="bag-disposition">
+                                        <select class="form-control compact" [ngModel]="bag.disposition" (ngModelChange)="setBagDisposition(index, bag.bagId, $event)" [disabled]="!bag.selected">
+                                          @for (opt of bagDispositionOptions; track opt.value) {
+                                            <option [value]="opt.value">{{ opt.label }}</option>
+                                          }
+                                        </select>
+                                        @if (bag.disposition === 'QUARANTINE') {
+                                          <select class="form-control compact bag-qloc" [ngModel]="bag.quarantineLocationId" (ngModelChange)="setBagQuarantineLocation(index, bag.bagId, $event)" [disabled]="!bag.selected">
+                                            <option [ngValue]="null">-- Ô cách ly (tự chọn) --</option>
+                                            @for (opt of line.quarantineOptions; track opt.id) {
+                                              <option [ngValue]="opt.id">{{ opt.name }}</option>
+                                            }
+                                          </select>
                                         }
-                                      </select>
+                                      </div>
                                     } @else {
                                       <span class="muted">Chuyển đi</span>
                                     }

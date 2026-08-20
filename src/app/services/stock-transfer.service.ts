@@ -73,6 +73,21 @@ export class StockTransferService {
     );
   }
 
+  getQuarantineSuggestions(
+    fromWarehouseId: number,
+    productVariantId: number,
+    weightKg = 0
+  ): Observable<ApiResponse<LocationSuggestion[]>> {
+    const params = new HttpParams()
+      .set('fromWarehouseId', String(fromWarehouseId))
+      .set('productVariantId', String(productVariantId))
+      .set('weightKg', String(weightKg || 0));
+    return this.http.get<ApiResponse<LocationSuggestion[]>>(
+      `${this.base}/quarantine-suggestions`,
+      { params }
+    );
+  }
+
   create(
     payload: CreateStockTransferPayload
   ): Observable<ApiResponse<number>> {
