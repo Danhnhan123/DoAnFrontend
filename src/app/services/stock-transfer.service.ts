@@ -7,6 +7,7 @@ import {
   ApiResponse,
   CreateStockTransferPayload,
   DTResponse,
+  LocationSuggestion,
   SourceColumnBag,
   StockTransferDetail,
   StockTransferPagedRequest,
@@ -53,6 +54,21 @@ export class StockTransferService {
     }
     return this.http.get<ApiResponse<SourceColumnBag[]>>(
       `${this.base}/source-bags`,
+      { params }
+    );
+  }
+
+  getDestinationSuggestions(
+    toWarehouseId: number,
+    productVariantId: number,
+    weightKg = 0
+  ): Observable<ApiResponse<LocationSuggestion[]>> {
+    const params = new HttpParams()
+      .set('toWarehouseId', String(toWarehouseId))
+      .set('productVariantId', String(productVariantId))
+      .set('weightKg', String(weightKg || 0));
+    return this.http.get<ApiResponse<LocationSuggestion[]>>(
+      `${this.base}/destination-suggestions`,
       { params }
     );
   }
