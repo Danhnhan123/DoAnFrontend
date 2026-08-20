@@ -403,7 +403,7 @@
                         class="in-cell"
                         [clearable]="false"
                         placeholder="-- Chọn vị trí --"
-                        [options]="destinationLocationOptions()"
+                        [options]="destinationOptionsFor(line)"
                         [value]="line.toLocationId"
                         (valueChange)="updateLine(index, 'toLocationId', $event)"
                       />
