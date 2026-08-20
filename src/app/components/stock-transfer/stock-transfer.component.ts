@@ -702,6 +702,7 @@ export class StockTransferComponent implements OnDestroy {
             }
       ),
     }));
+    void this.autofillQuarantineLocation(lineIndex, bagId);
   }
 
   setBagDisposition(lineIndex: number, bagId: number, value: string): void {
@@ -724,11 +725,71 @@ export class StockTransferComponent implements OnDestroy {
             }
       ),
     }));
+    void this.autofillQuarantineLocation(lineIndex, bagId);
   }
 
   setBagQuarantineLocation(lineIndex: number, bagId: number, rawValue: string): void {
     const value = Number(rawValue) || null;
     this.patchBag(lineIndex, bagId, { quarantineLocationId: value });
+  }
+
+  /**
+   * Khi một bao chuyển sang cách ly: đảm bảo dòng đã có gợi ý ô cách ly (gọi API nếu chưa),
+   * rồi tự điền ô cách ly đầu tiên nếu người dùng chưa chọn.
+   */
+  private async autofillQuarantineLocation(lineIndex: number, bagId: number): Promise<void> {
+    const line = this.form().items[lineIndex];
+    if (!line?.hasBags) return;
+    const bag = line.bags.find((b) => b.bagId === bagId);
+    if (!bag || bag.disposition !== 'QUARANTINE') return;
+
+    // Nạp gợi ý ô cách ly nếu dòng chưa có (lúc thêm dòng backend chưa trả kịp / chưa bật endpoint).
+    if (line.quarantineOptions.length === 0) {
+      const fromWarehouseId = this.form().fromWarehouseId;
+      if (fromWarehouseId) {
+        try {
+          const response = await lastValueFrom(
+            this.service.getQuarantineSuggestions(
+              Number(fromWarehouseId),
+              line.productVariantId
+            )
+          );
+          const options = (response?.resources ?? []).map((loc) => ({
+            id: loc.locationId,
+            name: loc.locationName || `Ô #${loc.locationId}`,
+          }));
+          this.form.update((current) => ({
+            ...current,
+            items: current.items.map((item, index) =>
+              index === lineIndex ? { ...item, quarantineOptions: options } : item
+            ),
+          }));
+        } catch {
+          // Bỏ qua — người dùng vẫn có thể để backend tự chọn khi nhận.
+        }
+      }
+    }
+
+    // Tự điền ô cách ly đầu tiên nếu bao vẫn chưa có ô.
+    const firstId = this.form().items[lineIndex]?.quarantineOptions[0]?.id ?? null;
+    if (firstId == null) return;
+    this.form.update((current) => ({
+      ...current,
+      items: current.items.map((item, index) =>
+        index !== lineIndex
+          ? item
+          : {
+              ...item,
+              bags: item.bags.map((b) =>
+                b.bagId === bagId &&
+                b.disposition === 'QUARANTINE' &&
+                b.quarantineLocationId == null
+                  ? { ...b, quarantineLocationId: firstId }
+                  : b
+              ),
+            }
+      ),
+    }));
   }
 
   quarantineOptionsFor(line: TransferFormLine): FilterSelectOption[] {
