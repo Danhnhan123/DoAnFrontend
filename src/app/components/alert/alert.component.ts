@@ -11,6 +11,7 @@ import {
 
 import { AlertRow, AlertRule, AlertSummaryDto } from '../../models';
 import { AlertService } from '../../services/alert.service';
+import { PermissionService } from '../../services/permission.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 
 const DEFAULT_RULES: AlertRule[] = [
@@ -30,6 +31,11 @@ export class AlertComponent {
   private service = inject(AlertService);
   private router = inject(Router);
   private queryClient = injectQueryClient();
+  private permission = inject(PermissionService);
+
+  readonly canUpdateAlerts = computed(() =>
+    this.permission.canUpdate('ALERTS')
+  );
 
   // ── Quy tắc cảnh báo (bật/tắt) — quản lý bằng signal, có fallback mặc định ──
   rules = signal<AlertRule[]>(DEFAULT_RULES);
@@ -150,7 +156,11 @@ export class AlertComponent {
   }
 
   markRead(row: AlertRow): void {
-    if (this.isUnread(row) && !this.markReadMutation.isPending()) {
+    if (
+      this.canUpdateAlerts() &&
+      this.isUnread(row) &&
+      !this.markReadMutation.isPending()
+    ) {
       this.markReadMutation.mutate(row.id);
     }
   }

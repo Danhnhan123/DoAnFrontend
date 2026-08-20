@@ -71,6 +71,7 @@ export class QrLabelComponent implements OnInit, OnDestroy {
   readonly loadError = signal("");
 
   readonly showCreate = signal(false);
+  readonly reprintItem = signal<QrLabelHistoryItem | null>(null);
   readonly labelType = signal<QrLabelType>("PADDY_LOT");
   readonly selectedIds = signal<number[]>([]);
   readonly template = signal<QrLabelTemplate>("MEDIUM");
@@ -80,6 +81,8 @@ export class QrLabelComponent implements OnInit, OnDestroy {
   readonly previewLoading = signal(false);
   readonly generating = signal(false);
   readonly formError = signal("");
+
+  readonly isReprint = computed(() => this.reprintItem() !== null);
 
   readonly lots = signal<PaddyLotRow[]>([]);
   readonly locations = signal<LocationRow[]>([]);
@@ -227,6 +230,7 @@ export class QrLabelComponent implements OnInit, OnDestroy {
   }
 
   openCreateModal(): void {
+    this.reprintItem.set(null);
     this.formError.set("");
     this.preview.set(null);
     this.selectedIds.set([]);
@@ -236,9 +240,48 @@ export class QrLabelComponent implements OnInit, OnDestroy {
     this.showCreate.set(true);
   }
 
+  openReprintModal(item: QrLabelHistoryItem): void {
+    const ids = item.targetIds
+      .split(",")
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0);
+
+    if (!ids.length) {
+      void Swal.fire({
+        title: "Không thể xem lại tem",
+        text: "Lệnh in cũ không còn thông tin đối tượng để khôi phục.",
+        icon: "error",
+        confirmButtonText: "Đóng",
+        confirmButtonColor: "#15803d",
+      });
+      return;
+    }
+
+    const savedTemplate = this.templateOptions.some(
+      (option) => option.id === item.template,
+    )
+      ? (item.template as QrLabelTemplate)
+      : "MEDIUM";
+    const savedFormat: QrLabelFormat =
+      item.labelType === "SKU" || item.format !== "PNG" ? "PDF" : "PNG";
+    const copies = Math.max(1, Math.round(item.quantity / ids.length));
+
+    this.formError.set("");
+    this.preview.set(null);
+    this.reprintItem.set(item);
+    this.labelType.set(item.labelType);
+    this.selectedIds.set(ids);
+    this.template.set(savedTemplate);
+    this.format.set(savedFormat);
+    this.copiesPerLabel.set(copies);
+    this.showCreate.set(true);
+    void this.loadPreview();
+  }
+
   closeCreateModal(): void {
     if (this.generating()) return;
     this.showCreate.set(false);
+    this.reprintItem.set(null);
     this.formError.set("");
     this.preview.set(null);
   }
@@ -328,6 +371,7 @@ export class QrLabelComponent implements OnInit, OnDestroy {
     }
 
     this.formError.set("");
+    const reprinting = this.isReprint();
     this.generating.set(true);
     try {
       const response = await lastValueFrom(
@@ -352,15 +396,20 @@ export class QrLabelComponent implements OnInit, OnDestroy {
       await this.reloadDashboard();
 
       await Swal.fire({
-        title: "Đã tạo file tem",
+        title: reprinting ? "Đã mở tem để in lại" : "Đã tạo file tem",
         text:
           actualFormat === "PDF"
-            ? "File PDF đã được mở. Bạn có thể xem lại và chọn In trong trình duyệt."
-            : "File ZIP chứa ảnh PNG đã được tải xuống.",
+            ? reprinting
+              ? "File PDF dùng lại đúng mã QR cũ đã được mở. Chọn In trong trình duyệt để in lại."
+              : "File PDF đã được mở. Bạn có thể xem lại và chọn In trong trình duyệt."
+            : reprinting
+              ? "File ZIP dùng lại đúng mã QR cũ đã được tải xuống."
+              : "File ZIP chứa ảnh PNG đã được tải xuống.",
         icon: "success",
         confirmButtonText: "Đóng",
         confirmButtonColor: "#15803d",
       });
+      this.reprintItem.set(null);
     } catch (error) {
       this.formError.set(
         this.errorMessage(error, "Không thể tạo file tem QR."),
