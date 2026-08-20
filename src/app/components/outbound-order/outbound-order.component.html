@@ -68,6 +68,10 @@
             {{ tab.label }}
           </button>
         </div>
+        <div class="ob-search"><input type="number" min="1" placeholder="ID đơn bán" [ngModel]="salesOrderFilter()" (ngModelChange)="setOutboundFilter('salesOrder', $event)" /></div>
+        <div class="ob-search"><input type="number" min="1" placeholder="ID kho" [ngModel]="warehouseFilter()" (ngModelChange)="setOutboundFilter('warehouse', $event)" /></div>
+        <label>Từ ngày <input type="date" [ngModel]="fromDate()" (ngModelChange)="setHistoryDate('from', $event)" /></label>
+        <label>Đến ngày <input type="date" [ngModel]="toDate()" (ngModelChange)="setHistoryDate('to', $event)" /></label>
       </div>
 
       <!-- Table -->
@@ -233,6 +237,13 @@
               <span class="ob-info-v">{{ d.cancelReason }}</span>
             </div>
           </li>
+          <li *ngIf="d.receiverName || d.deliveryNote">
+            <div>
+              <span class="ob-info-k">Thông tin giao hàng</span>
+              <span class="ob-info-v">{{ d.receiverName || 'Chưa ghi người nhận' }} · {{ d.deliveryNote || 'Không có ghi chú' }}</span>
+              <a *ngIf="d.proofImageUrl" [href]="d.proofImageUrl" target="_blank" rel="noopener">Xem bằng chứng giao hàng</a>
+            </div>
+          </li>
         </ul>
 
         <!-- Items + allocations -->
@@ -297,6 +308,28 @@
               </span>
             </div>
           </div>
+        </div>
+
+        <div class="ob-items">
+          <div class="ob-items-title">Bao vật lý đã phân bổ ({{ d.bagAllocations.length }})</div>
+          <div class="ob-alloc-row" *ngFor="let bag of d.bagAllocations">
+            <span class="ob-tag">Bao #{{ bag.bagNo }}</span>
+            <span>{{ bag.lotCode || ('Lot #' + bag.lotId) }}</span>
+            <span>{{ bag.locationCode || '—' }}</span>
+            <span>{{ fmtKg(bag.pickedWeightKg || bag.allocatedWeightKg) }}</span>
+            <strong>{{ bag.status }} / {{ bag.bagStatus || '—' }}</strong>
+          </div>
+          <div class="ob-muted sm ob-noalloc" *ngIf="!d.bagAllocations.length">Chưa có lịch sử bao vật lý.</div>
+        </div>
+
+        <div class="ob-items">
+          <div class="ob-items-title">Phản hồi ({{ d.feedbackCount }})</div>
+          <div class="ob-alloc-row" *ngFor="let feedback of d.feedbacks">
+            <span class="ob-tag">{{ feedback.feedbackType }}</span>
+            <span>{{ feedback.description }}</span>
+            <strong>{{ feedback.resolutionStatus }}</strong>
+          </div>
+          <div class="ob-muted sm ob-noalloc" *ngIf="!d.feedbacks.length">Chưa có phản hồi liên quan.</div>
         </div>
 
         <!-- Actions -->
@@ -641,6 +674,9 @@
                 {{ r.locationCode }}
               </span>
               <span class="ob-tag lot-tag" *ngIf="r.lotCode">{{ r.lotCode }}</span>
+              <span class="ob-tag" *ngIf="r.bagAllocationId">Bag #{{ r.bagNo }} / stack {{ r.stackOrder }}</span>
+              <span class="ob-tag" *ngIf="r.qrCode">QR: {{ r.qrCode }}</span>
+              <span class="ob-tag" *ngIf="r.bagStatus">{{ r.bagStatus }}</span>
               <span class="ob-open-badge" *ngIf="r.hasOpenBag">
                 <svg class="ob-inline-ico fill" viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="12" cy="12" r="6" />
@@ -649,6 +685,14 @@
               </span>
             </div>
             <div class="ob-strong sm">{{ r.productVariantName }}</div>
+          </div>
+
+          <div class="ob-stack-row" *ngIf="r.bagAllocationId">
+            <span class="ob-muted sm">Phát hiện ẩm, mốc, mùi, bao hỏng, đổi màu hoặc sai sản phẩm?</span>
+            <button type="button" class="btn danger-ghost" [disabled]="saving()"
+              [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="reportBagQualityIssue(r)">
+              Báo sự cố chất lượng
+            </button>
           </div>
 
           <!-- Open bag row (nếu vị trí có bao lẻ) -->
@@ -756,8 +800,9 @@
     </div>
     <div class="ob-modal-body">
       <label class="ob-field">
-        <span>Mã QR đóng gói</span>
-        <input type="text" [ngModel]="packingQr()" (ngModelChange)="packingQr.set($event)" />
+        <span>Mã QR đóng gói <small class="ob-muted">(không bắt buộc)</small></span>
+        <input type="text" [ngModel]="packingQr()" (ngModelChange)="packingQr.set($event)"
+          placeholder="Quét QR để xác minh nhanh hoặc để trống" />
       </label>
       <label class="ob-field">
         <span>Khối lượng cân thực tế (kg)</span>

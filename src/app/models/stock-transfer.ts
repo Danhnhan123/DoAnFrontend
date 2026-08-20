@@ -1,5 +1,5 @@
 import { DTParameters } from './search';
-import type { BagQualityResult } from './stock-take';
+import type { BagQualityResult } from './quality-inspection';
 
 // Dùng CODE ổn định (đồng bộ cột Code ở bảng trạng thái) thay cho tên hiển thị tiếng Việt.
 export const STOCK_TRANSFER_STATUS = {

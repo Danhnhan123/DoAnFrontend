@@ -18,11 +18,12 @@ import {
   CreateQualityInspectionDto,
   UpdateQualityInspectionDto,
   PaddyLotRow,
-  BagDisposition,
+  QualityInspectionBagDisposition,
   BagQualityResult,
   QualityInspectionBagProgressDto,
   QualityInspectionBagResultDto,
   SaveBagInspectionResultDto,
+  MoistureConfigDto,
 } from '../../models';
 import { QualityInspectionService } from '../../services/quality-inspection.service';
 import { PaddyLotService } from '../../services/paddy-lot.service';
@@ -53,7 +54,7 @@ interface BagQcForm {
   pestLevel: string | null;
   packagingStatus: string | null;
   qualityResult: BagQualityResult;
-  disposition: BagDisposition;
+  disposition: QualityInspectionBagDisposition;
   handling: string | null;
   note: string;
 }
@@ -211,6 +212,17 @@ export class QualityInspectionComponent {
     enabled: this.historyLotId() != null,
     queryFn: () => lastValueFrom(this.qcService.getByLot(this.historyLotId()!)),
   }));
+
+  moistureConfigQuery = injectQuery(() => ({
+    queryKey: ['quality-inspections', 'moisture-config'],
+    queryFn: () => lastValueFrom(this.qcService.getMoistureConfig()),
+    staleTime: 5 * 60 * 1000,
+  }));
+
+  moistureConfig = computed<MoistureConfigDto | null>(() => {
+    const response = this.moistureConfigQuery.data() as any;
+    return (response?.resources ?? response?.data ?? null) as MoistureConfigDto | null;
+  });
 
   detailQuery = injectQuery(() => ({
     queryKey: ['quality-inspection-detail', this.editItem()?.id],
@@ -407,7 +419,11 @@ export class QualityInspectionComponent {
     if (!progress?.totalBags) return 0;
     return Math.round((progress.inspectedBags / progress.totalBags) * 100);
   });
-  bagDispositionOptions = computed<{ id: BagDisposition; name: string }[]>(() => {
+  acceptedBagCount = computed(() => {
+    const progress = this.bagProgress();
+    return progress ? progress.normalBags + progress.quarantineBags : 0;
+  });
+  bagDispositionOptions = computed<{ id: QualityInspectionBagDisposition; name: string }[]>(() => {
     const type = this.bagProgress()?.inspectionType ?? null;
     const isPass = this.bagForm().qualityResult === 'PASS';
     if (isPass) {
@@ -593,6 +609,12 @@ export class QualityInspectionComponent {
       note: form.note.trim() || null,
     };
 
+    if (progress.inspectionType === 'RECEIVING' &&
+        payload.disposition === 'REJECT_RETURN' && !payload.note) {
+      this.showAlert('Vui lòng nhập lý do trả nhà cung cấp cho bao bị từ chối.', false);
+      return;
+    }
+
     this.savingBagId.set(bag.bagId);
     this.bagSaveMessage.set('');
     try {
@@ -617,9 +639,14 @@ export class QualityInspectionComponent {
     const progress = this.bagProgress();
     if (!progress || progress.isCompleted || progress.remainingBags > 0) return;
 
+    const isReceiving = progress.inspectionType === 'RECEIVING';
     const confirmation = await Swal.fire({
       title: 'Hoàn tất phiếu kiểm tra?',
-      text: 'Hệ thống sẽ chốt kết quả và áp dụng hướng xử lý của từng bao. Sau đó không thể sửa kết quả bao.',
+      html: isReceiving
+        ? `Hệ thống sẽ nhận mua <b>${this.acceptedBagCount()} bao</b> ` +
+          `(${progress.normalBags} thường, ${progress.quarantineBags} cách ly) và trả ` +
+          `<b>${progress.rejectedBags} bao</b> cho nhà cung cấp.<br><small>Bao bị trả sẽ không được tạo nhập kho hoặc tăng tồn.</small>`
+        : 'Hệ thống sẽ chốt kết quả và áp dụng hướng xử lý của từng bao. Sau đó không thể sửa kết quả bao.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Hoàn tất',
@@ -729,6 +756,13 @@ export class QualityInspectionComponent {
   async openEditSelected(): Promise<void> {
     const row = this.selectedRow();
     if (!row) return;
+
+    // New sessions are edited exclusively through bag autosave + Complete.
+    // The aggregate Create/Update form remains available for legacy records.
+    if (row.inspectionType) {
+      await this.openBagInspection(row);
+      return;
+    }
 
     if (row.displayRole === 'splitPassed') {
       this.showAlert('Đây là phần lô đã đạt sơ bộ sau khi tách. Hãy chọn dòng lô -Q để kiểm tra lại phần đang cách ly.');
@@ -1020,8 +1054,8 @@ export class QualityInspectionComponent {
   /** Rủi ro chính suy diễn từ chỉ số kiểm định. */
   riskText(row: QualityInspectionRow): string {
     const parts: string[] = [];
-    if ((row.moisturePercent ?? 0) > 14)
-      parts.push(`Độ ẩm cao (${row.moisturePercent}%)`);
+    if (this.hasMoistureRisk(row))
+      parts.push(`Độ ẩm ngoài ngưỡng cấu hình (${row.moisturePercent}%)`);
     if ((row.impurityPercent ?? 0) > 3)
       parts.push(`Tạp chất cao (${row.impurityPercent}%)`);
     if (row.moldLevel && row.moldLevel !== 'Không')
@@ -1036,7 +1070,12 @@ export class QualityInspectionComponent {
 
   /** Phiếu kiểm định nháp (chờ nhập kết quả) — lô đang ở trạng thái AWAITING_QC. */
   isDraft(row: QualityInspectionRow | null | undefined): boolean {
+    if (row?.inspectionType) return !row.completedAt;
     return (row?.lotStatusCode ?? '').toUpperCase() === 'AWAITING_QC';
+  }
+
+  isSession(row: QualityInspectionRow | null | undefined): boolean {
+    return !!row?.inspectionType;
   }
 
   /** Mức độ: {label, cls} — Cao/Trung bình/Thấp. */
@@ -1046,11 +1085,23 @@ export class QualityInspectionComponent {
     const risky =
       (row.moldLevel && row.moldLevel !== 'Không') ||
       (row.pestLevel && row.pestLevel !== 'Không') ||
-      (row.moisturePercent ?? 0) > 14 ||
+      this.hasMoistureRisk(row) ||
       (row.impurityPercent ?? 0) > 3;
     return risky
       ? { label: 'Trung bình', cls: 'lvl-mid' }
       : { label: 'Thấp', cls: 'lvl-low' };
+  }
+
+  private hasMoistureRisk(row: QualityInspectionRow): boolean {
+    if (row.moisturePercent == null) return false;
+    const config = this.moistureConfig();
+    const type = (row.inspectionType || '').toUpperCase();
+    if (type === 'STORAGE') {
+      return config?.storageQcMoistureWarningPercent != null &&
+        row.moisturePercent > config.storageQcMoistureWarningPercent;
+    }
+    return (config?.receivingMoistureMinPercent != null && row.moisturePercent < config.receivingMoistureMinPercent) ||
+      (config?.receivingMoistureMaxPercent != null && row.moisturePercent > config.receivingMoistureMaxPercent);
   }
   statusText(row: QualityInspectionRow): string {
     if (row.displayRole === 'splitPassed') return 'Đạt sơ bộ';
@@ -1172,7 +1223,7 @@ export class QualityInspectionComponent {
   private defaultDisposition(
     type: string | null,
     result: BagQualityResult
-  ): BagDisposition {
+  ): QualityInspectionBagDisposition {
     if (result === 'PASS') {
       if (type === 'STORAGE') return 'KEEP_STORED';
       if (type === 'RECHECK' || type === 'OUTBOUND_EXCEPTION') return 'RELEASE';

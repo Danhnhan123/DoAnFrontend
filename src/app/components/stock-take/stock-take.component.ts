@@ -9,10 +9,10 @@ import { HasPermissionDirective } from '../../directives/has-permission.directiv
 import {
   ApiResponse,
   BAG_DISPOSITION,
-  BagDisposition,
   BagQualityResult,
   CreateStockTakePayload,
   STOCK_TAKE_STATUS,
+  StockTakeBagDisposition,
   StockTakeBagTargetSuggestion,
   StockTakeDetail,
   StockTakeItem,
@@ -50,7 +50,7 @@ interface CountBagLine {
   pestLevel: string | null;
   packagingStatus: string | null;
   qualityNote: string;
-  disposition: BagDisposition;
+  disposition: StockTakeBagDisposition;
   targetLocationId: number | null;
   targetLocationCode: string | null;
   targetZoneName: string | null;

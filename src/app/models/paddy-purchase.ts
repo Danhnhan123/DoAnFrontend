@@ -76,12 +76,18 @@ export interface PaddyPurchaseReceiptRow {
   warehouseId: number;
   warehouseName?: string | null;
   actualWeightKg: number;
+  acceptedWeightKg?: number | null;
+  rejectedWeightKg?: number | null;
   bagCount?: number | null;
   bags?: BagInput[];
   agreedPrice: number;
   totalAmount: number;
   paidAmount: number;
   debtAmount: number;
+  refundReceivableAmount: number;
+  debtDueDate?: string | null;
+  qcFinalizedAt?: string | null;
+  qcFinalizedBy?: number | null;
   qualityJson?: string | null;
   priceAdjustReason?: string | null;
   receiptDate: string;
@@ -97,6 +103,10 @@ export interface PaddyPurchaseReceiptRow {
 export interface BagInput {
   bagNo: number;
   weightKg: number;
+  scaleDeviceRef?: string | null;
+  weightCaptureMethod?: 'SCALE' | 'MANUAL' | null;
+  weighedAt?: string | null;
+  weighedBy?: number | null;
 }
 
 export interface CreatePaddyPurchaseReceiptDto {
@@ -143,7 +153,7 @@ export interface PaddyQualitySnapshot {
 export interface ConfirmPaddyPurchaseReceiptResult {
   lotId: number;
   lotCode: string;
-  inboundOrderId: number;
+  qualityInspectionId: number;
 }
 
 /**

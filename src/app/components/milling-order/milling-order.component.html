@@ -949,6 +949,21 @@
               </label>
 
               <label>
+                <span>Người vận hành</span>
+                <select
+                  [ngModel]="completeForm().operatorId"
+                  (ngModelChange)="setCompleteField('operatorId', $event)"
+                >
+                  <option [ngValue]="null">Chọn người vận hành</option>
+                  @for (user of operatorOptions(); track user.id) {
+                    <option [ngValue]="user.id">
+                      {{ user.lastName }} {{ user.firstName }}
+                    </option>
+                  }
+                </select>
+              </label>
+
+              <label>
                 <span>Chi phí xay</span>
                 <input
                   type="number"

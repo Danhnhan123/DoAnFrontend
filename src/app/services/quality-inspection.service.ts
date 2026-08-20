@@ -13,6 +13,7 @@ import {
   QualityInspectionBagProgressDto,
   SaveBagInspectionResultDto,
   CompleteInspectionDto,
+  MoistureConfigDto,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
 
@@ -116,6 +117,12 @@ export class QualityInspectionService {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/quality-inspections/${inspectionId}/complete`,
       payload
+    );
+  }
+
+  getMoistureConfig(): Observable<ApiResponse<MoistureConfigDto>> {
+    return this.http.get<ApiResponse<MoistureConfigDto>>(
+      `${this.base}/quality-inspections/config`
     );
   }
 

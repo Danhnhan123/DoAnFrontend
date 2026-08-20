@@ -10,6 +10,10 @@ export interface QualityInspectionRow {
   lotCode?: string | null;
   /** Code trạng thái lô. 'AWAITING_QC' = phiếu kiểm định nháp (chờ nhập kết quả). */
   lotStatusCode?: string | null;
+  /** NULL for legacy rows; the UI must not guess an inspection type. */
+  inspectionType?: QualityInspectionType | null;
+  completedAt?: string | null;
+  completedBy?: number | null;
   inspectorId?: number | null;
   inspectorName?: string | null;
   inspectedAt: string;
@@ -67,7 +71,7 @@ export type QualityInspectionType =
 
 export type BagQualityResult = 'PASS' | 'ISSUE_DETECTED';
 
-export type BagDisposition =
+export type QualityInspectionBagDisposition =
   | 'ACCEPT_NORMAL'
   | 'ACCEPT_QUARANTINE'
   | 'REJECT_RETURN'
@@ -75,6 +79,8 @@ export type BagDisposition =
   | 'QUARANTINE'
   | 'RELEASE'
   | 'KEEP_QUARANTINE';
+
+export type BagDisposition = QualityInspectionBagDisposition;
 
 /** Kết quả QC hiện tại của một bao trong inspection session. */
 export interface QualityInspectionBagResultDto {
@@ -129,4 +135,11 @@ export interface SaveBagInspectionResultDto {
 
 export interface CompleteInspectionDto {
   note?: string | null;
+}
+
+export interface MoistureConfigDto {
+  receivingMoistureMinPercent?: number | null;
+  receivingMoistureMaxPercent?: number | null;
+  storageQcMoistureWarningPercent?: number | null;
+  sourceNote: string;
 }

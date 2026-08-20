@@ -342,6 +342,12 @@ const adminChildren: Routes = [
       ),
   },
   {
+    path: "customer-feedbacks",
+    canMatch: [menuReadGuard],
+    data: { menuCode: "CUSTOMER_RETURNS" },
+    loadComponent: () => import("./components/customer-feedback/customer-feedback.component").then(m => m.CustomerFeedbackComponent),
+  },
+  {
     path: "paddy-lots",
     canMatch: [menuReadGuard],
     data: { menuCode: "PADDY_LOTS" },

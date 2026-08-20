@@ -20,6 +20,7 @@ import {
   MillingYieldOption,
   RiceVarietyDetailDto,
   ReserveMillingOrderPayload,
+  StartMillingOrderPayload,
   UpdateMillingOrderPayload,
 } from '../models';
 
@@ -73,10 +74,10 @@ export class MillingOrderService {
     );
   }
 
-  start(id: number): Observable<ApiResponse<any>> {
+  start(id: number, payload: StartMillingOrderPayload): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/milling-orders/${id}/start`,
-      {}
+      payload
     );
   }
 

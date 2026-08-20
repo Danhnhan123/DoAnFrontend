@@ -347,6 +347,42 @@
                   </dd>
                 </div>
               </dl>
+
+              @for (purchase of traceability()?.purchases || []; track purchase.receiptId) {
+                @if (purchase.bags.length) {
+                  <div class="trace-warning">
+                    <strong>Cân mua · {{ purchase.receiptCode }}</strong>
+                    @for (bag of purchase.bags; track bag.bagId) {
+                      <div>
+                        Bao #{{ bag.bagNo }} · {{ fmtWeight(bag.weightKg) }} ·
+                        {{ bag.weightCaptureMethod || 'Chưa rõ phương thức' }}
+                        @if (bag.scaleDeviceRef) { · {{ bag.scaleDeviceRef }} }
+                        @if (bag.weighedByName) { · {{ bag.weighedByName }} }
+                        @if (bag.weighedAt) { · {{ fmtDate(bag.weighedAt, true) }} }
+                      </div>
+                    }
+                  </div>
+                }
+              }
+
+              @for (milling of traceability()?.millingOrders || []; track milling.millingOrderId) {
+                <div class="trace-warning">
+                  <strong>Xay · {{ milling.millingCode }}</strong>
+                  <div>Máy: {{ milling.machineRef || '—' }} · Người vận hành: {{ milling.operatorName || (milling.operatorId ? '#' + milling.operatorId : '—') }}</div>
+                  <div>Đầu vào thực tế: {{ fmtWeight(milling.actualPaddyInputKg) }} · Yield thực tế: {{ milling.actualYieldRate != null ? (milling.actualYieldRate * 100 | number:'1.0-2') + '%' : '—' }}</div>
+                </div>
+              }
+
+              @for (inspection of traceability()?.qualityInspections || []; track inspection.inspectionId) {
+                @if (inspection.bagResults.length) {
+                  <div class="trace-warning">
+                    <strong>QC từng bao · {{ inspection.inspectionType || 'Không rõ loại' }}</strong>
+                    @for (result of inspection.bagResults; track result.bagResultId) {
+                      <div>Bao #{{ result.bagNo }} · {{ fmtWeight(result.weightKg) }} · Ẩm {{ result.moisturePercent != null ? result.moisturePercent + '%' : '—' }} · {{ result.qualityResult || '—' }} / {{ result.disposition || '—' }}</div>
+                    }
+                  </div>
+                }
+              }
             }
           } @else {
             <div class="empty-detail">

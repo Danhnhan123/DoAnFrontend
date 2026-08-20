@@ -148,12 +148,14 @@
           <div class="d-row"><span>Trạng thái</span>
             <b><span class="status-chip" [class.ok]="sel.passedInspection" [class.bad]="!sel.passedInspection">{{ statusText(sel) }}</span></b>
           </div>
+          <div class="d-row"><span>Loại kiểm tra</span><b>{{ inspectionTypeText(sel.inspectionType) }}</b></div>
+          <div class="d-row"><span>Tiến độ phiên</span><b>{{ sel.completedAt ? ('Hoàn tất ' + (sel.completedAt | date:'dd/MM/yyyy HH:mm')) : 'Chưa hoàn tất' }}</b></div>
           <div class="d-row"><span>Hướng xử lý</span><b>{{ sel.handling || '—' }}</b></div>
           <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
         </div>
         <div class="qc-detail-actions">
           <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
-            [disabled]="wasSplit(sel) || !!sel.displayRole"
+            [disabled]="isSession(sel) || wasSplit(sel) || !!sel.displayRole"
             [title]="wasSplit(sel) || sel.displayRole ? 'Kết quả tách lô là lịch sử nghiệp vụ — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
           <button class="btn btn-outline" type="button" (click)="openEditSelected()">
             {{ perm.canUpdate('QUALITY_INSPECTIONS') ? 'Thông tin chung' : 'Xem phiếu' }}
@@ -378,6 +380,9 @@
       </div>
       <div class="qc-progress-track"><span [style.width.%]="bagProgressPercent()"></span></div>
       <div class="qc-progress-counters">
+        @if (progress.inspectionType === 'RECEIVING') {
+        <span class="normal">Chấp nhận <b>{{ acceptedBagCount() }}</b></span>
+        }
         <span class="normal">Bình thường <b>{{ progress.normalBags }}</b></span>
         <span class="quarantine">Cách ly <b>{{ progress.quarantineBags }}</b></span>
         <span class="rejected">Từ chối <b>{{ progress.rejectedBags }}</b></span>
@@ -499,10 +504,12 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Ghi chú bao</label>
+            <label class="form-label">Ghi chú bao@if (progress.inspectionType === 'RECEIVING' && bagForm().disposition === 'REJECT_RETURN') { * }</label>
             <textarea class="form-control" rows="2" maxlength="1000" [disabled]="bagReadOnly()"
               [ngModel]="bagForm().note" (ngModelChange)="setBagField('note', $event)"
-              placeholder="Mô tả dấu hiệu, mẫu đo hoặc lý do chọn hướng xử lý..."></textarea>
+              [placeholder]="progress.inspectionType === 'RECEIVING' && bagForm().disposition === 'REJECT_RETURN'
+                ? 'Bắt buộc nhập lý do trả nhà cung cấp...'
+                : 'Mô tả dấu hiệu, mẫu đo hoặc lý do chọn hướng xử lý...'"></textarea>
           </div>
 
           @if (bagSaveMessage()) {

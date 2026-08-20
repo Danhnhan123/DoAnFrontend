@@ -116,6 +116,7 @@ export interface CreateCustomerReturnPayload {
   warehouseId: number;
   customerId: number;
   outboundOrderId: number;
+  customerFeedbackId?: number | null;
   returnReason?: string | null;
   note?: string | null;
   items: CreateCustomerReturnItemPayload[];
