@@ -71,6 +71,8 @@ interface TransferFormLine {
   bags: BagFormLine[];
   // Gợi ý ô cách ly ở kho nguồn (dùng chung cho các bao không đạt của dòng).
   quarantineOptions: { id: number; name: string }[];
+  // Chỉ các cột ĐÍCH thật sự dùng được cho dòng này (đủ chỗ, cùng loại/ô trống, đúng danh mục).
+  destinationOptions: { id: number; name: string }[];
 }
 
 interface TransferFormState {
@@ -486,6 +488,7 @@ export class StockTransferComponent implements OnDestroy {
           hasBags: bags.length > 0,
           bags,
           quarantineOptions,
+          destinationOptions: [],
         };
       }),
     });
@@ -610,7 +613,9 @@ export class StockTransferComponent implements OnDestroy {
       }
     }
 
-    // Gợi ý sẵn vị trí lưu ở kho đích (chọn ô tốt nhất; người dùng vẫn đổi được).
+    // Vị trí lưu ở kho đích: chỉ lấy các cột THẬT SỰ DÙNG ĐƯỢC (đủ chỗ, cùng loại/ô trống,
+    // đúng danh mục) để hiển thị trong dropdown; pre-select ô tốt nhất (ô đầu).
+    let destinationOptions: { id: number; name: string }[] = [];
     let suggestedToLocationId: number | null = null;
     const toWarehouseId = this.form().toWarehouseId;
     if (toWarehouseId) {
@@ -623,7 +628,11 @@ export class StockTransferComponent implements OnDestroy {
             suggestWeight
           )
         );
-        suggestedToLocationId = suggestion?.resources?.[0]?.locationId ?? null;
+        destinationOptions = (suggestion?.resources ?? []).map((loc) => ({
+          id: loc.locationId,
+          name: loc.locationName || `Ô #${loc.locationId}`,
+        }));
+        suggestedToLocationId = destinationOptions[0]?.id ?? null;
       } catch {
         // Gợi ý là tùy chọn — bỏ qua lỗi, người dùng tự chọn vị trí đích.
       }
@@ -649,6 +658,7 @@ export class StockTransferComponent implements OnDestroy {
           hasBags: bags.length > 0,
           bags,
           quarantineOptions,
+          destinationOptions,
         },
       ],
     }));
@@ -797,6 +807,17 @@ export class StockTransferComponent implements OnDestroy {
       id: option.id,
       name: option.name,
     }));
+  }
+
+  /** Chỉ hiển thị các cột đích DÙNG ĐƯỢC cho dòng; dòng cũ (sửa phiếu) chưa nạp thì dùng danh sách chung. */
+  destinationOptionsFor(line: TransferFormLine): FilterSelectOption[] {
+    if (line.destinationOptions.length > 0) {
+      return line.destinationOptions.map((option) => ({
+        id: option.id,
+        name: option.name,
+      }));
+    }
+    return this.destinationLocationOptions();
   }
 
   setBagNumber(
