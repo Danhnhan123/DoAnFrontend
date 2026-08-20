@@ -52,6 +52,7 @@ button {
 }
 .primary-btn,
 .secondary-btn,
+.reprint-btn,
 .text-btn,
 .pagination button,
 .close-btn {
@@ -208,7 +209,7 @@ button {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1040px;
+  min-width: 1160px;
 }
 th {
   padding: 12px 14px;
@@ -261,6 +262,20 @@ tbody tr:hover {
 .status-pill {
   background: #dcfce7;
   color: #15803d;
+}
+.reprint-btn {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid #86efac;
+  border-radius: 9px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 0.76rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.reprint-btn:hover {
+  background: #dcfce7;
 }
 td small {
   color: #94a3b8;

@@ -41,8 +41,11 @@
   <section class="history-card">
     <div class="history-head">
       <div>
-        <h2>Lịch sử tạo tem</h2>
-        <p>{{ historyTotal() | number }} lệnh đã ghi nhận</p>
+        <h2>Tem đã tạo / đã in</h2>
+        <p>
+          {{ historyTotal() | number }} lệnh đã ghi nhận · Có thể xem và in lại
+          đúng mã QR cũ
+        </p>
       </div>
       <button
         class="secondary-btn"
@@ -105,16 +108,17 @@
             <th>File</th>
             <th>Trạng thái</th>
             <th>Thời gian</th>
+            <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
           @if (historyLoading()) {
             <tr>
-              <td colspan="8" class="empty-cell">Đang tải lịch sử...</td>
+              <td colspan="9" class="empty-cell">Đang tải lịch sử...</td>
             </tr>
           } @else if (!history().length) {
             <tr>
-              <td colspan="8" class="empty-cell">
+              <td colspan="9" class="empty-cell">
                 Chưa có lệnh tạo tem phù hợp.
               </td>
             </tr>
@@ -147,6 +151,16 @@
                 </td>
                 <td data-label="Thời gian">
                   {{ formatDate(item.createdDate) }}
+                </td>
+                <td data-label="Thao tác">
+                  <button
+                    class="reprint-btn"
+                    type="button"
+                    [appHasPerm]="'QR_LABELS:CREATE'"
+                    (click)="openReprintModal(item)"
+                  >
+                    Xem / in lại
+                  </button>
                 </td>
               </tr>
             }
@@ -197,8 +211,17 @@
     >
       <header class="modal-head">
         <div>
-          <h2 id="qr-create-title">Tạo tem QR mới</h2>
-          <p>Chọn đối tượng, kích thước và số lượng trước khi tạo file.</p>
+          <h2 id="qr-create-title">
+            {{ isReprint() ? "Xem lại tem QR đã in" : "Tạo tem QR mới" }}
+          </h2>
+          <p>
+            @if (isReprint()) {
+              Đang dùng lại đúng mã QR và thông số của lệnh
+              {{ reprintItem()!.jobCode }}.
+            } @else {
+              Chọn đối tượng, kích thước và số lượng trước khi tạo file.
+            }
+          </p>
         </div>
         <button
           class="close-btn"
@@ -219,6 +242,7 @@
               [options]="labelTypeOptions"
               [value]="labelType()"
               [clearable]="false"
+              [disabled]="isReprint()"
               (valueChange)="changeLabelType($event)"
             ></app-filter-select>
           </label>
@@ -229,7 +253,7 @@
               [options]="subjectOptions()"
               [multiple]="true"
               [value]="selectedIds()"
-              [disabled]="loading()"
+              [disabled]="loading() || isReprint()"
               placeholder="Chọn một hoặc nhiều đối tượng"
               (valueChange)="changeSubjects($event)"
             ></app-filter-select>
@@ -246,6 +270,7 @@
                 [options]="templateOptions"
                 [value]="template()"
                 [clearable]="false"
+                [disabled]="isReprint()"
                 (valueChange)="changeTemplate($event)"
               ></app-filter-select>
             </label>
@@ -255,7 +280,7 @@
                 [options]="formatOptions"
                 [value]="format()"
                 [clearable]="false"
-                [disabled]="labelType() === 'SKU'"
+                [disabled]="labelType() === 'SKU' || isReprint()"
                 (valueChange)="changeFormat($event)"
               ></app-filter-select>
               @if (labelType() === "SKU") {
@@ -271,6 +296,7 @@
               type="number"
               min="1"
               max="500"
+              [disabled]="isReprint()"
               [ngModel]="copiesPerLabel()"
               (ngModelChange)="changeCopies($event)"
             />
@@ -376,9 +402,13 @@
           {{
             generating()
               ? "Đang tạo file..."
-              : format() === "PDF" || labelType() === "SKU"
-                ? "Tạo PDF để in"
-                : "Tải ảnh PNG"
+              : isReprint()
+                ? format() === "PDF" || labelType() === "SKU"
+                  ? "Mở PDF để in lại"
+                  : "Tải lại ảnh PNG"
+                : format() === "PDF" || labelType() === "SKU"
+                  ? "Tạo PDF để in"
+                  : "Tải ảnh PNG"
           }}
         </button>
       </footer>
