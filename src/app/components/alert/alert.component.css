@@ -221,7 +221,8 @@
 }
 
 .alert-item:first-child { border-top: 0; }
-.alert-item.unread { cursor: pointer; }
+.alert-item.unread { cursor: default; }
+.alert-item.actionable { cursor: pointer; }
 .alert-item.read { cursor: default; }
 .alert-item:hover { background: #fafafa; }
 .alert-item.row-critical { background: #fef2f2; }

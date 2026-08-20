@@ -133,7 +133,8 @@
     <div class="alert-list">
       @for (row of rows(); track row.id) {
       <div class="alert-item" [class.row-critical]="row.severity === 'CRITICAL' && isUnread(row)"
-        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)" [appHasPerm]="'ALERTS:UPDATE'" (click)="markRead(row)">
+        [class.unread]="isUnread(row)" [class.read]="!isUnread(row)"
+        [class.actionable]="canUpdateAlerts() && isUnread(row)" (click)="markRead(row)">
         <span class="ai-icon {{ iconClass(row) }}">
           @switch (iconKind(row)) {
           @case ('alert') {
@@ -175,7 +176,7 @@
 
         <div class="ai-meta">
           <span class="ai-time">{{ relativeTime(row.createdDate) }}</span>
-          <button class="ai-x" type="button" [appHasPerm]="'ALERTS:UPDATE'" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
+          <button class="ai-x" type="button" [appHasPerm]="'ALERTS:DELETE'" (click)="dismiss(row, $event)" title="Bỏ qua">×</button>
         </div>
       </div>
       }
