@@ -79,6 +79,12 @@ export interface StockTransferDetail extends StockTransferRow {
   lastModifiedDate?: string | null;
 }
 
+/** Gợi ý ô lưu ở kho đích (chỉ tên vị trí). */
+export interface LocationSuggestion {
+  locationId: number;
+  locationName?: string | null;
+}
+
 /** Bao ở đỉnh cột nguồn để chọn khi chuyển kho theo BAO. */
 export interface SourceColumnBag {
   bagId: number;

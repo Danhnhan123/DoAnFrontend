@@ -572,6 +572,25 @@ export class StockTransferComponent implements OnDestroy {
       }
     }
 
+    // Gợi ý sẵn vị trí lưu ở kho đích (chọn ô tốt nhất; người dùng vẫn đổi được).
+    let suggestedToLocationId: number | null = null;
+    const toWarehouseId = this.form().toWarehouseId;
+    if (toWarehouseId) {
+      const suggestWeight = bags.reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0);
+      try {
+        const suggestion = await lastValueFrom(
+          this.service.getDestinationSuggestions(
+            Number(toWarehouseId),
+            inventory.productVariantId,
+            suggestWeight
+          )
+        );
+        suggestedToLocationId = suggestion?.resources?.[0]?.locationId ?? null;
+      } catch {
+        // Gợi ý là tùy chọn — bỏ qua lỗi, người dùng tự chọn vị trí đích.
+      }
+    }
+
     this.form.update((current) => ({
       ...current,
       items: [
@@ -586,7 +605,7 @@ export class StockTransferComponent implements OnDestroy {
           lotCode: inventory.lotCode || '',
           fromLocationId: inventory.locationId ?? null,
           fromLocationName: inventory.locationCode || 'Tồn cấp kho nguồn',
-          toLocationId: null,
+          toLocationId: suggestedToLocationId,
           weightKg: null,
           note: '',
           hasBags: bags.length > 0,
