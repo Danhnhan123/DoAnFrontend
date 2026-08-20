@@ -44,6 +44,7 @@ interface BagFormLine {
   selected: boolean;
   qualityResult: BagQualityResult;
   disposition: StockTransferBagDisposition;
+  quarantineLocationId: number | null;
   moisturePercent: number | null;
   impurityPercent: number | null;
   moldLevel: string;
@@ -68,6 +69,8 @@ interface TransferFormLine {
   // Chuyển kho THEO BAO: khi cột nguồn có bao thì chọn bao + kiểm định chất lượng.
   hasBags: boolean;
   bags: BagFormLine[];
+  // Gợi ý ô cách ly ở kho nguồn (dùng chung cho các bao không đạt của dòng).
+  quarantineOptions: { id: number; name: string }[];
 }
 
 interface TransferFormState {
@@ -446,6 +449,7 @@ export class StockTransferComponent implements OnDestroy {
             : 'PASS') as BagQualityResult,
           disposition: ((bag.disposition as StockTransferBagDisposition) ||
             'TRANSFER') as StockTransferBagDisposition,
+          quarantineLocationId: bag.quarantineLocationId ?? null,
           moisturePercent: bag.moisturePercent ?? null,
           impurityPercent: bag.impurityPercent ?? null,
           moldLevel: bag.moldLevel || '',
@@ -453,6 +457,19 @@ export class StockTransferComponent implements OnDestroy {
           packagingStatus: bag.packagingStatus || '',
           qualityNote: bag.qualityNote || '',
         }));
+        const quarantineOptions = Array.from(
+          new Map(
+            (item.bags || [])
+              .filter((bag) => bag.quarantineLocationId != null)
+              .map((bag) => [
+                bag.quarantineLocationId as number,
+                {
+                  id: bag.quarantineLocationId as number,
+                  name: bag.quarantineLocationName || `Ô #${bag.quarantineLocationId}`,
+                },
+              ])
+          ).values()
+        );
         return {
           clientId: this.clientId(),
           inventoryId: 0,
@@ -468,6 +485,7 @@ export class StockTransferComponent implements OnDestroy {
           note: item.note || '',
           hasBags: bags.length > 0,
           bags,
+          quarantineOptions,
         };
       }),
     });
@@ -553,6 +571,7 @@ export class StockTransferComponent implements OnDestroy {
           selected: true,
           qualityResult: 'PASS' as BagQualityResult,
           disposition: 'TRANSFER' as StockTransferBagDisposition,
+          quarantineLocationId: null,
           moisturePercent: null,
           impurityPercent: null,
           moldLevel: '',
@@ -569,6 +588,25 @@ export class StockTransferComponent implements OnDestroy {
       if (bags.length === 0) {
         this.alert('Cột nguồn này không còn bao khả dụng ở đỉnh chồng.', false);
         return;
+      }
+    }
+
+    // Gợi ý sẵn ô cách ly ở kho nguồn (cho bao không đạt) — chỉ cần khi dòng có bao.
+    let quarantineOptions: { id: number; name: string }[] = [];
+    if (bags.length > 0 && fromWarehouseId) {
+      try {
+        const qResponse = await lastValueFrom(
+          this.service.getQuarantineSuggestions(
+            Number(fromWarehouseId),
+            inventory.productVariantId
+          )
+        );
+        quarantineOptions = (qResponse?.resources ?? []).map((loc) => ({
+          id: loc.locationId,
+          name: loc.locationName || `Ô #${loc.locationId}`,
+        }));
+      } catch {
+        // Gợi ý là tùy chọn — bỏ qua lỗi.
       }
     }
 
@@ -610,6 +648,7 @@ export class StockTransferComponent implements OnDestroy {
           note: '',
           hasBags: bags.length > 0,
           bags,
+          quarantineOptions,
         },
       ],
     }));
@@ -654,7 +693,11 @@ export class StockTransferComponent implements OnDestroy {
                     : bag.disposition === 'TRANSFER'
                     ? 'QUARANTINE'
                     : bag.disposition;
-                return { ...bag, qualityResult: quality, disposition };
+                const quarantineLocationId =
+                  disposition === 'QUARANTINE'
+                    ? bag.quarantineLocationId ?? item.quarantineOptions[0]?.id ?? null
+                    : null;
+                return { ...bag, qualityResult: quality, disposition, quarantineLocationId };
               }),
             }
       ),
@@ -663,7 +706,36 @@ export class StockTransferComponent implements OnDestroy {
 
   setBagDisposition(lineIndex: number, bagId: number, value: string): void {
     const disposition = (value === 'DISPOSE' ? 'DISPOSE' : 'QUARANTINE') as StockTransferBagDisposition;
-    this.patchBag(lineIndex, bagId, { disposition });
+    this.form.update((current) => ({
+      ...current,
+      items: current.items.map((item, index) =>
+        index !== lineIndex
+          ? item
+          : {
+              ...item,
+              bags: item.bags.map((bag) => {
+                if (bag.bagId !== bagId) return bag;
+                const quarantineLocationId =
+                  disposition === 'QUARANTINE'
+                    ? bag.quarantineLocationId ?? item.quarantineOptions[0]?.id ?? null
+                    : null;
+                return { ...bag, disposition, quarantineLocationId };
+              }),
+            }
+      ),
+    }));
+  }
+
+  setBagQuarantineLocation(lineIndex: number, bagId: number, rawValue: string): void {
+    const value = Number(rawValue) || null;
+    this.patchBag(lineIndex, bagId, { quarantineLocationId: value });
+  }
+
+  quarantineOptionsFor(line: TransferFormLine): FilterSelectOption[] {
+    return line.quarantineOptions.map((option) => ({
+      id: option.id,
+      name: option.name,
+    }));
   }
 
   setBagNumber(
@@ -762,7 +834,8 @@ export class StockTransferComponent implements OnDestroy {
             packagingStatus: bag.packagingStatus.trim() || null,
             qualityResult: bag.qualityResult,
             disposition: bag.disposition,
-            quarantineLocationId: null,
+            quarantineLocationId:
+              bag.disposition === 'QUARANTINE' ? bag.quarantineLocationId : null,
             qualityNote: bag.qualityNote.trim() || null,
             note: null,
           }));

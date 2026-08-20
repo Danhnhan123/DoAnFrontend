@@ -770,3 +770,6 @@ td small {
 }
 
 .bag-table .muted { color: #94a3b8; }
+
+.bag-disposition { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.bag-qloc { font-size: 12px; }
