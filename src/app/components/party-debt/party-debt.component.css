@@ -111,7 +111,12 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .overdue .summary-icon { color: #dc2626; background: #fee2e2; }
 .limit .summary-icon { color: #b45309; background: #fef3c7; }
 .summary-card div { min-width: 0; }
-.summary-card small, .summary-card span { display: block; color: var(--muted); font-size: 12px; }
+.summary-card > div > small,
+.summary-card > div > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
 .summary-card strong { display: block; margin: 4px 0 3px; overflow: hidden; font-size: 18px; text-overflow: ellipsis; }
 
 .data-card {
