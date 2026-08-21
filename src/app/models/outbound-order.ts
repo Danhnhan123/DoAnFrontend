@@ -32,6 +32,11 @@ export type OutboundStatusCode =
 
 export interface OutboundOrderPagedRequest {
   keyword?: string | null;
+  outboundStatusId?: number | null;
+  salesOrderId?: number | null;
+  warehouseId?: number | null;
+  fromDate?: string | null;
+  toDate?: string | null;
   page: number;
   pageSize: number;
 }
@@ -60,6 +65,7 @@ export interface OutboundOrderRow {
   /** Lý do hủy — chỉ có giá trị khi phiếu đã bị hủy. */
   cancelReason?: string | null;
   createdDate?: string | null;
+  feedbackCount: number;
 }
 
 /** Chi tiết phiếu xuất (OutboundOrderDetailDto). */
@@ -84,8 +90,39 @@ export interface OutboundOrderDetail {
   /** Tên cân điện tử đã dùng khi đóng gói; null = nhập tay. */
   packingScaleDevice?: string | null;
   packedDate?: string | null;
+  receiverName?: string | null;
+  deliveryNote?: string | null;
+  proofImageUrl?: string | null;
   createdDate?: string | null;
   items: OutboundOrderItem[];
+  /** CÃ¡c bao váº­t lÃ½ Ä‘Æ°á»£c BE giá»¯ tá»« báº¯t Ä‘áº§u Allocate (W14-H). */
+  bagAllocations: OutboundBagAllocation[];
+  feedbackCount: number;
+  feedbacks: import('./sales-order').CustomerFeedbackSummary[];
+}
+
+export interface OutboundBagAllocation {
+  bagAllocationId: number;
+  bagId: number;
+  bagNo: number;
+  allocatedWeightKg: number;
+  pickedWeightKg: number;
+  lotId: number;
+  lotCode?: string | null;
+  locationId?: number | null;
+  locationCode?: string | null;
+  stackOrder: number;
+  isFull: boolean;
+  qrCode?: string | null;
+  bagStatus?: string | null;
+  status: string;
+}
+
+export interface OutboundQualityHoldResult {
+  bagAllocationId: number;
+  bagId: number;
+  bagNo: number;
+  status: string;
 }
 
 export interface OutboundOrderItem {
@@ -177,7 +214,7 @@ export interface AllocateOutboundPayload {
 }
 
 export interface PickAllocationPayload {
-  allocationId: number;
+  bagAllocationId: number;
   quantityPicked: number;
 }
 
@@ -195,7 +232,8 @@ export interface ConfirmPackingItemPayload {
 }
 
 export interface ConfirmPackingPayload {
-  qrCode: string;
+  /** QR chỉ là shortcut xác minh; có thể đóng gói bằng danh sách bao đã pick. */
+  qrCode?: string | null;
   /** Tổng khối lượng — backend tính lại từ `items` khi có. */
   actualWeightKg?: number | null;
   /** Chỉ gửi khi thật sự có số từ cân điện tử; nhập tay thì để null. */

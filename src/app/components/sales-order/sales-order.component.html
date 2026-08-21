@@ -106,12 +106,19 @@
       </div>
     </div>
 
-    @if (channelFilter() !== 'ALL') {
-    <div class="so-api-note">
-      Bộ lọc kênh đang áp dụng trên trang dữ liệu hiện tại vì API chưa hỗ trợ lọc
-      kênh server-side.
+    <div class="so-tools">
+      <select [ngModel]="statusFilter()" (ngModelChange)="setHistoryFilter('status', $event)">
+        <option [ngValue]="null">Tất cả trạng thái</option>
+        <option [ngValue]="status.NEW">Mới</option><option [ngValue]="status.PENDING_CONFIRM">Chờ xác nhận</option>
+        <option [ngValue]="status.RESERVED">Đã giữ hàng</option><option [ngValue]="status.AWAITING_MILLING">Chờ xay</option>
+        <option [ngValue]="status.PREPARING">Đang chuẩn bị</option><option [ngValue]="status.DELIVERING">Đang giao</option>
+        <option [ngValue]="status.COMPLETED">Hoàn thành</option><option [ngValue]="status.CANCELLED">Đã hủy</option>
+      </select>
+      <app-filter-select [options]="customerSelectOptions()" [value]="customerFilter()" placeholder="Tất cả khách hàng" (valueChange)="setHistoryFilter('customer', $event)"></app-filter-select>
+      <app-filter-select [options]="warehouseSelectOptions()" [value]="warehouseFilter()" placeholder="Tất cả kho" (valueChange)="setHistoryFilter('warehouse', $event)"></app-filter-select>
+      <label>Từ ngày <input type="date" [ngModel]="fromDate()" (ngModelChange)="setHistoryDate('from', $event)" /></label>
+      <label>Đến ngày <input type="date" [ngModel]="toDate()" (ngModelChange)="setHistoryDate('to', $event)" /></label>
     </div>
-    }
 
     <div class="so-workspace">
       <div class="so-table-panel">
@@ -360,16 +367,22 @@
           } @else {
           <div class="so-related-list">
             @for (outbound of order.outboundOrders; track outbound.id) {
-            <div>
+            <div tabindex="0" role="button" (click)="openOutboundHistory(order, outbound)" (keydown.enter)="openOutboundHistory(order, outbound)">
               <span>
                 <b>Phiếu xuất #{{ outbound.id }}</b>
-                <small>{{ outbound.outboundStatusName }}</small>
+                <small>{{ outbound.outboundStatusName }} · {{ outbound.warehouseName || 'Chưa có kho' }} · {{ outbound.feedbackCount }} phản hồi</small>
               </span>
               <strong>{{ fmtMoney(outbound.totalDispatchedSaleValue) }}</strong>
             </div>
             }
           </div>
           }
+        </div>
+
+        <div class="so-section">
+          <div class="so-section-title"><h3>Phản hồi</h3><span>{{ order.feedbackCount }} phản hồi</span></div>
+          @if (!order.feedbacks.length) { <div class="so-empty-line">Chưa có phản hồi liên quan.</div> }
+          @else { <div class="so-related-list"> @for (feedback of order.feedbacks; track feedback.id) { <div><span><b>{{ feedback.feedbackType }}</b><small>{{ feedback.description }}</small></span><strong>{{ feedback.resolutionStatus }}</strong></div> } </div> }
         </div>
 
         <div class="so-detail-actions">

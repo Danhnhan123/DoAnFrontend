@@ -118,6 +118,18 @@ export interface TraceabilityPurchaseDto {
   bagCount?: number | null;
   qualityJson?: string | null;
   initialQuality?: unknown;
+  bags: TraceabilityPurchaseBagDto[];
+}
+
+export interface TraceabilityPurchaseBagDto {
+  bagId: number;
+  bagNo: number;
+  weightKg: number;
+  scaleDeviceRef?: string | null;
+  weightCaptureMethod?: 'SCALE' | 'MANUAL' | string | null;
+  weighedAt?: string | null;
+  weighedBy?: number | null;
+  weighedByName?: string | null;
 }
 
 export interface TraceabilityInspectionDto {
@@ -135,6 +147,24 @@ export interface TraceabilityInspectionDto {
   resultName?: string | null;
   inspectorId?: number | null;
   inspectorName?: string | null;
+  note?: string | null;
+  inspectionType?: string | null;
+  completedAt?: string | null;
+  bagResults: TraceabilityInspectionBagResultDto[];
+}
+
+export interface TraceabilityInspectionBagResultDto {
+  bagResultId: number;
+  bagId: number;
+  bagNo: number;
+  weightKg: number;
+  moisturePercent?: number | null;
+  qualityResult?: string | null;
+  disposition?: string | null;
+  inspectorId?: number | null;
+  inspectorName?: string | null;
+  inspectedAt?: string | null;
+  handling?: string | null;
   note?: string | null;
 }
 
@@ -155,6 +185,11 @@ export interface TraceabilityMillingDto {
   lossKg?: number | null;
   startedAt?: string | null;
   completedAt?: string | null;
+  machineRef?: string | null;
+  operatorId?: number | null;
+  operatorName?: string | null;
+  actualPaddyInputKg?: number | null;
+  actualYieldRate?: number | null;
   inputs: TraceabilityMillingInputDto[];
   outputs: TraceabilityMillingOutputDto[];
 }

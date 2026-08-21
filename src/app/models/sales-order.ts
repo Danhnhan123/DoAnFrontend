@@ -15,6 +15,12 @@ export const SALES_ORDER_STATUS = {
 
 export interface SalesOrderPagedRequest {
   keyword?: string | null;
+  statusId?: number | null;
+  channel?: SalesOrderChannel | null;
+  customerId?: number | null;
+  warehouseId?: number | null;
+  fromDate?: string | null;
+  toDate?: string | null;
   page: number;
   pageSize: number;
 }
@@ -45,6 +51,7 @@ export interface SalesOrderRow {
   /** Lý do hủy — chỉ có giá trị khi đơn đã bị hủy. */
   cancelReason?: string | null;
   createdDate?: string | null;
+  feedbackCount: number;
 }
 
 export interface SalesOrderDetail extends SalesOrderRow {
@@ -53,6 +60,9 @@ export interface SalesOrderDetail extends SalesOrderRow {
   shippingAddress?: string | null;
   items: SalesOrderItem[];
   outboundOrders: SalesOrderOutboundSummary[];
+  outboundCount: number;
+  feedbackCount: number;
+  feedbacks: CustomerFeedbackSummary[];
 }
 
 export interface SalesOrderItem {
@@ -72,9 +82,28 @@ export interface SalesOrderOutboundSummary {
   outboundStatusId: number;
   outboundStatusName: string;
   outboundStatusCode: string;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
   totalDispatchedValue: number;
   totalDispatchedSaleValue: number;
   completedDate?: string | null;
+  feedbackCount: number;
+}
+
+export interface CustomerFeedbackSummary {
+  id: number;
+  salesOrderId: number;
+  outboundOrderId?: number | null;
+  outboundOrderItemId?: number | null;
+  productVariantId?: number | null;
+  productVariantName?: string | null;
+  feedbackType: string;
+  description: string;
+  severity?: string | null;
+  resolutionStatus: string;
+  createdDate?: string | null;
+  resolvedAt?: string | null;
+  resolutionNote?: string | null;
 }
 
 export interface CreateSalesOrderItem {

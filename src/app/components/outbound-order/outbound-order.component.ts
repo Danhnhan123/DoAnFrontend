@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   injectMutation,
   injectQuery,
@@ -98,22 +98,29 @@ interface AllocateItemForm {
 }
 
 interface PickLocationCard {
-  key: string;
-  locationId: number;
+  key: number | string;
+  bagAllocationId?: number;
+  bagId?: number;
+  bagNo?: number;
+  locationId: number | null;
   locationCode: string;
   lotCode: string;
+  stackOrder?: number;
+  isFull?: boolean;
+  qrCode?: string | null;
+  bagStatus?: string | null;
+  status?: string;
+  allocatedWeightKg?: number;
+  pickedWeightKg?: number;
+  // Tráº¡ng thÃ¡i hiá»ƒn thá»‹ cá»§a stack-card; má»—i card nay Ã¡nh xáº¡ Ä‘Ãºng 1 bao váº­t lÃ½.
   productVariantName: string;
   standardWeightKg: number;
   totalAllocatedKg: number;
   allocationIds: number[];
-
-  // Breakdown
   hasOpenBag: boolean;
   openBagWeightKg: number;
   allocatedFullBagCount: number;
   allocatedSplitKg: number;
-
-  // Form State (Default filled 100%)
   takeOpenBag: boolean;
   openBagPickedKg: number | null;
   pickedFullBagCount: number;
@@ -146,6 +153,7 @@ export class OutboundOrderComponent implements OnDestroy {
   private readonly partyDebtService = inject(PartyDebtService);
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly statusCode = OUTBOUND_STATUS_CODE;
   readonly status = OUTBOUND_STATUS;
@@ -191,7 +199,11 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly searchInput = signal('');
   readonly keyword = signal('');
   readonly statusFilter = signal<StatusFilter>('ALL');
-  readonly selectedId = signal<number | null>(null);
+  readonly salesOrderFilter = signal<number | null>(this.numberParam('salesOrderId'));
+  readonly warehouseFilter = signal<number | null>(null);
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
+  readonly selectedId = signal<number | null>(this.numberParam('outboundOrderId'));
   readonly sortKey = signal<string>('createdDate');
   readonly sortDir = signal<SortDir>('desc');
 
@@ -226,6 +238,11 @@ export class OutboundOrderComponent implements OnDestroy {
       this.page(),
       this.pageSize(),
       this.keyword(),
+      this.statusFilter(),
+      this.salesOrderFilter(),
+      this.warehouseFilter(),
+      this.fromDate(),
+      this.toDate(),
     ],
     queryFn: async () =>
       this.unwrap<OutboundOrderPage>(
@@ -234,6 +251,11 @@ export class OutboundOrderComponent implements OnDestroy {
             page: this.page(),
             pageSize: this.pageSize(),
             keyword: this.keyword() || null,
+            outboundStatusId: this.statusFilter() === 'ALL' ? null : this.statusIdOf(this.statusFilter() as OutboundStatusCode),
+            salesOrderId: this.salesOrderFilter(),
+            warehouseId: this.warehouseFilter(),
+            fromDate: this.fromDate() || null,
+            toDate: this.toDate() || null,
           })
         ),
         'Không tải được danh sách phiếu xuất.'
@@ -258,13 +280,9 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly pageRows = computed(() => this.listQuery.data()?.items || []);
 
   readonly rows = computed(() => {
-    const filter = this.statusFilter();
     const key = this.sortKey();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
     let list = this.pageRows();
-    if (filter !== 'ALL') {
-      list = list.filter((row) => this.isStatus(row, filter));
-    }
     return [...list].sort((a, b) => {
       const av = this.sortValue(a, key);
       const bv = this.sortValue(b, key);
@@ -350,7 +368,7 @@ export class OutboundOrderComponent implements OnDestroy {
       if (current != null) this.selectedId.set(null);
       return;
     }
-    if (!rows.some((r) => r.id === current)) {
+    if (current == null) {
       this.selectedId.set(rows[0].id);
     }
   });
@@ -433,6 +451,20 @@ export class OutboundOrderComponent implements OnDestroy {
 
   setStatusFilter(key: StatusFilter): void {
     this.statusFilter.set(key);
+    this.page.set(1);
+  }
+
+  setOutboundFilter(target: 'salesOrder' | 'warehouse', value: unknown): void {
+    const parsed = value == null || value === '' ? null : Number(value);
+    if (target === 'salesOrder') this.salesOrderFilter.set(parsed);
+    else this.warehouseFilter.set(parsed);
+    this.page.set(1);
+  }
+
+  setHistoryDate(target: 'from' | 'to', value: string): void {
+    if (target === 'from') this.fromDate.set(value);
+    else this.toDate.set(value);
+    this.page.set(1);
   }
 
   sort(key: string): void {
@@ -474,6 +506,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
   selectOrder(id: number): void {
     this.selectedId.set(id);
+    this.router.navigate([], { relativeTo: this.route, queryParams: { outboundOrderId: id }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   refresh(): void {
@@ -997,6 +1030,55 @@ export class OutboundOrderComponent implements OnDestroy {
 
   openPick(order: OutboundOrderDetail): void {
     if (!this.canPick(order)) return;
+
+    // W14-H: BE Ä‘Ã£ chá»‘t chÃ­nh xÃ¡c BagId tá»« Allocate. KhÃ´ng suy diá»…n/ngáº¯t kg
+    // tá»« OutboundOrderItemAllocation vÃ¬ cÃ¡ch Ä‘Ã³ sáº½ lÃ m máº¥t physical identity.
+    if (order.bagAllocations?.length) {
+      const physicalCards: PickLocationCard[] = order.bagAllocations
+        .filter((bag) => (bag.status || '').toUpperCase() === 'ACTIVE')
+        .sort((a, b) =>
+          (a.locationCode || '').localeCompare(b.locationCode || '') ||
+          b.stackOrder - a.stackOrder ||
+          a.bagNo - b.bagNo
+        )
+        .map((bag) => ({
+          key: bag.bagAllocationId,
+          bagAllocationId: bag.bagAllocationId,
+          bagId: bag.bagId,
+          bagNo: bag.bagNo,
+          locationId: bag.locationId ?? null,
+          locationCode: bag.locationCode || 'â€”',
+          lotCode: bag.lotCode || '',
+          stackOrder: bag.stackOrder,
+          isFull: bag.isFull,
+          qrCode: bag.qrCode ?? null,
+          bagStatus: bag.bagStatus ?? null,
+          status: bag.status,
+          allocatedWeightKg: Number(bag.allocatedWeightKg || 0),
+          pickedWeightKg: Number(bag.pickedWeightKg || 0),
+          productVariantName: `Bao #${bag.bagNo}`,
+          standardWeightKg: Number(bag.allocatedWeightKg || 0),
+          totalAllocatedKg: Number(bag.allocatedWeightKg || 0),
+          allocationIds: [bag.bagAllocationId],
+          hasOpenBag: true,
+          openBagWeightKg: Number(bag.allocatedWeightKg || 0),
+          allocatedFullBagCount: 0,
+          allocatedSplitKg: 0,
+          takeOpenBag: Number(bag.pickedWeightKg || 0) > 0,
+          openBagPickedKg: Number(bag.pickedWeightKg || 0),
+          pickedFullBagCount: 0,
+          pickedSplitKg: null,
+        }));
+
+      if (!physicalCards.length) {
+        this.alert('Phiáº¿u khÃ´ng cÃ²n phÃ¢n bá»• bao ACTIVE Ä‘á»ƒ láº¥y hÃ ng.', false);
+        return;
+      }
+      this.pickForm.set(physicalCards);
+      this.showPickModal.set(true);
+      return;
+    }
+
     const cards: PickLocationCard[] = [];
 
     for (const item of order.items) {
@@ -1223,6 +1305,60 @@ export class OutboundOrderComponent implements OnDestroy {
     this.pickMutation.mutate({ id: order.id, payload });
   }
 
+  private statusIdOf(code: OutboundStatusCode): number | null {
+    return Number(OUTBOUND_STATUS[code as keyof typeof OUTBOUND_STATUS]) || null;
+  }
+
+  private numberParam(name: string): number | null {
+    const value = Number(this.route.snapshot.queryParamMap.get(name));
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }
+
+  async reportBagQualityIssue(card: PickLocationCard): Promise<void> {
+    const order = this.detail();
+    if (!order || card.bagAllocationId == null || this.saving()) return;
+
+    const result = await Swal.fire({
+      title: `Tạm giữ bao #${card.bagNo ?? card.bagId}`,
+      input: 'textarea',
+      inputLabel: 'Mô tả dấu hiệu chất lượng',
+      inputPlaceholder: 'Ví dụ: ẩm, mốc, mùi, bao hỏng, đổi màu, sai sản phẩm…',
+      inputAttributes: { maxlength: '500' },
+      showCancelButton: true,
+      confirmButtonText: 'Báo QC và tạm giữ',
+      cancelButtonText: 'Hủy',
+      confirmButtonColor: '#dc2626',
+      inputValidator: (value) =>
+        value?.trim() ? undefined : 'Vui lòng nhập dấu hiệu phát hiện.',
+    });
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await lastValueFrom(
+        this.service.reportBagQualityIssue(
+          order.id,
+          card.bagAllocationId,
+          String(result.value).trim()
+        )
+      );
+      if (!response.isSucceeded) {
+        this.alert(
+          response.message || 'Không thể tạm giữ bao để kiểm tra chất lượng.',
+          false
+        );
+        return;
+      }
+      this.showPickModal.set(false);
+      this.pickForm.set([]);
+      this.refreshAfterWrite();
+      this.alert(
+        response.message || 'Đã chuyển bao sang QualityHold và tạo phiếu QC.'
+      );
+    } catch (error: unknown) {
+      this.alert(this.errorText(error), false);
+    }
+  }
+
   private buildPickPayload(
     order: OutboundOrderDetail,
     cards: PickLocationCard[]
@@ -1253,19 +1389,16 @@ export class OutboundOrderComponent implements OnDestroy {
       }
     }
 
-    const allocations = (order.items || []).flatMap((item) => item.allocations || []);
-    const allocationById = new Map(allocations.map((allocation) => [allocation.id, allocation]));
+    const physicalCards = cards.filter((card) => card.bagAllocationId != null);
+    if (physicalCards.length !== cards.length) {
+      this.alert('Phiáº¿u chÆ°a cÃ³ Ä‘á»§ danh tÃ­nh bao váº­t lÃ½. Vui lÃ²ng phÃ¢n bá»• láº¡i trÆ°á»›c khi pick.', false);
+      return null;
+    }
 
-    const picks = cards.flatMap((card) => {
-      let remaining = this.locationPickedKg(card);
-      return (card.allocationIds as number[]).map((allocationId) => {
-        const allocation = allocationById.get(allocationId);
-        const allocatedKg = Number(allocation?.quantityAllocated || 0);
-        const quantityPicked = Math.min(remaining, allocatedKg);
-        remaining = Math.max(0, remaining - quantityPicked);
-        return { allocationId, quantityPicked };
-      });
-    });
+    const picks = physicalCards.map((card) => ({
+      bagAllocationId: card.bagAllocationId!,
+      quantityPicked: this.locationPickedKg(card),
+    }));
 
     return { picks };
   }
@@ -1303,7 +1436,7 @@ export class OutboundOrderComponent implements OnDestroy {
   // ── Packing ────────────────────────────────────────────────────────
   openPacking(order: OutboundOrderDetail): void {
     if (!this.canPack(order) || !this.isPickedEnough(order)) return;
-    this.packingQr.set(`PACK-${order.id}-${Date.now().toString().slice(-6)}`);
+    this.packingQr.set('');
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
     this.showPackingModal.set(true);
   }
@@ -1317,15 +1450,11 @@ export class OutboundOrderComponent implements OnDestroy {
     const order = this.detail();
     if (!order) return;
     const qr = this.packingQr().trim();
-    if (!qr) {
-      this.alert('Mã QR đóng gói không được để trống.', false);
-      return;
-    }
     this.actionMutation.mutate({
       id: order.id,
       action: 'PACKING',
       payload: {
-        qrCode: qr,
+        qrCode: qr || null,
         actualWeightKg: this.packingActualKg(),
       },
     });
@@ -1690,7 +1819,7 @@ export class OutboundOrderComponent implements OnDestroy {
   // *ngFor huỷ & dựng lại <input> → mất focus. Track theo id ổn định.
   trackAllocItem = (_: number, item: AllocateItemForm): number => item.itemId;
   trackAllocLoc = (_: number, loc: AllocateLocationRow): string => loc.locationCode;
-  trackPickRow = (_: number, row: PickLocationCard): string => row.key;
+  trackPickRow = (_: number, row: PickLocationCard): string => String(row.key);
 
   // ── Formatting ─────────────────────────────────────────────────────
   fmtMoney(value: number | null | undefined): string {

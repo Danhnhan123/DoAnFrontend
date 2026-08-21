@@ -31,6 +31,7 @@ import {
   WarehouseDetailDto,
 } from "../../models";
 import { PaddyPurchaseService } from "../../services/paddy-purchase.service";
+import { QualityInspectionService } from "../../services/quality-inspection.service";
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import { PermissionService } from '../../services/permission.service';
 import { ReadonlyIfDirective } from '../../directives/readonly-if.directive';
@@ -83,7 +84,13 @@ interface ReceiptFormState {
   actualWeight: number | null;
   actualWeightUnit: WeightUnit;
   bagCount: number | null;
-  bags: Array<{ bagNo: number; weightKg: number | null }>;
+  bags: Array<{
+    bagNo: number;
+    weightKg: number | null;
+    scaleDeviceRef: string;
+    weightCaptureMethod: 'SCALE' | 'MANUAL';
+    weighedAt: string;
+  }>;
   agreedPrice: number | null;
   paidAmount: number | null;
   moisturePercent: number | null;
@@ -109,6 +116,7 @@ interface ReceiptFormState {
 })
 export class RicePurchaseComponent implements OnDestroy {
   private readonly purchaseService = inject(PaddyPurchaseService);
+  private readonly qualityInspectionService = inject(QualityInspectionService);
   readonly perm = inject(PermissionService);
   // Chỉ-xem khi đang sửa mà không có quyền UPDATE (RICE_PURCHASE).
   readonly scheduleViewOnly = computed(() => !!this.editingSchedule() && !this.perm.canUpdate('RICE_PURCHASE'));
@@ -180,6 +188,12 @@ export class RicePurchaseComponent implements OnDestroy {
         "Không tải được danh sách nông dân.",
       ),
     staleTime: 5 * 60_000,
+  }));
+
+  private readonly moistureConfigQuery = injectQuery(() => ({
+    queryKey: ['quality-inspections', 'moisture-config'],
+    queryFn: () => lastValueFrom(this.qualityInspectionService.getMoistureConfig()),
+    staleTime: 5 * 60 * 1000,
   }));
 
   private readonly riceVarietiesQuery = injectQuery(() => ({
@@ -902,7 +916,12 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeight: Number(row.actualWeightKg),
       actualWeightUnit: "kg",
       bagCount: row.bagCount ?? null,
-      bags: (row.bags || []).map((x) => ({ bagNo: x.bagNo, weightKg: Number(x.weightKg) })),
+      bags: (row.bags || []).map((x) => ({
+        bagNo: x.bagNo, weightKg: Number(x.weightKg),
+        scaleDeviceRef: x.scaleDeviceRef || '',
+        weightCaptureMethod: x.weightCaptureMethod === 'SCALE' ? 'SCALE' : 'MANUAL',
+        weighedAt: this.toDateTimeInput(x.weighedAt || row.receiptDate),
+      })),
       agreedPrice: Number(row.agreedPrice),
       paidAmount: Number(row.paidAmount),
       moisturePercent: quality.moisturePercent ?? null,
@@ -935,7 +954,12 @@ export class RicePurchaseComponent implements OnDestroy {
       if (this.receiptForm().id !== receiptId) return;
 
       const bags = (detail.bags || [])
-        .map((x) => ({ bagNo: Number(x.bagNo), weightKg: Number(x.weightKg) }))
+        .map((x) => ({
+          bagNo: Number(x.bagNo), weightKg: Number(x.weightKg),
+          scaleDeviceRef: x.scaleDeviceRef || '',
+          weightCaptureMethod: x.weightCaptureMethod === 'SCALE' ? 'SCALE' as const : 'MANUAL' as const,
+          weighedAt: this.toDateTimeInput(x.weighedAt || detail.receiptDate),
+        }))
         .sort((a, b) => a.bagNo - b.bagNo);
 
       this.editingReceipt.update((current) =>
@@ -982,11 +1006,22 @@ export class RicePurchaseComponent implements OnDestroy {
     if (this.receiptFormLocked()) return;
     this.receiptForm.update((form) => ({
       ...form,
-      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg }],
+      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg, scaleDeviceRef: '', weightCaptureMethod: 'MANUAL', weighedAt: this.nowDateTimeInput() }],
       bagCount: form.bags.length + 1,
       actualWeight: [...form.bags, { bagNo: form.bags.length + 1, weightKg }]
         .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0),
       actualWeightUnit: "kg",
+    }));
+  }
+
+  updateReceiptBagTrace(
+    index: number,
+    field: 'scaleDeviceRef' | 'weightCaptureMethod' | 'weighedAt',
+    value: string,
+  ): void {
+    this.receiptForm.update((form) => ({
+      ...form,
+      bags: form.bags.map((bag, i) => i === index ? { ...bag, [field]: value } : bag),
     }));
   }
 
@@ -1097,7 +1132,13 @@ export class RicePurchaseComponent implements OnDestroy {
         form.actualWeightUnit,
       ),
       bagCount: form.bagCount ?? null,
-      bags: form.bags.map((bag) => ({ bagNo: bag.bagNo, weightKg: Number(bag.weightKg) })),
+      bags: form.bags.map((bag) => ({
+        bagNo: bag.bagNo,
+        weightKg: Number(bag.weightKg),
+        scaleDeviceRef: bag.scaleDeviceRef.trim() || null,
+        weightCaptureMethod: bag.weightCaptureMethod,
+        weighedAt: bag.weighedAt ? this.toApiDateTime(bag.weighedAt) : null,
+      })),
       agreedPrice: this.roundMoney(Number(form.agreedPrice)),
       totalAmount: this.receiptTotalAmount(),
       paidAmount: this.roundMoney(Number(form.paidAmount || 0)),
@@ -1323,8 +1364,14 @@ export class RicePurchaseComponent implements OnDestroy {
 
   moistureClass(value?: number | null): string {
     if (value == null) return "moisture-neutral";
-    if (value > 15) return "moisture-high";
-    if (value >= 14.6) return "moisture-warning";
+    const response = this.moistureConfigQuery.data() as any;
+    const config = response?.resources ?? response?.data;
+    const min = config?.receivingMoistureMinPercent;
+    const max = config?.receivingMoistureMaxPercent;
+    if ((min != null && value < Number(min)) || (max != null && value > Number(max))) {
+      return "moisture-high";
+    }
+    if (max != null && value >= Number(max) * 0.95) return "moisture-warning";
     return "moisture-good";
   }
 

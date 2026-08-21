@@ -148,14 +148,22 @@
           <div class="d-row"><span>Trạng thái</span>
             <b><span class="status-chip" [class.ok]="sel.passedInspection" [class.bad]="!sel.passedInspection">{{ statusText(sel) }}</span></b>
           </div>
+          <div class="d-row"><span>Loại kiểm tra</span><b>{{ inspectionTypeText(sel.inspectionType) }}</b></div>
+          <div class="d-row"><span>Tiến độ phiên</span><b>{{ sel.completedAt ? ('Hoàn tất ' + (sel.completedAt | date:'dd/MM/yyyy HH:mm')) : 'Chưa hoàn tất' }}</b></div>
           <div class="d-row"><span>Hướng xử lý</span><b>{{ sel.handling || '—' }}</b></div>
           <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
         </div>
         <div class="qc-detail-actions">
           <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
-            [disabled]="wasSplit(sel) || !!sel.displayRole"
+            [disabled]="isSession(sel) || wasSplit(sel) || !!sel.displayRole"
             [title]="wasSplit(sel) || sel.displayRole ? 'Kết quả tách lô là lịch sử nghiệp vụ — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
-          <button class="btn btn-primary" type="button" (click)="openEditSelected()">{{ isDraft(sel) ? 'Kiểm định ngay' : (perm.canUpdate('QUALITY_INSPECTIONS') ? 'Sửa phiếu' : 'Xem phiếu') }}</button>
+          <button class="btn btn-outline" type="button" (click)="openEditSelected()">
+            {{ perm.canUpdate('QUALITY_INSPECTIONS') ? 'Thông tin chung' : 'Xem phiếu' }}
+          </button>
+          <button class="btn btn-primary" type="button" (click)="openBagInspection(sel)"
+            [disabled]="!!sel.displayRole">
+            {{ isDraft(sel) ? 'Kiểm tra từng bao' : 'Chi tiết từng bao' }}
+          </button>
         </div>
         } @else {
         <div class="state-box"><span style="font-size:2rem">☰</span><p>Chọn một dòng để xem chi tiết xử lý</p></div>
@@ -333,6 +341,218 @@
       </button>
       }
     </div>
+    }
+  </div>
+</div>
+}
+
+<!-- ===== Modal kiểm tra chất lượng cấp bao ===== -->
+@if (showBagModal()) {
+<div class="modal-backdrop" (click)="closeBagModal()">
+  <div class="modal-box qc-bag-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="qc-modal-title">
+        <div>
+          <h3>Kiểm tra chất lượng từng bao</h3>
+          @if (bagProgress(); as progress) {
+          <div class="qc-bag-modal-sub">
+            {{ progress.lotCode || ('Lô #' + progress.lotId) }} · {{ inspectionTypeText(progress.inspectionType) }}
+          </div>
+          }
+        </div>
+        @if (bagProgress()?.isCompleted) {
+        <span class="qc-completed-badge">Đã hoàn tất</span>
+        } @else {
+        <span class="qc-modal-badge">Autosave từng bao</span>
+        }
+      </div>
+      <button class="modal-close" type="button" (click)="closeBagModal()">×</button>
+    </div>
+
+    @if (bagProgressLoading() && !bagProgress()) {
+    <div class="state-box qc-bag-loading"><span class="spin-lg"></span><span>Đang tải danh sách bao...</span></div>
+    } @else {
+    @if (bagProgress(); as progress) {
+    <div class="qc-progress-head">
+      <div class="qc-progress-copy">
+        <strong>{{ progress.inspectedBags }}/{{ progress.totalBags }} bao đã kiểm tra</strong>
+        <span>Còn {{ progress.remainingBags }} bao · {{ bagProgressPercent() }}%</span>
+      </div>
+      <div class="qc-progress-track"><span [style.width.%]="bagProgressPercent()"></span></div>
+      <div class="qc-progress-counters">
+        @if (progress.inspectionType === 'RECEIVING') {
+        <span class="normal">Chấp nhận <b>{{ acceptedBagCount() }}</b></span>
+        }
+        <span class="normal">Bình thường <b>{{ progress.normalBags }}</b></span>
+        <span class="quarantine">Cách ly <b>{{ progress.quarantineBags }}</b></span>
+        <span class="rejected">Từ chối <b>{{ progress.rejectedBags }}</b></span>
+        <span class="released">Giải phóng <b>{{ progress.releasedBags }}</b></span>
+      </div>
+    </div>
+
+    @if (!progress.inspectionType) {
+    <div class="qc-legacy-warning">
+      Phiếu này chưa có loại kiểm tra vì được tạo trước quy trình cấp bao. Kết quả vẫn lưu được, nhưng backend chỉ tổng hợp dữ liệu khi hoàn tất và không áp dụng luồng xử lý chuyên biệt.
+    </div>
+    }
+
+    @if (progress.totalBags === 0) {
+    <div class="state-box qc-bag-empty">
+      <span style="font-size:2rem">□</span>
+      <p>Lô này chưa có dữ liệu bao để thực hiện kiểm tra cấp bao.</p>
+    </div>
+    } @else {
+    <div class="qc-bag-workspace">
+      <aside class="qc-bag-list-pane">
+        <div class="qc-bag-list-title">Danh sách bao</div>
+        <div class="qc-bag-list">
+          @for (bag of progress.items; track bag.bagId) {
+          <button class="qc-bag-row" type="button"
+            [class.active]="bag.bagId === selectedBagId()"
+            [class.inspected]="!!bag.qualityResult"
+            [class.issue]="bag.qualityResult === 'ISSUE_DETECTED'"
+            (click)="selectBagForInspection(bag)">
+            <span class="qc-bag-number">#{{ bag.bagNo }}</span>
+            <span class="qc-bag-row-main">
+              <b>{{ fmtKg(bag.weightKg) }}</b>
+              <small>{{ bag.locationCode || 'Chưa có vị trí' }}</small>
+            </span>
+            <span class="qc-bag-state">
+              {{ bag.qualityResult === 'PASS' ? 'Đạt' : bag.qualityResult === 'ISSUE_DETECTED' ? 'Có vấn đề' : 'Chưa kiểm' }}
+            </span>
+          </button>
+          }
+        </div>
+      </aside>
+
+      <section class="qc-bag-editor">
+        @if (selectedBag(); as bag) {
+        <div class="qc-bag-editor-head">
+          <div>
+            <h4>Bao #{{ bag.bagNo }}</h4>
+            <span>{{ fmtKg(bag.weightKg) }} · {{ bag.locationCode || 'Chưa có vị trí' }} · {{ bag.status }}</span>
+          </div>
+          @if (bag.inspectedAt) {
+          <small>Lưu lúc {{ bag.inspectedAt | date:'dd/MM/yyyy HH:mm' }}<br>{{ bag.inspectorName || '' }}</small>
+          }
+        </div>
+
+        <div class="qc-bag-form" [class.readonly]="bagReadOnly()">
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label">Độ ẩm (%)</label>
+              <input class="form-control" type="number" step="0.1" min="0" max="100"
+                [disabled]="bagReadOnly()" [ngModel]="bagForm().moisturePercent"
+                (ngModelChange)="setBagField('moisturePercent', $event)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tạp chất (%)</label>
+              <input class="form-control" type="number" step="0.1" min="0" max="100"
+                [disabled]="bagReadOnly()" [ngModel]="bagForm().impurityPercent"
+                (ngModelChange)="setBagField('impurityPercent', $event)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Đóng gói</label>
+              <app-filter-select [options]="packagingOptions" allLabel="-- Không đánh giá --"
+                [disabled]="bagReadOnly()" [value]="bagForm().packagingStatus"
+                (valueChange)="setBagField('packagingStatus', $event)"></app-filter-select>
+            </div>
+          </div>
+
+          <div class="form-row-3">
+            <div class="form-group">
+              <label class="form-label">Mức độ mốc</label>
+              <app-filter-select [options]="moldOptions" allLabel="-- Không đánh giá --"
+                [disabled]="bagReadOnly()" [value]="bagForm().moldLevel"
+                (valueChange)="setBagField('moldLevel', $event)"></app-filter-select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Mức độ sâu mọt</label>
+              <app-filter-select [options]="pestOptions" allLabel="-- Không đánh giá --"
+                [disabled]="bagReadOnly()" [value]="bagForm().pestLevel"
+                (valueChange)="setBagField('pestLevel', $event)"></app-filter-select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Hướng xử lý bổ sung</label>
+              <app-filter-select [options]="handlingOptions" allLabel="-- Không chọn --"
+                [disabled]="bagReadOnly()" [value]="bagForm().handling"
+                (valueChange)="setBagField('handling', $event)"></app-filter-select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Kết quả *</label>
+            <div class="qc-result-switch">
+              <button type="button" class="qc-result-option pass" [class.active]="bagForm().qualityResult === 'PASS'"
+                [disabled]="bagReadOnly()" (click)="setBagQualityResult('PASS')">✓ Đạt yêu cầu</button>
+              <button type="button" class="qc-result-option issue" [class.active]="bagForm().qualityResult === 'ISSUE_DETECTED'"
+                [disabled]="bagReadOnly()" (click)="setBagQualityResult('ISSUE_DETECTED')">! Phát hiện vấn đề</button>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label">Quyết định xử lý *</label>
+              <app-filter-select [options]="bagDispositionOptions()" [clearable]="false"
+                [disabled]="bagReadOnly()" [value]="bagForm().disposition"
+                (valueChange)="setBagField('disposition', $event)"></app-filter-select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Trạng thái đã lưu</label>
+              <div class="qc-readonly">{{ dispositionText(bag.disposition) }}</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Ghi chú bao@if (progress.inspectionType === 'RECEIVING' && bagForm().disposition === 'REJECT_RETURN') { * }</label>
+            <textarea class="form-control" rows="2" maxlength="1000" [disabled]="bagReadOnly()"
+              [ngModel]="bagForm().note" (ngModelChange)="setBagField('note', $event)"
+              [placeholder]="progress.inspectionType === 'RECEIVING' && bagForm().disposition === 'REJECT_RETURN'
+                ? 'Bắt buộc nhập lý do trả nhà cung cấp...'
+                : 'Mô tả dấu hiệu, mẫu đo hoặc lý do chọn hướng xử lý...'"></textarea>
+          </div>
+
+          @if (bagSaveMessage()) {
+          <div class="qc-save-message">✓ {{ bagSaveMessage() }}</div>
+          }
+
+          @if (!bagReadOnly()) {
+          <div class="qc-bag-save-actions">
+            <button class="btn btn-outline" type="button" (click)="saveCurrentBag(false)" [disabled]="savingBagId() != null">
+              @if (savingBagId() === bag.bagId) { <span class="spin-sm"></span> } Lưu bao này
+            </button>
+            <button class="btn btn-primary" type="button" (click)="saveCurrentBag(true)" [disabled]="savingBagId() != null">
+              Lưu &amp; chuyển bao tiếp theo
+            </button>
+          </div>
+          }
+        </div>
+        } @else {
+        <div class="state-box"><p>Chọn một bao để xem hoặc nhập kết quả.</p></div>
+        }
+      </section>
+    </div>
+    }
+
+    <div class="modal-footer qc-bag-modal-footer">
+      <div class="qc-complete-note">
+        <label class="form-label">Ghi chú hoàn tất</label>
+        <input class="form-control" maxlength="1000" [disabled]="progress.isCompleted"
+          [ngModel]="completeNote()" (ngModelChange)="completeNote.set($event)"
+          placeholder="Ghi chú chung cho phiên kiểm tra (không bắt buộc)" />
+      </div>
+      <button class="btn btn-outline" type="button" (click)="closeBagModal()">Đóng</button>
+      @if (!progress.isCompleted) {
+      <button class="btn btn-primary" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:APPROVE'"
+        (click)="completeBagSession()"
+        [disabled]="progress.remainingBags > 0 || completingBagInspection() || savingBagId() != null"
+        [title]="progress.remainingBags > 0 ? 'Phải kiểm tra đủ 100% bao trước khi hoàn tất' : 'Hoàn tất và áp dụng quyết định xử lý'">
+        @if (completingBagInspection()) { <span class="spin-sm"></span> }
+        Hoàn tất phiếu
+      </button>
+      }
+    </div>
+    }
     }
   </div>
 </div>

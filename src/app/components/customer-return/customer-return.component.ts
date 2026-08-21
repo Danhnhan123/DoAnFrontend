@@ -1,6 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
+import { ActivatedRoute } from "@angular/router";
 import {
   injectQuery,
   injectQueryClient,
@@ -52,6 +53,7 @@ interface ReturnFormLine {
 }
 
 interface ReturnFormState {
+  customerFeedbackId: number | null;
   outboundOrderId: number | null;
   customerId: number | null;
   warehouseId: number | null;
@@ -92,6 +94,7 @@ export class CustomerReturnComponent implements OnDestroy {
   private readonly locationService = inject(LocationService);
   private readonly outboundService = inject(OutboundOrderService);
   private readonly queryClient = injectQueryClient();
+  private readonly route = inject(ActivatedRoute);
 
   readonly status = CUSTOMER_RETURN_STATUS;
   readonly pageSize = 10;
@@ -113,6 +116,17 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly form = signal<ReturnFormState>(this.emptyForm());
 
   private searchTimer?: ReturnType<typeof setTimeout>;
+
+  constructor() {
+    const params = this.route.snapshot.queryParamMap;
+    const outboundId = Number(params.get("outboundId"));
+    const feedbackId = Number(params.get("feedbackId"));
+    if (outboundId > 0 && feedbackId > 0) {
+      this.form.update(form => ({ ...form, customerFeedbackId: feedbackId, returnReason: params.get("reason") || "" }));
+      this.showCreateModal.set(true);
+      void this.setSourceOutbound(String(outboundId));
+    }
+  }
 
   readonly tabs: { key: ReturnTab; label: string }[] = [
     { key: "ALL", label: "Tất cả" },
@@ -504,6 +518,7 @@ export class CustomerReturnComponent implements OnDestroy {
       warehouseId: form.warehouseId,
       customerId: form.customerId,
       outboundOrderId: form.outboundOrderId,
+      customerFeedbackId: form.customerFeedbackId,
       returnReason: form.returnReason.trim() || null,
       note: form.note.trim() || null,
       items: [...grouped.values()],
@@ -882,6 +897,7 @@ export class CustomerReturnComponent implements OnDestroy {
 
   private emptyForm(): ReturnFormState {
     return {
+      customerFeedbackId: null,
       outboundOrderId: null,
       customerId: null,
       warehouseId: null,

@@ -14,6 +14,7 @@ import {
   OutboundOrderDetail,
   OutboundOrderPage,
   OutboundOrderPagedRequest,
+  OutboundQualityHoldResult,
   PickOutboundPayload,
 } from '../models';
 
@@ -63,6 +64,17 @@ export class OutboundOrderService {
     return this.http.post<ApiResponse<any>>(
       `${this.base}/outbound-orders/${id}/pick`,
       payload
+    );
+  }
+
+  reportBagQualityIssue(
+    orderId: number,
+    bagAllocationId: number,
+    reason: string
+  ): Observable<ApiResponse<OutboundQualityHoldResult>> {
+    return this.http.post<ApiResponse<OutboundQualityHoldResult>>(
+      `${this.base}/outbound-orders/${orderId}/bag-allocations/${bagAllocationId}/quality-hold`,
+      { reason: reason.trim() }
     );
   }
 

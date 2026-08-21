@@ -315,6 +315,26 @@
   font-weight: 800;
 }
 
+.qc-weight,
+.receipt-table td > small {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.qc-weight.accepted { color: #15803d; }
+.qc-weight.rejected,
+.refund-cell { color: #c2410c; }
+.qc-weight.pending { color: #b45309; }
+
+.refund-cell {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 /* Tiến độ lập phiếu mua của lịch: xám khi còn lập được, xanh khi đã đủ. */
 .receipt-progress {
   display: block;

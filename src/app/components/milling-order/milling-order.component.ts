@@ -28,9 +28,11 @@ import {
   MillingWarehouseOption,
   MillingYieldOption,
   UpdateMillingOrderPayload,
+  UserAdvancedRow,
 } from '../../models';
 import { InventoryService } from '../../services/inventory.service';
 import { MillingOrderService } from '../../services/milling-order.service';
+import { UserService } from '../../services/user.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -105,6 +107,7 @@ export class MillingOrderComponent {
   // Xem chi tiết lệnh (đang sửa) khi không có quyền UPDATE.
   readonly viewOnly = computed(() => !!this.createForm().id && !this.perm.canUpdate('MILLING_ORDERS'));
   private readonly inventoryService = inject(InventoryService);
+  private readonly userService = inject(UserService);
   private readonly queryClient = injectQueryClient();
   private lineSequence = 0;
 
@@ -233,6 +236,12 @@ export class MillingOrderComponent {
     staleTime: 60 * 1000,
   }));
 
+  operatorQuery = injectQuery(() => ({
+    queryKey: ['milling-order-options', 'operators'],
+    queryFn: () => lastValueFrom(this.userService.getAll()),
+    staleTime: 5 * 60 * 1000,
+  }));
+
   inventoryQuery = injectQuery(() => ({
     queryKey: ['milling-order-options', 'paddy-inventory'],
     queryFn: () =>
@@ -275,6 +284,12 @@ export class MillingOrderComponent {
     this.resourceList<MillingWarehouseOption>(this.warehouseQuery.data())
       .filter((x) => x.isActive !== false)
       .sort((a, b) => a.name.localeCompare(b.name))
+  );
+
+  operatorOptions = computed<UserAdvancedRow[]>(() =>
+    this.resourceList<UserAdvancedRow>(this.operatorQuery.data())
+      .filter((user) => user.userStatusCode !== 'INACTIVE')
+      .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'vi'))
   );
 
   locations = computed<MillingLocationOption[]>(() =>
@@ -1167,20 +1182,39 @@ export class MillingOrderComponent {
       return;
     }
     if (this.statusCode(row) !== 'RESERVED') return;
-    const confirm = await Swal.fire({
+    const operatorOptions = this.operatorOptions()
+      .map((user) => `<option value="${user.id}">${this.escapeHtml(`${user.lastName} ${user.firstName}`.trim() || user.username)}</option>`)
+      .join('');
+    const confirm = await Swal.fire<{ machineRef: string; operatorId: number | null }>({
       title: `Bắt đầu ${row.millingCode}?`,
-      text: 'Lệnh sẽ chuyển sang trạng thái Đang xay.',
+      html: `
+        <label for="milling-machine-ref" style="display:block;text-align:left;margin-bottom:6px">Mã máy xay <b>*</b></label>
+        <input id="milling-machine-ref" class="swal2-input" maxlength="255" placeholder="VD: MAY-XAY-01" style="margin:0 0 16px;width:100%">
+        <label for="milling-operator-id" style="display:block;text-align:left;margin-bottom:6px">Người vận hành</label>
+        <select id="milling-operator-id" class="swal2-select" style="margin:0;width:100%">
+          <option value="">Chốt khi hoàn thành</option>${operatorOptions}
+        </select>`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Bắt đầu xay',
       cancelButtonText: 'Hủy',
       confirmButtonColor: '#16a052',
+      focusConfirm: false,
+      preConfirm: () => {
+        const machineRef = (document.getElementById('milling-machine-ref') as HTMLInputElement | null)?.value.trim() || '';
+        const rawOperatorId = (document.getElementById('milling-operator-id') as HTMLSelectElement | null)?.value || '';
+        if (!machineRef) {
+          Swal.showValidationMessage('Vui lòng nhập mã máy xay.');
+          return false;
+        }
+        return { machineRef, operatorId: rawOperatorId ? Number(rawOperatorId) : null };
+      },
     });
-    if (!confirm.isConfirmed) return;
+    if (!confirm.isConfirmed || !confirm.value) return;
 
     this.actionLoadingId.set(row.id);
     try {
-      const result = await lastValueFrom(this.service.start(row.id));
+      const result = await lastValueFrom(this.service.start(row.id, confirm.value));
       this.assertSucceeded(result);
       await this.afterCommand('Đã bắt đầu lệnh xay.');
     } catch (error) {
@@ -1242,7 +1276,9 @@ export class MillingOrderComponent {
         this.defaultCompleteForm(
           detail.yieldRateUsed,
           detail.millingCost ?? null,
-          detail.incidentalCost ?? null
+          detail.incidentalCost ?? null,
+          detail.machineRef ?? '',
+          detail.operatorId ?? null
         )
       );
       this.showCompleteModal.set(true);
@@ -1788,12 +1824,14 @@ export class MillingOrderComponent {
   private defaultCompleteForm(
     yieldRate = 0.68,
     millingCost: number | null = null,
-    incidentalCost: number | null = null
+    incidentalCost: number | null = null,
+    machineRef = '',
+    operatorId: number | null = null
   ): CompleteOrderForm {
     return {
       configuredYieldRate: yieldRate || 0.68,
-      machineRef: '',
-      operatorId: null,
+      machineRef,
+      operatorId,
       lossKg: 0,
       millingCost,
       incidentalCost,
@@ -2012,6 +2050,8 @@ export class MillingOrderComponent {
 
   private validateCompleteForm(): string | null {
     const form = this.completeForm();
+    if (!form.machineRef.trim()) return 'Vui lòng nhập mã máy xay.';
+    if (!form.operatorId) return 'Vui lòng chọn người vận hành máy xay.';
     if (
       !form.configuredYieldRate ||
       form.configuredYieldRate <= 0 ||
@@ -2121,6 +2161,12 @@ export class MillingOrderComponent {
   private resource<T>(response: unknown): T | null {
     const value = response as any;
     return (value?.resources ?? value?.data ?? value ?? null) as T | null;
+  }
+
+  private escapeHtml(value: string): string {
+    return value.replace(/[&<>'"]/g, (char) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[char] || char);
   }
 
   private resourceList<T>(response: unknown): T[] {

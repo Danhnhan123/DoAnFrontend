@@ -10,7 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import {
   injectMutation,
   injectQuery,
@@ -118,6 +118,7 @@ export class SalesOrderComponent implements OnDestroy {
   private readonly partyDebtService = inject(PartyDebtService);
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private lineKey = 1;
 
   readonly status = SALES_ORDER_STATUS;
@@ -128,7 +129,12 @@ export class SalesOrderComponent implements OnDestroy {
   readonly searchInput = signal('');
   readonly keyword = signal('');
   readonly channelFilter = signal<ChannelFilter>('ALL');
-  readonly selectedId = signal<number | null>(null);
+  readonly statusFilter = signal<number | null>(null);
+  readonly customerFilter = signal<number | null>(null);
+  readonly warehouseFilter = signal<number | null>(null);
+  readonly fromDate = signal('');
+  readonly toDate = signal('');
+  readonly selectedId = signal<number | null>(this.numberParam('salesOrderId'));
 
   readonly showFormModal = signal(false);
   readonly editingId = signal<number | null>(null);
@@ -155,6 +161,12 @@ export class SalesOrderComponent implements OnDestroy {
       this.page(),
       this.pageSize(),
       this.keyword(),
+      this.channelFilter(),
+      this.statusFilter(),
+      this.customerFilter(),
+      this.warehouseFilter(),
+      this.fromDate(),
+      this.toDate(),
     ],
     queryFn: async () =>
       this.unwrap<SalesOrderPage>(
@@ -163,6 +175,12 @@ export class SalesOrderComponent implements OnDestroy {
             page: this.page(),
             pageSize: this.pageSize(),
             keyword: this.keyword() || null,
+            channel: this.channelFilter() === 'ALL' ? null : this.channelFilter() as SalesOrderChannel,
+            statusId: this.statusFilter(),
+            customerId: this.customerFilter(),
+            warehouseId: this.warehouseFilter(),
+            fromDate: this.fromDate() || null,
+            toDate: this.toDate() || null,
           })
         ),
         'Không tải được danh sách đơn bán.'
@@ -227,11 +245,7 @@ export class SalesOrderComponent implements OnDestroy {
   }));
 
   readonly pageRows = computed(() => this.listQuery.data()?.items || []);
-  readonly rows = computed(() => {
-    const channel = this.channelFilter();
-    if (channel === 'ALL') return this.pageRows();
-    return this.pageRows().filter((row) => row.channel === channel);
-  });
+  readonly rows = computed(() => this.pageRows());
   readonly total = computed(() => Number(this.listQuery.data()?.total || 0));
   readonly totalPages = computed(() =>
     Math.max(1, Math.ceil(this.total() / this.pageSize()))
@@ -401,7 +415,7 @@ export class SalesOrderComponent implements OnDestroy {
       if (current != null) this.selectedId.set(null);
       return;
     }
-    if (!rows.some((row) => row.id === current)) {
+    if (current == null) {
       this.selectedId.set(rows[0].id);
     }
   });
@@ -513,6 +527,24 @@ export class SalesOrderComponent implements OnDestroy {
 
   setChannel(channel: ChannelFilter): void {
     this.channelFilter.set(channel);
+    this.page.set(1);
+  }
+
+  setHistoryFilter(
+    target: 'status' | 'customer' | 'warehouse',
+    value: string | number | null
+  ): void {
+    const parsed = value == null || value === '' ? null : Number(value);
+    if (target === 'status') this.statusFilter.set(parsed);
+    if (target === 'customer') this.customerFilter.set(parsed);
+    if (target === 'warehouse') this.warehouseFilter.set(parsed);
+    this.page.set(1);
+  }
+
+  setHistoryDate(target: 'from' | 'to', value: string): void {
+    if (target === 'from') this.fromDate.set(value);
+    else this.toDate.set(value);
+    this.page.set(1);
   }
 
   setPage(page: number): void {
@@ -540,6 +572,7 @@ export class SalesOrderComponent implements OnDestroy {
 
   selectOrder(id: number): void {
     this.selectedId.set(id);
+    this.router.navigate([], { relativeTo: this.route, queryParams: { salesOrderId: id }, queryParamsHandling: 'merge', replaceUrl: true });
   }
 
   refresh(): void {
@@ -1085,6 +1118,17 @@ export class SalesOrderComponent implements OnDestroy {
     if (Number.isNaN(date.getTime())) return '';
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
     return local.toISOString().slice(0, 16);
+  }
+
+  openOutboundHistory(order: SalesOrderDetail, outbound: SalesOrderOutboundSummary): void {
+    this.router.navigate(['/admin/outbound-orders'], {
+      queryParams: { outboundOrderId: outbound.id, salesOrderId: order.id },
+    });
+  }
+
+  private numberParam(name: string): number | null {
+    const value = Number(this.route.snapshot.queryParamMap.get(name));
+    return Number.isInteger(value) && value > 0 ? value : null;
   }
 
   private isStatusIn(statusId: number, statuses: readonly number[]): boolean {

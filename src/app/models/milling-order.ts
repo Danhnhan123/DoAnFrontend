@@ -156,6 +156,11 @@ export interface CompleteMillingOrderPayload {
   note?: string | null;
 }
 
+export interface StartMillingOrderPayload {
+  machineRef: string;
+  operatorId?: number | null;
+}
+
 export interface MillingOrderPagedRequest extends DTParameters {}
 
 export interface MillingWarehouseOption {

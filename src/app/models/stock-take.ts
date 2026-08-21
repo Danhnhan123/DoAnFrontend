@@ -1,4 +1,5 @@
 import { DTParameters } from './search';
+import type { BagQualityResult } from './quality-inspection';
 
 export const STOCK_TAKE_STATUS = {
   DRAFT: 'DRAFT',
@@ -20,9 +21,7 @@ export const BAG_DISPOSITION = {
   DISPOSE: 'DISPOSE',
   RELEASE: 'RELEASE',
 } as const;
-export type BagDisposition = (typeof BAG_DISPOSITION)[keyof typeof BAG_DISPOSITION];
-
-export type BagQualityResult = 'PASS' | 'ISSUE_DETECTED';
+export type StockTakeBagDisposition = (typeof BAG_DISPOSITION)[keyof typeof BAG_DISPOSITION];
 
 export interface StockTakeItemBag {
   id: number;
@@ -49,7 +48,7 @@ export interface StockTakeItemBag {
   moisturePercent?: number | null;
   impurityPercent?: number | null;
   qualityNote?: string | null;
-  disposition: BagDisposition;
+  disposition: StockTakeBagDisposition;
   targetLocationId?: number | null;
   targetLocationCode?: string | null;
   targetZoneName?: string | null;
@@ -225,7 +224,7 @@ export interface SaveStockTakeCountBagPayload {
   moisturePercent?: number | null;
   impurityPercent?: number | null;
   qualityNote?: string | null;
-  disposition: BagDisposition;
+  disposition: StockTakeBagDisposition;
   targetLocationId?: number | null;
   dispositionNote?: string | null;
 }
