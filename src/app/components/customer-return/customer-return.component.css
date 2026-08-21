@@ -1063,3 +1063,69 @@ td small {
     animation: none;
   }
 }
+
+/* ── Auto-select location UI ─────────────────────────────── */
+.location-auto-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.location-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: #e6f7ee;
+  border: 1.5px solid #a3dbbf;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: #0d6e3a;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.location-chip--quarantine {
+  background: #fff4e0;
+  border-color: #f0c060;
+  color: #7a4e00;
+}
+
+.location-chip--warn {
+  background: #fff0f0;
+  border-color: #f5a0a0;
+  color: #b71c1c;
+  border-style: dashed;
+}
+
+.location-chip-icon {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.location-override-select {
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f4f8f5;
+  color: var(--muted);
+  cursor: pointer;
+  align-self: flex-start;
+  max-width: 100%;
+}
+
+.location-override-select:hover,
+.location-override-select:focus {
+  border-color: var(--green-600);
+  color: var(--text);
+  outline: none;
+}

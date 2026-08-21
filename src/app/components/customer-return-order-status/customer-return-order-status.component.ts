@@ -13,6 +13,7 @@ import {
   CustomerReturnOrderStatusDetailDto,
   CreateCustomerReturnOrderStatusDto,
   UpdateCustomerReturnOrderStatusDto,
+  STANDARD_RETURN_STATUSES,
 } from '../../models';
 import { CustomerReturnOrderStatusService } from '../../services/customer-return-order-status.service';
 
@@ -233,6 +234,59 @@ export class CustomerReturnOrderStatusComponent {
     if (this.sortField() !== f) return '⇅';
     return this.sortDir() === 'asc' ? '▲' : '▼';
   }
+  async initStandardStatuses(): Promise<void> {
+    const confirm = await Swal.fire({
+      title: 'Khởi tạo trạng thái chuẩn?',
+      text: 'Hệ thống sẽ tự động tạo các mã trạng thái chuẩn còn thiếu (DRAFT, PENDING_APPROVAL, APPROVED, RECEIVED, INSPECTED, CONFIRMED, REJECTED, CANCELLED).',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#15803d',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Đồng ý khởi tạo',
+      cancelButtonText: 'Hủy',
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const dtBody = this.svc.buildPagedBody({
+        page: 1,
+        pageSize: 100,
+        search: '',
+        sortField: 'createdDate',
+        sortDir: 'desc',
+        colMap: this.colMap,
+        filterName: '',
+        filterDateFrom: '',
+        filterDateTo: '',
+      });
+      const res = await lastValueFrom(this.svc.getPagedAdvanced(dtBody));
+      const list = (res as any)?.resources?.data ?? (res as any)?.data?.data ?? [];
+      const existingCodes = new Set<string>();
+      if (Array.isArray(list)) {
+        list.forEach((x: any) => {
+          if (x.code) existingCodes.add(x.code.trim().toUpperCase());
+        });
+      }
+
+      let count = 0;
+      for (const st of STANDARD_RETURN_STATUSES) {
+        if (!existingCodes.has(st.code!.toUpperCase())) {
+          try {
+            await lastValueFrom(this.svc.create(st));
+            count++;
+          } catch (e) {
+            console.warn(`Lỗi tạo trạng thái ${st.code}:`, e);
+          }
+        }
+      }
+
+      this.queryClient.invalidateQueries({ queryKey: ['customer-return-order-status'] });
+      this.showAlert(`Đã khởi tạo thành công ${count} trạng thái chuẩn.`);
+    } catch (err: any) {
+      this.showAlert(err?.message || 'Có lỗi xảy ra khi khởi tạo trạng thái.', false);
+    }
+  }
+
   private showAlert(msg: string, ok = true): void {
     Swal.fire({
       title: ok ? 'Thành công!' : 'Thất bại!',
