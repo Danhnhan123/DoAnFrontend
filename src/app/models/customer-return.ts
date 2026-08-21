@@ -1,8 +1,11 @@
 export const CUSTOMER_RETURN_STATUS = {
   DRAFT: "DRAFT",
+  PENDING_APPROVAL: "PENDING_APPROVAL",
   APPROVED: "APPROVED",
+  RECEIVED: "RECEIVED",
   INSPECTED: "INSPECTED",
   CONFIRMED: "CONFIRMED",
+  REJECTED: "REJECTED",
   CANCELLED: "CANCELLED",
 } as const;
 
@@ -41,6 +44,7 @@ export interface CustomerReturnRow {
   outboundOrderId?: number | null;
   outboundOrderCode?: string | null;
   salesOrderCode?: string | null;
+  customerFeedbackId?: number | null;
   customerId?: number | null;
   customerCode?: string | null;
   customerName?: string | null;
@@ -74,6 +78,7 @@ export interface CustomerReturnItemDetail {
   productVariantId?: number | null;
   productVariantName?: string | null;
   sku?: string | null;
+  standardBagWeightKg: number;
   quantityReturned: number;
   quantityGood: number;
   quantityDamaged: number;
@@ -93,6 +98,7 @@ export interface CustomerReturnAllocationDetail {
   originalLocationId?: number | null;
   originalLocationCode?: string | null;
   quantityReturned: number;
+  quantityReceived: number;
   quantityGood: number;
   quantityDamaged: number;
   quantityRejected: number;
@@ -101,6 +107,9 @@ export interface CustomerReturnAllocationDetail {
   restockLocationCode?: string | null;
   quarantineLocationId?: number | null;
   quarantineLocationCode?: string | null;
+  disposition: "PENDING_INSPECTION" | "RESTOCK" | "QUARANTINE" | "RETURN_TO_CUSTOMER" | "MIXED";
+  rejectedLocationId?: number | null;
+  rejectionReason?: string | null;
   unitCreditPrice: number;
   creditAmount: number;
   note?: string | null;
@@ -115,7 +124,7 @@ export interface CustomerReturnBag {
 export interface CreateCustomerReturnPayload {
   warehouseId: number;
   customerId: number;
-  outboundOrderId: number;
+  outboundOrderId: number | null;
   customerFeedbackId?: number | null;
   returnReason?: string | null;
   note?: string | null;
@@ -123,14 +132,16 @@ export interface CreateCustomerReturnPayload {
 }
 
 export interface CreateCustomerReturnItemPayload {
-  outboundOrderItemId: number;
+  outboundOrderItemId: number | null;
   productVariantId: number;
   quantityReturned: number;
   allocations: CreateCustomerReturnAllocationPayload[];
 }
 
 export interface CreateCustomerReturnAllocationPayload {
-  outboundOrderItemAllocationId: number;
+  outboundOrderItemAllocationId: number | null;
+  paddyLotId?: number | null;
+  originalLocationId?: number | null;
   quantityReturned: number;
 }
 
@@ -141,7 +152,7 @@ export interface InspectCustomerReturnPayload {
 
 export interface InspectCustomerReturnItemPayload {
   customerReturnOrderItemId: number;
-  qualityStatus: "GOOD" | "DAMAGED" | "EXPIRED";
+  qualityStatus: "GOOD" | "DAMAGED" | "EXPIRED" | "MIXED";
   damageReason?: string | null;
   allocations: InspectCustomerReturnAllocationPayload[];
 }
@@ -154,8 +165,80 @@ export interface InspectCustomerReturnAllocationPayload {
   creditQuantity: number;
   restockLocationId?: number | null;
   quarantineLocationId?: number | null;
+  rejectedLocationId?: number | null;
+  rejectionReason?: string | null;
   note?: string | null;
   bags: CustomerReturnBag[];
+}
+
+export interface CustomerReturnSourceQuery {
+  keyword?: string | null;
+  page: number;
+  pageSize: number;
+}
+
+export interface CustomerReturnSourceOrder {
+  outboundOrderId: number;
+  outboundOrderCode: string;
+  salesOrderId: number;
+  salesOrderCode: string;
+  customerId: number;
+  customerCode: string;
+  customerName: string;
+  warehouseId: number;
+  warehouseCode: string;
+  warehouseName: string;
+  deliveredAt?: string | null;
+  returnableQuantity: number;
+}
+
+export interface CustomerReturnSourceDetail extends CustomerReturnSourceOrder {
+  items: CustomerReturnSourceItem[];
+}
+
+export interface CustomerReturnSourceItem {
+  outboundOrderItemId: number;
+  productVariantId: number;
+  productVariantName: string;
+  sku: string;
+  quantityDelivered: number;
+  quantityReturnable: number;
+  allocations: CustomerReturnSourceAllocation[];
+}
+
+export interface CustomerReturnSourceAllocation {
+  outboundOrderItemAllocationId: number;
+  paddyLotId: number;
+  paddyLotCode: string;
+  originalLocationId: number;
+  originalLocationCode: string;
+  quantityDelivered: number;
+  quantityAlreadyReturned: number;
+  quantityReturnable: number;
+}
+
+export interface UpdateCustomerReturnPayload {
+  id: number;
+  returnReason: string;
+  note?: string | null;
+  items: CreateCustomerReturnItemPayload[];
+}
+
+export interface ReceiveCustomerReturnPayload {
+  id: number;
+  carrierReference?: string | null;
+  note?: string | null;
+  allocations: Array<{
+    returnAllocationId: number;
+    quantityReceived: number;
+    note?: string | null;
+  }>;
+}
+
+export interface RegisterCustomerReturnRefundPayload {
+  amount: number;
+  paymentReference: string;
+  note?: string | null;
 }
 
 export interface CustomerReturnImpactPreview {

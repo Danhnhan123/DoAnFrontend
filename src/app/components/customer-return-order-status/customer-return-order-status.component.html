@@ -20,6 +20,9 @@
           style="width:132px;flex:0 0 auto"
           [options]="[{id:5,name:'5 / trang'},{id:10,name:'10 / trang'},{id:20,name:'20 / trang'},{id:50,name:'50 / trang'}]" [value]="pageSize()"
           (valueChange)="pageSize.set(+$event); page.set(1)"></app-filter-select>
+        <button [appHasPerm]="'CUSTOMER_RETURN_ORDER_STATUS:CREATE'" class="icon-btn" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0" (click)="initStandardStatuses()">
+            ⚡ Khởi tạo chuẩn
+        </button>
         <button [appHasPerm]="'CUSTOMER_RETURN_ORDER_STATUS:CREATE'" class="icon-btn add-btn" (click)="openCreate()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
                 stroke-linecap="round" stroke-linejoin="round">

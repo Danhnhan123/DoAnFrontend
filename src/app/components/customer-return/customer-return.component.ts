@@ -21,22 +21,20 @@ import {
   CustomerReturnImpactPreview,
   CustomerReturnPage,
   CustomerReturnRow,
+  CustomerReturnSourceOrder,
   InspectCustomerReturnItemPayload,
   InspectCustomerReturnPayload,
 } from "../../models/customer-return";
+import { STANDARD_RETURN_STATUSES } from "../../models/customer-return-order-status";
 import { LocationDetailDto } from "../../models/location";
-import {
-  OutboundOrderDetail,
-  OutboundOrderRow,
-} from "../../models/outbound-order";
 import { WarehouseRow } from "../../models/warehouse";
 import { CustomerReturnService } from "../../services/customer-return.service";
+import { CustomerReturnOrderStatusService } from "../../services/customer-return-order-status.service";
 import { CustomerService } from "../../services/customer.service";
 import { LocationService } from "../../services/location.service";
-import { OutboundOrderService } from "../../services/outbound-order.service";
 import { WarehouseService } from "../../services/warehouse.service";
 
-type ReturnTab = "ALL" | "APPROVED" | "CONFIRMED";
+type ReturnTab = "ALL" | "PENDING_APPROVAL" | "RECEIVED" | "CONFIRMED";
 
 interface ReturnFormLine {
   key: string;
@@ -66,6 +64,7 @@ interface InspectionLine {
   itemId: number;
   allocationId: number;
   productName: string;
+  standardBagWeightKg: number;
   lotCode: string;
   quantityReturned: number;
   quantityGood: number;
@@ -75,7 +74,9 @@ interface InspectionLine {
   unitCreditPrice: number;
   restockLocationId: number | null;
   quarantineLocationId: number | null;
+  rejectedLocationId: number | null;
   damageReason: string;
+  rejectionReason: string;
   note: string;
   bags: Array<{ weightKg: number; condition: "GOOD" | "DAMAGED" }>;
 }
@@ -92,7 +93,7 @@ export class CustomerReturnComponent implements OnDestroy {
   private readonly customerService = inject(CustomerService);
   private readonly warehouseService = inject(WarehouseService);
   private readonly locationService = inject(LocationService);
-  private readonly outboundService = inject(OutboundOrderService);
+  private readonly statusService = inject(CustomerReturnOrderStatusService);
   private readonly queryClient = injectQueryClient();
   private readonly route = inject(ActivatedRoute);
 
@@ -112,6 +113,8 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly actionLoading = signal(false);
   readonly loadingSource = signal(false);
   readonly inspectionOpen = signal(false);
+  readonly receiveOpen = signal(false);
+  readonly receiveQuantities = signal<Record<number, number>>({});
   readonly inspectionLines = signal<InspectionLine[]>([]);
   readonly form = signal<ReturnFormState>(this.emptyForm());
 
@@ -130,13 +133,13 @@ export class CustomerReturnComponent implements OnDestroy {
 
   readonly tabs: { key: ReturnTab; label: string }[] = [
     { key: "ALL", label: "Tất cả" },
-    { key: "APPROVED", label: "Chờ kiểm" },
-    { key: "CONFIRMED", label: "Đã xử lý" },
+    { key: "PENDING_APPROVAL", label: "Chờ duyệt" },
+    { key: "RECEIVED", label: "Chờ kiểm định" },
+    { key: "CONFIRMED", label: "Đã hoàn tất" },
   ];
 
   private readonly customersQuery = injectQuery(() => ({
     queryKey: ["customer-return", "customers"],
-    // Dropdown khách hàng: dùng GetAll dùng chung (chỉ [Authorize]) thay cho paged-advanced (bị chặn READ CUSTOMERS)
     queryFn: async () =>
       this.resourceArray<CustomerRow>(
         await lastValueFrom(this.customerService.getAll()),
@@ -165,14 +168,8 @@ export class CustomerReturnComponent implements OnDestroy {
   private readonly outboundsQuery = injectQuery(() => ({
     queryKey: ["customer-return", "outbounds"],
     queryFn: async () => {
-      const response = this.unwrap<any>(
-        await lastValueFrom(
-          this.outboundService.getPaged({ page: 1, pageSize: 1000 }),
-        ),
-      );
-      return (response.items ||
-        response.dataSource ||
-        []) as OutboundOrderRow[];
+      const response = await lastValueFrom(this.service.getSources());
+      return this.resourceArray<CustomerReturnSourceOrder>(response);
     },
     staleTime: 30_000,
   }));
@@ -268,13 +265,7 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly locations = computed(() =>
     (this.locationsQuery.data() || []).filter((item) => item.isActive),
   );
-  readonly outbounds = computed(() =>
-    (this.outboundsQuery.data() || []).filter((item) =>
-      ["DISPATCHED", "COMPLETED"].includes(
-        (item.outboundStatusName || "").toUpperCase(),
-      ),
-    ),
-  );
+  readonly outbounds = computed(() => this.outboundsQuery.data() || []);
   readonly restockLocations = computed(() =>
     this.locations().filter(
       (location) =>
@@ -300,8 +291,15 @@ export class CustomerReturnComponent implements OnDestroy {
     ),
   );
 
-  readonly loading = computed(() => this.listQuery.isPending());
-  readonly loadingDetail = computed(() => this.detailQuery.isPending());
+  readonly loading = computed(
+    () => this.listQuery.isFetching() && this.listQuery.data() == null,
+  );
+  readonly loadingDetail = computed(
+    () =>
+      this.activeId() != null &&
+      this.detailQuery.isFetching() &&
+      this.detailQuery.data() == null,
+  );
   readonly errorMessage = computed(() =>
     this.listQuery.isError() ? this.errorText(this.listQuery.error()) : "",
   );
@@ -309,10 +307,10 @@ export class CustomerReturnComponent implements OnDestroy {
     const rows = this.summaryQuery.data() || [];
     return {
       waitingInspection: rows.filter(
-        (row) => row.statusCode === CUSTOMER_RETURN_STATUS.APPROVED,
+        (row) => row.statusCode === CUSTOMER_RETURN_STATUS.RECEIVED,
       ).length,
       waitingApproval: rows.filter(
-        (row) => row.statusCode === CUSTOMER_RETURN_STATUS.DRAFT,
+        (row) => row.statusCode === CUSTOMER_RETURN_STATUS.PENDING_APPROVAL,
       ).length,
       restockedKg: rows
         .filter((row) => row.statusCode === CUSTOMER_RETURN_STATUS.CONFIRMED)
@@ -332,6 +330,7 @@ export class CustomerReturnComponent implements OnDestroy {
     this.page.set(1);
     this.selectedId.set(null);
     this.inspectionOpen.set(false);
+    this.receiveOpen.set(false);
   }
 
   onSearch(value: string): void {
@@ -367,6 +366,7 @@ export class CustomerReturnComponent implements OnDestroy {
   selectReturn(id: number): void {
     this.selectedId.set(id);
     this.inspectionOpen.set(false);
+    this.receiveOpen.set(false);
   }
 
   setPage(page: number): void {
@@ -374,6 +374,7 @@ export class CustomerReturnComponent implements OnDestroy {
     this.page.set(page);
     this.selectedId.set(null);
     this.inspectionOpen.set(false);
+    this.receiveOpen.set(false);
   }
 
   openCreate(): void {
@@ -401,26 +402,23 @@ export class CustomerReturnComponent implements OnDestroy {
 
     this.loadingSource.set(true);
     try {
-      const detail = this.unwrap<OutboundOrderDetail>(
-        await lastValueFrom(this.outboundService.getById(id)),
+      const detail = this.unwrap(
+        await lastValueFrom(this.service.getSourceById(id)),
       );
       const lines: ReturnFormLine[] = detail.items.flatMap((item) =>
         item.allocations
-          .filter(
-            (allocation) =>
-              allocation.paddyLotId && allocation.quantityPicked > 0,
-          )
+          .filter((allocation) => allocation.quantityReturnable > 0)
           .map((allocation) => ({
-            key: `out-${allocation.id}`,
-            outboundOrderItemId: item.id,
-            outboundAllocationId: allocation.id,
-            paddyLotId: allocation.paddyLotId!,
-            originalLocationId: allocation.locationId,
+            key: `out-${allocation.outboundOrderItemAllocationId}`,
+            outboundOrderItemId: item.outboundOrderItemId,
+            outboundAllocationId: allocation.outboundOrderItemAllocationId,
+            paddyLotId: allocation.paddyLotId,
+            originalLocationId: allocation.originalLocationId,
             productVariantId: item.productVariantId,
             productName: item.productVariantName,
             sku: item.sku || "",
             lotCode: allocation.paddyLotCode || `Lô #${allocation.paddyLotId}`,
-            maxQuantity: allocation.quantityPicked,
+            maxQuantity: allocation.quantityReturnable,
             quantityReturned: 0,
           })),
       );
@@ -485,6 +483,22 @@ export class CustomerReturnComponent implements OnDestroy {
       );
       return;
     }
+    if (!form.returnReason.trim()) {
+      await this.message(
+        "Thiếu lý do trả hàng",
+        "Vui lòng nhập lý do trả hàng.",
+        "warning",
+      );
+      return;
+    }
+    if (form.returnReason.trim().length > 500 || form.note.trim().length > 1000) {
+      await this.message(
+        "Nội dung quá dài",
+        "Lý do tối đa 500 ký tự và ghi chú tối đa 1.000 ký tự.",
+        "warning",
+      );
+      return;
+    }
     const invalid = selectedLines.find(
       (line) => line.quantityReturned > line.maxQuantity,
     );
@@ -544,10 +558,10 @@ export class CustomerReturnComponent implements OnDestroy {
 
   async approve(): Promise<void> {
     const detail = this.detail();
-    if (!detail || detail.statusCode !== CUSTOMER_RETURN_STATUS.DRAFT) return;
+    if (!detail || detail.statusCode !== CUSTOMER_RETURN_STATUS.PENDING_APPROVAL) return;
     const result = await Swal.fire({
       title: "Duyệt phiếu trả hàng?",
-      text: "Sau khi duyệt, nhân viên kho có thể kiểm tra chất lượng.",
+      text: "Sau khi duyệt, nhân viên kho có thể tiếp nhận hàng trả thực tế.",
       input: "textarea",
       inputLabel: "Ghi chú duyệt (không bắt buộc)",
       showCancelButton: true,
@@ -564,33 +578,68 @@ export class CustomerReturnComponent implements OnDestroy {
 
   beginInspection(): void {
     const detail = this.detail();
-    if (!detail || detail.statusCode !== CUSTOMER_RETURN_STATUS.APPROVED)
+    if (!detail || ![
+      CUSTOMER_RETURN_STATUS.RECEIVED,
+      CUSTOMER_RETURN_STATUS.INSPECTED,
+    ].includes(detail.statusCode as any))
       return;
+
+    const editingInspection = detail.statusCode === CUSTOMER_RETURN_STATUS.INSPECTED;
+
+    const restockLocs = this.restockLocations();
+    const quarantineLocs = this.quarantineLocations();
+    const defaultQuarantineId = quarantineLocs[0]?.id ?? null;
+
     this.inspectionLines.set(
       detail.items.flatMap((item) =>
-        item.allocations.map((allocation) => ({
-          itemId: item.id,
-          allocationId: allocation.id,
-          productName: item.productVariantName || item.sku || "Sản phẩm",
-          lotCode: allocation.paddyLotCode,
-          quantityReturned: allocation.quantityReturned,
-          quantityGood: allocation.quantityReturned,
-          quantityDamaged: 0,
-          quantityRejected: 0,
-          creditQuantity: allocation.creditQuantity || 0,
-          unitCreditPrice: allocation.unitCreditPrice || 0,
-          restockLocationId: null,
-          quarantineLocationId: null,
-          damageReason: "",
-          note: "",
-          bags: allocation.quantityReturned > 0
-            ? [{ weightKg: allocation.quantityReturned, condition: "GOOD" as const }]
-            : [],
-        })),
+        item.allocations.map((allocation) => {
+          // Ưu tiên: vị trí gốc của lô → vị trí nhập đầu tiên còn chỗ → vị trí đầu tiên
+          const originalLoc = restockLocs.find(
+            (loc) => loc.id === allocation.originalLocationId,
+          );
+          const firstAvailable =
+            restockLocs.find(
+              (loc) =>
+              (loc.maxCapacity == null ||
+                (loc.currentOccupancy ?? 0) < loc.maxCapacity),
+            ) ?? restockLocs[0];
+          const autoRestockId = (originalLoc ?? firstAvailable)?.id ?? null;
+
+          return {
+            itemId: item.id,
+            allocationId: allocation.id,
+            productName: item.productVariantName || item.sku || 'Sản phẩm',
+            standardBagWeightKg: Number(item.standardBagWeightKg || 0),
+            lotCode: allocation.paddyLotCode,
+            quantityReturned: allocation.quantityReceived,
+            quantityGood: editingInspection ? allocation.quantityGood : allocation.quantityReceived,
+            quantityDamaged: editingInspection ? allocation.quantityDamaged : 0,
+            quantityRejected: editingInspection ? allocation.quantityRejected : 0,
+            creditQuantity: allocation.creditQuantity || 0,
+            unitCreditPrice: allocation.unitCreditPrice || 0,
+            restockLocationId: editingInspection ? (allocation.restockLocationId ?? autoRestockId) : autoRestockId,
+            quarantineLocationId: editingInspection ? (allocation.quarantineLocationId ?? defaultQuarantineId) : defaultQuarantineId,
+            rejectedLocationId: editingInspection ? (allocation.rejectedLocationId ?? defaultQuarantineId) : defaultQuarantineId,
+            damageReason: editingInspection ? (item.damageReason ?? '') : '',
+            rejectionReason: editingInspection ? (allocation.rejectionReason ?? '') : '',
+            note: editingInspection ? (allocation.note ?? '') : '',
+            bags: editingInspection && allocation.bags?.length
+              ? allocation.bags.map(bag => ({ ...bag }))
+              : allocation.quantityReceived > 0
+                ? [
+                  {
+                    weightKg: allocation.quantityReceived,
+                    condition: 'GOOD' as const,
+                  },
+                ]
+                : [],
+          };
+        }),
       ),
     );
     this.inspectionOpen.set(true);
   }
+
 
   addInspectionBag(allocationId: number, condition: "GOOD" | "DAMAGED"): void {
     this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
@@ -631,6 +680,7 @@ export class CustomerReturnComponent implements OnDestroy {
           "creditQuantity",
           "restockLocationId",
           "quarantineLocationId",
+          "rejectedLocationId",
         ];
         const nextValue = numericFields.includes(field)
           ? value === "" || value == null
@@ -675,9 +725,16 @@ export class CustomerReturnComponent implements OnDestroy {
       }
       const goodBagKg = line.bags.filter(x => x.condition === "GOOD").reduce((sum, x) => sum + Number(x.weightKg || 0), 0);
       const damagedBagKg = line.bags.filter(x => x.condition === "DAMAGED").reduce((sum, x) => sum + Number(x.weightKg || 0), 0);
+      const oversizedBag = line.standardBagWeightKg > 0
+        ? line.bags.find(x => Number(x.weightKg) > line.standardBagWeightKg + 0.001)
+        : undefined;
+      if (oversizedBag) {
+        await this.message("Khối lượng bao không hợp lệ", `Mỗi bao không được lớn hơn trọng lượng đóng bao chuẩn ${this.fmtWeight(line.standardBagWeightKg)}. Hãy tách thành các bao vật lý thực tế.`, "warning");
+        return;
+      }
       if (line.bags.some(x => !Number.isFinite(x.weightKg) || x.weightKg <= 0)
-          || Math.abs(goodBagKg - line.quantityGood) > 0.001
-          || Math.abs(damagedBagKg - line.quantityDamaged) > 0.001) {
+        || Math.abs(goodBagKg - line.quantityGood) > 0.001
+        || Math.abs(damagedBagKg - line.quantityDamaged) > 0.001) {
         await this.message("Cân bao chưa khớp", `Tổng cân bao đạt/hỏng của lô ${line.lotCode} phải khớp số kg phân loại.`, "warning");
         return;
       }
@@ -704,6 +761,14 @@ export class CustomerReturnComponent implements OnDestroy {
         await this.message(
           "Thiếu lý do",
           `Nhập lý do xử lý lô ${line.lotCode}.`,
+          "warning",
+        );
+        return;
+      }
+      if (line.quantityRejected > 0 && (!line.rejectedLocationId || !line.rejectionReason.trim())) {
+        await this.message(
+          "Thiếu thông tin hàng trả lại",
+          `Chọn vị trí và nhập lý do trả lại khách cho lô ${line.lotCode}.`,
           "warning",
         );
         return;
@@ -740,6 +805,8 @@ export class CustomerReturnComponent implements OnDestroy {
         creditQuantity: line.creditQuantity,
         restockLocationId: line.restockLocationId,
         quarantineLocationId: line.quarantineLocationId,
+        rejectedLocationId: line.rejectedLocationId,
+        rejectionReason: line.rejectionReason.trim() || null,
         note: line.note.trim() || null,
         bags: line.bags.map(x => ({ weightKg: Number(x.weightKg), condition: x.condition })),
       });
@@ -755,6 +822,106 @@ export class CustomerReturnComponent implements OnDestroy {
       "Đã lưu kết quả kiểm tra chất lượng.",
     );
     this.inspectionOpen.set(false);
+    this.receiveOpen.set(false);
+  }
+
+  async submitForApproval(): Promise<void> {
+    const current = this.detail();
+    if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.DRAFT) return;
+    await this.runAction(
+      () => this.service.submit(current.id),
+      "Đã gửi phiếu trả hàng để duyệt.",
+    );
+  }
+
+  async rejectReturn(): Promise<void> {
+    const current = this.detail();
+    if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.PENDING_APPROVAL) return;
+    const result = await Swal.fire({
+      title: "Từ chối phiếu trả hàng",
+      input: "textarea",
+      inputLabel: "Lý do từ chối",
+      inputValidator: value => !value?.trim() ? "Vui lòng nhập lý do từ chối." : null,
+      showCancelButton: true,
+      confirmButtonText: "Từ chối",
+      cancelButtonText: "Đóng",
+      confirmButtonColor: "#dc3b3b",
+    });
+    if (result.isConfirmed) {
+      await this.runAction(
+        () => this.service.reject(current.id, String(result.value).trim()),
+        "Đã từ chối phiếu trả hàng.",
+      );
+    }
+  }
+
+  beginReceive(): void {
+    const current = this.detail();
+    if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.APPROVED) return;
+    this.receiveQuantities.set(Object.fromEntries(
+      current.items.flatMap(item => item.allocations.map(allocation => [allocation.id, allocation.quantityReturned])),
+    ));
+    this.receiveOpen.set(true);
+  }
+
+  updateReceived(allocationId: number, value: string | number): void {
+    this.receiveQuantities.update(values => ({ ...values, [allocationId]: Number(value) || 0 }));
+  }
+
+  async submitReceive(): Promise<void> {
+    const current = this.detail();
+    if (!current) return;
+    const allocations = current.items.flatMap(item => item.allocations);
+    for (const allocation of allocations) {
+      const received = this.receiveQuantities()[allocation.id] ?? 0;
+      if (received < 0 || received > allocation.quantityReturned) {
+        await this.message(
+          "Số lượng thực nhận không hợp lệ",
+          `${allocation.paddyLotCode}: thực nhận phải từ 0 đến ${this.fmtWeight(allocation.quantityReturned)}.`,
+          "warning",
+        );
+        return;
+      }
+    }
+    await this.runAction(
+      () => this.service.receive({
+        id: current.id,
+        allocations: allocations.map(allocation => ({
+          returnAllocationId: allocation.id,
+          quantityReceived: this.receiveQuantities()[allocation.id] ?? 0,
+        })),
+      }),
+      "Đã ghi nhận hàng trả thực nhận.",
+    );
+    this.receiveOpen.set(false);
+  }
+
+  async registerRefund(): Promise<void> {
+    const current = this.detail();
+    if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.CONFIRMED || current.refundPendingAmount <= 0) return;
+    const result = await Swal.fire({
+      title: "Ghi nhận hoàn tiền",
+      html: `<input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" value="${current.refundPendingAmount}" placeholder="Số tiền"><input id="refund-reference" class="swal2-input" maxlength="100" placeholder="Mã giao dịch / tham chiếu"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
+      showCancelButton: true,
+      confirmButtonText: "Ghi nhận",
+      cancelButtonText: "Đóng",
+      preConfirm: () => {
+        const amount = Number((document.getElementById("refund-amount") as HTMLInputElement)?.value);
+        const paymentReference = (document.getElementById("refund-reference") as HTMLInputElement)?.value.trim();
+        const note = (document.getElementById("refund-note") as HTMLTextAreaElement)?.value.trim();
+        if (!(amount > 0) || amount > current.refundPendingAmount || !paymentReference) {
+          Swal.showValidationMessage("Nhập số tiền hợp lệ và mã tham chiếu.");
+          return false;
+        }
+        return { amount, paymentReference, note: note || null };
+      },
+    });
+    if (result.isConfirmed && result.value) {
+      await this.runAction(
+        () => this.service.registerRefund(current.id, result.value),
+        "Đã ghi nhận giao dịch hoàn tiền.",
+      );
+    }
   }
 
   async confirmReturn(): Promise<void> {
@@ -783,7 +950,12 @@ export class CustomerReturnComponent implements OnDestroy {
 
   async cancelReturn(): Promise<void> {
     const detail = this.detail();
-    if (!detail || detail.statusCode === CUSTOMER_RETURN_STATUS.CONFIRMED)
+    if (!detail || [
+      CUSTOMER_RETURN_STATUS.RECEIVED,
+      CUSTOMER_RETURN_STATUS.INSPECTED,
+      CUSTOMER_RETURN_STATUS.CONFIRMED,
+      CUSTOMER_RETURN_STATUS.CANCELLED,
+    ].includes(detail.statusCode as any))
       return;
     const result = await Swal.fire({
       title: "Hủy phiếu trả hàng",
@@ -803,15 +975,22 @@ export class CustomerReturnComponent implements OnDestroy {
     );
   }
 
-  locationLabel(location: LocationDetailDto): string {
+  locationLabel(location: LocationDetailDto | null | undefined): string {
+    if (!location) return '';
     return [
       location.zoneName,
-      location.shelfRow ? `Cột ${location.shelfRow}` : "",
-      location.shelfLevel ? `Lớp ${location.shelfLevel}` : "",
-      location.slotCode || "",
+      location.shelfRow ? `Cột ${location.shelfRow}` : '',
+      location.shelfLevel ? `Lớp ${location.shelfLevel}` : '',
+      location.slotCode || '',
     ]
       .filter(Boolean)
-      .join(" / ");
+      .join(' / ');
+  }
+
+  locationLabelById(id: number | null | undefined): string {
+    if (!id) return '';
+    const loc = this.locations().find((l) => l.id === id);
+    return this.locationLabel(loc);
   }
 
   sourceCode(row: CustomerReturnRow | CustomerReturnDetail): string {
@@ -822,12 +1001,24 @@ export class CustomerReturnComponent implements OnDestroy {
     return `status-${(code || "unknown").toLowerCase()}`;
   }
 
+  canCancel(code: string): boolean {
+    return [
+      CUSTOMER_RETURN_STATUS.DRAFT,
+      CUSTOMER_RETURN_STATUS.PENDING_APPROVAL,
+      CUSTOMER_RETURN_STATUS.APPROVED,
+      CUSTOMER_RETURN_STATUS.REJECTED,
+    ].some(status => status === code);
+  }
+
   statusDisplay(code: string, name: string): string {
     const labels: Record<string, string> = {
-      DRAFT: "Chờ chủ kho duyệt",
-      APPROVED: "Chờ kiểm",
+      DRAFT: "Nháp",
+      PENDING_APPROVAL: "Chờ duyệt",
+      APPROVED: "Đã duyệt - chờ nhận hàng",
+      RECEIVED: "Đã nhận - chờ kiểm định",
       INSPECTED: "Chờ xác nhận tồn",
-      CONFIRMED: "Đã xử lý",
+      CONFIRMED: "Đã hoàn tất",
+      REJECTED: "Đã từ chối",
       CANCELLED: "Đã hủy",
     };
     return labels[code] || name;
@@ -859,6 +1050,69 @@ export class CustomerReturnComponent implements OnDestroy {
     }).format(date);
   }
 
+  async initStandardStatuses(showConfirmation = true): Promise<void> {
+    if (showConfirmation) {
+      const confirm = await Swal.fire({
+        title: "Khởi tạo trạng thái chuẩn?",
+        text: "Hệ thống sẽ tự động tạo các mã trạng thái đơn hoàn khách còn thiếu (DRAFT, PENDING_APPROVAL, APPROVED, RECEIVED, INSPECTED, CONFIRMED, REJECTED, CANCELLED).",
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#16a052",
+        cancelButtonColor: "#94a3b8",
+        confirmButtonText: "Đồng ý khởi tạo",
+        cancelButtonText: "Hủy",
+      });
+      if (!confirm.isConfirmed) return;
+    }
+
+    this.actionLoading.set(true);
+    try {
+      const dtBody = this.statusService.buildPagedBody({
+        page: 1,
+        pageSize: 100,
+        search: "",
+        sortField: "createdDate",
+        sortDir: "desc",
+        colMap: { code: 1, name: 2, color: 3, createdDate: 4 },
+        filterName: "",
+        filterDateFrom: "",
+        filterDateTo: "",
+      });
+      const res = await lastValueFrom(this.statusService.getPagedAdvanced(dtBody));
+      const list = (res as any)?.resources?.data ?? (res as any)?.data?.data ?? [];
+      const existingCodes = new Set<string>();
+      if (Array.isArray(list)) {
+        list.forEach((x: any) => {
+          if (x.code) existingCodes.add(x.code.trim().toUpperCase());
+        });
+      }
+
+      let count = 0;
+      for (const st of STANDARD_RETURN_STATUSES) {
+        if (!existingCodes.has(st.code!.toUpperCase())) {
+          try {
+            await lastValueFrom(this.statusService.create(st));
+            count++;
+          } catch (e) {
+            console.warn(`Lỗi tạo trạng thái ${st.code}:`, e);
+          }
+        }
+      }
+
+      await this.queryClient.invalidateQueries({ queryKey: ["customer-return-order-status"] });
+      await this.refresh();
+      await this.message(
+        "Khởi tạo thành công",
+        `Đã khởi tạo thành công ${count} mã trạng thái chuẩn cho đơn hoàn khách.`,
+        "success",
+      );
+    } catch (err) {
+      await this.message("Lỗi khởi tạo", this.errorText(err), "error");
+    } finally {
+      this.actionLoading.set(false);
+    }
+  }
+
   private async runAction(
     request: () => ReturnType<CustomerReturnService["confirm"]>,
     successMessage: string,
@@ -874,7 +1128,7 @@ export class CustomerReturnComponent implements OnDestroy {
         "success",
       );
     } catch (error) {
-      await this.alertError(error);
+      await this.alertError(error, () => this.runAction(request, successMessage));
     } finally {
       this.actionLoading.set(false);
     }
@@ -893,6 +1147,7 @@ export class CustomerReturnComponent implements OnDestroy {
     this.page.set(1);
     this.selectedId.set(null);
     this.inspectionOpen.set(false);
+    this.receiveOpen.set(false);
   }
 
   private emptyForm(): ReturnFormState {
@@ -936,8 +1191,34 @@ export class CustomerReturnComponent implements OnDestroy {
     );
   }
 
-  private async alertError(error: unknown): Promise<void> {
-    await this.message("Không thể thực hiện", this.errorText(error), "error");
+  private async alertError(
+    error: unknown,
+    retryAction?: () => Promise<void>,
+  ): Promise<void> {
+    const text = this.errorText(error);
+    if (
+      text.toLowerCase().includes("thiếu trạng thái") ||
+      text.toUpperCase().includes("PENDING_APPROVAL")
+    ) {
+      const confirm = await Swal.fire({
+        title: "Thiếu dữ liệu trạng thái",
+        text: "Cơ sở dữ liệu chưa có các mã trạng thái chuẩn (PENDING_APPROVAL, APPROVED,...). Bạn có muốn tự động khởi tạo ngay bây giờ không?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "⚡ Tự động khởi tạo ngay",
+        cancelButtonText: "Đóng",
+        confirmButtonColor: "#16a052",
+        cancelButtonColor: "#94a3b8",
+      });
+      if (confirm.isConfirmed) {
+        await this.initStandardStatuses(false);
+        if (retryAction) {
+          await retryAction();
+        }
+        return;
+      }
+    }
+    await this.message("Không thể thực hiện", text, "error");
   }
 
   private async message(
