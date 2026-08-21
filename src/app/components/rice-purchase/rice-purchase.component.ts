@@ -84,13 +84,7 @@ interface ReceiptFormState {
   actualWeight: number | null;
   actualWeightUnit: WeightUnit;
   bagCount: number | null;
-  bags: Array<{
-    bagNo: number;
-    weightKg: number | null;
-    scaleDeviceRef: string;
-    weightCaptureMethod: 'SCALE' | 'MANUAL';
-    weighedAt: string;
-  }>;
+  bags: Array<{ bagNo: number; weightKg: number | null }>;
   agreedPrice: number | null;
   paidAmount: number | null;
   moisturePercent: number | null;
@@ -917,10 +911,8 @@ export class RicePurchaseComponent implements OnDestroy {
       actualWeightUnit: "kg",
       bagCount: row.bagCount ?? null,
       bags: (row.bags || []).map((x) => ({
-        bagNo: x.bagNo, weightKg: Number(x.weightKg),
-        scaleDeviceRef: x.scaleDeviceRef || '',
-        weightCaptureMethod: x.weightCaptureMethod === 'SCALE' ? 'SCALE' : 'MANUAL',
-        weighedAt: this.toDateTimeInput(x.weighedAt || row.receiptDate),
+        bagNo: x.bagNo,
+        weightKg: Number(x.weightKg),
       })),
       agreedPrice: Number(row.agreedPrice),
       paidAmount: Number(row.paidAmount),
@@ -955,10 +947,8 @@ export class RicePurchaseComponent implements OnDestroy {
 
       const bags = (detail.bags || [])
         .map((x) => ({
-          bagNo: Number(x.bagNo), weightKg: Number(x.weightKg),
-          scaleDeviceRef: x.scaleDeviceRef || '',
-          weightCaptureMethod: x.weightCaptureMethod === 'SCALE' ? 'SCALE' as const : 'MANUAL' as const,
-          weighedAt: this.toDateTimeInput(x.weighedAt || detail.receiptDate),
+          bagNo: Number(x.bagNo),
+          weightKg: Number(x.weightKg),
         }))
         .sort((a, b) => a.bagNo - b.bagNo);
 
@@ -1006,22 +996,11 @@ export class RicePurchaseComponent implements OnDestroy {
     if (this.receiptFormLocked()) return;
     this.receiptForm.update((form) => ({
       ...form,
-      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg, scaleDeviceRef: '', weightCaptureMethod: 'MANUAL', weighedAt: this.nowDateTimeInput() }],
+      bags: [...form.bags, { bagNo: form.bags.length + 1, weightKg }],
       bagCount: form.bags.length + 1,
       actualWeight: [...form.bags, { bagNo: form.bags.length + 1, weightKg }]
         .reduce((sum, bag) => sum + Number(bag.weightKg || 0), 0),
       actualWeightUnit: "kg",
-    }));
-  }
-
-  updateReceiptBagTrace(
-    index: number,
-    field: 'scaleDeviceRef' | 'weightCaptureMethod' | 'weighedAt',
-    value: string,
-  ): void {
-    this.receiptForm.update((form) => ({
-      ...form,
-      bags: form.bags.map((bag, i) => i === index ? { ...bag, [field]: value } : bag),
     }));
   }
 
@@ -1135,9 +1114,6 @@ export class RicePurchaseComponent implements OnDestroy {
       bags: form.bags.map((bag) => ({
         bagNo: bag.bagNo,
         weightKg: Number(bag.weightKg),
-        scaleDeviceRef: bag.scaleDeviceRef.trim() || null,
-        weightCaptureMethod: bag.weightCaptureMethod,
-        weighedAt: bag.weighedAt ? this.toApiDateTime(bag.weighedAt) : null,
       })),
       agreedPrice: this.roundMoney(Number(form.agreedPrice)),
       totalAmount: this.receiptTotalAmount(),

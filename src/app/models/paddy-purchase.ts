@@ -103,10 +103,6 @@ export interface PaddyPurchaseReceiptRow {
 export interface BagInput {
   bagNo: number;
   weightKg: number;
-  scaleDeviceRef?: string | null;
-  weightCaptureMethod?: 'SCALE' | 'MANUAL' | null;
-  weighedAt?: string | null;
-  weighedBy?: number | null;
 }
 
 export interface CreatePaddyPurchaseReceiptDto {
