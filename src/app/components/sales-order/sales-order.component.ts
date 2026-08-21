@@ -122,6 +122,16 @@ export class SalesOrderComponent implements OnDestroy {
   private lineKey = 1;
 
   readonly status = SALES_ORDER_STATUS;
+  readonly statusSelectOptions: FilterSelectOption[] = [
+    { id: SALES_ORDER_STATUS.NEW, name: 'Mới' },
+    { id: SALES_ORDER_STATUS.PENDING_CONFIRM, name: 'Chờ xác nhận' },
+    { id: SALES_ORDER_STATUS.RESERVED, name: 'Đã giữ hàng' },
+    { id: SALES_ORDER_STATUS.AWAITING_MILLING, name: 'Chờ xay' },
+    { id: SALES_ORDER_STATUS.PREPARING, name: 'Đang chuẩn bị' },
+    { id: SALES_ORDER_STATUS.DELIVERING, name: 'Đang giao' },
+    { id: SALES_ORDER_STATUS.COMPLETED, name: 'Hoàn thành' },
+    { id: SALES_ORDER_STATUS.CANCELLED, name: 'Đã hủy' },
+  ];
   readonly pageSizeOptions = [10, 20, 50];
 
   readonly page = signal(1);
@@ -134,6 +144,14 @@ export class SalesOrderComponent implements OnDestroy {
   readonly warehouseFilter = signal<number | null>(null);
   readonly fromDate = signal('');
   readonly toDate = signal('');
+  readonly hasHistoryFilters = computed(
+    () =>
+      this.statusFilter() !== null ||
+      this.customerFilter() !== null ||
+      this.warehouseFilter() !== null ||
+      !!this.fromDate() ||
+      !!this.toDate()
+  );
   readonly selectedId = signal<number | null>(this.numberParam('salesOrderId'));
 
   readonly showFormModal = signal(false);
@@ -544,6 +562,15 @@ export class SalesOrderComponent implements OnDestroy {
   setHistoryDate(target: 'from' | 'to', value: string): void {
     if (target === 'from') this.fromDate.set(value);
     else this.toDate.set(value);
+    this.page.set(1);
+  }
+
+  clearHistoryFilters(): void {
+    this.statusFilter.set(null);
+    this.customerFilter.set(null);
+    this.warehouseFilter.set(null);
+    this.fromDate.set('');
+    this.toDate.set('');
     this.page.set(1);
   }
 
