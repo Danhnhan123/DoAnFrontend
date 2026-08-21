@@ -183,15 +183,14 @@ export class OutboundOrderComponent implements OnDestroy {
     return code ? this.statusLabels[code] : source.outboundStatusName || '—';
   }
 
-  readonly statusTabs: { key: StatusFilter; label: string }[] = [
-    { key: 'ALL', label: 'Tất cả' },
-    { key: OUTBOUND_STATUS_CODE.DRAFT, label: 'Nháp' },
-    { key: OUTBOUND_STATUS_CODE.PICKING, label: 'Đang lấy hàng' },
-    { key: OUTBOUND_STATUS_CODE.PACKED, label: 'Đã đóng gói' },
-    { key: OUTBOUND_STATUS_CODE.DISPATCHED, label: 'Đang giao hàng' },
-    { key: OUTBOUND_STATUS_CODE.COMPLETED, label: 'Hoàn thành' },
-    { key: OUTBOUND_STATUS_CODE.DELIVERY_FAILED, label: 'Giao hàng thất bại' },
-    { key: OUTBOUND_STATUS_CODE.CANCELLED, label: 'Đã hủy' },
+  readonly statusSelectOptions: FilterSelectOption[] = [
+    { id: OUTBOUND_STATUS_CODE.DRAFT, name: 'Nháp' },
+    { id: OUTBOUND_STATUS_CODE.PICKING, name: 'Đang lấy hàng' },
+    { id: OUTBOUND_STATUS_CODE.PACKED, name: 'Đã đóng gói' },
+    { id: OUTBOUND_STATUS_CODE.DISPATCHED, name: 'Đang giao hàng' },
+    { id: OUTBOUND_STATUS_CODE.COMPLETED, name: 'Hoàn thành' },
+    { id: OUTBOUND_STATUS_CODE.DELIVERY_FAILED, name: 'Giao hàng thất bại' },
+    { id: OUTBOUND_STATUS_CODE.CANCELLED, name: 'Đã hủy' },
   ];
 
   readonly page = signal(1);
@@ -199,8 +198,6 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly searchInput = signal('');
   readonly keyword = signal('');
   readonly statusFilter = signal<StatusFilter>('ALL');
-  readonly salesOrderFilter = signal<number | null>(this.numberParam('salesOrderId'));
-  readonly warehouseFilter = signal<number | null>(null);
   readonly fromDate = signal('');
   readonly toDate = signal('');
   readonly selectedId = signal<number | null>(this.numberParam('outboundOrderId'));
@@ -239,8 +236,6 @@ export class OutboundOrderComponent implements OnDestroy {
       this.pageSize(),
       this.keyword(),
       this.statusFilter(),
-      this.salesOrderFilter(),
-      this.warehouseFilter(),
       this.fromDate(),
       this.toDate(),
     ],
@@ -252,8 +247,6 @@ export class OutboundOrderComponent implements OnDestroy {
             pageSize: this.pageSize(),
             keyword: this.keyword() || null,
             outboundStatusId: this.statusFilter() === 'ALL' ? null : this.statusIdOf(this.statusFilter() as OutboundStatusCode),
-            salesOrderId: this.salesOrderFilter(),
-            warehouseId: this.warehouseFilter(),
             fromDate: this.fromDate() || null,
             toDate: this.toDate() || null,
           })
@@ -449,21 +442,25 @@ export class OutboundOrderComponent implements OnDestroy {
     }, 350);
   }
 
-  setStatusFilter(key: StatusFilter): void {
-    this.statusFilter.set(key);
-    this.page.set(1);
-  }
-
-  setOutboundFilter(target: 'salesOrder' | 'warehouse', value: unknown): void {
-    const parsed = value == null || value === '' ? null : Number(value);
-    if (target === 'salesOrder') this.salesOrderFilter.set(parsed);
-    else this.warehouseFilter.set(parsed);
+  setStatusFilter(key: StatusFilter | null): void {
+    this.statusFilter.set(key ?? 'ALL');
     this.page.set(1);
   }
 
   setHistoryDate(target: 'from' | 'to', value: string): void {
     if (target === 'from') this.fromDate.set(value);
     else this.toDate.set(value);
+    this.page.set(1);
+  }
+
+  readonly hasFilters = computed(
+    () => this.statusFilter() !== 'ALL' || !!this.fromDate() || !!this.toDate()
+  );
+
+  clearFilters(): void {
+    this.statusFilter.set('ALL');
+    this.fromDate.set('');
+    this.toDate.set('');
     this.page.set(1);
   }
 

@@ -53,7 +53,8 @@
 
       <!-- Tools -->
       <div class="ob-tools">
-        <div class="ob-search">
+        <div class="ob-filter-row">
+          <div class="ob-search ob-main-search">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round">
             <circle cx="11" cy="11" r="8" />
@@ -61,17 +62,36 @@
           </svg>
           <input type="text" placeholder="Tìm theo mã đơn bán, khách hàng, kho…" [ngModel]="searchInput()"
             (ngModelChange)="onSearchInput($event)" />
-        </div>
-        <div class="ob-status-tabs">
-          <button *ngFor="let tab of statusTabs" type="button" class="ob-tab"
-            [class.active]="statusFilter() === tab.key" (click)="setStatusFilter(tab.key)">
-            {{ tab.label }}
+          </div>
+          <app-filter-select
+            class="ob-status-filter"
+            [options]="statusSelectOptions"
+            [value]="statusFilter()"
+            allLabel="Tất cả trạng thái"
+            (valueChange)="setStatusFilter($event)"
+          ></app-filter-select>
+          <label class="ob-filter-field">
+            <span>Từ ngày</span>
+            <input type="date" [ngModel]="fromDate()" (ngModelChange)="setHistoryDate('from', $event)" />
+          </label>
+          <label class="ob-filter-field">
+            <span>Đến ngày</span>
+            <input type="date" [ngModel]="toDate()" (ngModelChange)="setHistoryDate('to', $event)" />
+          </label>
+          <button
+            class="ob-filter-reset"
+            type="button"
+            aria-label="Xoá bộ lọc"
+            title="Xoá bộ lọc"
+            [disabled]="!hasFilters()"
+            (click)="clearFilters()"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16l-6 7v5l-4 2v-7L4 5Z" />
+              <path d="m4 4 16 16" />
+            </svg>
           </button>
         </div>
-        <div class="ob-search"><input type="number" min="1" placeholder="ID đơn bán" [ngModel]="salesOrderFilter()" (ngModelChange)="setOutboundFilter('salesOrder', $event)" /></div>
-        <div class="ob-search"><input type="number" min="1" placeholder="ID kho" [ngModel]="warehouseFilter()" (ngModelChange)="setOutboundFilter('warehouse', $event)" /></div>
-        <label>Từ ngày <input type="date" [ngModel]="fromDate()" (ngModelChange)="setHistoryDate('from', $event)" /></label>
-        <label>Đến ngày <input type="date" [ngModel]="toDate()" (ngModelChange)="setHistoryDate('to', $event)" /></label>
       </div>
 
       <!-- Table -->

@@ -266,6 +266,109 @@
   flex: 0 0 auto;
 }
 
+.so-history-filters {
+  display: grid;
+  grid-template-columns: minmax(175px, 1fr) minmax(220px, 1.45fr) minmax(180px, 1.2fr) 145px 145px auto;
+  align-items: end;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px 15px;
+  border-top: 1px solid var(--border, #e8edf2);
+  border-bottom: 1px solid var(--border, #e8edf2);
+  background: #fbfdfb;
+}
+
+.so-filter-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+  color: var(--text-secondary, #64748b);
+  font-size: 0.69rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.so-filter-field > span {
+  color: #526b5d;
+}
+
+.so-filter-field > input[type="date"] {
+  width: 100%;
+  height: 40px;
+  min-width: 0;
+  padding: 0 11px;
+  border: 1px solid #d6e2da;
+  border-radius: 9px;
+  outline: 0;
+  color: var(--text-primary, #172033);
+  background: #fff;
+  font: inherit;
+  font-size: 0.77rem;
+  font-weight: 500;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.so-filter-field > input[type="date"]:focus,
+.so-filter-field app-filter-select:focus-within {
+  border-color: #22a05a;
+  box-shadow: 0 0 0 3px rgba(34, 160, 90, 0.12);
+}
+
+.so-filter-field app-filter-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  --border: #d6e2da;
+  --radius-sm: 9px;
+  --accent: #22a05a;
+  --accent-hover: #168447;
+  --text-primary: #172033;
+  --text-muted: #64748b;
+}
+
+.so-filter-field app-filter-select .form-control {
+  height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 0.77rem;
+}
+
+.so-filter-reset {
+  display: inline-grid;
+  place-items: center;
+  align-self: end;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #cfe0d4;
+  border-radius: 9px;
+  color: #277044;
+  background: #f0fdf4;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.so-filter-reset svg {
+  width: 19px;
+  height: 19px;
+}
+
+.so-filter-reset:hover:not(:disabled) {
+  border-color: #86c99d;
+  color: #166534;
+  background: #dcfce7;
+}
+
+.so-filter-reset:disabled {
+  color: #a3b3a8;
+  background: #f7faf8;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .so-api-note {
   padding: 7px 16px;
   border-bottom: 1px solid #fde68a;
@@ -1153,6 +1256,10 @@
     flex: 1;
   }
 
+  .so-history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .so-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1172,6 +1279,10 @@
 
   .so-tabs {
     overflow-x: auto;
+  }
+
+  .so-history-filters {
+    grid-template-columns: 1fr;
   }
 
   .so-hero-actions,
