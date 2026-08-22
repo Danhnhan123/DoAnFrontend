@@ -519,10 +519,15 @@
             <app-filter-select
               [disabled]="isEditing()"
               [clearable]="false"
+              [searchable]="true"
+              [allowCreate]="perm.canCreate('CUSTOMERS') && !isEditing()"
+              createLabel="Thêm khách hàng mới"
+              searchPlaceholder="Nhập tên hoặc số điện thoại..."
               placeholder="Chọn khách hàng"
               [options]="customerSelectOptions()"
               [value]="form().customerId"
               (valueChange)="setCustomer($event)"
+              (createRequest)="openQuickCustomer($event)"
             ></app-filter-select>
           </label>
           <label>
@@ -709,6 +714,101 @@
       <button [hidden]="viewOnly()" class="so-btn so-btn-primary" type="button" (click)="submitForm()" [disabled]="saving()">
         @if (saving()) { <span class="so-loader small"></span> }
         {{ isEditing() ? 'Lưu thay đổi' : 'Tạo đơn bán' }}
+      </button>
+    </footer>
+  </section>
+</div>
+}
+
+@if (showQuickCustomerModal()) {
+<div class="so-modal-backdrop so-quick-customer-backdrop" (click)="closeQuickCustomer()">
+  <section
+    class="so-modal so-quick-customer-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="quick-customer-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="so-modal-head">
+      <div>
+        <span>THÊM NHANH KHÁCH HÀNG</span>
+        <h2 id="quick-customer-title">Thêm khách hàng mới</h2>
+      </div>
+      <button type="button" aria-label="Đóng" (click)="closeQuickCustomer()">×</button>
+    </header>
+
+    <div class="so-modal-body">
+      <div class="so-form-grid">
+        <label>
+          <span>Tên khách hàng *</span>
+          <input
+            type="text"
+            maxlength="255"
+            placeholder="Nhập tên khách hàng"
+            [ngModel]="quickCustomerForm().name"
+            (ngModelChange)="setQuickCustomerField('name', $event)"
+          />
+        </label>
+        <label>
+          <span>Số điện thoại *</span>
+          <input
+            type="tel"
+            maxlength="11"
+            inputmode="numeric"
+            placeholder="Ví dụ: 0912345678"
+            [ngModel]="quickCustomerForm().phone"
+            (ngModelChange)="setQuickCustomerField('phone', $event)"
+          />
+        </label>
+        <label>
+          <span>Mã khách hàng</span>
+          <input
+            class="so-readonly-input"
+            type="text"
+            [value]="quickCustomerCode()"
+            readonly
+            placeholder="Tự sinh từ số điện thoại"
+          />
+        </label>
+        <label>
+          <span>Loại khách hàng</span>
+          <app-filter-select
+            [clearable]="false"
+            [options]="quickCustomerTypeOptions"
+            [value]="quickCustomerForm().customerType"
+            (valueChange)="setQuickCustomerField('customerType', $event)"
+          ></app-filter-select>
+        </label>
+        <label class="so-span-2">
+          <span>Địa chỉ *</span>
+          <input
+            type="text"
+            maxlength="500"
+            placeholder="Nhập địa chỉ giao hàng"
+            [ngModel]="quickCustomerForm().address"
+            (ngModelChange)="setQuickCustomerField('address', $event)"
+          />
+        </label>
+      </div>
+    </div>
+
+    <footer class="so-modal-actions">
+      <button
+        class="so-btn so-btn-secondary"
+        type="button"
+        [disabled]="savingQuickCustomer()"
+        (click)="closeQuickCustomer()"
+      >
+        Hủy
+      </button>
+      <button
+        class="so-btn so-btn-primary"
+        type="button"
+        [disabled]="savingQuickCustomer()"
+        (click)="saveQuickCustomer()"
+      >
+        @if (savingQuickCustomer()) { <span class="so-loader small"></span> Đang thêm... }
+        @else { Thêm và chọn }
       </button>
     </footer>
   </section>

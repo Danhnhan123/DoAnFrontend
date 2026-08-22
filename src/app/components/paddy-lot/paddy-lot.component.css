@@ -805,6 +805,28 @@ td small {
   line-height: 1.45;
 }
 
+.timeline-icon.feedback {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.timeline-icon.customer-return {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.trace-feedback-record {
+  border-color: #bfdbfe;
+  color: #1e3a8a;
+  background: #eff6ff;
+}
+
+.trace-return-record {
+  border-color: #bbf7d0;
+  color: #14532d;
+  background: #f0fdf4;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

@@ -471,93 +471,6 @@
           </label>
         </div>
 
-        @if (!createForm().id) {
-          <section class="subsection">
-            <div class="subsection-heading">
-              <div>
-                <h3>Phân bổ lô/cột đầu vào</h3>
-                <p>
-                  Có thể giữ lúa ngay hoặc để trống và thực hiện sau khi tạo lệnh Nháp.
-                </p>
-              </div>
-              <button [appHasPerm]="'MILLING_ORDERS:CREATE'"
-                class="small-add-btn"
-                type="button"
-                [disabled]="!createForm().warehouseId"
-                (click)="addCreateAllocation()"
-              >
-                ＋ Thêm lô
-              </button>
-            </div>
-
-            @if (createForm().allocations.length) {
-              <div class="allocation-summary">
-                <span>Cần giữ: <strong>{{ fmtWeight(createComputedPaddyKg()) }}</strong></span>
-                <span>Đã phân bổ: <strong>{{ fmtWeight(createAllocatedKg()) }}</strong></span>
-                <span
-                  [class.balance-ok]="allocationIsEnough(createComputedPaddyKg(), createAllocatedKg())"
-                >
-                  {{ allocationBalanceLabel(createComputedPaddyKg(), createAllocatedKg()) }}:
-                  <strong>{{ fmtWeight(allocationBalanceKg(createComputedPaddyKg(), createAllocatedKg())) }}</strong>
-                </span>
-              </div>
-
-              <div class="line-list">
-                @for (
-                  line of createForm().allocations;
-                  track line.key;
-                  let i = $index
-                ) {
-                  <div class="allocation-line">
-                    <label>
-                      <span>Lô lúa</span>
-                      <app-filter-select
-                        [clearable]="false"
-                        placeholder="Chọn lô đủ điều kiện"
-                        [options]="lotSelectOptions(createForm().warehouseId)"
-                        [value]="line.paddyLotId"
-                        (valueChange)="setCreateAllocation(i, 'paddyLotId', $event)"
-                      ></app-filter-select>
-                    </label>
-                    <label>
-                      <span>Vị trí/cột</span>
-                      <app-filter-select
-                        [clearable]="false"
-                        [disabled]="!line.paddyLotId"
-                        placeholder="Chọn cột đang chứa lô"
-                        [options]="inventoryLocationSelectOptions(line.paddyLotId, createForm().warehouseId)"
-                        [value]="line.locationId"
-                        (valueChange)="setCreateAllocation(i, 'locationId', $event)"
-                      ></app-filter-select>
-                    </label>
-                    <label>
-                      <span>Khối lượng giữ (kg)</span>
-                      <input
-                        type="number"
-                        min="0.001"
-                        step="0.001"
-                        [ngModel]="line.consumedWeightKg"
-                        (ngModelChange)="setCreateAllocation(i, 'consumedWeightKg', $event)"
-                      />
-                    </label>
-                    <button
-                      class="remove-line"
-                      type="button"
-                      title="Xóa dòng"
-                      (click)="removeCreateAllocation(i)"
-                    >
-                      ×
-                    </button>
-                  </div>
-                }
-              </div>
-            } @else {
-              <div class="empty-inline">
-                Chưa phân bổ lô. Lệnh sẽ được lưu ở trạng thái Nháp.
-              </div>
-            }
-          </section>
-        }
       </div>
 
       <footer class="modal-footer">
@@ -940,27 +853,26 @@
 
               <label>
                 <span>Mã máy xay</span>
-                <input
-                  type="text"
-                  placeholder="VD: MAY-XAY-01"
-                  [ngModel]="completeForm().machineRef"
-                  (ngModelChange)="setCompleteField('machineRef', $event)"
-                />
+                <app-filter-select
+                  [clearable]="false"
+                  placeholder="Chọn máy xay"
+                  [options]="machineSelectOptions"
+                  [value]="completeForm().machineRef"
+                  (valueChange)="setCompleteField('machineRef', $event)"
+                ></app-filter-select>
               </label>
 
               <label>
                 <span>Người vận hành</span>
-                <select
-                  [ngModel]="completeForm().operatorId"
-                  (ngModelChange)="setCompleteField('operatorId', $event)"
-                >
-                  <option [ngValue]="null">Chọn người vận hành</option>
-                  @for (user of operatorOptions(); track user.id) {
-                    <option [ngValue]="user.id">
-                      {{ user.lastName }} {{ user.firstName }}
-                    </option>
-                  }
-                </select>
+                <app-filter-select
+                  [clearable]="false"
+                  [searchable]="true"
+                  placeholder="Chọn nhân viên xay"
+                  searchPlaceholder="Tìm nhân viên xay..."
+                  [options]="operatorSelectOptions()"
+                  [value]="completeForm().operatorId"
+                  (valueChange)="setCompleteField('operatorId', $event)"
+                ></app-filter-select>
               </label>
 
               <label>

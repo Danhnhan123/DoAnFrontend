@@ -754,31 +754,6 @@ label b {
   line-height: 1.35;
 }
 
-.subsection {
-  padding-top: 18px;
-  margin-top: 20px;
-  border-top: 1px solid #e0e8e3;
-}
-
-.subsection-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 13px;
-}
-
-.subsection-heading h3 {
-  margin-bottom: 3px;
-  font-size: 14px;
-}
-
-.subsection-heading p {
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.45;
-}
-
 .small-add-btn {
   min-height: 34px;
   padding: 0 11px;
@@ -856,16 +831,6 @@ label b {
   color: #b42318;
   background: #fff8f7;
   font-size: 18px;
-}
-
-.empty-inline {
-  padding: 13px;
-  border: 1px dashed #cfdcd4;
-  border-radius: 10px;
-  color: #78867e;
-  background: #f8faf8;
-  font-size: 12px;
-  text-align: center;
 }
 
 .notice,
@@ -1126,7 +1091,7 @@ label b {
   font-size: 13px;
 }
 
-.detail-section > p:not(.empty-inline) {
+.detail-section > p {
   color: #5f6f66;
   font-size: 12px;
   line-height: 1.6;
@@ -1268,10 +1233,6 @@ label b {
   .allocation-line .remove-line,
   .output-fields .wide-field {
     grid-column: auto;
-  }
-
-  .subsection-heading {
-    flex-direction: column;
   }
 
   .add-output-menu {

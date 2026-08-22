@@ -170,6 +170,11 @@ export interface MillingWarehouseOption {
   isActive?: boolean;
 }
 
+export interface MillingOperatorOption {
+  id: number;
+  name: string;
+}
+
 export interface MillingLocationOption {
   id: number;
   warehouseId: number;

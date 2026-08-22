@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import {
   injectQuery,
   injectQueryClient,
@@ -97,6 +97,7 @@ export class CustomerReturnComponent implements OnDestroy {
   private readonly statusService = inject(CustomerReturnOrderStatusService);
   private readonly queryClient = injectQueryClient();
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly status = CUSTOMER_RETURN_STATUS;
   readonly pageSize = 10;
@@ -123,8 +124,10 @@ export class CustomerReturnComponent implements OnDestroy {
 
   constructor() {
     const params = this.route.snapshot.queryParamMap;
+    const returnOrderId = Number(params.get("returnOrderId"));
     const outboundId = Number(params.get("outboundId"));
     const feedbackId = Number(params.get("feedbackId"));
+    if (returnOrderId > 0) this.selectedId.set(returnOrderId);
     if (outboundId > 0 && feedbackId > 0) {
       this.form.update(form => ({ ...form, customerFeedbackId: feedbackId, returnReason: params.get("reason") || "" }));
       this.showCreateModal.set(true);
@@ -366,6 +369,12 @@ export class CustomerReturnComponent implements OnDestroy {
 
   selectReturn(id: number): void {
     this.selectedId.set(id);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { returnOrderId: id },
+      queryParamsHandling: "merge",
+      replaceUrl: true,
+    });
     this.inspectionOpen.set(false);
     this.receiveOpen.set(false);
   }
@@ -1022,6 +1031,25 @@ export class CustomerReturnComponent implements OnDestroy {
 
   sourceCode(row: CustomerReturnRow | CustomerReturnDetail): string {
     return row.salesOrderCode || row.outboundOrderCode || "Đơn xuất gốc";
+  }
+
+  openSourceOutbound(current: CustomerReturnDetail): void {
+    if (!current.outboundOrderId) return;
+    this.router.navigate(["/admin/outbound-orders"], {
+      queryParams: { outboundOrderId: current.outboundOrderId },
+    });
+  }
+
+  openSourceSalesOrder(current: CustomerReturnDetail): void {
+    if (!current.salesOrderId) return;
+    this.router.navigate(["/admin/sales-orders"], {
+      queryParams: { salesOrderId: current.salesOrderId },
+    });
+  }
+
+  openTrace(lotId: number | null | undefined): void {
+    if (!lotId || lotId <= 0) return;
+    this.router.navigate(["/admin/paddy-lots"], { queryParams: { lotId } });
   }
 
   statusClass(code: string): string {

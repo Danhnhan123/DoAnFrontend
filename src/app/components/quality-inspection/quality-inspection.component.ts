@@ -1035,6 +1035,8 @@ export class QualityInspectionComponent {
     if (!lot) return null;
 
     const currentParentWeight = this.lotBasisWeight(lot) ?? 0;
+    if (this.isOutboundException(row)) return currentParentWeight;
+
     const affectedWeight = Math.max(0, Number(row.affectedWeightKg ?? 0));
     if (affectedWeight <= 0) return currentParentWeight;
 
@@ -1078,6 +1080,14 @@ export class QualityInspectionComponent {
     return !!row?.inspectionType;
   }
 
+  isOutboundException(row: QualityInspectionRow | null | undefined): boolean {
+    return (row?.inspectionType ?? '').toUpperCase() === 'OUTBOUND_EXCEPTION';
+  }
+
+  targetedBagCountText(row: QualityInspectionRow): string {
+    return row.targetedBagCount != null ? `${row.targetedBagCount} bao` : 'Bao được báo lỗi';
+  }
+
   /** Mức độ: {label, cls} — Cao/Trung bình/Thấp. */
   severity(row: QualityInspectionRow): { label: string; cls: string } {
     if (this.isDraft(row)) return { label: 'Chờ kiểm định', cls: 'lvl-mid' };
@@ -1114,18 +1124,21 @@ export class QualityInspectionComponent {
   scopeText(row: QualityInspectionRow): string {
     if (row.displayRole === 'splitPassed') return 'Phần đạt sau tách';
     if (row.displayRole === 'splitQuarantine') return 'Phần cách ly đã tách';
+    if (this.isOutboundException(row)) return this.targetedBagCountText(row);
     if (row.passedInspection) return '—';
     return (row.affectedWeightKg ?? 0) > 0 ? 'Tách một phần' : 'Toàn bộ lô';
   }
   /** Cột "SỐ LƯỢNG": kg bị ảnh hưởng nếu tách, ngược lại tồn còn lại của lô. */
   affectedMain(row: QualityInspectionRow): string {
     if (row.displayWeightKg != null) return this.fmtKg(row.displayWeightKg);
+    if (this.isOutboundException(row)) return this.fmtKg(row.targetedWeightKg);
     if ((row.affectedWeightKg ?? 0) > 0) return this.fmtKg(row.affectedWeightKg);
     return this.fmtKg(this.lotWeightKg(row));
   }
   affectedSub(row: QualityInspectionRow): string {
     if (row.displayRole)
       return `Tách • tổng lô ${this.fmtKg(this.lotWeightKg(row))}`;
+    if (this.isOutboundException(row)) return `${this.targetedBagCountText(row)} cần kiểm`;
     if ((row.affectedWeightKg ?? 0) > 0)
       return `Tách • tổng lô ${this.fmtKg(this.lotWeightKg(row))}`;
     return row.passedInspection ? 'Toàn lô' : 'Toàn bộ lô';

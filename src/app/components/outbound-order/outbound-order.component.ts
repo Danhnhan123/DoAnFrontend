@@ -16,6 +16,7 @@ import {
   AllocateOutboundPayload,
   ApiResponse,
   CompleteDeliveryResult,
+  CustomerFeedbackSummary,
   DebtDocumentRow,
   DTResponse,
   InventoryRow,
@@ -30,6 +31,8 @@ import {
   PickOutboundPayload,
   SalesOrderDetail,
 } from '../../models';
+import { FEEDBACK_STATUSES, FEEDBACK_TYPES } from '../../models/customer-feedback';
+import { CustomerFeedbackService } from '../../services/customer-feedback.service';
 import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
 import { SalesOrderService } from '../../services/sales-order.service';
@@ -126,6 +129,14 @@ interface PickLocationCard {
   pickedSplitKg: number | null;
 }
 
+interface FeedbackForm {
+  outboundOrderItemId: number | null;
+  paddyLotBagAllocationId: number | null;
+  feedbackType: string;
+  severity: string;
+  description: string;
+}
+
 /** Bước pipeline (chỉ hiển thị) — khớp thiết kế Figma "Xuất kho / Giao hàng". */
 const PIPELINE_STEPS = [
   'Đơn bán',
@@ -150,6 +161,7 @@ export class OutboundOrderComponent implements OnDestroy {
   private readonly inventoryService = inject(InventoryService);
   private readonly salesOrderService = inject(SalesOrderService);
   private readonly partyDebtService = inject(PartyDebtService);
+  private readonly feedbackService = inject(CustomerFeedbackService);
   private readonly queryClient = injectQueryClient();
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -225,6 +237,18 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly packingQr = signal('');
   readonly packingActualKg = signal<number | null>(null);
 
+  // Phản hồi khách hàng và truy vết lô ngay trong chi tiết phiếu xuất.
+  readonly showFeedbackModal = signal(false);
+  readonly savingFeedback = signal(false);
+  readonly feedbackTypes = FEEDBACK_TYPES;
+  readonly feedbackForm = signal<FeedbackForm>({
+    outboundOrderItemId: null,
+    paddyLotBagAllocationId: null,
+    feedbackType: 'QUALITY',
+    severity: 'MEDIUM',
+    description: '',
+  });
+
   private searchTimer?: ReturnType<typeof setTimeout>;
 
   private readonly listQuery = injectQuery(() => ({
@@ -293,6 +317,14 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly fetching = computed(() => this.listQuery.isFetching());
   readonly detailLoading = computed(() => this.detailQuery.isFetching());
   readonly detail = computed(() => this.detailQuery.data() || null);
+  readonly feedbackBagOptions = computed(() => {
+    const order = this.detail();
+    const itemId = this.feedbackForm().outboundOrderItemId;
+    if (!order || itemId == null) return [];
+    return order.bagAllocations.filter(
+      (bag) => bag.outboundOrderItemId == null || bag.outboundOrderItemId === itemId
+    );
+  });
 
   readonly pageDeliveringCount = computed(
     () =>
@@ -352,7 +384,8 @@ export class OutboundOrderComponent implements OnDestroy {
     () =>
       this.allocateMutation.isPending() ||
       this.pickMutation.isPending() ||
-      this.actionMutation.isPending()
+      this.actionMutation.isPending() ||
+      this.savingFeedback()
   );
 
   private readonly selectVisibleRow = effect(() => {
@@ -515,6 +548,155 @@ export class OutboundOrderComponent implements OnDestroy {
     this.router.navigate(['/admin/sales-orders'], {
       queryParams: { salesOrderId: order.salesOrderId },
     });
+  }
+
+  openFeedback(order: OutboundOrderDetail): void {
+    if (!this.isStatus(order, OUTBOUND_STATUS_CODE.COMPLETED)) return;
+    this.feedbackForm.set({
+      outboundOrderItemId: order.items[0]?.id ?? null,
+      paddyLotBagAllocationId: null,
+      feedbackType: 'QUALITY',
+      severity: 'MEDIUM',
+      description: '',
+    });
+    this.showFeedbackModal.set(true);
+  }
+
+  closeFeedback(): void {
+    if (!this.savingFeedback()) this.showFeedbackModal.set(false);
+  }
+
+  setFeedbackItem(value: string | number | null): void {
+    this.feedbackForm.update((form) => ({
+      ...form,
+      outboundOrderItemId: Number(value) || null,
+      paddyLotBagAllocationId: null,
+    }));
+  }
+
+  setFeedbackField<K extends keyof FeedbackForm>(key: K, value: FeedbackForm[K]): void {
+    this.feedbackForm.update((form) => ({ ...form, [key]: value }));
+  }
+
+  async createFeedback(): Promise<void> {
+    const order = this.detail();
+    const form = this.feedbackForm();
+    const item = order?.items.find((candidate) => candidate.id === form.outboundOrderItemId);
+    if (!order || !item || !form.description.trim() || this.savingFeedback()) {
+      if (!form.description.trim()) this.alert('Vui lòng nhập nội dung phản hồi.', false);
+      return;
+    }
+
+    this.savingFeedback.set(true);
+    try {
+      const response = await lastValueFrom(this.feedbackService.create({
+        salesOrderId: order.salesOrderId,
+        outboundOrderId: order.id,
+        outboundOrderItemId: item.id,
+        productVariantId: item.productVariantId,
+        paddyLotBagAllocationId: form.paddyLotBagAllocationId,
+        feedbackType: form.feedbackType,
+        severity: form.severity,
+        description: form.description.trim(),
+      }));
+      this.unwrap(response, 'Không thể tạo phản hồi khách hàng.');
+      this.showFeedbackModal.set(false);
+      this.refreshAfterWrite();
+      this.alert('Đã ghi nhận phản hồi trên phiếu xuất.');
+    } catch (error: unknown) {
+      this.alert(this.errorText(error), false);
+    } finally {
+      this.savingFeedback.set(false);
+    }
+  }
+
+  async updateFeedback(feedback: CustomerFeedbackSummary): Promise<void> {
+    const result = await Swal.fire({
+      title: 'Cập nhật xử lý phản hồi',
+      html: `
+        <select id="feedback-status" class="swal2-select" style="display:block;width:80%;margin:1rem auto">
+          ${FEEDBACK_STATUSES.map((status) => `<option value="${status}" ${status === feedback.resolutionStatus ? 'selected' : ''}>${status}</option>`).join('')}
+        </select>
+        <textarea id="feedback-note" class="swal2-textarea" placeholder="Ghi chú xử lý"></textarea>`,
+      showCancelButton: true,
+      confirmButtonText: 'Lưu xử lý',
+      cancelButtonText: 'Đóng',
+      confirmButtonColor: '#16a34a',
+      didOpen: () => {
+        const note = document.getElementById('feedback-note') as HTMLTextAreaElement | null;
+        if (note) note.value = feedback.resolutionNote || '';
+      },
+      preConfirm: () => ({
+        status: (document.getElementById('feedback-status') as HTMLSelectElement)?.value,
+        note: (document.getElementById('feedback-note') as HTMLTextAreaElement)?.value?.trim(),
+      }),
+    });
+    if (!result.isConfirmed || !result.value?.status) return;
+
+    this.savingFeedback.set(true);
+    try {
+      const response = await lastValueFrom(
+        this.feedbackService.resolve(feedback.id, result.value.status, result.value.note)
+      );
+      this.unwrap(response, 'Không thể cập nhật phản hồi.');
+      this.refreshAfterWrite();
+      this.alert('Đã cập nhật trạng thái phản hồi.');
+    } catch (error: unknown) {
+      this.alert(this.errorText(error), false);
+    } finally {
+      this.savingFeedback.set(false);
+    }
+  }
+
+  createReturnFromFeedback(feedback: CustomerFeedbackSummary): void {
+    if (feedback.customerReturnOrderId) {
+      this.router.navigate(['/admin/customer-returns'], {
+        queryParams: { returnOrderId: feedback.customerReturnOrderId },
+      });
+      return;
+    }
+    this.router.navigate(['/admin/customer-returns'], {
+      queryParams: {
+        feedbackId: feedback.id,
+        outboundId: feedback.outboundOrderId,
+        reason: feedback.description,
+      },
+    });
+  }
+
+  openTrace(lotId: number | null | undefined): void {
+    if (!lotId || lotId <= 0) return;
+    this.router.navigate(['/admin/paddy-lots'], { queryParams: { lotId } });
+  }
+
+  async traceFeedback(feedback: CustomerFeedbackSummary): Promise<void> {
+    if (feedback.paddyLotId) {
+      this.openTrace(feedback.paddyLotId);
+      return;
+    }
+    const item = this.detail()?.items.find((candidate) => candidate.id === feedback.outboundOrderItemId);
+    const lotIds = [...new Set(
+      (item?.allocations || [])
+        .map((allocation) => allocation.paddyLotId)
+        .filter((id): id is number => !!id)
+    )];
+    if (lotIds.length === 1) {
+      this.openTrace(lotIds[0]);
+      return;
+    }
+    if (!lotIds.length) {
+      this.alert('Phản hồi này chưa gắn với lô hàng để truy vết.', false);
+      return;
+    }
+    const selected = await Swal.fire({
+      title: 'Chọn lô cần truy vết',
+      input: 'select',
+      inputOptions: Object.fromEntries(lotIds.map((id) => [id, `Lô #${id}`])),
+      showCancelButton: true,
+      confirmButtonText: 'Mở truy vết',
+      cancelButtonText: 'Đóng',
+    });
+    if (selected.isConfirmed) this.openTrace(Number(selected.value));
   }
 
   // ── Allocate ───────────────────────────────────────────────────────
@@ -1708,6 +1890,11 @@ export class OutboundOrderComponent implements OnDestroy {
       (sum, item) => sum + Math.max(0, Number(item.quantityOrdered || 0) - this.itemAllocatedKg(item)),
       0
     );
+  }
+
+  shouldShowAllocationShortfallWarning(order: OutboundOrderDetail): boolean {
+    return this.isStatus(order, OUTBOUND_STATUS_CODE.PICKING) &&
+      this.currentShortfallKg(order) > 0.001;
   }
 
   isPickedEnough(order: OutboundOrderDetail): boolean {

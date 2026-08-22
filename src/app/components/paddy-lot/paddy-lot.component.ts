@@ -1,7 +1,7 @@
 import { CommonModule } from "@angular/common";
 import { Component, OnDestroy, computed, inject, signal } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { RouterLink } from "@angular/router";
+import { ActivatedRoute, Router, RouterLink } from "@angular/router";
 import {
   keepPreviousData,
   QueryClient,
@@ -43,6 +43,8 @@ export class PaddyLotComponent implements OnDestroy {
   private readonly warehouseService = inject(WarehouseService);
   private readonly locationService = inject(LocationService);
   private readonly queryClient = inject(QueryClient);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly pageSize = 10;
   readonly tracePageSize = 5;
@@ -54,11 +56,19 @@ export class PaddyLotComponent implements OnDestroy {
   readonly lotType = signal<string | null>(null);
   readonly warehouseId = signal<number | null>(null);
   readonly statusId = signal<number | null>(null);
-  readonly selectedLotId = signal<number | null>(null);
+  readonly selectedLotId = signal<number | null>(this.numberParam("lotId"));
   readonly sortField = signal("createdDate");
   readonly sortDir = signal<"asc" | "desc">("desc");
 
   private searchTimer?: ReturnType<typeof setTimeout>;
+  private readonly queryParamSubscription = this.route.queryParamMap.subscribe((params) => {
+    const value = Number(params.get("lotId"));
+    const lotId = Number.isInteger(value) && value > 0 ? value : null;
+    if (lotId !== this.selectedLotId()) {
+      this.selectedLotId.set(lotId);
+      this.tracePage.set(1);
+    }
+  });
 
   readonly lotTypes = [
     { value: "PADDY", label: "Lúa" },
@@ -328,6 +338,7 @@ export class PaddyLotComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.queryParamSubscription.unsubscribe();
   }
 
   onSearch(value: string): void {
@@ -336,7 +347,7 @@ export class PaddyLotComponent implements OnDestroy {
     this.searchTimer = setTimeout(() => {
       this.page.set(1);
       this.pageInput.set("");
-      this.selectedLotId.set(null);
+      this.clearLotSelection();
       this.tracePage.set(1);
       this.search.set(value.trim());
     }, 350);
@@ -360,13 +371,19 @@ export class PaddyLotComponent implements OnDestroy {
   selectLot(id: number): void {
     this.selectedLotId.set(id);
     this.tracePage.set(1);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { lotId: id },
+      queryParamsHandling: "merge",
+      replaceUrl: true,
+    });
   }
 
   setPage(page: number): void {
     if (page < 1 || page > this.totalPages() || page === this.page()) return;
     this.page.set(page);
     this.pageInput.set("");
-    this.selectedLotId.set(null);
+    this.clearLotSelection();
     this.tracePage.set(1);
   }
 
@@ -485,6 +502,8 @@ export class PaddyLotComponent implements OnDestroy {
 
   traceEventClass(eventType: string): string {
     const type = (eventType || "").toUpperCase();
+    if (type.includes("RETURN")) return "customer-return";
+    if (type.includes("FEEDBACK")) return "feedback";
     if (type.includes("QUALITY")) return "quality";
     if (type.includes("MILLING")) return "milling";
     if (type.includes("OUTBOUND")) return "outbound";
@@ -493,6 +512,8 @@ export class PaddyLotComponent implements OnDestroy {
 
   traceEventGlyph(eventType: string): string {
     const type = (eventType || "").toUpperCase();
+    if (type.includes("RETURN")) return "↩";
+    if (type.includes("FEEDBACK")) return "!";
     if (type.includes("QUALITY")) return "✓";
     if (type.includes("MILLING")) return "⌁";
     if (type.includes("OUTBOUND")) return "↗";
@@ -627,8 +648,25 @@ export class PaddyLotComponent implements OnDestroy {
   private resetPageAndSelection(): void {
     this.page.set(1);
     this.pageInput.set("");
-    this.selectedLotId.set(null);
+    this.clearLotSelection();
     this.tracePage.set(1);
+  }
+
+  private clearLotSelection(): void {
+    this.selectedLotId.set(null);
+    if (this.route.snapshot.queryParamMap.has("lotId")) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { lotId: null },
+        queryParamsHandling: "merge",
+        replaceUrl: true,
+      });
+    }
+  }
+
+  private numberParam(name: string): number | null {
+    const value = Number(this.route.snapshot.queryParamMap.get(name));
+    return Number.isInteger(value) && value > 0 ? value : null;
   }
 
   private isAttentionLot(row: PaddyLotRow): boolean {

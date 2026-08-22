@@ -328,7 +328,7 @@
               </span>
             </div>
           </div>
-          <div class="ob-card-warning" *ngIf="currentShortfallKg(d) > 0.001">
+          <div class="ob-card-warning" *ngIf="shouldShowAllocationShortfallWarning(d)">
             Thiếu {{ fmtKg(currentShortfallKg(d)) }} do allocation bị QC loại. Chỉ được chọn bao thay thế cho phần thiếu này.
           </div>
         </div>
@@ -343,17 +343,41 @@
             <span>{{ bag.locationCode || '—' }}</span>
             <span>Phân bổ {{ fmtKg(bag.allocatedWeightKg) }} · Đã lấy {{ fmtKg(bag.pickedWeightKg) }}</span>
             <strong>{{ bag.status }} / {{ bag.bagStatus || '—' }}</strong>
+            <button type="button" class="btn ghost compact" (click)="openTrace(bag.lotId)">Truy vết</button>
           </div>
           <div class="ob-muted sm ob-noalloc" *ngIf="!d.bagAllocations.length">Chưa có lịch sử bao vật lý.</div>
         </div>
 
-        <div class="ob-items">
-          <div class="ob-items-title">Phản hồi ({{ d.feedbackCount }})</div>
-          <div class="ob-alloc-row" *ngFor="let feedback of d.feedbacks">
-            <span class="ob-tag">{{ feedback.feedbackType }}</span>
-            <span>{{ feedback.description }}</span>
-            <strong>{{ feedback.resolutionStatus }}</strong>
+        <div class="ob-items ob-feedback-section">
+          <div class="ob-items-heading">
+            <div class="ob-items-title">Phản hồi khách hàng ({{ d.feedbackCount }})</div>
+            <button type="button" class="btn primary compact"
+              *ngIf="d.outboundStatusCode === statusCode.COMPLETED"
+              [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openFeedback(d)">
+              + Ghi nhận phản hồi
+            </button>
           </div>
+          <article class="ob-feedback-card" *ngFor="let feedback of d.feedbacks">
+            <div class="ob-feedback-main">
+              <div class="ob-feedback-meta">
+                <span class="ob-tag">{{ feedback.feedbackType }}</span>
+                <span class="ob-feedback-status">{{ feedback.resolutionStatus }}</span>
+                <span *ngIf="feedback.severity">Mức độ: {{ feedback.severity }}</span>
+                <span *ngIf="feedback.bagNo">Bao #{{ feedback.bagNo }} · {{ feedback.paddyLotCode || ('Lô #' + feedback.paddyLotId) }}</span>
+              </div>
+              <strong>{{ feedback.productVariantName || 'Phản hồi chung' }}</strong>
+              <p>{{ feedback.description }}</p>
+              <small *ngIf="feedback.resolutionNote">Xử lý: {{ feedback.resolutionNote }}</small>
+            </div>
+            <div class="ob-feedback-actions">
+              <button type="button" class="btn ghost compact" (click)="traceFeedback(feedback)">Truy vết lô</button>
+              <button type="button" class="btn ghost compact" [disabled]="saving()"
+                [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="updateFeedback(feedback)">Cập nhật xử lý</button>
+              <button type="button" class="btn primary compact" (click)="createReturnFromFeedback(feedback)">
+                {{ feedback.customerReturnOrderId ? ('Xem ' + feedback.customerReturnOrderCode) : 'Tạo phiếu trả' }}
+              </button>
+            </div>
+          </article>
           <div class="ob-muted sm ob-noalloc" *ngIf="!d.feedbacks.length">Chưa có phản hồi liên quan.</div>
         </div>
 
@@ -630,6 +654,68 @@
   </div>
 </div>
 
+<!-- Modal ghi nhận phản hồi trực tiếp từ phiếu xuất đã giao -->
+<div class="ob-modal-backdrop" *ngIf="showFeedbackModal()" (click)="closeFeedback()">
+  <div class="ob-modal ob-feedback-modal" (click)="$event.stopPropagation()">
+    <div class="ob-modal-head">
+      <div>
+        <h3>Ghi nhận phản hồi khách hàng</h3>
+        <p class="ob-muted sm" *ngIf="detail() as order">{{ order.soCode }} · {{ order.customerName }}</p>
+      </div>
+      <button class="ob-x" type="button" (click)="closeFeedback()" aria-label="Đóng">×</button>
+    </div>
+    <div class="ob-modal-body ob-feedback-form" *ngIf="detail() as order">
+      <label class="ob-field">
+        <span>Dòng hàng *</span>
+        <select [ngModel]="feedbackForm().outboundOrderItemId" (ngModelChange)="setFeedbackItem($event)">
+          <option *ngFor="let item of order.items" [ngValue]="item.id">
+            {{ item.productVariantName }} · {{ item.sku || 'Không SKU' }}
+          </option>
+        </select>
+      </label>
+      <label class="ob-field">
+        <span>Bao hàng cụ thể <small class="ob-muted">(không bắt buộc)</small></span>
+        <select [ngModel]="feedbackForm().paddyLotBagAllocationId"
+          (ngModelChange)="setFeedbackField('paddyLotBagAllocationId', $event)">
+          <option [ngValue]="null">— Không gắn bao cụ thể —</option>
+          <option *ngFor="let bag of feedbackBagOptions()" [ngValue]="bag.bagAllocationId">
+            Bao #{{ bag.bagNo }} · {{ bag.lotCode || ('Lô #' + bag.lotId) }} · {{ fmtKg(bag.pickedWeightKg) }}
+          </option>
+        </select>
+      </label>
+      <div class="ob-feedback-form-grid">
+        <label class="ob-field">
+          <span>Loại phản hồi *</span>
+          <select [ngModel]="feedbackForm().feedbackType"
+            (ngModelChange)="setFeedbackField('feedbackType', $event)">
+            <option *ngFor="let type of feedbackTypes" [value]="type">{{ type }}</option>
+          </select>
+        </label>
+        <label class="ob-field">
+          <span>Mức độ</span>
+          <select [ngModel]="feedbackForm().severity"
+            (ngModelChange)="setFeedbackField('severity', $event)">
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
+        </label>
+      </div>
+      <label class="ob-field">
+        <span>Nội dung phản hồi *</span>
+        <textarea rows="4" maxlength="1000" [ngModel]="feedbackForm().description"
+          (ngModelChange)="setFeedbackField('description', $event)"
+          placeholder="Mô tả vấn đề khách hàng phản ánh..."></textarea>
+      </label>
+    </div>
+    <div class="ob-modal-actions">
+      <button type="button" class="btn ghost" (click)="closeFeedback()" [disabled]="savingFeedback()">Đóng</button>
+      <button type="button" class="btn primary" (click)="createFeedback()"
+        [disabled]="savingFeedback() || !feedbackForm().description.trim()">Ghi nhận phản hồi</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════ Modal: Cập nhật lấy hàng (Stack Card UX) ═══════════ -->
 <div class="ob-modal-backdrop" *ngIf="showPickModal()" (click)="closePick()">

@@ -135,8 +135,13 @@
           <div class="d-row"><span>Loại hàng</span><b>{{ productName(sel) }}</b></div>
           <div class="d-row"><span>Vị trí</span><b>{{ locationName(sel) }}</b></div>
           <div class="d-row"><span>Tổng tồn của lô</span><b>{{ fmtKg(lotWeightKg(sel)) }}</b></div>
+          @if (isOutboundException(sel)) {
+          <div class="d-row"><span>Số bao cần kiểm</span><b>{{ targetedBagCountText(sel) }}</b></div>
+          <div class="d-row"><span>Khối lượng cần kiểm</span><b>{{ fmtKg(sel.targetedWeightKg) }}</b></div>
+          } @else {
           <div class="d-row"><span>Số lượng ảnh hưởng</span><b>{{ affectedMain(sel) }}</b></div>
           <div class="d-row"><span>Phạm vi xử lý</span><b>{{ scopeText(sel) }}</b></div>
+          }
           <div class="d-row"><span>Độ ẩm</span><b>{{ sel.moisturePercent != null ? sel.moisturePercent + '%' : '—' }}</b></div>
           <div class="d-row"><span>Tạp chất</span><b>{{ sel.impurityPercent != null ? sel.impurityPercent + '%' : '—' }}</b></div>
           <div class="d-row"><span>Mốc / Sâu mọt</span><b>{{ (sel.moldLevel || '—') }} / {{ (sel.pestLevel || '—') }}</b></div>
@@ -362,8 +367,6 @@
         </div>
         @if (bagProgress()?.isCompleted) {
         <span class="qc-completed-badge">Đã hoàn tất</span>
-        } @else {
-        <span class="qc-modal-badge">Autosave từng bao</span>
         }
       </div>
       <button class="modal-close" type="button" (click)="closeBagModal()">×</button>

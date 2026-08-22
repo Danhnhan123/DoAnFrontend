@@ -27,6 +27,8 @@ export interface QualityInspectionRow {
   note?: string | null;
   /** Kg bị ảnh hưởng — khi Không đạt sẽ tách phần này sang lô cách ly. */
   affectedWeightKg?: number | null;
+  targetedBagCount?: number | null;
+  targetedWeightKg?: number | null;
   createdDate: string;
   lastModifiedDate?: string | null;
   displayRole?: 'splitPassed' | 'splitQuarantine';

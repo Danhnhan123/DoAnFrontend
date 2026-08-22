@@ -383,6 +383,39 @@
                   </div>
                 }
               }
+
+              @for (feedback of traceability()?.customerFeedbacks || []; track feedback.feedbackId) {
+                <div class="trace-warning trace-feedback-record">
+                  <strong>Phản hồi · {{ feedback.feedbackType }} · {{ feedback.resolutionStatus }}</strong>
+                  <div>{{ feedback.description }}</div>
+                  <div>
+                    @if (feedback.bagNo) { Bao #{{ feedback.bagNo }} · }
+                    {{ feedback.paddyLotCode || lot.lotCode }}
+                    @if (feedback.severity) { · Mức độ {{ feedback.severity }} }
+                    · {{ fmtDate(feedback.createdDate, true) }}
+                  </div>
+                  @if (feedback.resolutionNote) {
+                    <div>Xử lý: {{ feedback.resolutionNote }}</div>
+                  }
+                </div>
+              }
+
+              @for (customerReturn of traceability()?.customerReturns || []; track customerReturn.customerReturnOrderId) {
+                <div class="trace-warning trace-return-record">
+                  <strong>Hàng khách trả · {{ customerReturn.returnCode }} · {{ customerReturn.statusCode }}</strong>
+                  <div>{{ customerReturn.returnReason || 'Không ghi lý do' }}</div>
+                  @for (item of customerReturn.items; track item.customerReturnOrderItemId) {
+                    @for (allocation of item.allocations; track allocation.returnAllocationId) {
+                      <div>
+                        {{ allocation.paddyLotCode || lot.lotCode }} · Trả {{ fmtWeight(allocation.quantityReturned) }} ·
+                        Nhập lại {{ fmtWeight(allocation.quantityGood) }} · Cách ly {{ fmtWeight(allocation.quantityDamaged) }} ·
+                        Từ chối {{ fmtWeight(allocation.quantityRejected) }} · {{ allocation.disposition }}
+                      </div>
+                    }
+                  }
+                  <div>Khấu trừ công nợ {{ fmtMoney(customerReturn.debtReductionAmount) }} · Hoàn tiền {{ fmtMoney(customerReturn.refundedAmount) }}</div>
+                </div>
+              }
             }
           } @else {
             <div class="empty-detail">

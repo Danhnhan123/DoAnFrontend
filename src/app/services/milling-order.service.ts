@@ -9,6 +9,7 @@ import {
   CreateMillingOrderPayload,
   DTResponse,
   MillingLocationOption,
+  MillingOperatorOption,
   MillingOrderDetailDto,
   MillingOrderPagedRequest,
   MillingOrderRow,
@@ -41,6 +42,12 @@ export class MillingOrderService {
   getAll(): Observable<ApiResponse<MillingOrderRow[]>> {
     return this.http.get<ApiResponse<MillingOrderRow[]>>(
       `${this.base}/milling-orders`
+    );
+  }
+
+  getOperators(): Observable<ApiResponse<MillingOperatorOption[]>> {
+    return this.http.get<ApiResponse<MillingOperatorOption[]>>(
+      `${this.base}/milling-orders/operators`
     );
   }
 
