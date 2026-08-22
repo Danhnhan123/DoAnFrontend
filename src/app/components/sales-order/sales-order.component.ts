@@ -49,6 +49,7 @@ import {
 
 type ChannelFilter = 'ALL' | SalesOrderChannel;
 type SalesOrderAction = 'CONFIRM' | 'RESERVE' | 'CANCEL';
+type QuickCustomerType = 'Lẻ' | 'Nhà buôn';
 
 /**
  * Trạng thái phiếu xuất được coi là đã kết thúc: không chặn việc tạo phiếu xuất mới
@@ -91,7 +92,7 @@ interface SalesOrderForm {
 interface QuickCustomerForm {
   name: string;
   phone: string;
-  customerType: string;
+  customerType: QuickCustomerType;
   address: string;
 }
 
@@ -134,6 +135,10 @@ export class SalesOrderComponent implements OnDestroy {
     { id: SALES_ORDER_STATUS.DELIVERING, name: 'Đang giao' },
     { id: SALES_ORDER_STATUS.COMPLETED, name: 'Hoàn thành' },
     { id: SALES_ORDER_STATUS.CANCELLED, name: 'Đã hủy' },
+  ];
+  readonly quickCustomerTypeOptions: FilterSelectOption[] = [
+    { id: 'Lẻ', name: 'Lẻ' },
+    { id: 'Nhà buôn', name: 'Nhà buôn' },
   ];
   readonly pageSizeOptions = [10, 20, 50];
 
