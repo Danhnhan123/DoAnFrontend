@@ -387,6 +387,7 @@
 .ob-item-qty .ob-muted { margin: 0; }
 .ob-alloc { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
 .ob-alloc-row { display: flex; align-items: center; gap: 8px; font-size: 0.78rem; }
+.ob-tag.ob-qualityhold-tag { background: #fef3c7; color: #a16207; }
 .ob-bag-group {
   display: inline-flex;
   align-items: center;

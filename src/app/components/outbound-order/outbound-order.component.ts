@@ -109,6 +109,7 @@ interface PickLocationCard {
   bagStatus?: string | null;
   status?: string;
   allocatedWeightKg?: number;
+  bagWeightSnapshotKg?: number;
   pickedWeightKg?: number;
   // Tráº¡ng thÃ¡i hiá»ƒn thá»‹ cá»§a stack-card; má»—i card nay Ã¡nh xáº¡ Ä‘Ãºng 1 bao váº­t lÃ½.
   productVariantName: string;
@@ -339,7 +340,9 @@ export class OutboundOrderComponent implements OnDestroy {
   );
   readonly pickedKg = computed(() =>
     (this.detail()?.items || []).reduce(
-      (sum, i) => sum + Number(i.quantityPicked || 0),
+      (sum, i) => sum + (i.allocations?.length
+        ? i.allocations.reduce((picked, allocation) => picked + Number(allocation.quantityPicked || 0), 0)
+        : Number(i.quantityPicked || 0)),
       0
     )
   );
@@ -961,22 +964,11 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Pick ───────────────────────────────────────────────────────────
   locationPickedKg(card: PickLocationCard): number {
+    if (card.bagAllocationId != null) return Number(card.allocatedWeightKg || 0);
     const openKg = card.hasOpenBag && card.takeOpenBag ? Number(card.openBagPickedKg || 0) : 0;
     const fullKg = (card.pickedFullBagCount || 0) * card.standardWeightKg;
     const splitKg = Number(card.pickedSplitKg || 0);
     return openKg + fullKg + splitKg;
-  }
-
-  pickSplitMaxKg(card: PickLocationCard): number {
-    const openKg =
-      card.hasOpenBag && card.takeOpenBag
-        ? Number(card.openBagPickedKg || 0)
-        : 0;
-    const fullKg = (card.pickedFullBagCount || 0) * card.standardWeightKg;
-    return Math.max(
-      0,
-      Math.min(card.standardWeightKg, card.totalAllocatedKg - openKg - fullKg)
-    );
   }
 
   private inferStandardWeightKg(
@@ -1000,6 +992,8 @@ export class OutboundOrderComponent implements OnDestroy {
 
   openPick(order: OutboundOrderDetail): void {
     if (!this.canPick(order)) return;
+
+    this.showPackingModal.set(false);
 
     // W14-H: BE Ä‘Ã£ chá»‘t chÃ­nh xÃ¡c BagId tá»« Allocate. KhÃ´ng suy diá»…n/ngáº¯t kg
     // tá»« OutboundOrderItemAllocation vÃ¬ cÃ¡ch Ä‘Ã³ sáº½ lÃ m máº¥t physical identity.
@@ -1025,6 +1019,7 @@ export class OutboundOrderComponent implements OnDestroy {
           bagStatus: bag.bagStatus ?? null,
           status: bag.status,
           allocatedWeightKg: Number(bag.allocatedWeightKg || 0),
+          bagWeightSnapshotKg: Number(bag.bagWeightSnapshotKg || bag.allocatedWeightKg || 0),
           pickedWeightKg: Number(bag.pickedWeightKg || 0),
           productVariantName: `Bao #${bag.bagNo}`,
           standardWeightKg: Number(bag.allocatedWeightKg || 0),
@@ -1034,10 +1029,25 @@ export class OutboundOrderComponent implements OnDestroy {
           openBagWeightKg: !bag.isFull ? Number(bag.allocatedWeightKg || 0) : 0,
           allocatedFullBagCount: bag.isFull ? 1 : 0,
           allocatedSplitKg: 0,
-          takeOpenBag: !bag.isFull && Number(bag.pickedWeightKg || 0) > 0,
-          openBagPickedKg: !bag.isFull ? Number(bag.pickedWeightKg || 0) : null,
-          pickedFullBagCount: bag.isFull && Number(bag.pickedWeightKg || 0) > 0 ? 1 : 0,
-          pickedSplitKg: null,
+          // Start from the allocated quantity: picking confirms the bags already
+          // reserved by allocation unless the user intentionally adjusts it.
+          takeOpenBag: !bag.isFull,
+          openBagPickedKg: !bag.isFull
+            ? (Number(bag.pickedWeightKg || 0) > 0
+              ? Number(bag.pickedWeightKg || 0)
+              : Number(bag.allocatedWeightKg || 0))
+            : null,
+          pickedFullBagCount: bag.isFull
+            ? (Number(bag.pickedWeightKg || 0) <= 0.001 ||
+              Number(bag.pickedWeightKg || 0) + 0.001 >= Number(bag.allocatedWeightKg || 0)
+              ? 1
+              : 0)
+            : 0,
+          pickedSplitKg: bag.isFull &&
+            Number(bag.pickedWeightKg || 0) > 0 &&
+            Number(bag.pickedWeightKg || 0) + 0.001 < Number(bag.allocatedWeightKg || 0)
+            ? Number(bag.pickedWeightKg || 0)
+            : null,
         }));
 
       if (!physicalCards.length) {
@@ -1164,109 +1174,6 @@ export class OutboundOrderComponent implements OnDestroy {
     this.pickForm.set([]);
   }
 
-  private fullPickRows(rows: PickLocationCard[]): PickLocationCard[] {
-    return rows.map((r) => ({
-      ...r,
-      takeOpenBag: r.hasOpenBag,
-      openBagPickedKg: r.hasOpenBag ? r.openBagWeightKg : null,
-      pickedFullBagCount: r.allocatedFullBagCount,
-      pickedSplitKg: r.allocatedSplitKg > 0 ? r.allocatedSplitKg : null,
-    }));
-  }
-
-  fillAllPick100(): void {
-    this.pickForm.update((rows) => this.fullPickRows(rows));
-  }
-
-  confirmPick100(): void {
-    if (this.saving()) return;
-    this.fillAllPick100();
-  }
-
-  togglePickOpenBag(index: number): void {
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const willTake = !r.takeOpenBag;
-        return {
-          ...r,
-          takeOpenBag: willTake,
-          openBagPickedKg: willTake ? r.openBagWeightKg : null,
-        };
-      })
-    );
-  }
-
-  setPickOpenBagKg(index: number, value: unknown): void {
-    const num = value === '' || value == null ? null : Math.max(0, Number(value));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const validNum = num == null ? null : Math.min(num, r.openBagWeightKg);
-        const isAll = validNum != null && Math.abs(validNum - r.openBagWeightKg) < 0.001;
-        const draft = {
-          ...r,
-          openBagPickedKg: validNum,
-          takeOpenBag: isAll || (validNum != null && validNum > 0),
-        };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const splitKg = Number(r.pickedSplitKg || 0);
-        return {
-          ...r,
-          openBagPickedKg: validNum,
-          takeOpenBag: isAll || (validNum != null && validNum > 0),
-          pickedSplitKg:
-            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
-        };
-      })
-    );
-  }
-
-  setPickFullBagCount(index: number, value: unknown): void {
-    const count = value === '' || value == null ? 0 : Math.max(0, Math.floor(Number(value)));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const validCount = Math.min(count, r.allocatedFullBagCount);
-        const draft = { ...r, pickedFullBagCount: validCount };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const splitKg = Number(r.pickedSplitKg || 0);
-        return {
-          ...r,
-          pickedFullBagCount: validCount,
-          pickedSplitKg:
-            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
-        };
-      })
-    );
-  }
-
-  setPickSplitKg(index: number, value: unknown): void {
-    const num = value === '' || value == null ? null : Math.max(0, Number(value));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        let pickedFullBagCount = r.pickedFullBagCount || 0;
-        if (
-          num != null &&
-          num > 0 &&
-          pickedFullBagCount >= r.allocatedFullBagCount &&
-          r.allocatedFullBagCount > 0
-        ) {
-          pickedFullBagCount = r.allocatedFullBagCount - 1;
-        }
-        const draft = { ...r, pickedFullBagCount };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const validNum = num == null ? null : Math.min(num, maxSplit);
-        return {
-          ...r,
-          pickedFullBagCount,
-          pickedSplitKg: validNum != null && validNum > 0 ? validNum : null,
-        };
-      })
-    );
-  }
-
   submitPick(): void {
     const order = this.detail();
     if (!order) return;
@@ -1335,9 +1242,9 @@ export class OutboundOrderComponent implements OnDestroy {
   ): PickOutboundPayload | null {
     for (const r of cards) {
       const picked = this.locationPickedKg(r);
-      if (picked < 0 || picked > r.totalAllocatedKg + 0.001) {
+      if (picked < 0 || Math.abs(picked - r.totalAllocatedKg) > 0.001) {
         this.alert(
-          `Số lượng lấy tại vị trí ${r.locationCode} phải trong khoảng 0 – ${this.fmtKg(r.totalAllocatedKg)}.`,
+          `Picking chỉ xác nhận đúng allocation đã khóa tại vị trí ${r.locationCode}: ${this.fmtKg(r.totalAllocatedKg)}. Nếu bao có vấn đề, hãy báo sự cố chất lượng.`,
           false
         );
         return null;
@@ -1353,7 +1260,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
     const picks = physicalCards.map((card) => ({
       bagAllocationId: card.bagAllocationId!,
-      quantityPicked: this.locationPickedKg(card),
+      quantityPicked: Number(card.allocatedWeightKg || 0),
     }));
 
     return { picks };
@@ -1391,7 +1298,9 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Packing ────────────────────────────────────────────────────────
   openPacking(order: OutboundOrderDetail): void {
-    if (!this.canPack(order) || !this.isPickedEnough(order)) return;
+    if (!this.canPack(order)) return;
+    this.showPickModal.set(false);
+    this.pickForm.set([]);
     this.packingQr.set('');
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
     this.showPackingModal.set(true);
@@ -1404,7 +1313,10 @@ export class OutboundOrderComponent implements OnDestroy {
 
   submitPacking(): void {
     const order = this.detail();
-    if (!order) return;
+    if (!order || !this.canConfirmPacking(order)) {
+      this.alert('Cần đủ allocation và xác nhận lấy đủ trước khi đóng gói.', false);
+      return;
+    }
     const qr = this.packingQr().trim();
     this.actionMutation.mutate({
       id: order.id,
@@ -1756,6 +1668,12 @@ export class OutboundOrderComponent implements OnDestroy {
   canPack(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
   }
+
+  canConfirmPacking(order: OutboundOrderDetail): boolean {
+    return this.canPack(order) &&
+      !this.hasAllocationShortfall(order) &&
+      this.isPickedEnough(order);
+  }
   canDispatch(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.PACKED);
   }
@@ -1772,7 +1690,6 @@ export class OutboundOrderComponent implements OnDestroy {
 
   canForceUnlock(source: OutboundStatusSource): boolean {
     return this.isStatusIn(source, [
-      OUTBOUND_STATUS_CODE.DRAFT,
       OUTBOUND_STATUS_CODE.PICKING,
       OUTBOUND_STATUS_CODE.PACKED,
     ]);
@@ -1782,6 +1699,13 @@ export class OutboundOrderComponent implements OnDestroy {
     const order = source as Partial<OutboundOrderDetail>;
     return Array.isArray(order.items) && order.items.some((item) =>
       this.itemAllocatedKg(item) + 0.001 < Number(item.quantityOrdered || 0)
+    );
+  }
+
+  currentShortfallKg(order: OutboundOrderDetail): number {
+    return order.items.reduce(
+      (sum, item) => sum + Math.max(0, Number(item.quantityOrdered || 0) - this.itemAllocatedKg(item)),
+      0
     );
   }
 

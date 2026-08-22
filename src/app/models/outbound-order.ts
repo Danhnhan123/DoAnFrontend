@@ -106,6 +106,7 @@ export interface OutboundBagAllocation {
   bagId: number;
   bagNo: number;
   allocatedWeightKg: number;
+  bagWeightSnapshotKg: number;
   pickedWeightKg: number;
   lotId: number;
   lotCode?: string | null;
