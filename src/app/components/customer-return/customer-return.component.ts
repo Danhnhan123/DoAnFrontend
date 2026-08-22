@@ -63,6 +63,7 @@ interface ReturnFormState {
 interface InspectionLine {
   itemId: number;
   allocationId: number;
+  productVariantId: number;
   productName: string;
   standardBagWeightKg: number;
   lotCode: string;
@@ -593,21 +594,25 @@ export class CustomerReturnComponent implements OnDestroy {
     this.inspectionLines.set(
       detail.items.flatMap((item) =>
         item.allocations.map((allocation) => {
+          const productVariantId = Number(item.productVariantId || allocation.productVariantId);
           // Ưu tiên: vị trí gốc của lô → vị trí nhập đầu tiên còn chỗ → vị trí đầu tiên
           const originalLoc = restockLocs.find(
-            (loc) => loc.id === allocation.originalLocationId,
+            (loc) => loc.id === allocation.originalLocationId &&
+              this.isRestockLocationCompatible(loc, productVariantId),
           );
           const firstAvailable =
             restockLocs.find(
               (loc) =>
+              this.isRestockLocationCompatible(loc, productVariantId) &&
               (loc.maxCapacity == null ||
                 (loc.currentOccupancy ?? 0) < loc.maxCapacity),
-            ) ?? restockLocs[0];
+            );
           const autoRestockId = (originalLoc ?? firstAvailable)?.id ?? null;
 
           return {
             itemId: item.id,
             allocationId: allocation.id,
+            productVariantId,
             productName: item.productVariantName || item.sku || 'Sản phẩm',
             standardBagWeightKg: Number(item.standardBagWeightKg || 0),
             lotCode: allocation.paddyLotCode,
@@ -991,6 +996,28 @@ export class CustomerReturnComponent implements OnDestroy {
     if (!id) return '';
     const loc = this.locations().find((l) => l.id === id);
     return this.locationLabel(loc);
+  }
+
+  locationSelectionLabel(location: LocationDetailDto | null | undefined): string {
+    if (!location) return '';
+    const position = this.locationLabel(location);
+    if (!location.currentProductVariantId || Number(location.currentOccupancy || 0) <= 0) {
+      return `${position} — Cột rỗng`;
+    }
+    const product = location.currentProductVariantName?.trim() || 'Sản phẩm chưa có tên';
+    const sku = location.currentProductVariantSku?.trim();
+    return `${position} — Đang chứa: ${sku ? sku + ' · ' : ''}${product} (${this.fmtWeight(location.currentOccupancy)})`;
+  }
+
+  locationSelectionLabelById(id: number | null | undefined): string {
+    if (!id) return '';
+    return this.locationSelectionLabel(this.locations().find((location) => location.id === id));
+  }
+
+  isRestockLocationCompatible(location: LocationDetailDto, productVariantId: number): boolean {
+    return !location.currentProductVariantId ||
+      Number(location.currentOccupancy || 0) <= 0 ||
+      location.currentProductVariantId === productVariantId;
   }
 
   sourceCode(row: CustomerReturnRow | CustomerReturnDetail): string {

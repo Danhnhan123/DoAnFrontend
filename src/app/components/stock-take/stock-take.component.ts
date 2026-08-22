@@ -94,6 +94,7 @@ interface CreateForm {
   styleUrl: './stock-take.component.css',
 })
 export class StockTakeComponent implements OnDestroy {
+  private submitInFlight = false;
   private readonly service = inject(StockTakeService);
   private readonly warehouseService = inject(WarehouseService);
   private readonly statusService = inject(StockTakeStatusService);
@@ -538,6 +539,7 @@ export class StockTakeComponent implements OnDestroy {
   }
 
   async submit(): Promise<void> {
+    if (this.submitInFlight) return;
     const current = this.detail();
     if (!current) return;
 
@@ -560,16 +562,23 @@ export class StockTakeComponent implements OnDestroy {
       text: `Đã kiểm ${this.countedBagCount()}/${this.systemBagCount()} bao. Sau khi gửi, kết quả sẽ bị khóa.`,
       icon: 'question', showCancelButton: true, confirmButtonText: 'Gửi duyệt', cancelButtonText: 'Hủy',
     });
-    if (!confirmed.isConfirmed || !(await this.saveCounts(false))) return;
+    if (!confirmed.isConfirmed) return;
 
+    if (this.submitInFlight) return;
+    this.submitInFlight = true;
     this.actionLoading.set(true);
     try {
+      if (!(await this.saveCounts(false))) return;
+      this.actionLoading.set(true);
       const response = await lastValueFrom(this.service.submit(current.id, current.note));
       if (!response.isSucceeded) throw new Error(response.message);
       await this.refresh(); await this.refreshDetail(current.id);
       this.alert(response.message || 'Đã gửi phiếu để duyệt.');
     } catch (error) { this.alert(this.errorText(error), false); }
-    finally { this.actionLoading.set(false); }
+    finally {
+      this.actionLoading.set(false);
+      this.submitInFlight = false;
+    }
   }
 
   async approve(): Promise<void> {
