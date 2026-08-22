@@ -1892,6 +1892,11 @@ export class OutboundOrderComponent implements OnDestroy {
     );
   }
 
+  shouldShowAllocationShortfallWarning(order: OutboundOrderDetail): boolean {
+    return this.isStatus(order, OUTBOUND_STATUS_CODE.PICKING) &&
+      this.currentShortfallKg(order) > 0.001;
+  }
+
   isPickedEnough(order: OutboundOrderDetail): boolean {
     return order.items.every((item) => {
       const picked = item.allocations.length

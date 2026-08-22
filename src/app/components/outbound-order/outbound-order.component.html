@@ -328,7 +328,7 @@
               </span>
             </div>
           </div>
-          <div class="ob-card-warning" *ngIf="currentShortfallKg(d) > 0.001">
+          <div class="ob-card-warning" *ngIf="shouldShowAllocationShortfallWarning(d)">
             Thiếu {{ fmtKg(currentShortfallKg(d)) }} do allocation bị QC loại. Chỉ được chọn bao thay thế cho phần thiếu này.
           </div>
         </div>
