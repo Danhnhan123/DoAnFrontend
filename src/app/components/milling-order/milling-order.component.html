@@ -950,17 +950,15 @@
 
               <label>
                 <span>Người vận hành</span>
-                <select
-                  [ngModel]="completeForm().operatorId"
-                  (ngModelChange)="setCompleteField('operatorId', $event)"
-                >
-                  <option [ngValue]="null">Chọn người vận hành</option>
-                  @for (user of operatorOptions(); track user.id) {
-                    <option [ngValue]="user.id">
-                      {{ user.lastName }} {{ user.firstName }}
-                    </option>
-                  }
-                </select>
+                <app-filter-select
+                  [clearable]="false"
+                  [searchable]="true"
+                  placeholder="Chọn nhân viên xay"
+                  searchPlaceholder="Tìm nhân viên xay..."
+                  [options]="operatorSelectOptions()"
+                  [value]="completeForm().operatorId"
+                  (valueChange)="setCompleteField('operatorId', $event)"
+                ></app-filter-select>
               </label>
 
               <label>

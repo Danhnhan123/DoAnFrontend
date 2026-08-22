@@ -16,6 +16,7 @@ import {
   CreateMillingOrderPayload,
   InventoryRow,
   MillingLocationOption,
+  MillingOperatorOption,
   MillingOrderDetailDto,
   MillingOrderInputPayload,
   MillingOrderRow,
@@ -28,11 +29,9 @@ import {
   MillingWarehouseOption,
   MillingYieldOption,
   UpdateMillingOrderPayload,
-  UserAdvancedRow,
 } from '../../models';
 import { InventoryService } from '../../services/inventory.service';
 import { MillingOrderService } from '../../services/milling-order.service';
-import { UserService } from '../../services/user.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
 import {
   FilterSelectComponent,
@@ -107,7 +106,6 @@ export class MillingOrderComponent {
   // Xem chi tiết lệnh (đang sửa) khi không có quyền UPDATE.
   readonly viewOnly = computed(() => !!this.createForm().id && !this.perm.canUpdate('MILLING_ORDERS'));
   private readonly inventoryService = inject(InventoryService);
-  private readonly userService = inject(UserService);
   private readonly queryClient = injectQueryClient();
   private lineSequence = 0;
 
@@ -238,7 +236,7 @@ export class MillingOrderComponent {
 
   operatorQuery = injectQuery(() => ({
     queryKey: ['milling-order-options', 'operators'],
-    queryFn: () => lastValueFrom(this.userService.getAll()),
+    queryFn: () => lastValueFrom(this.service.getOperators()),
     staleTime: 5 * 60 * 1000,
   }));
 
@@ -286,10 +284,8 @@ export class MillingOrderComponent {
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
-  operatorOptions = computed<UserAdvancedRow[]>(() =>
-    this.resourceList<UserAdvancedRow>(this.operatorQuery.data())
-      .filter((user) => user.userStatusCode !== 'INACTIVE')
-      .sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`, 'vi'))
+  operatorOptions = computed<MillingOperatorOption[]>(() =>
+    this.resourceList<MillingOperatorOption>(this.operatorQuery.data())
   );
 
   locations = computed<MillingLocationOption[]>(() =>
@@ -455,6 +451,12 @@ export class MillingOrderComponent {
     this.varietyOptions().map((v) => ({
       id: v.id,
       name: `${v.code ? v.code + ' — ' : ''}${v.name}`,
+    }))
+  );
+  readonly operatorSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.operatorOptions().map((operator) => ({
+      id: operator.id,
+      name: operator.name,
     }))
   );
 
@@ -1183,7 +1185,7 @@ export class MillingOrderComponent {
     }
     if (this.statusCode(row) !== 'RESERVED') return;
     const operatorOptions = this.operatorOptions()
-      .map((user) => `<option value="${user.id}">${this.escapeHtml(`${user.lastName} ${user.firstName}`.trim() || user.username)}</option>`)
+      .map((operator) => `<option value="${operator.id}">${this.escapeHtml(operator.name)}</option>`)
       .join('');
     const confirm = await Swal.fire<{ machineRef: string; operatorId: number | null }>({
       title: `Bắt đầu ${row.millingCode}?`,
