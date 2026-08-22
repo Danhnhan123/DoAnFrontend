@@ -394,7 +394,7 @@
               @if (line.restockLocationId) {
               <div class="location-chip">
                 <span class="location-chip-icon">✔</span>
-                <strong>{{ locationLabelById(line.restockLocationId) || 'Vị trí đã chọn' }}</strong>
+                <strong>{{ locationSelectionLabelById(line.restockLocationId) || 'Vị trí đã chọn' }}</strong>
               </div>
               } @else {
               <div class="location-chip location-chip--warn">⚠ Chưa có vị trí phù hợp</div>
@@ -403,7 +403,9 @@
                 (ngModelChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
                 <option value="">— Đổi vị trí khác —</option>
                 @for (location of restockLocations(); track location.id) {
-                <option [value]="location.id">{{ locationLabel(location) }}</option>
+                <option [value]="location.id" [disabled]="!isRestockLocationCompatible(location, line.productVariantId)">
+                  {{ locationSelectionLabel(location) }}{{ isRestockLocationCompatible(location, line.productVariantId) ? '' : ' — Không phù hợp SKU' }}
+                </option>
                 }
               </select>
             </div>

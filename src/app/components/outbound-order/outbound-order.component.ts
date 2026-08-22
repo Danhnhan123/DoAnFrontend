@@ -1002,6 +1002,7 @@ export class OutboundOrderComponent implements OnDestroy {
         .filter((bag) => (bag.status || '').toUpperCase() === 'ACTIVE')
         .sort((a, b) =>
           (a.locationCode || '').localeCompare(b.locationCode || '') ||
+          Number(a.isFull) - Number(b.isFull) ||
           b.stackOrder - a.stackOrder ||
           a.bagNo - b.bagNo
         )

@@ -47,6 +47,9 @@ export interface WarehouseLocationLine {
 /** Chi tiết vị trí (bổ sung các trường nâng cao so với danh sách). */
 export interface LocationDetailDto extends LocationRow {
   currentOccupancy: number;
+  currentProductVariantId?: number | null;
+  currentProductVariantName?: string | null;
+  currentProductVariantSku?: string | null;
   allowedCategoryId?: number | null;
   allowedCategoryName?: string | null;
   priority: number;

@@ -56,6 +56,9 @@ type SalesOrderAction = 'CONFIRM' | 'RESERVE' | 'CANCEL';
  */
 const CLOSED_OUTBOUND_STATUS_CODES = ['CANCELLED', 'DELIVERY_FAILED'];
 
+/** Chỉ gạo thành phẩm và phụ phẩm được phép xuất hiện trong đơn bán. */
+const SALEABLE_PRODUCT_CATEGORY_IDS = new Set([102, 103]);
+
 interface SalesOrderActionRequest {
   id: number;
   action: SalesOrderAction;
@@ -344,7 +347,12 @@ export class SalesOrderComponent implements OnDestroy {
   );
   readonly productVariants = computed(() =>
     (this.variantQuery.data() || [])
-      .filter((item) => item.isActive !== false)
+      .filter(
+        (item) =>
+          item.isActive !== false &&
+          item.productCategoryId != null &&
+          SALEABLE_PRODUCT_CATEGORY_IDS.has(item.productCategoryId)
+      )
       .sort((a, b) => a.name.localeCompare(b.name))
   );
 
@@ -1082,6 +1090,13 @@ export class SalesOrderComponent implements OnDestroy {
     }
     if (new Set(variantIds).size !== variantIds.length) {
       return 'Không được thêm hai dòng có cùng một SKU.';
+    }
+
+    const saleableVariantIds = new Set(
+      this.productVariants().map((variant) => variant.id)
+    );
+    if (variantIds.some((id) => !saleableVariantIds.has(id))) {
+      return 'Đơn bán chỉ được chọn sản phẩm Gạo hoặc Phụ phẩm.';
     }
 
     for (const item of current.items) {

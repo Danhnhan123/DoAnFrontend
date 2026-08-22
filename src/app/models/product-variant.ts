@@ -7,6 +7,8 @@ export interface ProductVariantRow {
 
   productId: number;
   productName?: string | null;
+  productCategoryId?: number | null;
+  productCategoryName?: string | null;
 
   unitOfMeasureId: number;
   unitOfMeasureName?: string | null;
