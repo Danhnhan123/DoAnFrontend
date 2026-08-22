@@ -732,10 +732,6 @@
       <button type="button" aria-label="Đóng" (click)="closeOutbound()">×</button>
     </header>
     <div class="so-modal-body">
-      <div class="so-warning neutral">
-        Có thể xuất một phần đơn. Nếu đơn đã có phiếu xuất, backend sẽ kiểm tra
-        tổng số lượng còn lại và trả lỗi nếu nhập vượt.
-      </div>
       <div class="so-outbound-lines">
         @for (line of outboundLines(); track line.productVariantId; let index = $index) {
         <label>
@@ -750,7 +746,7 @@
             step="0.001"
             placeholder="Kg xuất"
             [ngModel]="line.quantityToDispatch"
-            (ngModelChange)="setOutboundQuantity(index, $event)"
+            disabled
           />
         </label>
         }
