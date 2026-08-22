@@ -86,6 +86,7 @@ interface CompleteOrderForm {
 }
 
 type StatusFilter = 'ALL' | MillingOrderStatusCode;
+const DEFAULT_MILLING_MACHINE_REF = 'máy xay 1';
 
 @Component({
   selector: 'app-milling-order',
@@ -438,6 +439,9 @@ export class MillingOrderComponent {
   readonly outputTypeSelectOptions: FilterSelectOption[] = this.outputTypes.map(
     (t) => ({ id: t.value, name: t.label })
   );
+  readonly machineSelectOptions: FilterSelectOption[] = [
+    { id: DEFAULT_MILLING_MACHINE_REF, name: 'Máy xay 1' },
+  ];
   readonly warehouseSelectOptions = computed<FilterSelectOption[]>(() =>
     this.warehouses().map((w) => ({ id: w.id, name: w.name }))
   );
@@ -1279,7 +1283,7 @@ export class MillingOrderComponent {
           detail.yieldRateUsed,
           detail.millingCost ?? null,
           detail.incidentalCost ?? null,
-          detail.machineRef ?? '',
+          detail.machineRef ?? DEFAULT_MILLING_MACHINE_REF,
           detail.operatorId ?? null
         )
       );
@@ -1827,12 +1831,15 @@ export class MillingOrderComponent {
     yieldRate = 0.68,
     millingCost: number | null = null,
     incidentalCost: number | null = null,
-    machineRef = '',
+    machineRef = DEFAULT_MILLING_MACHINE_REF,
     operatorId: number | null = null
   ): CompleteOrderForm {
     return {
       configuredYieldRate: yieldRate || 0.68,
-      machineRef,
+      machineRef:
+        machineRef === DEFAULT_MILLING_MACHINE_REF
+          ? machineRef
+          : DEFAULT_MILLING_MACHINE_REF,
       operatorId,
       lossKg: 0,
       millingCost,

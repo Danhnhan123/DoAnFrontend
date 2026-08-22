@@ -940,12 +940,13 @@
 
               <label>
                 <span>Mã máy xay</span>
-                <input
-                  type="text"
-                  placeholder="VD: MAY-XAY-01"
-                  [ngModel]="completeForm().machineRef"
-                  (ngModelChange)="setCompleteField('machineRef', $event)"
-                />
+                <app-filter-select
+                  [clearable]="false"
+                  placeholder="Chọn máy xay"
+                  [options]="machineSelectOptions"
+                  [value]="completeForm().machineRef"
+                  (valueChange)="setCompleteField('machineRef', $event)"
+                ></app-filter-select>
               </label>
 
               <label>
