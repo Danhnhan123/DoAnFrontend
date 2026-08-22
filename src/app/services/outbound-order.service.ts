@@ -11,6 +11,7 @@ import {
   ConfirmDispatchPayload,
   ConfirmPackingPayload,
   FailDeliveryPayload,
+  OutboundBagAllocation,
   OutboundOrderDetail,
   OutboundOrderPage,
   OutboundOrderPagedRequest,
@@ -47,6 +48,12 @@ export class OutboundOrderService {
   getAllocationCandidates(id: number): Observable<ApiResponse<AllocationCandidateRow[]>> {
     return this.http.get<ApiResponse<AllocationCandidateRow[]>>(
       `${this.base}/outbound-orders/${id}/allocation-candidates`
+    );
+  }
+
+  getBagAllocations(id: number): Observable<ApiResponse<OutboundBagAllocation[]>> {
+    return this.http.get<ApiResponse<OutboundBagAllocation[]>>(
+      `${this.base}/outbound-orders/${id}/bag-allocations`
     );
   }
 
