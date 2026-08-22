@@ -64,7 +64,6 @@ interface GroupedSubLot {
   hasOpenBag: boolean;
   openBagWeightKg: number;
   openBagId?: number | null;
-  isOpenBagBlocked: boolean;
 }
 
 interface AllocateLocationRow {
@@ -76,7 +75,6 @@ interface AllocateLocationRow {
   hasOpenBag: boolean;
   openBagWeightKg: number;
   openBagId: number | null;
-  isOpenBagBlocked: boolean;
   openBagLotCode?: string | null;
   subLots: GroupedSubLot[];
 
@@ -111,6 +109,7 @@ interface PickLocationCard {
   bagStatus?: string | null;
   status?: string;
   allocatedWeightKg?: number;
+  bagWeightSnapshotKg?: number;
   pickedWeightKg?: number;
   // Tráº¡ng thÃ¡i hiá»ƒn thá»‹ cá»§a stack-card; má»—i card nay Ã¡nh xáº¡ Ä‘Ãºng 1 bao váº­t lÃ½.
   productVariantName: string;
@@ -341,7 +340,9 @@ export class OutboundOrderComponent implements OnDestroy {
   );
   readonly pickedKg = computed(() =>
     (this.detail()?.items || []).reduce(
-      (sum, i) => sum + Number(i.quantityPicked || 0),
+      (sum, i) => sum + (i.allocations?.length
+        ? i.allocations.reduce((picked, allocation) => picked + Number(allocation.quantityPicked || 0), 0)
+        : Number(i.quantityPicked || 0)),
       0
     )
   );
@@ -378,7 +379,7 @@ export class OutboundOrderComponent implements OnDestroy {
       this.showAllocateModal.set(false);
       this.allocateForm.set([]);
       this.refreshAfterWrite();
-      this.alert('Đã phân bổ lô/vị trí. Phiếu chuyển sang Đang lấy hàng.');
+      this.alert('Đã cập nhật phân bổ lô/vị trí cho phiếu xuất.');
     },
     onError: (error: unknown) => this.alert(this.errorText(error), false),
   }));
@@ -563,7 +564,6 @@ export class OutboundOrderComponent implements OnDestroy {
             hasOpenBag: r.hasOpenBag ?? false,
             openBagWeightKg: Number(r.openBagWeightKg || 0),
             openBagId: r.openBagId ?? null,
-            isOpenBagBlocked: r.isOpenBagBlocked ?? false,
           }));
 
           const first = candGroup[0];
@@ -577,7 +577,6 @@ export class OutboundOrderComponent implements OnDestroy {
             .filter((x) => openBagId == null || x.openBagId === openBagId)
             .reduce((sum, x) => sum + Number(x.openBagWeightKg || 0), 0);
           const hasOpenBag = openBagWeightKg > 0;
-          const isOpenBagBlocked = openBagCandidates.some((x) => x.isOpenBagBlocked);
           const openBagLotCodes = Array.from(new Set(
             openBagCandidates
               .filter((x) => openBagId == null || x.openBagId === openBagId)
@@ -595,7 +594,6 @@ export class OutboundOrderComponent implements OnDestroy {
             hasOpenBag,
             openBagWeightKg,
             openBagId,
-            isOpenBagBlocked,
             openBagLotCode,
             subLots,
             takeAllOpenBag: false,
@@ -606,9 +604,9 @@ export class OutboundOrderComponent implements OnDestroy {
           };
         })
           .sort((a, b) => {
-            // Sort location cards: location with unblocked open bag first
-            if (a.hasOpenBag && !a.isOpenBagBlocked && !b.hasOpenBag) return -1;
-            if (b.hasOpenBag && !b.isOpenBagBlocked && !a.hasOpenBag) return 1;
+            // Prefer locations that have an independently selectable open bag.
+            if (a.hasOpenBag && !b.hasOpenBag) return -1;
+            if (b.hasOpenBag && !a.hasOpenBag) return 1;
             return a.locationCode.localeCompare(b.locationCode);
           });
 
@@ -765,8 +763,8 @@ export class OutboundOrderComponent implements OnDestroy {
               if (j !== locIndex) return loc;
               return {
                 ...loc,
-                takeAllOpenBag: loc.hasOpenBag && !loc.isOpenBagBlocked,
-                openBagTakeKg: loc.hasOpenBag && !loc.isOpenBagBlocked ? loc.openBagWeightKg : null,
+                takeAllOpenBag: loc.hasOpenBag,
+                openBagTakeKg: loc.hasOpenBag ? loc.openBagWeightKg : null,
                 fullBagsToTake: loc.totalFullBagCount,
                 splitBagKg: null,
               };
@@ -786,14 +784,6 @@ export class OutboundOrderComponent implements OnDestroy {
 
   allocateRemaining(item: AllocateItemForm): number {
     return item.orderedKg - item.alreadyAllocatedKg - this.allocatedTotal(item);
-  }
-
-  hasOpenBagBlockerWarning(loc: AllocateLocationRow): boolean {
-    if (!loc.hasOpenBag || loc.isOpenBagBlocked) return false;
-    const openTake = Number(loc.openBagTakeKg || 0);
-    if (openTake <= 0) return false;
-    const openRemaining = loc.openBagWeightKg - openTake;
-    return openRemaining > 0.001 && (loc.fullBagsToTake > 0 || Number(loc.splitBagKg || 0) > 0);
   }
 
   /** ⚡ Auto-allocate: prioritize open bags first, then fill with full bags / partial splits. */
@@ -816,16 +806,14 @@ export class OutboundOrderComponent implements OnDestroy {
 
           if (loc.standardWeightKg != null && loc.standardWeightKg > 0) {
             // Take from open bag first
-            if (loc.hasOpenBag && !loc.isOpenBagBlocked && remaining > 0) {
+            if (loc.hasOpenBag && remaining > 0) {
               const takeOpen = Math.min(remaining, loc.openBagWeightKg);
               updated.openBagTakeKg = takeOpen;
               updated.takeAllOpenBag = Math.abs(takeOpen - loc.openBagWeightKg) < 0.001;
               remaining -= takeOpen;
             }
-            // CRITICAL LIFO RULE: Can only take full bags underneath if top open bag is 100% cleared!
-            const isOpenBagCleared = !loc.hasOpenBag || loc.isOpenBagBlocked || updated.takeAllOpenBag;
-
-            if (isOpenBagCleared && remaining > 0 && loc.totalFullBagCount > 0) {
+            // Full-bag LIFO is validated by the backend; open bags are independent.
+            if (remaining > 0 && loc.totalFullBagCount > 0) {
               const fullBagsCount = Math.floor(remaining / loc.standardWeightKg);
               const bagsToTake = Math.min(fullBagsCount, loc.totalFullBagCount);
               updated.fullBagsToTake = bagsToTake;
@@ -873,7 +861,7 @@ export class OutboundOrderComponent implements OnDestroy {
             for (const sub of loc.subLots) {
               let subOpenKg = 0;
 
-              if (openKgRemaining > 0 && sub.hasOpenBag && !sub.isOpenBagBlocked) {
+              if (openKgRemaining > 0 && sub.hasOpenBag) {
                 subOpenKg = Math.min(openKgRemaining, sub.openBagWeightKg);
                 openKgRemaining -= subOpenKg;
               }
@@ -968,18 +956,6 @@ export class OutboundOrderComponent implements OnDestroy {
           return;
         }
 
-        // Validate physical LIFO stack rule: Cannot take full bags underneath if top open bag is not 100% taken!
-        if (loc.hasOpenBag && !loc.isOpenBagBlocked && Number(loc.openBagTakeKg || 0) > 0) {
-          const openRemaining = loc.openBagWeightKg - Number(loc.openBagTakeKg || 0);
-          if (openRemaining > 0.001 && (loc.fullBagsToTake > 0 || Number(loc.splitBagKg || 0) > 0)) {
-            this.alert(
-              `Tại vị trí ${loc.locationCode}: Bao lẻ ở đỉnh còn thừa ${this.fmtKg(openRemaining)}. ` +
-              `Bạn phải lấy hết 100% bao lẻ ở đỉnh trước nếu muốn lấy tiếp các bao chuẩn bên dưới của cột này.`,
-              false
-            );
-            return;
-          }
-        }
       }
     }
 
@@ -988,22 +964,11 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Pick ───────────────────────────────────────────────────────────
   locationPickedKg(card: PickLocationCard): number {
+    if (card.bagAllocationId != null) return Number(card.allocatedWeightKg || 0);
     const openKg = card.hasOpenBag && card.takeOpenBag ? Number(card.openBagPickedKg || 0) : 0;
     const fullKg = (card.pickedFullBagCount || 0) * card.standardWeightKg;
     const splitKg = Number(card.pickedSplitKg || 0);
     return openKg + fullKg + splitKg;
-  }
-
-  pickSplitMaxKg(card: PickLocationCard): number {
-    const openKg =
-      card.hasOpenBag && card.takeOpenBag
-        ? Number(card.openBagPickedKg || 0)
-        : 0;
-    const fullKg = (card.pickedFullBagCount || 0) * card.standardWeightKg;
-    return Math.max(
-      0,
-      Math.min(card.standardWeightKg, card.totalAllocatedKg - openKg - fullKg)
-    );
   }
 
   private inferStandardWeightKg(
@@ -1027,6 +992,8 @@ export class OutboundOrderComponent implements OnDestroy {
 
   openPick(order: OutboundOrderDetail): void {
     if (!this.canPick(order)) return;
+
+    this.showPackingModal.set(false);
 
     // W14-H: BE Ä‘Ã£ chá»‘t chÃ­nh xÃ¡c BagId tá»« Allocate. KhÃ´ng suy diá»…n/ngáº¯t kg
     // tá»« OutboundOrderItemAllocation vÃ¬ cÃ¡ch Ä‘Ã³ sáº½ lÃ m máº¥t physical identity.
@@ -1052,19 +1019,35 @@ export class OutboundOrderComponent implements OnDestroy {
           bagStatus: bag.bagStatus ?? null,
           status: bag.status,
           allocatedWeightKg: Number(bag.allocatedWeightKg || 0),
+          bagWeightSnapshotKg: Number(bag.bagWeightSnapshotKg || bag.allocatedWeightKg || 0),
           pickedWeightKg: Number(bag.pickedWeightKg || 0),
           productVariantName: `Bao #${bag.bagNo}`,
           standardWeightKg: Number(bag.allocatedWeightKg || 0),
           totalAllocatedKg: Number(bag.allocatedWeightKg || 0),
           allocationIds: [bag.bagAllocationId],
-          hasOpenBag: true,
-          openBagWeightKg: Number(bag.allocatedWeightKg || 0),
-          allocatedFullBagCount: 0,
+          hasOpenBag: !bag.isFull,
+          openBagWeightKg: !bag.isFull ? Number(bag.allocatedWeightKg || 0) : 0,
+          allocatedFullBagCount: bag.isFull ? 1 : 0,
           allocatedSplitKg: 0,
-          takeOpenBag: Number(bag.pickedWeightKg || 0) > 0,
-          openBagPickedKg: Number(bag.pickedWeightKg || 0),
-          pickedFullBagCount: 0,
-          pickedSplitKg: null,
+          // Start from the allocated quantity: picking confirms the bags already
+          // reserved by allocation unless the user intentionally adjusts it.
+          takeOpenBag: !bag.isFull,
+          openBagPickedKg: !bag.isFull
+            ? (Number(bag.pickedWeightKg || 0) > 0
+              ? Number(bag.pickedWeightKg || 0)
+              : Number(bag.allocatedWeightKg || 0))
+            : null,
+          pickedFullBagCount: bag.isFull
+            ? (Number(bag.pickedWeightKg || 0) <= 0.001 ||
+              Number(bag.pickedWeightKg || 0) + 0.001 >= Number(bag.allocatedWeightKg || 0)
+              ? 1
+              : 0)
+            : 0,
+          pickedSplitKg: bag.isFull &&
+            Number(bag.pickedWeightKg || 0) > 0 &&
+            Number(bag.pickedWeightKg || 0) + 0.001 < Number(bag.allocatedWeightKg || 0)
+            ? Number(bag.pickedWeightKg || 0)
+            : null,
         }));
 
       if (!physicalCards.length) {
@@ -1191,109 +1174,6 @@ export class OutboundOrderComponent implements OnDestroy {
     this.pickForm.set([]);
   }
 
-  private fullPickRows(rows: PickLocationCard[]): PickLocationCard[] {
-    return rows.map((r) => ({
-      ...r,
-      takeOpenBag: r.hasOpenBag,
-      openBagPickedKg: r.hasOpenBag ? r.openBagWeightKg : null,
-      pickedFullBagCount: r.allocatedFullBagCount,
-      pickedSplitKg: r.allocatedSplitKg > 0 ? r.allocatedSplitKg : null,
-    }));
-  }
-
-  fillAllPick100(): void {
-    this.pickForm.update((rows) => this.fullPickRows(rows));
-  }
-
-  confirmPick100(): void {
-    if (this.saving()) return;
-    this.fillAllPick100();
-  }
-
-  togglePickOpenBag(index: number): void {
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const willTake = !r.takeOpenBag;
-        return {
-          ...r,
-          takeOpenBag: willTake,
-          openBagPickedKg: willTake ? r.openBagWeightKg : null,
-        };
-      })
-    );
-  }
-
-  setPickOpenBagKg(index: number, value: unknown): void {
-    const num = value === '' || value == null ? null : Math.max(0, Number(value));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const validNum = num == null ? null : Math.min(num, r.openBagWeightKg);
-        const isAll = validNum != null && Math.abs(validNum - r.openBagWeightKg) < 0.001;
-        const draft = {
-          ...r,
-          openBagPickedKg: validNum,
-          takeOpenBag: isAll || (validNum != null && validNum > 0),
-        };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const splitKg = Number(r.pickedSplitKg || 0);
-        return {
-          ...r,
-          openBagPickedKg: validNum,
-          takeOpenBag: isAll || (validNum != null && validNum > 0),
-          pickedSplitKg:
-            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
-        };
-      })
-    );
-  }
-
-  setPickFullBagCount(index: number, value: unknown): void {
-    const count = value === '' || value == null ? 0 : Math.max(0, Math.floor(Number(value)));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        const validCount = Math.min(count, r.allocatedFullBagCount);
-        const draft = { ...r, pickedFullBagCount: validCount };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const splitKg = Number(r.pickedSplitKg || 0);
-        return {
-          ...r,
-          pickedFullBagCount: validCount,
-          pickedSplitKg:
-            splitKg > 0 && maxSplit > 0 ? Math.min(splitKg, maxSplit) : null,
-        };
-      })
-    );
-  }
-
-  setPickSplitKg(index: number, value: unknown): void {
-    const num = value === '' || value == null ? null : Math.max(0, Number(value));
-    this.pickForm.update((rows: any[]) =>
-      rows.map((r, i) => {
-        if (i !== index) return r;
-        let pickedFullBagCount = r.pickedFullBagCount || 0;
-        if (
-          num != null &&
-          num > 0 &&
-          pickedFullBagCount >= r.allocatedFullBagCount &&
-          r.allocatedFullBagCount > 0
-        ) {
-          pickedFullBagCount = r.allocatedFullBagCount - 1;
-        }
-        const draft = { ...r, pickedFullBagCount };
-        const maxSplit = this.pickSplitMaxKg(draft);
-        const validNum = num == null ? null : Math.min(num, maxSplit);
-        return {
-          ...r,
-          pickedFullBagCount,
-          pickedSplitKg: validNum != null && validNum > 0 ? validNum : null,
-        };
-      })
-    );
-  }
-
   submitPick(): void {
     const order = this.detail();
     if (!order) return;
@@ -1362,28 +1242,14 @@ export class OutboundOrderComponent implements OnDestroy {
   ): PickOutboundPayload | null {
     for (const r of cards) {
       const picked = this.locationPickedKg(r);
-      if (picked < 0 || picked > r.totalAllocatedKg + 0.001) {
+      if (picked < 0 || Math.abs(picked - r.totalAllocatedKg) > 0.001) {
         this.alert(
-          `Số lượng lấy tại vị trí ${r.locationCode} phải trong khoảng 0 – ${this.fmtKg(r.totalAllocatedKg)}.`,
+          `Picking chỉ xác nhận đúng allocation đã khóa tại vị trí ${r.locationCode}: ${this.fmtKg(r.totalAllocatedKg)}. Nếu bao có vấn đề, hãy báo sự cố chất lượng.`,
           false
         );
         return null;
       }
 
-      if (r.hasOpenBag && r.takeOpenBag && Number(r.openBagPickedKg || 0) > 0) {
-        const openRemaining = r.openBagWeightKg - Number(r.openBagPickedKg || 0);
-        if (
-          openRemaining > 0.001 &&
-          ((r.pickedFullBagCount || 0) > 0 || Number(r.pickedSplitKg || 0) > 0)
-        ) {
-          this.alert(
-            `Tại vị trí ${r.locationCode}: Bao lẻ còn thừa ${this.fmtKg(openRemaining)}. ` +
-            `Cần lấy hết bao lẻ trước khi lấy hoặc xé bao chuẩn bên dưới.`,
-            false
-          );
-          return null;
-        }
-      }
     }
 
     const physicalCards = cards.filter((card) => card.bagAllocationId != null);
@@ -1394,7 +1260,7 @@ export class OutboundOrderComponent implements OnDestroy {
 
     const picks = physicalCards.map((card) => ({
       bagAllocationId: card.bagAllocationId!,
-      quantityPicked: this.locationPickedKg(card),
+      quantityPicked: Number(card.allocatedWeightKg || 0),
     }));
 
     return { picks };
@@ -1432,7 +1298,9 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Packing ────────────────────────────────────────────────────────
   openPacking(order: OutboundOrderDetail): void {
-    if (!this.canPack(order) || !this.isPickedEnough(order)) return;
+    if (!this.canPack(order)) return;
+    this.showPickModal.set(false);
+    this.pickForm.set([]);
     this.packingQr.set('');
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
     this.showPackingModal.set(true);
@@ -1445,7 +1313,10 @@ export class OutboundOrderComponent implements OnDestroy {
 
   submitPacking(): void {
     const order = this.detail();
-    if (!order) return;
+    if (!order || !this.canConfirmPacking(order)) {
+      this.alert('Cần đủ allocation và xác nhận lấy đủ trước khi đóng gói.', false);
+      return;
+    }
     const qr = this.packingQr().trim();
     this.actionMutation.mutate({
       id: order.id,
@@ -1766,13 +1637,42 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // ── Guards ─────────────────────────────────────────────────────────
   canAllocate(source: OutboundStatusSource): boolean {
-    return this.isStatus(source, OUTBOUND_STATUS_CODE.DRAFT);
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.DRAFT) ||
+      (this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING) && this.hasAllocationShortfall(source));
+  }
+
+  allocationActionLabel(source: OutboundStatusSource): string {
+    return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING)
+      ? 'Phân bổ bổ sung'
+      : 'Phân bổ lô hàng';
+  }
+
+  allocationModalTitle(): string {
+    return this.isStatus(this.detail() || {}, OUTBOUND_STATUS_CODE.PICKING)
+      ? 'Phân bổ bổ sung lô / vị trí'
+      : 'Phân bổ lô / vị trí lấy hàng';
+  }
+
+  allocationSubmitLabel(): string {
+    return this.isStatus(this.detail() || {}, OUTBOUND_STATUS_CODE.PICKING)
+      ? 'Cập nhật phân bổ'
+      : 'Phân bổ & chuyển lấy hàng';
+  }
+
+  isQcReplacementAllocation(): boolean {
+    return this.isStatus(this.detail() || {}, OUTBOUND_STATUS_CODE.PICKING);
   }
   canPick(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
   }
   canPack(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
+  }
+
+  canConfirmPacking(order: OutboundOrderDetail): boolean {
+    return this.canPack(order) &&
+      !this.hasAllocationShortfall(order) &&
+      this.isPickedEnough(order);
   }
   canDispatch(source: OutboundStatusSource): boolean {
     return this.isStatus(source, OUTBOUND_STATUS_CODE.PACKED);
@@ -1789,7 +1689,24 @@ export class OutboundOrderComponent implements OnDestroy {
   }
 
   canForceUnlock(source: OutboundStatusSource): boolean {
-    return this.isStatus(source, OUTBOUND_STATUS_CODE.PICKING);
+    return this.isStatusIn(source, [
+      OUTBOUND_STATUS_CODE.PICKING,
+      OUTBOUND_STATUS_CODE.PACKED,
+    ]);
+  }
+
+  private hasAllocationShortfall(source: OutboundStatusSource): boolean {
+    const order = source as Partial<OutboundOrderDetail>;
+    return Array.isArray(order.items) && order.items.some((item) =>
+      this.itemAllocatedKg(item) + 0.001 < Number(item.quantityOrdered || 0)
+    );
+  }
+
+  currentShortfallKg(order: OutboundOrderDetail): number {
+    return order.items.reduce(
+      (sum, item) => sum + Math.max(0, Number(item.quantityOrdered || 0) - this.itemAllocatedKg(item)),
+      0
+    );
   }
 
   isPickedEnough(order: OutboundOrderDetail): boolean {

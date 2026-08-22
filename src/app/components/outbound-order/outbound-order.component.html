@@ -328,15 +328,20 @@
               </span>
             </div>
           </div>
+          <div class="ob-card-warning" *ngIf="currentShortfallKg(d) > 0.001">
+            Thiếu {{ fmtKg(currentShortfallKg(d)) }} do allocation bị QC loại. Chỉ được chọn bao thay thế cho phần thiếu này.
+          </div>
         </div>
 
         <div class="ob-items">
           <div class="ob-items-title">Bao vật lý đã phân bổ ({{ d.bagAllocations.length }})</div>
           <div class="ob-alloc-row" *ngFor="let bag of d.bagAllocations">
-            <span class="ob-tag">Bao #{{ bag.bagNo }}</span>
+            <span class="ob-tag" [class.ob-qualityhold-tag]="(bag.bagStatus || '').toUpperCase() === 'QUALITYHOLD'">
+              Bao #{{ bag.bagNo }}
+            </span>
             <span>{{ bag.lotCode || ('Lot #' + bag.lotId) }}</span>
             <span>{{ bag.locationCode || '—' }}</span>
-            <span>{{ fmtKg(bag.pickedWeightKg || bag.allocatedWeightKg) }}</span>
+            <span>Phân bổ {{ fmtKg(bag.allocatedWeightKg) }} · Đã lấy {{ fmtKg(bag.pickedWeightKg) }}</span>
             <strong>{{ bag.status }} / {{ bag.bagStatus || '—' }}</strong>
           </div>
           <div class="ob-muted sm ob-noalloc" *ngIf="!d.bagAllocations.length">Chưa có lịch sử bao vật lý.</div>
@@ -356,14 +361,14 @@
         <div class="ob-detail-actions">
           <button type="button" class="btn primary" *ngIf="canAllocate(d)" [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openAllocate(d)">
-            Phân bổ lô hàng
+            {{ isQcReplacementAllocation() ? 'Chọn bao thay thế' : allocationActionLabel(d) }}
           </button>
           <button type="button" class="btn info" *ngIf="canPick(d)" [disabled]="saving()"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPick(d)">
             {{ isPickedEnough(d) ? 'Chỉnh sửa lấy hàng' : 'Cập nhật lấy hàng' }}
           </button>
-          <button type="button" class="btn violet" *ngIf="canPack(d)" [disabled]="saving() || !isPickedEnough(d)"
-            [title]="isPickedEnough(d) ? '' : 'Cần lấy đủ số lượng trước khi đóng gói'"
+          <button type="button" class="btn violet" *ngIf="canPack(d)" [disabled]="saving()"
+            [title]="canConfirmPacking(d) ? '' : 'Trong popup, cần đủ allocation và xác nhận lấy đủ trước khi đóng gói'"
             [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="openPacking(d)">
             Xác nhận đóng gói
           </button>
@@ -401,7 +406,7 @@
 <div class="ob-modal-backdrop" *ngIf="showAllocateModal()" (click)="closeAllocate()">
   <div class="ob-modal wide" (click)="$event.stopPropagation()">
     <div class="ob-modal-head">
-      <h3>Phân bổ lô / vị trí lấy hàng</h3>
+      <h3>{{ allocationModalTitle() }}</h3>
       <button class="ob-x" (click)="closeAllocate()" aria-label="Đóng">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
           stroke-linejoin="round">
@@ -465,7 +470,7 @@
         <ng-container *ngIf="hasBagData(item); else legacyTable">
           <div class="ob-stack-cards">
             <div class="ob-stack-card" *ngFor="let loc of item.locations; let jj = index; trackBy: trackAllocLoc"
-              [class.has-open]="loc.hasOpenBag && !loc.isOpenBagBlocked">
+              [class.has-open]="loc.hasOpenBag">
               <div class="ob-stack-card-head">
                 <div class="ob-stack-card-loc">
                   <span class="ob-tag">
@@ -477,19 +482,11 @@
                     </svg>
                     {{ loc.locationCode }}
                   </span>
-                  <span class="ob-open-badge" *ngIf="loc.hasOpenBag && !loc.isOpenBagBlocked">
+                  <span class="ob-open-badge" *ngIf="loc.hasOpenBag">
                     <svg class="ob-inline-ico fill" viewBox="0 0 24 24" aria-hidden="true">
                       <circle cx="12" cy="12" r="6" />
                     </svg>
                     Bao lẻ ({{ loc.openBagLotCode }})
-                  </span>
-                  <span class="ob-open-badge blocked" *ngIf="loc.hasOpenBag && loc.isOpenBagBlocked">
-                    <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" />
-                      <path d="m4.9 4.9 14.2 14.2" />
-                    </svg>
-                    Bao lẻ bị chặn
                   </span>
                 </div>
                 <button type="button" class="btn ghost ob-col-btn" (click)="selectEntireColumn(ii, jj)"
@@ -509,8 +506,8 @@
               <!-- Open bag row -->
               <div class="ob-stack-row ob-open-row" *ngIf="loc.hasOpenBag">
                 <div class="ob-open-left">
-                  <label class="ob-bag-check" [class.disabled]="loc.isOpenBagBlocked">
-                    <input type="checkbox" [checked]="loc.takeAllOpenBag" [disabled]="loc.isOpenBagBlocked"
+                  <label class="ob-bag-check">
+                    <input type="checkbox" [checked]="loc.takeAllOpenBag"
                       (change)="toggleOpenBag(ii, jj)" />
                     <span>Lấy hết bao lẻ ({{ fmtKg(loc.openBagWeightKg) }})</span>
                   </label>
@@ -518,7 +515,7 @@
                 <div class="ob-open-right">
                   <span class="ob-muted sm">Hoặc lấy lẻ:</span>
                   <input type="number" min="0" [max]="loc.openBagWeightKg" step="0.1" class="ob-kg-input"
-                    [disabled]="loc.isOpenBagBlocked" [ngModel]="loc.openBagTakeKg"
+                    [ngModel]="loc.openBagTakeKg"
                     (ngModelChange)="setOpenBagTakeKg(ii, jj, $event)" placeholder="0.0" />
                   <span class="ob-muted sm">kg</span>
                 </div>
@@ -583,17 +580,6 @@
                 Tổng lấy tại cột: <b>{{ fmtKg(locationBagKg(loc)) }}</b>
               </div>
 
-              <!-- Stack Order Warning Banner -->
-              <div class="ob-card-warning" *ngIf="hasOpenBagBlockerWarning(loc)">
-                <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                  <path d="M12 9v4" />
-                  <path d="M12 17h.01" />
-                </svg>
-                Bao lẻ ở đỉnh cột còn thừa {{ fmtKg(loc.openBagWeightKg - (loc.openBagTakeKg || 0)) }}. Bạn phải chọn
-                <b>"Lấy hết bao lẻ"</b> trước nếu muốn lấy tiếp các bao chuẩn ở bên dưới của cột này.
-              </div>
             </div>
           </div>
           <div class="ob-muted sm" *ngIf="item.locations.length === 0">Không có vị trí khả dụng cho sản phẩm này trong
@@ -629,7 +615,7 @@
     </div>
     <div class="ob-modal-actions">
       <div class="ob-card-warning" *ngIf="allocationIssues().length > 0">
-        Phải phân bổ đủ cho tất cả sản phẩm trước khi bắt đầu lấy hàng.
+        {{ isQcReplacementAllocation() ? 'Phải phân bổ đủ phần còn thiếu trước khi tiếp tục lấy hàng.' : 'Phải phân bổ đủ cho tất cả sản phẩm trước khi bắt đầu lấy hàng.' }}
         <span *ngFor="let issue of allocationIssues(); let last = last">
           {{ issue.item.productVariantName }}:
           {{ issue.remainingKg > 0 ? 'thiếu' : 'dư' }} {{ fmtKg(Math.abs(issue.remainingKg)) }}{{ last ? '.' : ';' }}
@@ -638,7 +624,7 @@
       <button class="btn ghost" (click)="closeAllocate()" [disabled]="saving()">Đóng</button>
       <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitAllocate()"
         [disabled]="saving() || loadingLots() || !canSubmitAllocation()">
-        Phân bổ &amp; chuyển lấy hàng
+        {{ allocationSubmitLabel() }}
       </button>
     </div>
   </div>
@@ -649,7 +635,7 @@
 <div class="ob-modal-backdrop" *ngIf="showPickModal()" (click)="closePick()">
   <div class="ob-modal wide" (click)="$event.stopPropagation()">
     <div class="ob-modal-head">
-      <h3>{{ detail() && isPickedEnough(detail()!) ? 'Chỉnh sửa phân bổ &amp; lấy hàng' : 'Xác nhận &amp; Cập nhật lấy hàng' }}</h3>
+      <h3>Xác nhận lấy hàng theo allocation</h3>
       <button class="ob-x" (click)="closePick()" aria-label="Đóng">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
           stroke-linejoin="round">
@@ -659,147 +645,42 @@
       </button>
     </div>
 
-    <!-- Quick action bar -->
-    <div class="ob-pick-toolbar">
-      <span class="ob-muted sm">Tự động điền số lượng lấy hàng theo phân bổ hiện tại. Điều chỉnh nếu có chênh lệch thực
-        tế rồi lưu.</span>
-      <button type="button" class="btn ghost ob-auto-btn" (click)="confirmPick100()" [disabled]="saving()">
-        <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m15 4 2 2" />
-          <path d="m7 12 5 5" />
-          <path d="M13 5 5 13a2.1 2.1 0 0 0 0 3l3 3a2.1 2.1 0 0 0 3 0l8-8a2.1 2.1 0 0 0 0-3l-3-3a2.1 2.1 0 0 0-3 0Z" />
-          <path d="M6 4v2" />
-          <path d="M5 5h2" />
-          <path d="M19 16v2" />
-          <path d="M18 17h2" />
-        </svg>
-        Tự động điền dọn bao lẻ
-      </button>
-    </div>
-
     <div class="ob-modal-body">
-      <div class="ob-stack-cards">
-        <div class="ob-stack-card" *ngFor="let r of pickForm(); let i = index; trackBy: trackPickRow"
-          [class.has-open]="r.hasOpenBag">
+      <div class="ob-stack-cards ob-pick-readonly-list">
+        <div class="ob-stack-card" *ngFor="let r of pickForm(); trackBy: trackPickRow">
           <div class="ob-stack-card-head">
             <div class="ob-stack-card-loc">
-              <span class="ob-tag">
-                <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M12 21s7-5.8 7-12a7 7 0 1 0-14 0c0 6.2 7 12 7 12Z" />
-                  <path d="M9.5 9.5h5" />
-                  <path d="M9.5 12.5h5" />
-                </svg>
-                {{ r.locationCode }}
-              </span>
+              <span class="ob-tag">Bao #{{ r.bagNo }}</span>
               <span class="ob-tag lot-tag" *ngIf="r.lotCode">{{ r.lotCode }}</span>
-              <span class="ob-tag" *ngIf="r.bagAllocationId">Bag #{{ r.bagNo }} / stack {{ r.stackOrder }}</span>
+              <span class="ob-tag">{{ r.locationCode || '—' }}</span>
+              <span class="ob-tag" *ngIf="r.stackOrder != null">Stack {{ r.stackOrder }}</span>
               <span class="ob-tag" *ngIf="r.qrCode">QR: {{ r.qrCode }}</span>
-              <span class="ob-tag" *ngIf="r.bagStatus">{{ r.bagStatus }}</span>
-              <span class="ob-open-badge" *ngIf="r.hasOpenBag">
-                <svg class="ob-inline-ico fill" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle cx="12" cy="12" r="6" />
-                </svg>
-                Bao lẻ
-              </span>
             </div>
-            <div class="ob-strong sm">{{ r.productVariantName }}</div>
+            <div class="ob-strong sm">{{ r.isFull ? 'Bao nguyên' : 'Bao lẻ' }} · {{ r.bagStatus || 'Stored' }}</div>
           </div>
-
-          <div class="ob-stack-row" *ngIf="r.bagAllocationId">
-            <span class="ob-muted sm">Phát hiện ẩm, mốc, mùi, bao hỏng, đổi màu hoặc sai sản phẩm?</span>
+          <div class="ob-stack-row">
+            <div>
+              <div class="ob-muted sm">Allocation #{{ r.bagAllocationId }}</div>
+              <div *ngIf="(r.allocatedWeightKg || 0) + 0.001 < (r.bagWeightSnapshotKg || r.allocatedWeightKg || 0)">
+                Phân bổ lấy lẻ: <b>{{ fmtKg(r.allocatedWeightKg) }}</b> từ bao {{ fmtKg(r.bagWeightSnapshotKg) }}
+              </div>
+              <div *ngIf="!((r.allocatedWeightKg || 0) + 0.001 < (r.bagWeightSnapshotKg || r.allocatedWeightKg || 0))">
+                Phân bổ: <b>{{ fmtKg(r.allocatedWeightKg) }}</b>
+              </div>
+              <div>Xác nhận lấy: <b>{{ fmtKg(r.allocatedWeightKg) }}</b></div>
+            </div>
             <button type="button" class="btn danger-ghost" [disabled]="saving()"
               [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="reportBagQualityIssue(r)">
               Báo sự cố chất lượng
             </button>
           </div>
-
-          <!-- Open bag row (nếu vị trí có bao lẻ) -->
-          <div class="ob-stack-row ob-open-row" *ngIf="r.hasOpenBag">
-            <div class="ob-open-left">
-              <label class="ob-bag-check">
-                <input type="checkbox" [checked]="r.takeOpenBag" (change)="togglePickOpenBag(i)" />
-                <span>Lấy hết bao lẻ (Đã giữ: {{ fmtKg(r.openBagWeightKg) }})</span>
-              </label>
-            </div>
-            <div class="ob-open-right">
-              <span class="ob-muted sm">Hoặc lấy lẻ:</span>
-              <input type="number" min="0" [max]="r.openBagWeightKg" step="0.1" class="ob-kg-input"
-                [ngModel]="r.openBagPickedKg" (ngModelChange)="setPickOpenBagKg(i, $event)" />
-              <span class="ob-muted sm">kg</span>
-            </div>
-          </div>
-
-          <!-- Full bags row (nếu có bao chuẩn) -->
-          <div class="ob-stack-row" *ngIf="r.allocatedFullBagCount > 0">
-            <div class="ob-stack-label">
-              <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path
-                  d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                <path d="m3.3 7 8.7 5 8.7-5" />
-                <path d="M12 22V12" />
-                <path d="m7.5 4.4 9 5.2" />
-              </svg>
-              Bao chuẩn ({{ fmtNumber(r.standardWeightKg, 0) }} kg/bao) · Đã giữ {{ r.allocatedFullBagCount }} bao
-            </div>
-            <div class="ob-stack-input">
-              <div class="ob-bag-stepper">
-                <button type="button" class="ob-step-btn" [disabled]="(r.pickedFullBagCount || 0) <= 0"
-                  (click)="setPickFullBagCount(i, (r.pickedFullBagCount || 0) - 1)">−</button>
-                <input type="number" min="0" [max]="r.allocatedFullBagCount" [ngModel]="r.pickedFullBagCount"
-                  (ngModelChange)="setPickFullBagCount(i, $event)" />
-                <button type="button" class="ob-step-btn"
-                  [disabled]="(r.pickedFullBagCount || 0) >= r.allocatedFullBagCount"
-                  (click)="setPickFullBagCount(i, (r.pickedFullBagCount || 0) + 1)">+</button>
-                <span class="ob-muted sm">bao nguyên</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Split / partial bag row -->
-          <div class="ob-stack-row ob-split-row" *ngIf="r.allocatedFullBagCount > 0 || r.allocatedSplitKg > 0">
-            <div class="ob-stack-label sm">
-              <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M5 12h14" />
-                <path d="m13 6 6 6-6 6" />
-                <path d="M5 5v14" />
-                <path d="M9 8h2" />
-                <path d="M9 16h2" />
-              </svg>
-              Xé 1 bao chuẩn lấy lẻ:
-            </div>
-            <div class="ob-stack-input-inline">
-              <input type="number" min="0" [max]="pickSplitMaxKg(r)" step="0.1" class="ob-kg-input"
-                [ngModel]="r.pickedSplitKg" (ngModelChange)="setPickSplitKg(i, $event)" />
-              <span class="ob-muted sm">kg (tối đa {{ fmtKg(pickSplitMaxKg(r)) }})</span>
-            </div>
-          </div>
-
-          <!-- Card Total -->
-          <div class="ob-stack-total">
-            <svg class="ob-inline-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="4" y="3" width="16" height="18" rx="2" />
-              <path d="M8 7h8" />
-              <path d="M8 11h8" />
-              <path d="M8 15h5" />
-            </svg>
-            Tổng thực lấy tại cột: <b>{{ fmtKg(locationPickedKg(r)) }}</b>
-            <span class="ob-muted sm" *ngIf="r.totalAllocatedKg !== locationPickedKg(r)">
-              (Đã giữ {{ fmtKg(r.totalAllocatedKg) }})
-            </span>
-          </div>
         </div>
       </div>
     </div>
-
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closePick()" [disabled]="saving()">Đóng</button>
       <button class="btn primary" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPick()" [disabled]="saving()">
-        Lưu số lượng lấy hàng
+        Lưu xác nhận lấy hàng
       </button>
     </div>
   </div>
@@ -819,6 +700,9 @@
       </button>
     </div>
     <div class="ob-modal-body">
+      <div class="ob-card-warning" *ngIf="detail() && !canConfirmPacking(detail()!)">
+        Cần đủ allocation và xác nhận lấy đủ trước khi đóng gói. Hãy kiểm tra lại nút lấy hàng hoặc chọn bao thay thế nếu đang thiếu.
+      </div>
       <label class="ob-field">
         <span>Mã QR đóng gói <small class="ob-muted">(không bắt buộc)</small></span>
         <input type="text" [ngModel]="packingQr()" (ngModelChange)="packingQr.set($event)"
@@ -833,7 +717,7 @@
     <div class="ob-modal-actions">
       <button class="btn ghost" (click)="closePacking()" [disabled]="saving()">Đóng</button>
       <button class="btn violet" [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="submitPacking()"
-        [disabled]="saving()">Xác nhận đóng gói</button>
+        [disabled]="saving() || !canConfirmPacking(detail()!)">Xác nhận đóng gói</button>
     </div>
   </div>
 </div>
