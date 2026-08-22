@@ -97,6 +97,11 @@ export interface CustomerFeedbackSummary {
   outboundOrderItemId?: number | null;
   productVariantId?: number | null;
   productVariantName?: string | null;
+  paddyLotBagAllocationId?: number | null;
+  bagId?: number | null;
+  bagNo?: number | null;
+  paddyLotId?: number | null;
+  paddyLotCode?: string | null;
   feedbackType: string;
   description: string;
   severity?: string | null;
@@ -104,6 +109,8 @@ export interface CustomerFeedbackSummary {
   createdDate?: string | null;
   resolvedAt?: string | null;
   resolutionNote?: string | null;
+  customerReturnOrderId?: number | null;
+  customerReturnOrderCode?: string | null;
 }
 
 export interface CreateSalesOrderItem {

@@ -67,6 +67,8 @@ export interface PaddyLotTraceabilityDto {
   qualityInspections: TraceabilityInspectionDto[];
   millingOrders: TraceabilityMillingDto[];
   outboundSales: TraceabilityOutboundDto[];
+  customerFeedbacks: TraceabilityCustomerFeedbackDto[];
+  customerReturns: TraceabilityCustomerReturnDto[];
   timeline: TraceabilityEventDto[];
   summary: TraceabilitySummaryDto;
 }
@@ -259,6 +261,76 @@ export interface TraceabilityOutboundAllocationDto {
   quantityPickedKg: number;
 }
 
+export interface TraceabilityCustomerFeedbackDto {
+  feedbackId: number;
+  salesOrderId: number;
+  outboundOrderId: number;
+  outboundOrderItemId?: number | null;
+  paddyLotBagAllocationId?: number | null;
+  bagId?: number | null;
+  bagNo?: number | null;
+  paddyLotId?: number | null;
+  paddyLotCode?: string | null;
+  feedbackType: string;
+  severity?: string | null;
+  description: string;
+  resolutionStatus: string;
+  resolutionNote?: string | null;
+  createdDate: string;
+  resolvedAt?: string | null;
+  customerReturnOrderId?: number | null;
+  customerReturnOrderCode?: string | null;
+}
+
+export interface TraceabilityCustomerReturnDto {
+  customerReturnOrderId: number;
+  returnCode: string;
+  outboundOrderId: number;
+  salesOrderId: number;
+  customerFeedbackId?: number | null;
+  customerId?: number | null;
+  warehouseId: number;
+  statusCode: string;
+  returnReason?: string | null;
+  createdDate: string;
+  receivedAt?: string | null;
+  inspectedAt?: string | null;
+  confirmedAt?: string | null;
+  approvedCreditAmount: number;
+  debtReductionAmount: number;
+  refundPendingAmount: number;
+  refundedAmount: number;
+  refundStatus: string;
+  refundedAt?: string | null;
+  items: TraceabilityCustomerReturnItemDto[];
+}
+
+export interface TraceabilityCustomerReturnItemDto {
+  customerReturnOrderItemId: number;
+  productVariantId?: number | null;
+  productVariantName?: string | null;
+  sku?: string | null;
+  allocations: TraceabilityCustomerReturnAllocationDto[];
+}
+
+export interface TraceabilityCustomerReturnAllocationDto {
+  returnAllocationId: number;
+  outboundOrderItemAllocationId?: number | null;
+  paddyLotId: number;
+  paddyLotCode?: string | null;
+  productVariantId: number;
+  quantityReturned: number;
+  quantityReceived: number;
+  quantityGood: number;
+  quantityDamaged: number;
+  quantityRejected: number;
+  disposition: string;
+  restockLocationId?: number | null;
+  quarantineLocationId?: number | null;
+  rejectedLocationId?: number | null;
+  creditAmount: number;
+}
+
 export interface TraceabilityEventDto {
   eventAt: string;
   eventType: string;
@@ -279,6 +351,8 @@ export interface TraceabilitySummaryDto {
   inspectionCount: number;
   millingOrderCount: number;
   outboundOrderCount: number;
+  feedbackCount: number;
+  customerReturnCount: number;
   purchasedWeightKg: number;
   millingInputWeightKg: number;
   millingRiceOutputWeightKg: number;
@@ -286,5 +360,10 @@ export interface TraceabilitySummaryDto {
   millingLossWeightKg: number;
   allocatedOutboundWeightKg: number;
   dispatchedWeightKg: number;
+  returnedWeightKg: number;
+  restockedReturnWeightKg: number;
+  quarantinedReturnWeightKg: number;
+  rejectedReturnWeightKg: number;
+  refundAmount: number;
   currentRemainingWeightKg: number;
 }

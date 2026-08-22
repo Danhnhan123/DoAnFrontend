@@ -103,6 +103,7 @@ export interface OutboundOrderDetail {
 
 export interface OutboundBagAllocation {
   bagAllocationId: number;
+  outboundOrderItemId?: number | null;
   bagId: number;
   bagNo: number;
   allocatedWeightKg: number;

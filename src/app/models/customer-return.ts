@@ -43,6 +43,7 @@ export interface CustomerReturnRow {
   statusName: string;
   outboundOrderId?: number | null;
   outboundOrderCode?: string | null;
+  salesOrderId?: number | null;
   salesOrderCode?: string | null;
   customerFeedbackId?: number | null;
   customerId?: number | null;
@@ -70,7 +71,18 @@ export interface CustomerReturnRow {
 }
 
 export interface CustomerReturnDetail extends CustomerReturnRow {
+  feedback?: CustomerReturnFeedbackSummary | null;
   items: CustomerReturnItemDetail[];
+}
+
+export interface CustomerReturnFeedbackSummary {
+  id: number;
+  feedbackType: string;
+  severity?: string | null;
+  description: string;
+  resolutionStatus: string;
+  resolutionNote?: string | null;
+  createdDate?: string | null;
 }
 
 export interface CustomerReturnItemDetail {

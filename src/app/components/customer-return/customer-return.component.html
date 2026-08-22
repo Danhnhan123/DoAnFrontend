@@ -215,6 +215,33 @@
           </p>
         </div>
 
+        <div class="return-source-card">
+          <div>
+            <small>Nguồn bán hàng</small>
+            <strong>{{ current.salesOrderCode || ('Sales Order #' + current.salesOrderId) }}</strong>
+            <span>{{ current.outboundOrderCode || ('Phiếu xuất #' + current.outboundOrderId) }}</span>
+          </div>
+          <div class="return-source-actions">
+            <button type="button" class="secondary-btn compact" *ngIf="current.salesOrderId"
+              (click)="openSourceSalesOrder(current)">Xem đơn bán</button>
+            <button type="button" class="secondary-btn compact" *ngIf="current.outboundOrderId"
+              (click)="openSourceOutbound(current)">Xem phiếu xuất</button>
+          </div>
+        </div>
+
+        @if (current.feedback; as feedback) {
+        <div class="return-feedback-card">
+          <div class="return-feedback-head">
+            <span>{{ feedback.feedbackType }}</span>
+            <strong>{{ feedback.resolutionStatus }}</strong>
+          </div>
+          <p>{{ feedback.description }}</p>
+          @if (feedback.resolutionNote) {
+          <small>Xử lý: {{ feedback.resolutionNote }}</small>
+          }
+        </div>
+        }
+
         <div class="quality-list">
           @for (item of current.items; track item.id) {
           <div class="quality-item">
@@ -227,8 +254,10 @@
                 allocation of item.allocations;
                 track allocation.id
                 ) {
-                <span>{{ allocation.paddyLotCode }} ·
-                  {{ fmtWeight(allocation.quantityReturned) }}</span>
+                <span class="return-lot-row">
+                  {{ allocation.paddyLotCode }} · {{ fmtWeight(allocation.quantityReturned) }} · {{ allocation.disposition }}
+                  <button type="button" class="trace-link" (click)="openTrace(allocation.paddyLotId)">Truy vết</button>
+                </span>
                 }
               </small>
             </div>
@@ -688,4 +717,5 @@
     </footer>
   </section>
 </div>
+
 }
