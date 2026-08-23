@@ -409,7 +409,7 @@
         <div class="so-section">
           <div class="so-section-title"><h3>Phản hồi</h3><span>{{ order.feedbackCount }} phản hồi</span></div>
           @if (!order.feedbacks.length) { <div class="so-empty-line">Chưa có phản hồi liên quan.</div> }
-          @else { <div class="so-related-list"> @for (feedback of order.feedbacks; track feedback.id) { <div><span><b>{{ feedback.feedbackType }}</b><small>{{ feedback.description }}</small></span><strong>{{ feedback.resolutionStatus }}</strong></div> } </div> }
+          @else { <div class="so-related-list"> @for (feedback of order.feedbacks; track feedback.id) { <div><span><b>{{ feedbackTypeLabels[feedback.feedbackType] || feedback.feedbackType }}</b><small>{{ feedback.description }}</small></span><strong>{{ fmtDate(feedback.createdDate, true) }}</strong></div> } </div> }
         </div>
 
         <div class="so-detail-actions">

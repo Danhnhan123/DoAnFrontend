@@ -31,7 +31,7 @@ import {
   PickOutboundPayload,
   SalesOrderDetail,
 } from '../../models';
-import { FEEDBACK_STATUSES, FEEDBACK_TYPES } from '../../models/customer-feedback';
+import { FEEDBACK_TYPE_LABELS, FEEDBACK_TYPES } from '../../models/customer-feedback';
 import { CustomerFeedbackService } from '../../services/customer-feedback.service';
 import { InventoryService } from '../../services/inventory.service';
 import { OutboundOrderService } from '../../services/outbound-order.service';
@@ -133,9 +133,15 @@ interface FeedbackForm {
   outboundOrderItemId: number | null;
   paddyLotBagAllocationId: number | null;
   feedbackType: string;
-  severity: string;
   description: string;
 }
+
+const ITEM_REQUIRED_FEEDBACK_TYPES = new Set([
+  'QUALITY',
+  'WRONG_PRODUCT',
+  'WEIGHT',
+  'PACKAGING',
+]);
 
 /** Bước pipeline (chỉ hiển thị) — khớp thiết kế Figma "Xuất kho / Giao hàng". */
 const PIPELINE_STEPS = [
@@ -240,12 +246,14 @@ export class OutboundOrderComponent implements OnDestroy {
   // Phản hồi khách hàng và truy vết lô ngay trong chi tiết phiếu xuất.
   readonly showFeedbackModal = signal(false);
   readonly savingFeedback = signal(false);
-  readonly feedbackTypes = FEEDBACK_TYPES;
+  readonly feedbackTypeOptions: FilterSelectOption[] = FEEDBACK_TYPES.map((type) => ({
+    id: type,
+    name: FEEDBACK_TYPE_LABELS[type],
+  }));
   readonly feedbackForm = signal<FeedbackForm>({
     outboundOrderItemId: null,
     paddyLotBagAllocationId: null,
     feedbackType: 'QUALITY',
-    severity: 'MEDIUM',
     description: '',
   });
 
@@ -317,13 +325,28 @@ export class OutboundOrderComponent implements OnDestroy {
   readonly fetching = computed(() => this.listQuery.isFetching());
   readonly detailLoading = computed(() => this.detailQuery.isFetching());
   readonly detail = computed(() => this.detailQuery.data() || null);
+  readonly feedbackItemOptions = computed<FilterSelectOption[]>(() =>
+    (this.detail()?.items || []).map((item) => ({
+      id: item.id,
+      name: `${item.productVariantName} · ${item.sku || 'Không SKU'}`,
+    }))
+  );
   readonly feedbackBagOptions = computed(() => {
     const order = this.detail();
     const itemId = this.feedbackForm().outboundOrderItemId;
     if (!order || itemId == null) return [];
-    return order.bagAllocations.filter(
-      (bag) => bag.outboundOrderItemId == null || bag.outboundOrderItemId === itemId
-    );
+    return order.bagAllocations.filter((bag) => bag.outboundOrderItemId === itemId);
+  });
+  readonly feedbackBagSelectOptions = computed<FilterSelectOption[]>(() =>
+    this.feedbackBagOptions().map((bag) => ({
+      id: bag.bagAllocationId,
+      name: `Bao #${bag.bagNo} · ${bag.lotCode || `Lô #${bag.lotId}`} · ${this.fmtKg(bag.pickedWeightKg)}`,
+    }))
+  );
+  readonly canSubmitFeedback = computed(() => {
+    const form = this.feedbackForm();
+    return !!form.description.trim()
+      && (!this.feedbackItemRequired(form.feedbackType) || form.outboundOrderItemId != null);
   });
 
   readonly pageDeliveringCount = computed(
@@ -556,7 +579,6 @@ export class OutboundOrderComponent implements OnDestroy {
       outboundOrderItemId: order.items[0]?.id ?? null,
       paddyLotBagAllocationId: null,
       feedbackType: 'QUALITY',
-      severity: 'MEDIUM',
       description: '',
     });
     this.showFeedbackModal.set(true);
@@ -578,12 +600,41 @@ export class OutboundOrderComponent implements OnDestroy {
     this.feedbackForm.update((form) => ({ ...form, [key]: value }));
   }
 
+  setFeedbackType(value: string): void {
+    this.feedbackForm.update((form) => {
+      const itemRequired = this.feedbackItemRequired(value);
+      return {
+        ...form,
+        feedbackType: value,
+        outboundOrderItemId: itemRequired && form.outboundOrderItemId == null
+          ? this.detail()?.items[0]?.id ?? null
+          : form.outboundOrderItemId,
+        paddyLotBagAllocationId: itemRequired && form.outboundOrderItemId == null
+          ? null
+          : form.paddyLotBagAllocationId,
+      };
+    });
+  }
+
+  feedbackTypeLabel(type: string): string {
+    return FEEDBACK_TYPE_LABELS[type] || type;
+  }
+
+  feedbackItemRequired(type = this.feedbackForm().feedbackType): boolean {
+    return ITEM_REQUIRED_FEEDBACK_TYPES.has(type);
+  }
+
   async createFeedback(): Promise<void> {
     const order = this.detail();
     const form = this.feedbackForm();
     const item = order?.items.find((candidate) => candidate.id === form.outboundOrderItemId);
-    if (!order || !item || !form.description.trim() || this.savingFeedback()) {
-      if (!form.description.trim()) this.alert('Vui lòng nhập nội dung phản hồi.', false);
+    if (!order || this.savingFeedback()) return;
+    if (!form.description.trim()) {
+      this.alert('Vui lòng nhập nội dung phản hồi.', false);
+      return;
+    }
+    if (this.feedbackItemRequired(form.feedbackType) && !item) {
+      this.alert('Vui lòng chọn dòng hàng cho loại phản hồi này.', false);
       return;
     }
 
@@ -592,55 +643,16 @@ export class OutboundOrderComponent implements OnDestroy {
       const response = await lastValueFrom(this.feedbackService.create({
         salesOrderId: order.salesOrderId,
         outboundOrderId: order.id,
-        outboundOrderItemId: item.id,
-        productVariantId: item.productVariantId,
+        outboundOrderItemId: item?.id ?? null,
+        productVariantId: item?.productVariantId ?? null,
         paddyLotBagAllocationId: form.paddyLotBagAllocationId,
         feedbackType: form.feedbackType,
-        severity: form.severity,
         description: form.description.trim(),
       }));
       this.unwrap(response, 'Không thể tạo phản hồi khách hàng.');
       this.showFeedbackModal.set(false);
       this.refreshAfterWrite();
       this.alert('Đã ghi nhận phản hồi trên phiếu xuất.');
-    } catch (error: unknown) {
-      this.alert(this.errorText(error), false);
-    } finally {
-      this.savingFeedback.set(false);
-    }
-  }
-
-  async updateFeedback(feedback: CustomerFeedbackSummary): Promise<void> {
-    const result = await Swal.fire({
-      title: 'Cập nhật xử lý phản hồi',
-      html: `
-        <select id="feedback-status" class="swal2-select" style="display:block;width:80%;margin:1rem auto">
-          ${FEEDBACK_STATUSES.map((status) => `<option value="${status}" ${status === feedback.resolutionStatus ? 'selected' : ''}>${status}</option>`).join('')}
-        </select>
-        <textarea id="feedback-note" class="swal2-textarea" placeholder="Ghi chú xử lý"></textarea>`,
-      showCancelButton: true,
-      confirmButtonText: 'Lưu xử lý',
-      cancelButtonText: 'Đóng',
-      confirmButtonColor: '#16a34a',
-      didOpen: () => {
-        const note = document.getElementById('feedback-note') as HTMLTextAreaElement | null;
-        if (note) note.value = feedback.resolutionNote || '';
-      },
-      preConfirm: () => ({
-        status: (document.getElementById('feedback-status') as HTMLSelectElement)?.value,
-        note: (document.getElementById('feedback-note') as HTMLTextAreaElement)?.value?.trim(),
-      }),
-    });
-    if (!result.isConfirmed || !result.value?.status) return;
-
-    this.savingFeedback.set(true);
-    try {
-      const response = await lastValueFrom(
-        this.feedbackService.resolve(feedback.id, result.value.status, result.value.note)
-      );
-      this.unwrap(response, 'Không thể cập nhật phản hồi.');
-      this.refreshAfterWrite();
-      this.alert('Đã cập nhật trạng thái phản hồi.');
     } catch (error: unknown) {
       this.alert(this.errorText(error), false);
     } finally {

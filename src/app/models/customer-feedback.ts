@@ -1,6 +1,15 @@
 export const FEEDBACK_TYPES = ['QUALITY', 'WRONG_PRODUCT', 'WEIGHT', 'PACKAGING', 'DELIVERY', 'OTHER'] as const;
 export const FEEDBACK_STATUSES = ['OPEN', 'INVESTIGATING', 'RESOLVED', 'REJECTED'] as const;
 
+export const FEEDBACK_TYPE_LABELS: Record<string, string> = {
+  QUALITY: 'Chất lượng',
+  WRONG_PRODUCT: 'Sai sản phẩm',
+  WEIGHT: 'Sai / thiếu khối lượng',
+  PACKAGING: 'Bao bì / đóng gói',
+  DELIVERY: 'Giao hàng',
+  OTHER: 'Khác',
+};
+
 export interface CustomerFeedback {
   id: number; salesOrderId: number; salesOrderCode: string; outboundOrderId: number;
   outboundOrderCode: string; outboundOrderItemId?: number | null; productVariantId?: number | null;

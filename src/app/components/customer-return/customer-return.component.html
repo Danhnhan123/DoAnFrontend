@@ -228,13 +228,10 @@
         @if (current.feedback; as feedback) {
         <div class="return-feedback-card">
           <div class="return-feedback-head">
-            <span>{{ feedback.feedbackType }}</span>
-            <strong>{{ feedback.resolutionStatus }}</strong>
+            <span>{{ feedbackTypeLabels[feedback.feedbackType] || feedback.feedbackType }}</span>
+            <strong>{{ fmtDate(feedback.createdDate, true) }}</strong>
           </div>
           <p>{{ feedback.description }}</p>
-          @if (feedback.resolutionNote) {
-          <small>Xử lý: {{ feedback.resolutionNote }}</small>
-          }
         </div>
         }
 
