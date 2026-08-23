@@ -969,6 +969,7 @@ export class MillingOrderComponent {
   }
 
   reserveLotText(line: AllocationLine): string {
+    if (!line.paddyLotId) return 'Chưa tự động chọn lô lúa';
     const input = (this.activeOrder()?.inputs ?? []).find(
       (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
     );
@@ -977,6 +978,7 @@ export class MillingOrderComponent {
   }
 
   reserveLocationText(line: AllocationLine): string {
+    if (!line.locationId) return 'Chưa tự động chọn vị trí/cột';
     const input = (this.activeOrder()?.inputs ?? []).find(
       (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
     );
@@ -1003,16 +1005,6 @@ export class MillingOrderComponent {
     this.showReserveModal.set(false);
     this.activeOrder.set(null);
     this.reserveLines.set([this.newAllocation()]);
-  }
-
-  addReserveLine(): void {
-    this.reserveLines.update((lines) => [...lines, this.newAllocation()]);
-  }
-
-  removeReserveLine(index: number): void {
-    this.reserveLines.update((lines) =>
-      lines.filter((_, current) => current !== index)
-    );
   }
 
   setReserveLine(

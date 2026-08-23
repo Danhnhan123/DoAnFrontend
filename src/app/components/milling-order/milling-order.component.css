@@ -817,7 +817,7 @@ label b {
 }
 
 .allocation-line.reserve-line {
-  grid-template-columns: minmax(230px, 1.4fr) minmax(175px, 1fr) minmax(140px, 0.7fr) minmax(150px, 0.8fr) 32px;
+  grid-template-columns: minmax(175px, 1fr) minmax(230px, 1.4fr) minmax(140px, 0.7fr) minmax(150px, 0.8fr);
 }
 
 .remove-line {
