@@ -550,33 +550,12 @@
           @for (line of reserveLines(); track line.key; let i = $index) {
             <div class="allocation-line reserve-line">
               <label>
-                <span>Lô lúa</span>
-                @if (reserveReadOnly()) {
-                  <input type="text" readonly [value]="reserveLotText(line)" />
-                } @else {
-                <app-filter-select
-                  [clearable]="false"
-                  placeholder="Chọn lô đủ điều kiện"
-                  [options]="lotSelectOptions(activeOrder()?.warehouseId || null)"
-                  [value]="line.paddyLotId"
-                  (valueChange)="setReserveLine(i, 'paddyLotId', $event)"
-                ></app-filter-select>
-                }
+                <span>Vị trí/cột</span>
+                <input type="text" readonly [value]="reserveLocationText(line)" />
               </label>
               <label>
-                <span>Vị trí/cột</span>
-                @if (reserveReadOnly()) {
-                  <input type="text" readonly [value]="reserveLocationText(line)" />
-                } @else {
-                <app-filter-select
-                  [clearable]="false"
-                  [disabled]="!line.paddyLotId"
-                  placeholder="Chọn cột đang chứa lô"
-                  [options]="inventoryLocationSelectOptions(line.paddyLotId, activeOrder()?.warehouseId || null)"
-                  [value]="line.locationId"
-                  (valueChange)="setReserveLine(i, 'locationId', $event)"
-                ></app-filter-select>
-                }
+                <span>Lô lúa</span>
+                <input type="text" readonly [value]="reserveLotText(line)" />
               </label>
               <label>
                 <span>Bao lúa đã chọn (nguyên bao)</span>
@@ -596,26 +575,9 @@
                   (ngModelChange)="setReserveLine(i, 'note', $event)"
                 />
               </label>
-              @if (!reserveReadOnly()) {
-              <button
-                class="remove-line"
-                type="button"
-                title="Xóa dòng"
-                [disabled]="reserveLines().length === 1"
-                (click)="removeReserveLine(i)"
-              >
-                ×
-              </button>
-              }
             </div>
           }
         </div>
-
-        @if (!reserveReadOnly()) {
-        <button [appHasPerm]="'MILLING_ORDERS:CREATE'" class="small-add-btn standalone" type="button" (click)="addReserveLine()">
-          ＋ Thêm lô/cột đầu vào
-        </button>
-        }
       </div>
 
       <footer class="modal-footer">

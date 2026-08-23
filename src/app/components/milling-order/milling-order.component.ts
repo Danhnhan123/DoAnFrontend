@@ -969,6 +969,7 @@ export class MillingOrderComponent {
   }
 
   reserveLotText(line: AllocationLine): string {
+    if (!line.paddyLotId) return 'Chưa tự động chọn lô lúa';
     const input = (this.activeOrder()?.inputs ?? []).find(
       (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
     );
@@ -977,6 +978,7 @@ export class MillingOrderComponent {
   }
 
   reserveLocationText(line: AllocationLine): string {
+    if (!line.locationId) return 'Chưa tự động chọn vị trí/cột';
     const input = (this.activeOrder()?.inputs ?? []).find(
       (x) => x.paddyLotId === line.paddyLotId && x.locationId === line.locationId
     );
@@ -1003,16 +1005,6 @@ export class MillingOrderComponent {
     this.showReserveModal.set(false);
     this.activeOrder.set(null);
     this.reserveLines.set([this.newAllocation()]);
-  }
-
-  addReserveLine(): void {
-    this.reserveLines.update((lines) => [...lines, this.newAllocation()]);
-  }
-
-  removeReserveLine(index: number): void {
-    this.reserveLines.update((lines) =>
-      lines.filter((_, current) => current !== index)
-    );
   }
 
   setReserveLine(
@@ -1108,39 +1100,20 @@ export class MillingOrderComponent {
       return;
     }
     if (this.statusCode(row) !== 'RESERVED') return;
-    const operatorOptions = this.operatorOptions()
-      .map((operator) => `<option value="${operator.id}">${this.escapeHtml(operator.name)}</option>`)
-      .join('');
-    const confirm = await Swal.fire<{ machineRef: string; operatorId: number | null }>({
+    const confirm = await Swal.fire({
       title: `Bắt đầu ${row.millingCode}?`,
-      html: `
-        <label for="milling-machine-ref" style="display:block;text-align:left;margin-bottom:6px">Mã máy xay <b>*</b></label>
-        <input id="milling-machine-ref" class="swal2-input" maxlength="255" placeholder="VD: MAY-XAY-01" style="margin:0 0 16px;width:100%">
-        <label for="milling-operator-id" style="display:block;text-align:left;margin-bottom:6px">Người vận hành</label>
-        <select id="milling-operator-id" class="swal2-select" style="margin:0;width:100%">
-          <option value="">Chốt khi hoàn thành</option>${operatorOptions}
-        </select>`,
+      text: 'Lệnh sẽ chuyển sang trạng thái Đang xay. Máy xay và người vận hành sẽ được ghi nhận khi nhập kết quả.',
       icon: 'question',
       showCancelButton: true,
       confirmButtonText: 'Bắt đầu xay',
       cancelButtonText: 'Hủy',
       confirmButtonColor: '#16a052',
-      focusConfirm: false,
-      preConfirm: () => {
-        const machineRef = (document.getElementById('milling-machine-ref') as HTMLInputElement | null)?.value.trim() || '';
-        const rawOperatorId = (document.getElementById('milling-operator-id') as HTMLSelectElement | null)?.value || '';
-        if (!machineRef) {
-          Swal.showValidationMessage('Vui lòng nhập mã máy xay.');
-          return false;
-        }
-        return { machineRef, operatorId: rawOperatorId ? Number(rawOperatorId) : null };
-      },
     });
-    if (!confirm.isConfirmed || !confirm.value) return;
+    if (!confirm.isConfirmed) return;
 
     this.actionLoadingId.set(row.id);
     try {
-      const result = await lastValueFrom(this.service.start(row.id, confirm.value));
+      const result = await lastValueFrom(this.service.start(row.id));
       this.assertSucceeded(result);
       await this.afterCommand('Đã bắt đầu lệnh xay.');
     } catch (error) {
@@ -1755,10 +1728,7 @@ export class MillingOrderComponent {
   ): CompleteOrderForm {
     return {
       configuredYieldRate: yieldRate || 0.68,
-      machineRef:
-        machineRef === DEFAULT_MILLING_MACHINE_REF
-          ? machineRef
-          : DEFAULT_MILLING_MACHINE_REF,
+      machineRef,
       operatorId,
       lossKg: 0,
       millingCost,
