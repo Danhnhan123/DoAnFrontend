@@ -335,7 +335,11 @@ export class OutboundOrderComponent implements OnDestroy {
     const order = this.detail();
     const itemId = this.feedbackForm().outboundOrderItemId;
     if (!order || itemId == null) return [];
-    return order.bagAllocations.filter((bag) => bag.outboundOrderItemId === itemId);
+    return order.bagAllocations.filter(
+      (bag) => bag.outboundOrderItemId === itemId
+        && bag.status === 'CONSUMED'
+        && Number(bag.pickedWeightKg || 0) > 0
+    );
   });
   readonly feedbackBagSelectOptions = computed<FilterSelectOption[]>(() =>
     this.feedbackBagOptions().map((bag) => ({
@@ -606,12 +610,12 @@ export class OutboundOrderComponent implements OnDestroy {
       return {
         ...form,
         feedbackType: value,
-        outboundOrderItemId: itemRequired && form.outboundOrderItemId == null
-          ? this.detail()?.items[0]?.id ?? null
-          : form.outboundOrderItemId,
-        paddyLotBagAllocationId: itemRequired && form.outboundOrderItemId == null
-          ? null
-          : form.paddyLotBagAllocationId,
+        outboundOrderItemId: itemRequired
+          ? form.outboundOrderItemId ?? this.detail()?.items[0]?.id ?? null
+          : null,
+        paddyLotBagAllocationId: itemRequired
+          ? form.paddyLotBagAllocationId
+          : null,
       };
     });
   }
