@@ -34,6 +34,10 @@ import { CustomerReturnOrderStatusService } from "../../services/customer-return
 import { CustomerService } from "../../services/customer.service";
 import { LocationService } from "../../services/location.service";
 import { WarehouseService } from "../../services/warehouse.service";
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from "../shared/filter-select.component";
 
 type ReturnTab = "ALL" | "PENDING_APPROVAL" | "RECEIVED" | "CONFIRMED";
 
@@ -64,8 +68,10 @@ interface ReturnFormState {
 interface InspectionLine {
   itemId: number;
   allocationId: number;
+  originalLocationId: number | null;
   productVariantId: number;
   productName: string;
+  sku: string;
   standardBagWeightKg: number;
   lotCode: string;
   quantityReturned: number;
@@ -86,7 +92,7 @@ interface InspectionLine {
 @Component({
   selector: "app-customer-return",
   standalone: true,
-  imports: [CommonModule, FormsModule, HasPermissionDirective],
+  imports: [CommonModule, FormsModule, HasPermissionDirective, FilterSelectComponent],
   templateUrl: "./customer-return.component.html",
   styleUrl: "./customer-return.component.css",
 })
@@ -272,6 +278,34 @@ export class CustomerReturnComponent implements OnDestroy {
     (this.locationsQuery.data() || []).filter((item) => item.isActive),
   );
   readonly outbounds = computed(() => this.outboundsQuery.data() || []);
+  readonly customerOptions = computed<FilterSelectOption[]>(() =>
+    this.customers().map((customer) => ({
+      id: customer.id,
+      name: `${customer.code ? customer.code + " · " : ""}${customer.name}`,
+    })),
+  );
+  readonly warehouseOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map((warehouse) => ({
+      id: warehouse.id,
+      name: warehouse.name,
+    })),
+  );
+  readonly outboundOptions = computed<FilterSelectOption[]>(() =>
+    this.outbounds().map((outbound) => ({
+      id: outbound.outboundOrderId,
+      name: `${outbound.outboundOrderCode} · ${outbound.salesOrderCode} · ${outbound.customerName} · còn ${this.fmtWeight(outbound.returnableQuantity)}`,
+    })),
+  );
+  readonly quarantineLocationOptions = computed<FilterSelectOption[]>(() =>
+    this.quarantineLocations().map((location) => ({
+      id: location.id,
+      name: this.locationLabel(location),
+    })),
+  );
+  readonly bagConditionOptions: FilterSelectOption[] = [
+    { id: "GOOD", name: "Bao đạt" },
+    { id: "DAMAGED", name: "Bao cách ly" },
+  ];
   readonly restockLocations = computed(() =>
     this.locations().filter(
       (location) =>
@@ -290,13 +324,6 @@ export class CustomerReturnComponent implements OnDestroy {
         !location.isLockedForOutbound,
     ),
   );
-  readonly formRestockLocations = computed(() =>
-    this.locations().filter(
-      (location) => location.warehouseId === this.form().warehouseId &&
-        !location.isOutboundStaging && !location.isLockedForOutbound,
-    ),
-  );
-
   readonly loading = computed(
     () => this.listQuery.isFetching() && this.listQuery.data() == null,
   );
@@ -349,12 +376,12 @@ export class CustomerReturnComponent implements OnDestroy {
     }, 350);
   }
 
-  setCustomerFilter(value: string): void {
+  setCustomerFilter(value: string | number | null): void {
     this.customerFilter.set(value ? Number(value) : null);
     this.resetList();
   }
 
-  setWarehouseFilter(value: string): void {
+  setWarehouseFilter(value: string | number | null): void {
     this.warehouseFilter.set(value ? Number(value) : null);
     this.resetList();
   }
@@ -399,7 +426,7 @@ export class CustomerReturnComponent implements OnDestroy {
     this.showCreateModal.set(false);
   }
 
-  async setSourceOutbound(value: string): Promise<void> {
+  async setSourceOutbound(value: string | number | null): Promise<void> {
     const id = value ? Number(value) : null;
     if (!id) {
       this.form.update((form) => ({
@@ -598,7 +625,6 @@ export class CustomerReturnComponent implements OnDestroy {
 
     const editingInspection = detail.statusCode === CUSTOMER_RETURN_STATUS.INSPECTED;
 
-    const restockLocs = this.restockLocations();
     const quarantineLocs = this.quarantineLocations();
     const defaultQuarantineId = quarantineLocs[0]?.id ?? null;
 
@@ -606,29 +632,26 @@ export class CustomerReturnComponent implements OnDestroy {
       detail.items.flatMap((item) =>
         item.allocations.map((allocation) => {
           const productVariantId = Number(item.productVariantId || allocation.productVariantId);
-          // Ưu tiên: vị trí gốc của lô → vị trí nhập đầu tiên còn chỗ → vị trí đầu tiên
-          const originalLoc = restockLocs.find(
-            (loc) => loc.id === allocation.originalLocationId &&
-              this.isRestockLocationCompatible(loc, productVariantId),
-          );
-          const firstAvailable =
-            restockLocs.find(
-              (loc) =>
-              this.isRestockLocationCompatible(loc, productVariantId) &&
-              (loc.maxCapacity == null ||
-                (loc.currentOccupancy ?? 0) < loc.maxCapacity),
-            );
-          const autoRestockId = (originalLoc ?? firstAvailable)?.id ?? null;
+          const quantityGood = editingInspection
+            ? allocation.quantityGood
+            : allocation.quantityReceived;
+          const autoRestockId = this.compatibleRestockLocations(
+            productVariantId,
+            quantityGood,
+            allocation.originalLocationId ?? null,
+          )[0]?.id ?? null;
 
           return {
             itemId: item.id,
             allocationId: allocation.id,
+            originalLocationId: allocation.originalLocationId ?? null,
             productVariantId,
             productName: item.productVariantName || item.sku || 'Sản phẩm',
+            sku: item.sku || '',
             standardBagWeightKg: Number(item.standardBagWeightKg || 0),
             lotCode: allocation.paddyLotCode,
             quantityReturned: allocation.quantityReceived,
-            quantityGood: editingInspection ? allocation.quantityGood : allocation.quantityReceived,
+            quantityGood,
             quantityDamaged: editingInspection ? allocation.quantityDamaged : 0,
             quantityRejected: editingInspection ? allocation.quantityRejected : 0,
             creditQuantity: allocation.creditQuantity || 0,
@@ -1003,32 +1026,60 @@ export class CustomerReturnComponent implements OnDestroy {
       .join(' / ');
   }
 
-  locationLabelById(id: number | null | undefined): string {
-    if (!id) return '';
-    const loc = this.locations().find((l) => l.id === id);
-    return this.locationLabel(loc);
-  }
-
-  locationSelectionLabel(location: LocationDetailDto | null | undefined): string {
-    if (!location) return '';
-    const position = this.locationLabel(location);
-    if (!location.currentProductVariantId || Number(location.currentOccupancy || 0) <= 0) {
-      return `${position} — Cột rỗng`;
-    }
-    const product = location.currentProductVariantName?.trim() || 'Sản phẩm chưa có tên';
-    const sku = location.currentProductVariantSku?.trim();
-    return `${position} — Đang chứa: ${sku ? sku + ' · ' : ''}${product} (${this.fmtWeight(location.currentOccupancy)})`;
-  }
-
-  locationSelectionLabelById(id: number | null | undefined): string {
-    if (!id) return '';
-    return this.locationSelectionLabel(this.locations().find((location) => location.id === id));
-  }
-
   isRestockLocationCompatible(location: LocationDetailDto, productVariantId: number): boolean {
     return !location.currentProductVariantId ||
       Number(location.currentOccupancy || 0) <= 0 ||
       location.currentProductVariantId === productVariantId;
+  }
+
+  restockLocationOptions(line: InspectionLine): FilterSelectOption[] {
+    return this.compatibleRestockLocations(
+      line.productVariantId,
+      line.quantityGood,
+      line.originalLocationId,
+    ).map((location) => ({
+      id: location.id,
+      name: this.restockLocationOptionLabel(location, line),
+    }));
+  }
+
+  private compatibleRestockLocations(
+    productVariantId: number,
+    quantityGood: number,
+    originalLocationId: number | null,
+  ): LocationDetailDto[] {
+    return this.restockLocations()
+      .filter((location) =>
+        this.isRestockLocationCompatible(location, productVariantId) &&
+        (location.maxCapacity == null ||
+          Number(location.currentOccupancy || 0) + Number(quantityGood || 0) <= location.maxCapacity + 0.001),
+      )
+      .sort((left, right) => {
+        const priority = (location: LocationDetailDto): number => {
+          if (location.id === originalLocationId) return 0;
+          if (location.currentProductVariantId === productVariantId &&
+              Number(location.currentOccupancy || 0) > 0) return 1;
+          return 2;
+        };
+        return priority(left) - priority(right) ||
+          this.locationLabel(left).localeCompare(this.locationLabel(right), "vi");
+      });
+  }
+
+  private restockLocationOptionLabel(
+    location: LocationDetailDto,
+    line: InspectionLine,
+  ): string {
+    const occupancy = Number(location.currentOccupancy || 0);
+    const sku = location.currentProductVariantSku?.trim() || line.sku;
+    const kind = location.id === line.originalLocationId
+      ? "Cột gốc"
+      : location.currentProductVariantId === line.productVariantId && occupancy > 0
+        ? "Cùng SKU"
+        : "Cột trống";
+    return occupancy > 0
+      ? `${this.locationLabel(location)} — ${kind} · ${sku} · ${this.fmtWeight(occupancy)}`
+      : `${this.locationLabel(location)} — ${kind}`;
   }
 
   sourceCode(row: CustomerReturnRow | CustomerReturnDetail): string {
