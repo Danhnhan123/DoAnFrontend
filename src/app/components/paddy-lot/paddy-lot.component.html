@@ -333,10 +333,10 @@
                 </div>
               </dl>
 
-              @if (mixedPhysicalBags().length) {
+              @if ((traceability()?.physicalBags || []).length) {
                 <section class="physical-bags" aria-label="Bao vật lý và thành phần lô">
                   <h3>Bao vật lý / Thành phần lô</h3>
-                  @for (bag of mixedPhysicalBags(); track bag.bagId) {
+                  @for (bag of traceability()?.physicalBags || []; track bag.bagId) {
                     <article class="physical-bag-card">
                       <div class="physical-bag-head">
                         <strong>Bao #{{ bag.bagNo }}</strong>
@@ -349,7 +349,9 @@
                       @if (bag.locationCode) {
                         <div class="physical-bag-location">{{ bag.locationCode }}</div>
                       }
-                      <span class="mixed-lot-badge">Trộn {{ bag.contentLotCount }} lô</span>
+                      @if (bag.isMixedLot) {
+                        <span class="mixed-lot-badge">Trộn {{ bag.contentLotCount }} lô</span>
+                      }
                       <div class="physical-bag-contents">
                         @for (content of bag.contents; track content.lotId) {
                           <div [class.current-lot]="content.lotId === traceability()?.requestedLotId">
