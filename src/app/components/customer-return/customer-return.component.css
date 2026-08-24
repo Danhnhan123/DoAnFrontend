@@ -686,10 +686,11 @@ td small {
 }
 
 .inspection-line {
-  padding: 12px;
+  padding: 14px;
   border: 1px solid #dce6e0;
-  border-radius: 11px;
+  border-radius: 12px;
   background: #fbfdfc;
+  box-shadow: 0 3px 12px rgb(22 72 44 / 4%);
 }
 
 .inspection-line > header {
@@ -720,8 +721,8 @@ td small {
 .quantity-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 9px;
+  gap: 9px;
+  margin-bottom: 10px;
 }
 
 .quantity-grid label,
@@ -744,9 +745,9 @@ td small {
 .credit-editor {
   display: grid;
   grid-template-columns: minmax(150px, 1.2fr) repeat(2, minmax(115px, 1fr));
-  gap: 8px;
-  padding: 9px;
-  margin-bottom: 10px;
+  gap: 9px;
+  padding: 10px;
+  margin-bottom: 0;
   border: 1px solid #cfe8d8;
   border-radius: 9px;
   background: #f2fbf5;
@@ -784,6 +785,108 @@ td small {
 .credit-editor strong {
   color: var(--green-950);
   font-size: 12px;
+}
+
+.bag-editor {
+  padding-top: 13px;
+  margin-top: 13px;
+  border-top: 1px solid #e1eae5;
+}
+
+.bag-editor-heading,
+.bag-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bag-editor-heading {
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: #42554b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.bag-editor-heading small {
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: var(--green-700);
+  background: #eaf7ef;
+  font-size: 10px;
+}
+
+.bag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(100px, 0.95fr) 74px;
+  align-items: end;
+  gap: 9px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px solid #e0e9e4;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.bag-row label {
+  min-width: 0;
+  color: #65746c;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.bag-row input {
+  width: 100%;
+  height: 40px;
+  padding: 0 11px;
+  margin-top: 5px;
+  border: 1px solid #d5dfd9;
+  border-radius: 9px;
+  outline: none;
+  font-size: 12px;
+}
+
+.bag-row app-filter-select {
+  display: block;
+  margin-top: 5px;
+}
+
+.bag-remove,
+.bag-add {
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.bag-remove {
+  height: 40px;
+  border: 1px solid #f0cccc;
+  color: #b42318;
+  background: #fff7f7;
+}
+
+.bag-actions {
+  flex-wrap: wrap;
+}
+
+.bag-add {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid;
+  background: #fff;
+}
+
+.bag-add--good {
+  border-color: #b8dec6;
+  color: #08783c;
+  background: #f2fbf5;
+}
+
+.bag-add--damaged {
+  border-color: #ead299;
+  color: #8a5b00;
+  background: #fff9e9;
 }
 
 .inspection-credit-total {
@@ -943,16 +1046,6 @@ td small {
   gap: 0 12px;
 }
 
-.manual-lot-picker {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 9px;
-  padding: 11px;
-  margin: 4px 0 13px;
-  border-radius: 10px;
-  background: #f3f8f5;
-}
-
 .return-lines {
   overflow: hidden;
   border: 1px solid #dfe7e2;
@@ -977,7 +1070,7 @@ td small {
 
 .return-line {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) 140px 150px 32px;
+  grid-template-columns: minmax(170px, 1fr) 140px 150px;
   gap: 12px;
   align-items: center;
   padding: 11px 13px;
@@ -1002,16 +1095,6 @@ td small {
   margin-top: 3px;
   color: var(--muted);
   font-size: 10px;
-}
-
-.remove-btn {
-  width: 30px;
-  height: 30px;
-  border: 1px solid #f0caca;
-  border-radius: 8px;
-  color: #bd3c3c;
-  background: #fff5f5;
-  font-size: 17px;
 }
 
 @keyframes shimmer {
@@ -1107,9 +1190,16 @@ td small {
     border-radius: 0;
   }
 
-  .manual-lot-picker,
   .return-line {
     grid-template-columns: 1fr;
+  }
+
+  .bag-row {
+    grid-template-columns: minmax(0, 1fr) minmax(100px, 0.8fr);
+  }
+
+  .bag-remove {
+    grid-column: 1 / -1;
   }
 }
 
@@ -1125,14 +1215,15 @@ td small {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 13px;
+  margin-top: 13px;
+  border-top: 1px solid #e1eae5;
 }
 
 .location-field-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  color: #52645a;
+  font-size: 11px;
+  font-weight: 750;
 }
 
 .location-override-select {
