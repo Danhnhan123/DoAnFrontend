@@ -985,21 +985,24 @@ export class CustomerReturnComponent implements OnDestroy {
   async registerRefund(): Promise<void> {
     const current = this.detail();
     if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.CONFIRMED || current.refundPendingAmount <= 0) return;
+    const refundedAmount = current.refundedAmount ?? 0;
+    const totalRefundAmount = refundedAmount + current.refundPendingAmount;
+    const customerName = this.escapeHtml(current.customerName || "—");
+    const returnCode = this.escapeHtml(current.returnCode);
     const result = await Swal.fire({
       title: "Ghi nhận hoàn tiền",
-      html: `<input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" value="${current.refundPendingAmount}" placeholder="Số tiền"><input id="refund-reference" class="swal2-input" maxlength="100" placeholder="Mã giao dịch / tham chiếu"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
+      html: `<div style="text-align:left;display:grid;gap:8px;margin:0 1.25rem 1rem"><div><strong>Khách hàng:</strong> ${customerName}</div><div><strong>Phiếu trả:</strong> ${returnCode}</div><div><strong>Tổng phải hoàn:</strong> ${this.fmtCurrency(totalRefundAmount)}</div><div><strong>Đã hoàn:</strong> ${this.fmtCurrency(refundedAmount)}</div><div><strong>Còn phải hoàn:</strong> ${this.fmtCurrency(current.refundPendingAmount)}</div></div><label for="refund-amount" style="display:block;text-align:left;margin:0 2rem 4px">Số tiền hoàn lần này</label><input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" value="${current.refundPendingAmount}" placeholder="Số tiền hoàn lần này"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
       showCancelButton: true,
-      confirmButtonText: "Ghi nhận",
+      confirmButtonText: "Xác nhận hoàn tiền",
       cancelButtonText: "Đóng",
       preConfirm: () => {
         const amount = Number((document.getElementById("refund-amount") as HTMLInputElement)?.value);
-        const paymentReference = (document.getElementById("refund-reference") as HTMLInputElement)?.value.trim();
         const note = (document.getElementById("refund-note") as HTMLTextAreaElement)?.value.trim();
-        if (!(amount > 0) || amount > current.refundPendingAmount || !paymentReference) {
-          Swal.showValidationMessage("Nhập số tiền hợp lệ và mã tham chiếu.");
+        if (!(amount > 0) || amount > current.refundPendingAmount) {
+          Swal.showValidationMessage("Nhập số tiền hoàn hợp lệ.");
           return false;
         }
-        return { amount, paymentReference, note: note || null };
+        return { amount, note: note || null };
       },
     });
     if (result.isConfirmed && result.value) {
@@ -1228,6 +1231,16 @@ export class CustomerReturnComponent implements OnDestroy {
 
   fmtCurrency(value: number | null | undefined): string {
     return `${this.fmtNumber(value, 0)}₫`;
+  }
+
+  private escapeHtml(value: string): string {
+    return value.replace(/[&<>'"]/g, (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;",
+    })[character]!);
   }
 
   fmtDate(value: string | null | undefined, includeTime = false): string {

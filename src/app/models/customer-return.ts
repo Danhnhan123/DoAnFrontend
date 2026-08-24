@@ -53,6 +53,7 @@ export interface CustomerReturnRow {
   warehouseName: string;
   approvedCreditAmount: number;
   debtReductionAmount: number;
+  refundedAmount: number;
   refundPendingAmount: number;
   approvedDate?: string | null;
   approvedByName?: string | null;
@@ -249,7 +250,6 @@ export interface ReceiveCustomerReturnPayload {
 
 export interface RegisterCustomerReturnRefundPayload {
   amount: number;
-  paymentReference: string;
   note?: string | null;
 }
 
