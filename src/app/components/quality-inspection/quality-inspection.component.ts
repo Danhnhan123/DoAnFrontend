@@ -738,13 +738,6 @@ export class QualityInspectionComponent {
     }
   }
 
-  openCreate(): void {
-    this.recheckMode.set(false);
-    this.editItem.set(null);
-    this.form.set(this.blankForm());
-    this.showModal.set(true);
-  }
-
   /** Mở modal KIỂM TRA LẠI cho lô đang cách ly (nguồn lô = danh sách QUARANTINE). */
   openRecheck(): void {
     this.recheckMode.set(true);

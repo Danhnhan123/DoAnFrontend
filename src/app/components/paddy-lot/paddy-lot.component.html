@@ -179,12 +179,6 @@
                     >
                       {{ statusLabel(row) }}
                     </span>
-                    <small
-                      class="quality-label"
-                      [ngClass]="qualityClass(row.qualityStatus)"
-                    >
-                      {{ qualityLabel(row.qualityStatus) }}
-                    </small>
                   </td>
                   <td class="money">
                     <strong>{{ fmtMoney(row.costPricePerKg) }}</strong>
@@ -337,15 +331,6 @@
                   </dt>
                   <dd>{{ detailQuantityLabel(lot) }}</dd>
                 </div>
-                <div>
-                  <dt>
-                    <span class="detail-icon" aria-hidden="true">▤</span>Chất
-                    lượng
-                  </dt>
-                  <dd [ngClass]="qualityClass(lot.qualityStatus)">
-                    {{ detailQualityLabel(lot) }}
-                  </dd>
-                </div>
               </dl>
 
               @for (purchase of traceability()?.purchases || []; track purchase.receiptId) {
@@ -354,8 +339,8 @@
                     <strong>Cân mua · {{ purchase.receiptCode }}</strong>
                     @for (bag of purchase.bags; track bag.bagId) {
                       <div>
-                        Bao #{{ bag.bagNo }} · {{ fmtWeight(bag.weightKg) }} ·
-                        {{ bag.weightCaptureMethod || 'Chưa rõ phương thức' }}
+                        Bao #{{ bag.bagNo }} · {{ fmtWeight(bag.weightKg) }}
+                        @if (bag.weightCaptureMethod) { · {{ bag.weightCaptureMethod }} }
                         @if (bag.scaleDeviceRef) { · {{ bag.scaleDeviceRef }} }
                         @if (bag.weighedByName) { · {{ bag.weighedByName }} }
                         @if (bag.weighedAt) { · {{ fmtDate(bag.weighedAt, true) }} }

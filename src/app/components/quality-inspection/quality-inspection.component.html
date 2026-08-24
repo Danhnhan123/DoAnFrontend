@@ -14,14 +14,6 @@
         được chuyển sang cảnh báo, chờ kiểm tra hoặc cách ly.
       </p>
     </div>
-    <div class="qc-banner-actions">
-      <button class="btn btn-primary qc-create-btn" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:CREATE'" (click)="openCreate()">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-        Tạo phiếu kiểm tra
-      </button>
-    </div>
   </div>
 
   <!-- ===== KPI ===== -->
@@ -159,15 +151,9 @@
           <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
         </div>
         <div class="qc-detail-actions">
-          <button class="btn btn-danger-soft" type="button" [appHasPerm]="'QUALITY_INSPECTIONS:DELETE'" (click)="deleteSelected()"
-            [disabled]="isSession(sel) || wasSplit(sel) || !!sel.displayRole"
-            [title]="wasSplit(sel) || sel.displayRole ? 'Kết quả tách lô là lịch sử nghiệp vụ — không thể xóa' : 'Xóa phiếu'">Xóa phiếu</button>
-          <button class="btn btn-outline" type="button" (click)="openEditSelected()">
-            {{ perm.canUpdate('QUALITY_INSPECTIONS') ? 'Thông tin chung' : 'Xem phiếu' }}
-          </button>
           <button class="btn btn-primary" type="button" (click)="openBagInspection(sel)"
             [disabled]="!!sel.displayRole">
-            {{ isDraft(sel) ? 'Kiểm tra từng bao' : 'Chi tiết từng bao' }}
+            {{ sel.completedAt ? 'Chi tiết từng bao' : 'Kiểm tra từng bao' }}
           </button>
         </div>
         } @else {

@@ -213,7 +213,7 @@
                 KHẢ DỤNG <span class="sort-icon">{{ sortIcon('quantityAvailable') }}</span>
               </th>
               <th (click)="sort('quantityReserved')" class="sortable">
-                GIỮ/XL/CL <span class="sort-icon">{{ sortIcon('quantityReserved') }}</span>
+                GIỮ / XỬ LÝ / CÁCH LY <span class="sort-icon">{{ sortIcon('quantityReserved') }}</span>
               </th>
               <th>CHẤT LƯỢNG</th>
               <th class="num sortable" (click)="sort('costPrice')">
@@ -260,8 +260,8 @@
                   <td>
                     <div class="mix">
                       Giữ {{ fmtNum(r.quantityReserved) }} ·
-                      XL {{ fmtNum(r.quantityProcessing) }} ·
-                      CL {{ fmtNum(r.quantityQuarantine) }}
+                      Xử lý {{ fmtNum(r.quantityProcessing) }} ·
+                      Cách ly {{ fmtNum(r.quantityQuarantine) }}
                     </div>
                     <span class="status-dot-badge" [style.color]="statusColor(r)">
                       <span class="dot" [style.background]="statusColor(r)"></span>

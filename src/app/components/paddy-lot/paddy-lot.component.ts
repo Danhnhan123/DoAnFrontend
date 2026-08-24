@@ -18,7 +18,6 @@ import {
   PaddyLotSummary,
   PaddyLotTraceabilityDto,
   TraceabilityEventDto,
-  TraceabilityInspectionDto,
   TraceabilityLotDto,
   TraceabilityPurchaseDto,
 } from "../../models/paddy-lot";
@@ -256,20 +255,6 @@ export class PaddyLotComponent implements OnDestroy {
       null
     );
   });
-  readonly latestInspection = computed<TraceabilityInspectionDto | null>(() => {
-    const trace = this.traceability();
-    if (!trace) return null;
-    const inspections = trace.qualityInspections.filter(
-      (inspection) => inspection.paddyLotId === trace.requestedLotId,
-    );
-    return (
-      inspections.sort(
-        (left, right) =>
-          new Date(right.inspectedAt).getTime() -
-          new Date(left.inspectedAt).getTime(),
-      )[0] || null
-    );
-  });
   readonly traceEvents = computed<TraceabilityEventDto[]>(() =>
     [...(this.traceability()?.timeline || [])].sort(
       (left, right) =>
@@ -486,25 +471,6 @@ export class PaddyLotComponent implements OnDestroy {
       : this.fmtWeight(lot.remainingWeightKg);
   }
 
-  detailQualityLabel(lot: PaddyLotRow): string {
-    const inspection = this.latestInspection();
-    if (!inspection) return this.qualityLabel(lot.qualityStatus);
-
-    const values = [
-      inspection.moisturePercent != null
-        ? `Ẩm ${this.fmtNumber(inspection.moisturePercent, 1)}%`
-        : "",
-      inspection.impurityPercent != null
-        ? `Tạp chất ${this.fmtNumber(inspection.impurityPercent, 1)}%`
-        : "",
-    ].filter(Boolean);
-    return (
-      values.join(" · ") ||
-      inspection.resultName ||
-      (inspection.passedInspection ? "Đạt" : "Không đạt")
-    );
-  }
-
   traceEventClass(eventType: string): string {
     const type = (eventType || "").toUpperCase();
     if (type.includes("RETURN")) return "customer-return";
@@ -576,41 +542,6 @@ export class PaddyLotComponent implements OnDestroy {
       this.statuses.find((status) => status.id === row.statusId)?.name ||
       "Chưa xác định"
     );
-  }
-
-  qualityLabel(value: string | null | undefined): string {
-    if (!value) return "Chưa kiểm tra";
-
-    switch (value.toUpperCase()) {
-      case "PASSED":
-        return "Đạt";
-      case "FAILED":
-        return "Không đạt";
-      case "PENDING":
-        return "Chờ kiểm tra";
-    }
-
-    try {
-      const quality = JSON.parse(value);
-      const grade = quality.grade || "Chưa đánh giá";
-
-      return quality.moisturePercent != null
-        ? `${grade} · Độ ẩm ${quality.moisturePercent}%`
-        : grade;
-    } catch {
-      return value;
-    }
-  }
-
-  qualityClass(value: string | null | undefined): string {
-    switch ((value || "").toUpperCase()) {
-      case "PASSED":
-        return "quality-passed";
-      case "FAILED":
-        return "quality-failed";
-      default:
-        return "quality-pending";
-    }
   }
 
   sourceLabel(row: PaddyLotRow): string {
