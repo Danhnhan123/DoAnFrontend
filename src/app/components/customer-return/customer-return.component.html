@@ -53,18 +53,21 @@
       <input type="search" placeholder="Tìm mã phiếu, khách hàng, đơn gốc..." [ngModel]="searchInput()"
         (ngModelChange)="onSearch($event)" />
     </label>
-    <select aria-label="Lọc khách hàng" [ngModel]="customerFilter()" (ngModelChange)="setCustomerFilter($event)">
-      <option value="">Tất cả khách hàng</option>
-      @for (customer of customers(); track customer.id) {
-      <option [value]="customer.id">{{ customer.name }}</option>
-      }
-    </select>
-    <select aria-label="Lọc kho" [ngModel]="warehouseFilter()" (ngModelChange)="setWarehouseFilter($event)">
-      <option value="">Tất cả kho</option>
-      @for (warehouse of warehouses(); track warehouse.id) {
-      <option [value]="warehouse.id">{{ warehouse.name }}</option>
-      }
-    </select>
+    <app-filter-select
+      [options]="customerFilterOptions()"
+      [value]="customerFilter()"
+      (valueChange)="setCustomerFilter($event)"
+      allLabel="Tất cả khách hàng"
+      placeholder="Tất cả khách hàng"
+      [searchable]="true"
+    ></app-filter-select>
+    <app-filter-select
+      [options]="warehouseFilterOptions()"
+      [value]="warehouseFilter()"
+      (valueChange)="setWarehouseFilter($event)"
+      allLabel="Tất cả kho"
+      placeholder="Tất cả kho"
+    ></app-filter-select>
     <label class="date-field">
       <span>Từ ngày</span>
       <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateFrom($event)" />
@@ -412,55 +415,40 @@
             @if (line.quantityGood > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">📦 Vị trí nhập lại</span>
-              @if (line.restockLocationId) {
-              <div class="location-chip">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationSelectionLabelById(line.restockLocationId) || 'Vị trí đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí phù hợp</div>
-              }
               <app-filter-select class="location-override-select"
                 [options]="restockLocationOptions(line)" [value]="line.restockLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có vị trí phù hợp"
                 (valueChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
               </app-filter-select>
+              @if (restockLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có cột trống hoặc cột cùng SKU đủ sức chứa.</small>
+              }
             </div>
             }
             @if (line.quantityDamaged > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">🔒 Vị trí cách ly</span>
-              @if (line.quarantineLocationId) {
-              <div class="location-chip location-chip--quarantine">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationLabelById(line.quarantineLocationId) || 'Khu cách ly đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có khu cách ly</div>
-              }
               <app-filter-select class="location-override-select"
-                [options]="quarantineLocationOptions()" [value]="line.quarantineLocationId"
+                [options]="quarantineLocationOptions(line)" [value]="line.quarantineLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có khu cách ly"
                 (valueChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
               </app-filter-select>
+              @if (quarantineLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
+              }
             </div>
             }
             @if (line.quantityRejected > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">↩ Tập kết hàng trả lại khách</span>
-              @if (line.rejectedLocationId) {
-              <div class="location-chip location-chip--quarantine">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationLabelById(line.rejectedLocationId) || 'Vị trí đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí tập kết</div>
-              }
               <app-filter-select class="location-override-select"
-                [options]="quarantineLocationOptions()" [value]="line.rejectedLocationId"
+                [options]="rejectedLocationOptions(line)" [value]="line.rejectedLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có vị trí tập kết"
                 (valueChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
               </app-filter-select>
+              @if (rejectedLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
+              }
             </div>
             <label class="field">Lý do trả lại khách
               <input type="text" [ngModel]="line.rejectionReason"
@@ -623,35 +611,26 @@
     </header>
     <div class="modal-body">
       <label class="field">Đơn xuất gốc *
-        <select [ngModel]="form().outboundOrderId" [disabled]="loadingSource()"
-          (ngModelChange)="setSourceOutbound($event)">
-          <option value="">Chọn đơn xuất đã giao</option>
-          @for (outbound of outbounds(); track outbound.outboundOrderId) {
-          <option [value]="outbound.outboundOrderId">
-            {{ outbound.outboundOrderCode }} · {{ outbound.salesOrderCode }} ·
-            {{ outbound.customerName }} · còn {{ fmtWeight(outbound.returnableQuantity) }}
-          </option>
-          }
-        </select>
+        <app-filter-select
+          [options]="sourceOutboundOptions()"
+          [value]="form().outboundOrderId"
+          [disabled]="loadingSource()"
+          [searchable]="true"
+          allLabel="Chọn đơn xuất đã giao"
+          placeholder="Chọn đơn xuất đã giao"
+          (valueChange)="setSourceOutbound($event)"
+        ></app-filter-select>
       </label>
       <div class="form-grid">
         <label class="field">Khách hàng *
-          <select [ngModel]="form().customerId" disabled>
-            <option value="">Chọn khách hàng</option>
-            @for (customer of customers(); track customer.id) {
-            <option [value]="customer.id">
-              {{ customer.code }} · {{ customer.name }}
-            </option>
-            }
-          </select>
+          <input class="readonly-field" type="text"
+            [value]="customerLabelById(form().customerId)"
+            placeholder="Tự động theo đơn xuất" readonly />
         </label>
         <label class="field">Kho tiếp nhận *
-          <select [ngModel]="form().warehouseId" disabled>
-            <option value="">Chọn kho</option>
-            @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
-            }
-          </select>
+          <input class="readonly-field" type="text"
+            [value]="warehouseLabelById(form().warehouseId)"
+            placeholder="Tự động theo đơn xuất" readonly />
         </label>
         <label class="field">Lý do trả *
           <input type="text" maxlength="500" [ngModel]="form().returnReason"

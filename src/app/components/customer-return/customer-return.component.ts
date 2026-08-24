@@ -281,6 +281,18 @@ export class CustomerReturnComponent implements OnDestroy {
     (this.locationsQuery.data() || []).filter((item) => item.isActive),
   );
   readonly outbounds = computed(() => this.outboundsQuery.data() || []);
+  readonly customerFilterOptions = computed<FilterSelectOption[]>(() =>
+    this.customers().map(customer => ({ id: customer.id, name: customer.name })),
+  );
+  readonly warehouseFilterOptions = computed<FilterSelectOption[]>(() =>
+    this.warehouses().map(warehouse => ({ id: warehouse.id, name: warehouse.name })),
+  );
+  readonly sourceOutboundOptions = computed<FilterSelectOption[]>(() =>
+    this.outbounds().map(outbound => ({
+      id: outbound.outboundOrderId,
+      name: `${outbound.outboundOrderCode} · ${outbound.salesOrderCode} · ${outbound.customerName} · còn ${this.fmtWeight(outbound.returnableQuantity)}`,
+    })),
+  );
   readonly restockLocations = computed(() =>
     this.locations().filter(
       (location) =>
@@ -297,17 +309,6 @@ export class CustomerReturnComponent implements OnDestroy {
         location.isQuarantine &&
         !location.isOutboundStaging &&
         !location.isLockedForOutbound,
-    ),
-  );
-  readonly quarantineLocationOptions = computed<FilterSelectOption[]>(() =>
-    this.quarantineLocations()
-      .map(location => ({ id: location.id, name: this.locationLabel(location) }))
-      .sort((left, right) => left.name.localeCompare(right.name, "vi")),
-  );
-  readonly formRestockLocations = computed(() =>
-    this.locations().filter(
-      (location) => location.warehouseId === this.form().warehouseId &&
-        !location.isOutboundStaging && !location.isLockedForOutbound,
     ),
   );
 
@@ -363,12 +364,12 @@ export class CustomerReturnComponent implements OnDestroy {
     }, 350);
   }
 
-  setCustomerFilter(value: string): void {
+  setCustomerFilter(value: string | number | null): void {
     this.customerFilter.set(value ? Number(value) : null);
     this.resetList();
   }
 
-  setWarehouseFilter(value: string): void {
+  setWarehouseFilter(value: string | number | null): void {
     this.warehouseFilter.set(value ? Number(value) : null);
     this.resetList();
   }
@@ -413,7 +414,7 @@ export class CustomerReturnComponent implements OnDestroy {
     this.showCreateModal.set(false);
   }
 
-  async setSourceOutbound(value: string): Promise<void> {
+  async setSourceOutbound(value: string | number | null): Promise<void> {
     const id = value ? Number(value) : null;
     if (!id) {
       this.form.update((form) => ({
@@ -612,9 +613,6 @@ export class CustomerReturnComponent implements OnDestroy {
 
     const editingInspection = detail.statusCode === CUSTOMER_RETURN_STATUS.INSPECTED;
 
-    const quarantineLocs = this.quarantineLocations();
-    const defaultQuarantineId = quarantineLocs[0]?.id ?? null;
-
     this.inspectionLines.set(
       detail.items.flatMap((item) =>
         item.allocations.map((allocation) => {
@@ -634,8 +632,8 @@ export class CustomerReturnComponent implements OnDestroy {
             creditQuantity: allocation.creditQuantity || 0,
             unitCreditPrice: allocation.unitCreditPrice || 0,
             restockLocationId: null,
-            quarantineLocationId: editingInspection ? (allocation.quarantineLocationId ?? defaultQuarantineId) : defaultQuarantineId,
-            rejectedLocationId: editingInspection ? (allocation.rejectedLocationId ?? defaultQuarantineId) : defaultQuarantineId,
+            quarantineLocationId: editingInspection ? (allocation.quarantineLocationId ?? null) : null,
+            rejectedLocationId: editingInspection ? (allocation.rejectedLocationId ?? null) : null,
             damageReason: editingInspection ? (item.damageReason ?? '') : '',
             rejectionReason: editingInspection ? (allocation.rejectionReason ?? '') : '',
             note: editingInspection ? (allocation.note ?? '') : '',
@@ -650,13 +648,23 @@ export class CustomerReturnComponent implements OnDestroy {
                 ]
                 : [],
           };
-          const options = this.restockLocationOptions(line);
-          const savedLocationId = editingInspection ? allocation.restockLocationId : null;
+          const restockOptions = this.restockLocationOptions(line);
+          const quarantineOptions = this.quarantineLocationOptions(line);
+          const rejectedOptions = this.rejectedLocationOptions(line);
+          const savedRestockId = editingInspection ? allocation.restockLocationId : null;
+          const savedQuarantineId = editingInspection ? allocation.quarantineLocationId : null;
+          const savedRejectedId = editingInspection ? allocation.rejectedLocationId : null;
           return {
             ...line,
-            restockLocationId: options.some(option => option.id === savedLocationId)
-              ? savedLocationId
-              : (options[0]?.id ?? null),
+            restockLocationId: restockOptions.some(option => option.id === savedRestockId)
+              ? savedRestockId
+              : (restockOptions[0]?.id ?? null),
+            quarantineLocationId: quarantineOptions.some(option => option.id === savedQuarantineId)
+              ? savedQuarantineId
+              : (quarantineOptions[0]?.id ?? null),
+            rejectedLocationId: rejectedOptions.some(option => option.id === savedRejectedId)
+              ? savedRejectedId
+              : (rejectedOptions[0]?.id ?? null),
           };
         }),
       ),
@@ -720,6 +728,22 @@ export class CustomerReturnComponent implements OnDestroy {
           } else if (!this.restockLocationOptions(nextLine)
             .some(option => option.id === nextLine.restockLocationId)) {
             nextLine.restockLocationId = this.restockLocationOptions(nextLine)[0]?.id ?? null;
+          }
+        }
+        if (field === "quantityDamaged") {
+          if (nextLine.quantityDamaged <= 0) {
+            nextLine.quarantineLocationId = null;
+          } else if (!this.quarantineLocationOptions(nextLine)
+            .some(option => option.id === nextLine.quarantineLocationId)) {
+            nextLine.quarantineLocationId = this.quarantineLocationOptions(nextLine)[0]?.id ?? null;
+          }
+        }
+        if (field === "quantityRejected") {
+          if (nextLine.quantityRejected <= 0) {
+            nextLine.rejectedLocationId = null;
+          } else if (!this.rejectedLocationOptions(nextLine)
+            .some(option => option.id === nextLine.rejectedLocationId)) {
+            nextLine.rejectedLocationId = this.rejectedLocationOptions(nextLine)[0]?.id ?? null;
           }
         }
         return nextLine;
@@ -796,6 +820,16 @@ export class CustomerReturnComponent implements OnDestroy {
         );
         return;
       }
+      if (line.quantityDamaged > 0 &&
+        !this.quarantineLocationOptions(line)
+          .some(option => option.id === line.quarantineLocationId)) {
+        await this.message(
+          "Vị trí cách ly không còn phù hợp",
+          "Vị trí cách ly không tương thích SKU hoặc không còn đủ sức chứa.",
+          "warning",
+        );
+        return;
+      }
       if (
         (line.quantityDamaged > 0 || line.quantityRejected > 0) &&
         !line.damageReason.trim()
@@ -811,6 +845,16 @@ export class CustomerReturnComponent implements OnDestroy {
         await this.message(
           "Thiếu thông tin hàng trả lại",
           `Chọn vị trí và nhập lý do trả lại khách cho lô ${line.lotCode}.`,
+          "warning",
+        );
+        return;
+      }
+      if (line.quantityRejected > 0 &&
+        !this.rejectedLocationOptions(line)
+          .some(option => option.id === line.rejectedLocationId)) {
+        await this.message(
+          "Vị trí giữ hàng không còn phù hợp",
+          "Vị trí giữ hàng không tương thích SKU hoặc không còn đủ sức chứa.",
           "warning",
         );
         return;
@@ -1029,26 +1073,14 @@ export class CustomerReturnComponent implements OnDestroy {
       .join(' / ');
   }
 
-  locationLabelById(id: number | null | undefined): string {
-    if (!id) return '';
-    const loc = this.locations().find((l) => l.id === id);
-    return this.locationLabel(loc);
+  customerLabelById(id: number | null | undefined): string {
+    const customer = this.customers().find(item => item.id === id);
+    return customer ? `${customer.code} · ${customer.name}` : "";
   }
 
-  locationSelectionLabel(location: LocationDetailDto | null | undefined): string {
-    if (!location) return '';
-    const position = this.locationLabel(location);
-    if (!location.currentProductVariantId || Number(location.currentOccupancy || 0) <= 0) {
-      return `${position} — Cột rỗng`;
-    }
-    const product = location.currentProductVariantName?.trim() || 'Sản phẩm chưa có tên';
-    const sku = location.currentProductVariantSku?.trim();
-    return `${position} — Đang chứa: ${sku ? sku + ' · ' : ''}${product} (${this.fmtWeight(location.currentOccupancy)})`;
-  }
-
-  locationSelectionLabelById(id: number | null | undefined): string {
-    if (!id) return '';
-    return this.locationSelectionLabel(this.locations().find((location) => location.id === id));
+  warehouseLabelById(id: number | null | undefined): string {
+    const warehouse = this.warehouses().find(item => item.id === id);
+    return warehouse ? `${warehouse.code} · ${warehouse.name}` : "";
   }
 
   restockLocationOptions(line: InspectionLine): FilterSelectOption[] {
@@ -1077,6 +1109,56 @@ export class CustomerReturnComponent implements OnDestroy {
       .sort((left, right) => left.priority - right.priority ||
         left.option.name.localeCompare(right.option.name, "vi"))
       .map(entry => entry.option);
+  }
+
+  quarantineLocationOptions(line: InspectionLine): FilterSelectOption[] {
+    return this.quarantineReturnLocationOptions(
+      line.productVariantId,
+      line.quantityDamaged,
+    );
+  }
+
+  rejectedLocationOptions(line: InspectionLine): FilterSelectOption[] {
+    return this.quarantineReturnLocationOptions(
+      line.productVariantId,
+      line.quantityRejected,
+    );
+  }
+
+  private quarantineReturnLocationOptions(
+    productVariantId: number,
+    quantity: number,
+  ): FilterSelectOption[] {
+    return this.quarantineLocations()
+      .filter(location => {
+        const occupancy = Number(location.currentOccupancy || 0);
+        const isEmpty = occupancy <= 0.001;
+        const isSingleType = location.isSingleTypeColumn !== false;
+        const skuCompatible = !isSingleType || isEmpty ||
+          location.currentProductVariantId === productVariantId;
+        const hasCapacity = location.maxCapacity == null ||
+          occupancy + Number(quantity || 0) <= Number(location.maxCapacity) + 0.001;
+        return skuCompatible && hasCapacity;
+      })
+      .map(location => {
+        const occupancy = Number(location.currentOccupancy || 0);
+        const isEmpty = occupancy <= 0.001;
+        const isSingleType = location.isSingleTypeColumn !== false;
+        const kind = isEmpty
+          ? "Cột trống"
+          : isSingleType
+            ? "Cùng SKU"
+            : "Cột đa SKU";
+        const sku = location.currentProductVariantSku?.trim();
+        const detail = isEmpty
+          ? kind
+          : `${kind}${sku ? ` · ${sku}` : ""} · ${this.fmtWeight(occupancy)}`;
+        return {
+          id: location.id,
+          name: `${this.locationLabel(location)} — ${detail}`,
+        };
+      })
+      .sort((left, right) => left.name.localeCompare(right.name, "vi"));
   }
 
   isRestockLocationCompatible(location: LocationDetailDto, productVariantId: number): boolean {
