@@ -151,8 +151,7 @@
           <div class="d-row"><span>Người kiểm</span><b>{{ sel.inspectorName || '—' }}<span class="d-time"> · {{ sel.inspectedAt | date:'dd/MM HH:mm' }}</span></b></div>
         </div>
         <div class="qc-detail-actions">
-          <button class="btn btn-primary" type="button" (click)="openBagInspection(sel)"
-            [disabled]="!!sel.displayRole">
+          <button class="btn btn-primary" type="button" (click)="openEditSelected()">
             {{ sel.completedAt ? 'Chi tiết từng bao' : 'Kiểm tra từng bao' }}
           </button>
         </div>
