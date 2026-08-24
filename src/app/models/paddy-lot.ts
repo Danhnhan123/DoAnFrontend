@@ -69,34 +69,8 @@ export interface PaddyLotTraceabilityDto {
   outboundSales: TraceabilityOutboundDto[];
   customerFeedbacks: TraceabilityCustomerFeedbackDto[];
   customerReturns: TraceabilityCustomerReturnDto[];
-  physicalBags: TraceabilityPhysicalBagDto[];
   timeline: TraceabilityEventDto[];
   summary: TraceabilitySummaryDto;
-}
-
-export interface TraceabilityPhysicalBagDto {
-  bagId: number;
-  bagNo: number;
-  ownerLotId: number;
-  ownerLotCode: string;
-  weightKg: number;
-  standardWeightKg?: number | null;
-  isFull: boolean;
-  bagKind: string;
-  status: string;
-  locationId?: number | null;
-  locationCode?: string | null;
-  isMixedLot: boolean;
-  contentLotCount: number;
-  contents: TraceabilityBagContentDto[];
-}
-
-export interface TraceabilityBagContentDto {
-  lotId: number;
-  lotCode: string;
-  weightKg: number;
-  percentage: number;
-  sourceMillingOrderId?: number | null;
 }
 
 export interface TraceabilityLotDto {

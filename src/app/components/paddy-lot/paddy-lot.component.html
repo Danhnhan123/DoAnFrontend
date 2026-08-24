@@ -333,39 +333,6 @@
                 </div>
               </dl>
 
-              @if ((traceability()?.physicalBags || []).length) {
-                <section class="physical-bags" aria-label="Bao vật lý và thành phần lô">
-                  <h3>Bao vật lý / Thành phần lô</h3>
-                  @for (bag of traceability()?.physicalBags || []; track bag.bagId) {
-                    <article class="physical-bag-card">
-                      <div class="physical-bag-head">
-                        <strong>Bao #{{ bag.bagNo }}</strong>
-                        <span>
-                          {{ fmtNumber(bag.weightKg, 2) }} /
-                          {{ fmtNumber(bag.standardWeightKg ?? bag.weightKg, 2) }} kg
-                        </span>
-                        <small [class.open]="!bag.isFull">{{ bag.isFull ? 'FULL' : 'OPEN' }}</small>
-                      </div>
-                      @if (bag.locationCode) {
-                        <div class="physical-bag-location">{{ bag.locationCode }}</div>
-                      }
-                      @if (bag.isMixedLot) {
-                        <span class="mixed-lot-badge">Trộn {{ bag.contentLotCount }} lô</span>
-                      }
-                      <div class="physical-bag-contents">
-                        @for (content of bag.contents; track content.lotId) {
-                          <div [class.current-lot]="content.lotId === traceability()?.requestedLotId">
-                            <strong>{{ content.lotCode }}</strong>
-                            <span>{{ fmtWeight(content.weightKg) }}</span>
-                            <small>{{ fmtNumber(content.percentage, 2) }}%</small>
-                          </div>
-                        }
-                      </div>
-                    </article>
-                  }
-                </section>
-              }
-
               @for (purchase of traceability()?.purchases || []; track purchase.receiptId) {
                 @if (purchase.bags.length) {
                   <div class="trace-warning">

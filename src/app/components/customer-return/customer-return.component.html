@@ -53,12 +53,18 @@
       <input type="search" placeholder="Tìm mã phiếu, khách hàng, đơn gốc..." [ngModel]="searchInput()"
         (ngModelChange)="onSearch($event)" />
     </label>
-    <app-filter-select [options]="customerOptions()" [value]="customerFilter()"
-      (valueChange)="setCustomerFilter($event)" allLabel="Tất cả khách hàng"
-      [searchable]="true"></app-filter-select>
-    <app-filter-select [options]="warehouseOptions()" [value]="warehouseFilter()"
-      (valueChange)="setWarehouseFilter($event)" allLabel="Tất cả kho"
-      [searchable]="true"></app-filter-select>
+    <select aria-label="Lọc khách hàng" [ngModel]="customerFilter()" (ngModelChange)="setCustomerFilter($event)">
+      <option value="">Tất cả khách hàng</option>
+      @for (customer of customers(); track customer.id) {
+      <option [value]="customer.id">{{ customer.name }}</option>
+      }
+    </select>
+    <select aria-label="Lọc kho" [ngModel]="warehouseFilter()" (ngModelChange)="setWarehouseFilter($event)">
+      <option value="">Tất cả kho</option>
+      @for (warehouse of warehouses(); track warehouse.id) {
+      <option [value]="warehouse.id">{{ warehouse.name }}</option>
+      }
+    </select>
     <label class="date-field">
       <span>Từ ngày</span>
       <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateFrom($event)" />
@@ -378,9 +384,11 @@
               @for (bag of line.bags; track $index; let bagIndex = $index) {
               <div class="quantity-grid">
                 <label>Phân loại
-                  <app-filter-select [options]="bagConditionOptions" [value]="bag.condition"
-                    (valueChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)"
-                    [clearable]="false"></app-filter-select>
+                  <select [ngModel]="bag.condition"
+                    (ngModelChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
+                    <option value="GOOD">Bao đạt</option>
+                    <option value="DAMAGED">Bao cách ly</option>
+                  </select>
                 </label>
                 <label>Khối lượng
                   <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
@@ -405,31 +413,63 @@
             @if (line.quantityGood > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">📦 Vị trí nhập lại</span>
-              <app-filter-select [options]="restockLocationOptions(line)" [value]="line.restockLocationId"
-                (valueChange)="updateInspection(line.allocationId, 'restockLocationId', $event)"
-                placeholder="Chọn vị trí nhập lại" [clearable]="false"
-                [searchable]="true"></app-filter-select>
-              @if (restockLocationOptions(line).length === 0) {
-              <small class="location-empty">Không có cột trống hoặc cột cùng SKU đủ sức chứa.</small>
+              @if (line.restockLocationId) {
+              <div class="location-chip">
+                <span class="location-chip-icon">✔</span>
+                <strong>{{ locationSelectionLabelById(line.restockLocationId) || 'Vị trí đã chọn' }}</strong>
+              </div>
+              } @else {
+              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí phù hợp</div>
               }
+              <select class="location-override-select" [ngModel]="line.restockLocationId"
+                (ngModelChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
+                <option value="">— Đổi vị trí khác —</option>
+                @for (location of restockLocations(); track location.id) {
+                <option [value]="location.id" [disabled]="!isRestockLocationCompatible(location, line.productVariantId)">
+                  {{ locationSelectionLabel(location) }}{{ isRestockLocationCompatible(location, line.productVariantId) ? '' : ' — Không phù hợp SKU' }}
+                </option>
+                }
+              </select>
             </div>
             }
             @if (line.quantityDamaged > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">🔒 Vị trí cách ly</span>
-              <app-filter-select [options]="quarantineLocationOptions()" [value]="line.quarantineLocationId"
-                (valueChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)"
-                placeholder="Chọn vị trí cách ly" [clearable]="false"
-                [searchable]="true"></app-filter-select>
+              @if (line.quarantineLocationId) {
+              <div class="location-chip location-chip--quarantine">
+                <span class="location-chip-icon">✔</span>
+                <strong>{{ locationLabelById(line.quarantineLocationId) || 'Khu cách ly đã chọn' }}</strong>
+              </div>
+              } @else {
+              <div class="location-chip location-chip--warn">⚠ Chưa có khu cách ly</div>
+              }
+              <select class="location-override-select" [ngModel]="line.quarantineLocationId"
+                (ngModelChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
+                <option value="">— Đổi khu cách ly khác —</option>
+                @for (location of quarantineLocations(); track location.id) {
+                <option [value]="location.id">{{ locationLabel(location) }}</option>
+                }
+              </select>
             </div>
             }
             @if (line.quantityRejected > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">↩ Tập kết hàng trả lại khách</span>
-              <app-filter-select [options]="quarantineLocationOptions()" [value]="line.rejectedLocationId"
-                (valueChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)"
-                placeholder="Chọn vị trí tập kết" [clearable]="false"
-                [searchable]="true"></app-filter-select>
+              @if (line.rejectedLocationId) {
+              <div class="location-chip location-chip--quarantine">
+                <span class="location-chip-icon">✔</span>
+                <strong>{{ locationLabelById(line.rejectedLocationId) || 'Vị trí đã chọn' }}</strong>
+              </div>
+              } @else {
+              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí tập kết</div>
+              }
+              <select class="location-override-select" [ngModel]="line.rejectedLocationId"
+                (ngModelChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
+                <option value="">— Đổi vị trí khác —</option>
+                @for (location of quarantineLocations(); track location.id) {
+                <option [value]="location.id">{{ locationLabel(location) }}</option>
+                }
+              </select>
             </div>
             <label class="field">Lý do trả lại khách
               <input type="text" [ngModel]="line.rejectionReason"
@@ -592,21 +632,35 @@
     </header>
     <div class="modal-body">
       <label class="field">Đơn xuất gốc *
-        <app-filter-select [options]="outboundOptions()" [value]="form().outboundOrderId"
-          (valueChange)="setSourceOutbound($event)" placeholder="Chọn đơn xuất đã giao"
-          [clearable]="false" [searchable]="true"
-          [disabled]="loadingSource()"></app-filter-select>
+        <select [ngModel]="form().outboundOrderId" [disabled]="loadingSource()"
+          (ngModelChange)="setSourceOutbound($event)">
+          <option value="">Chọn đơn xuất đã giao</option>
+          @for (outbound of outbounds(); track outbound.outboundOrderId) {
+          <option [value]="outbound.outboundOrderId">
+            {{ outbound.outboundOrderCode }} · {{ outbound.salesOrderCode }} ·
+            {{ outbound.customerName }} · còn {{ fmtWeight(outbound.returnableQuantity) }}
+          </option>
+          }
+        </select>
       </label>
       <div class="form-grid">
         <label class="field">Khách hàng *
-          <app-filter-select [options]="customerOptions()" [value]="form().customerId"
-            placeholder="Chọn khách hàng" [clearable]="false"
-            [disabled]="true"></app-filter-select>
+          <select [ngModel]="form().customerId" disabled>
+            <option value="">Chọn khách hàng</option>
+            @for (customer of customers(); track customer.id) {
+            <option [value]="customer.id">
+              {{ customer.code }} · {{ customer.name }}
+            </option>
+            }
+          </select>
         </label>
         <label class="field">Kho tiếp nhận *
-          <app-filter-select [options]="warehouseOptions()" [value]="form().warehouseId"
-            placeholder="Chọn kho" [clearable]="false"
-            [disabled]="true"></app-filter-select>
+          <select [ngModel]="form().warehouseId" disabled>
+            <option value="">Chọn kho</option>
+            @for (warehouse of warehouses(); track warehouse.id) {
+            <option [value]="warehouse.id">{{ warehouse.name }}</option>
+            }
+          </select>
         </label>
         <label class="field">Lý do trả *
           <input type="text" maxlength="500" [ngModel]="form().returnReason"
