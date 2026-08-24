@@ -34,6 +34,10 @@ import { CustomerReturnOrderStatusService } from "../../services/customer-return
 import { CustomerService } from "../../services/customer.service";
 import { LocationService } from "../../services/location.service";
 import { WarehouseService } from "../../services/warehouse.service";
+import {
+  FilterSelectComponent,
+  FilterSelectOption,
+} from "../shared/filter-select.component";
 
 type ReturnTab = "ALL" | "PENDING_APPROVAL" | "RECEIVED" | "CONFIRMED";
 
@@ -64,6 +68,7 @@ interface ReturnFormState {
 interface InspectionLine {
   itemId: number;
   allocationId: number;
+  originalLocationId: number | null;
   productVariantId: number;
   productName: string;
   standardBagWeightKg: number;
@@ -86,12 +91,16 @@ interface InspectionLine {
 @Component({
   selector: "app-customer-return",
   standalone: true,
-  imports: [CommonModule, FormsModule, HasPermissionDirective],
+  imports: [CommonModule, FormsModule, HasPermissionDirective, FilterSelectComponent],
   templateUrl: "./customer-return.component.html",
   styleUrl: "./customer-return.component.css",
 })
 export class CustomerReturnComponent implements OnDestroy {
   readonly feedbackTypeLabels = FEEDBACK_TYPE_LABELS;
+  readonly bagConditionOptions: FilterSelectOption[] = [
+    { id: "GOOD", name: "Bao đạt" },
+    { id: "DAMAGED", name: "Bao cách ly" },
+  ];
   private readonly service = inject(CustomerReturnService);
   private readonly customerService = inject(CustomerService);
   private readonly warehouseService = inject(WarehouseService);
@@ -289,6 +298,11 @@ export class CustomerReturnComponent implements OnDestroy {
         !location.isOutboundStaging &&
         !location.isLockedForOutbound,
     ),
+  );
+  readonly quarantineLocationOptions = computed<FilterSelectOption[]>(() =>
+    this.quarantineLocations()
+      .map(location => ({ id: location.id, name: this.locationLabel(location) }))
+      .sort((left, right) => left.name.localeCompare(right.name, "vi")),
   );
   readonly formRestockLocations = computed(() =>
     this.locations().filter(
@@ -598,7 +612,6 @@ export class CustomerReturnComponent implements OnDestroy {
 
     const editingInspection = detail.statusCode === CUSTOMER_RETURN_STATUS.INSPECTED;
 
-    const restockLocs = this.restockLocations();
     const quarantineLocs = this.quarantineLocations();
     const defaultQuarantineId = quarantineLocs[0]?.id ?? null;
 
@@ -606,23 +619,10 @@ export class CustomerReturnComponent implements OnDestroy {
       detail.items.flatMap((item) =>
         item.allocations.map((allocation) => {
           const productVariantId = Number(item.productVariantId || allocation.productVariantId);
-          // Ưu tiên: vị trí gốc của lô → vị trí nhập đầu tiên còn chỗ → vị trí đầu tiên
-          const originalLoc = restockLocs.find(
-            (loc) => loc.id === allocation.originalLocationId &&
-              this.isRestockLocationCompatible(loc, productVariantId),
-          );
-          const firstAvailable =
-            restockLocs.find(
-              (loc) =>
-              this.isRestockLocationCompatible(loc, productVariantId) &&
-              (loc.maxCapacity == null ||
-                (loc.currentOccupancy ?? 0) < loc.maxCapacity),
-            );
-          const autoRestockId = (originalLoc ?? firstAvailable)?.id ?? null;
-
-          return {
+          const line: InspectionLine = {
             itemId: item.id,
             allocationId: allocation.id,
+            originalLocationId: allocation.originalLocationId ?? null,
             productVariantId,
             productName: item.productVariantName || item.sku || 'Sản phẩm',
             standardBagWeightKg: Number(item.standardBagWeightKg || 0),
@@ -633,7 +633,7 @@ export class CustomerReturnComponent implements OnDestroy {
             quantityRejected: editingInspection ? allocation.quantityRejected : 0,
             creditQuantity: allocation.creditQuantity || 0,
             unitCreditPrice: allocation.unitCreditPrice || 0,
-            restockLocationId: editingInspection ? (allocation.restockLocationId ?? autoRestockId) : autoRestockId,
+            restockLocationId: null,
             quarantineLocationId: editingInspection ? (allocation.quarantineLocationId ?? defaultQuarantineId) : defaultQuarantineId,
             rejectedLocationId: editingInspection ? (allocation.rejectedLocationId ?? defaultQuarantineId) : defaultQuarantineId,
             damageReason: editingInspection ? (item.damageReason ?? '') : '',
@@ -649,6 +649,14 @@ export class CustomerReturnComponent implements OnDestroy {
                   },
                 ]
                 : [],
+          };
+          const options = this.restockLocationOptions(line);
+          const savedLocationId = editingInspection ? allocation.restockLocationId : null;
+          return {
+            ...line,
+            restockLocationId: options.some(option => option.id === savedLocationId)
+              ? savedLocationId
+              : (options[0]?.id ?? null),
           };
         }),
       ),
@@ -705,7 +713,16 @@ export class CustomerReturnComponent implements OnDestroy {
               : 0
             : Number(value)
           : value;
-        return { ...line, [field]: nextValue } as InspectionLine;
+        const nextLine = { ...line, [field]: nextValue } as InspectionLine;
+        if (field === "quantityGood") {
+          if (nextLine.quantityGood <= 0) {
+            nextLine.restockLocationId = null;
+          } else if (!this.restockLocationOptions(nextLine)
+            .some(option => option.id === nextLine.restockLocationId)) {
+            nextLine.restockLocationId = this.restockLocationOptions(nextLine)[0]?.id ?? null;
+          }
+        }
+        return nextLine;
       }),
     );
   }
@@ -757,7 +774,16 @@ export class CustomerReturnComponent implements OnDestroy {
       if (line.quantityGood > 0 && !line.restockLocationId) {
         await this.message(
           "Thiếu vị trí",
-          `Chọn vị trí nhập lại cho lô ${line.lotCode}.`,
+          "Không có cột trống hoặc cột cùng SKU đủ sức chứa.",
+          "warning",
+        );
+        return;
+      }
+      if (line.quantityGood > 0 &&
+        !this.restockLocationOptions(line).some(option => option.id === line.restockLocationId)) {
+        await this.message(
+          "Vị trí không còn phù hợp",
+          "Chỉ được nhập lại vào cột trống hoặc cột cùng SKU đủ sức chứa.",
           "warning",
         );
         return;
@@ -1025,9 +1051,36 @@ export class CustomerReturnComponent implements OnDestroy {
     return this.locationSelectionLabel(this.locations().find((location) => location.id === id));
   }
 
+  restockLocationOptions(line: InspectionLine): FilterSelectOption[] {
+    return this.restockLocations()
+      .filter(location =>
+        this.isRestockLocationCompatible(location, line.productVariantId) &&
+        (location.maxCapacity == null ||
+          Number(location.currentOccupancy || 0) + Number(line.quantityGood || 0) <=
+            Number(location.maxCapacity) + 0.001),
+      )
+      .map(location => {
+        const occupancy = Number(location.currentOccupancy || 0);
+        const isOriginal = location.id === line.originalLocationId;
+        const isEmpty = occupancy <= 0.001;
+        const priority = isOriginal ? 0 : isEmpty ? 2 : 1;
+        const kind = isOriginal ? "Cột gốc" : isEmpty ? "Cột trống" : "Cùng SKU";
+        const sku = location.currentProductVariantSku?.trim();
+        const detail = isEmpty
+          ? kind
+          : `${kind} · ${sku || "Cùng SKU"} · ${this.fmtWeight(occupancy)}`;
+        return {
+          option: { id: location.id, name: `${this.locationLabel(location)} — ${detail}` },
+          priority,
+        };
+      })
+      .sort((left, right) => left.priority - right.priority ||
+        left.option.name.localeCompare(right.option.name, "vi"))
+      .map(entry => entry.option);
+  }
+
   isRestockLocationCompatible(location: LocationDetailDto, productVariantId: number): boolean {
-    return !location.currentProductVariantId ||
-      Number(location.currentOccupancy || 0) <= 0 ||
+    return Number(location.currentOccupancy || 0) <= 0.001 ||
       location.currentProductVariantId === productVariantId;
   }
 

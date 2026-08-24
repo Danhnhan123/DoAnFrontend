@@ -384,11 +384,10 @@
               @for (bag of line.bags; track $index; let bagIndex = $index) {
               <div class="quantity-grid">
                 <label>Phân loại
-                  <select [ngModel]="bag.condition"
-                    (ngModelChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
-                    <option value="GOOD">Bao đạt</option>
-                    <option value="DAMAGED">Bao cách ly</option>
-                  </select>
+                  <app-filter-select [options]="bagConditionOptions" [value]="bag.condition"
+                    [clearable]="false"
+                    (valueChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
+                  </app-filter-select>
                 </label>
                 <label>Khối lượng
                   <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
@@ -421,15 +420,11 @@
               } @else {
               <div class="location-chip location-chip--warn">⚠ Chưa có vị trí phù hợp</div>
               }
-              <select class="location-override-select" [ngModel]="line.restockLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
-                <option value="">— Đổi vị trí khác —</option>
-                @for (location of restockLocations(); track location.id) {
-                <option [value]="location.id" [disabled]="!isRestockLocationCompatible(location, line.productVariantId)">
-                  {{ locationSelectionLabel(location) }}{{ isRestockLocationCompatible(location, line.productVariantId) ? '' : ' — Không phù hợp SKU' }}
-                </option>
-                }
-              </select>
+              <app-filter-select class="location-override-select"
+                [options]="restockLocationOptions(line)" [value]="line.restockLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có vị trí phù hợp"
+                (valueChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
+              </app-filter-select>
             </div>
             }
             @if (line.quantityDamaged > 0) {
@@ -443,13 +438,11 @@
               } @else {
               <div class="location-chip location-chip--warn">⚠ Chưa có khu cách ly</div>
               }
-              <select class="location-override-select" [ngModel]="line.quarantineLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
-                <option value="">— Đổi khu cách ly khác —</option>
-                @for (location of quarantineLocations(); track location.id) {
-                <option [value]="location.id">{{ locationLabel(location) }}</option>
-                }
-              </select>
+              <app-filter-select class="location-override-select"
+                [options]="quarantineLocationOptions()" [value]="line.quarantineLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có khu cách ly"
+                (valueChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
+              </app-filter-select>
             </div>
             }
             @if (line.quantityRejected > 0) {
@@ -463,13 +456,11 @@
               } @else {
               <div class="location-chip location-chip--warn">⚠ Chưa có vị trí tập kết</div>
               }
-              <select class="location-override-select" [ngModel]="line.rejectedLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
-                <option value="">— Đổi vị trí khác —</option>
-                @for (location of quarantineLocations(); track location.id) {
-                <option [value]="location.id">{{ locationLabel(location) }}</option>
-                }
-              </select>
+              <app-filter-select class="location-override-select"
+                [options]="quarantineLocationOptions()" [value]="line.rejectedLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có vị trí tập kết"
+                (valueChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
+              </app-filter-select>
             </div>
             <label class="field">Lý do trả lại khách
               <input type="text" [ngModel]="line.rejectionReason"

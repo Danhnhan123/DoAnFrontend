@@ -1159,19 +1159,7 @@ td small {
 
 .location-override-select {
   font-size: 0.78rem;
-  padding: 3px 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: #f4f8f5;
-  color: var(--muted);
-  cursor: pointer;
   align-self: flex-start;
+  width: 100%;
   max-width: 100%;
-}
-
-.location-override-select:hover,
-.location-override-select:focus {
-  border-color: var(--green-600);
-  color: var(--text);
-  outline: none;
 }
