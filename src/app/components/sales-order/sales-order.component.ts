@@ -39,6 +39,7 @@ import {
   DebtDocumentRow,
   DTResponse,
 } from '../../models';
+import { FEEDBACK_TYPE_LABELS } from '../../models/customer-feedback';
 import { SalesOrderService } from '../../services/sales-order.service';
 import { PartyDebtService } from '../../services/party-debt.service';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
@@ -118,6 +119,7 @@ interface OutboundLine {
   styleUrl: './sales-order.component.css',
 })
 export class SalesOrderComponent implements OnDestroy {
+  readonly feedbackTypeLabels = FEEDBACK_TYPE_LABELS;
   private readonly service = inject(SalesOrderService);
   private readonly partyDebtService = inject(PartyDebtService);
   private readonly queryClient = injectQueryClient();

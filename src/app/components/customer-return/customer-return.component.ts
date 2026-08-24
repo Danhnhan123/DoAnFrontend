@@ -13,6 +13,7 @@ import Swal from "sweetalert2";
 import { HasPermissionDirective } from "../../directives/has-permission.directive";
 import { ApiResponse } from "../../models/common";
 import { CustomerRow } from "../../models/customer";
+import { FEEDBACK_TYPE_LABELS } from "../../models/customer-feedback";
 import {
   CUSTOMER_RETURN_STATUS,
   CreateCustomerReturnItemPayload,
@@ -90,6 +91,7 @@ interface InspectionLine {
   styleUrl: "./customer-return.component.css",
 })
 export class CustomerReturnComponent implements OnDestroy {
+  readonly feedbackTypeLabels = FEEDBACK_TYPE_LABELS;
   private readonly service = inject(CustomerReturnService);
   private readonly customerService = inject(CustomerService);
   private readonly warehouseService = inject(WarehouseService);

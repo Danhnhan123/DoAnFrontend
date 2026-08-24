@@ -10,6 +10,7 @@ import {
 import { lastValueFrom } from "rxjs";
 
 import { ApiResponse, DTResponse } from "../../models/common";
+import { FEEDBACK_TYPE_LABELS } from "../../models/customer-feedback";
 import {
   PaddyLotDetailDto,
   PaddyLotRow,
@@ -59,6 +60,10 @@ export class PaddyLotComponent implements OnDestroy {
   readonly selectedLotId = signal<number | null>(this.numberParam("lotId"));
   readonly sortField = signal("createdDate");
   readonly sortDir = signal<"asc" | "desc">("desc");
+
+  feedbackTypeLabel(type: string): string {
+    return FEEDBACK_TYPE_LABELS[type] || type;
+  }
 
   private searchTimer?: ReturnType<typeof setTimeout>;
   private readonly queryParamSubscription = this.route.queryParamMap.subscribe((params) => {

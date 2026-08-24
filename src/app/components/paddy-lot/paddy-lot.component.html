@@ -386,16 +386,15 @@
 
               @for (feedback of traceability()?.customerFeedbacks || []; track feedback.feedbackId) {
                 <div class="trace-warning trace-feedback-record">
-                  <strong>Phản hồi · {{ feedback.feedbackType }} · {{ feedback.resolutionStatus }}</strong>
+                  <strong>Phản hồi · {{ feedbackTypeLabel(feedback.feedbackType) }}</strong>
                   <div>{{ feedback.description }}</div>
                   <div>
                     @if (feedback.bagNo) { Bao #{{ feedback.bagNo }} · }
                     {{ feedback.paddyLotCode || lot.lotCode }}
-                    @if (feedback.severity) { · Mức độ {{ feedback.severity }} }
                     · {{ fmtDate(feedback.createdDate, true) }}
                   </div>
-                  @if (feedback.resolutionNote) {
-                    <div>Xử lý: {{ feedback.resolutionNote }}</div>
+                  @if (feedback.customerReturnOrderCode) {
+                    <div>Phiếu trả: {{ feedback.customerReturnOrderCode }}</div>
                   }
                 </div>
               }

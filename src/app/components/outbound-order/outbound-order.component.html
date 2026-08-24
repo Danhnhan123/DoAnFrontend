@@ -360,19 +360,15 @@
           <article class="ob-feedback-card" *ngFor="let feedback of d.feedbacks">
             <div class="ob-feedback-main">
               <div class="ob-feedback-meta">
-                <span class="ob-tag">{{ feedback.feedbackType }}</span>
-                <span class="ob-feedback-status">{{ feedback.resolutionStatus }}</span>
-                <span *ngIf="feedback.severity">Mức độ: {{ feedback.severity }}</span>
+                <span class="ob-tag">{{ feedbackTypeLabel(feedback.feedbackType) }}</span>
                 <span *ngIf="feedback.bagNo">Bao #{{ feedback.bagNo }} · {{ feedback.paddyLotCode || ('Lô #' + feedback.paddyLotId) }}</span>
               </div>
               <strong>{{ feedback.productVariantName || 'Phản hồi chung' }}</strong>
               <p>{{ feedback.description }}</p>
-              <small *ngIf="feedback.resolutionNote">Xử lý: {{ feedback.resolutionNote }}</small>
+              <small>Ngày ghi nhận: {{ fmtDate(feedback.createdDate, true) }}</small>
             </div>
             <div class="ob-feedback-actions">
               <button type="button" class="btn ghost compact" (click)="traceFeedback(feedback)">Truy vết lô</button>
-              <button type="button" class="btn ghost compact" [disabled]="saving()"
-                [appHasPerm]="'OUTBOUND_ORDERS:UPDATE'" (click)="updateFeedback(feedback)">Cập nhật xử lý</button>
               <button type="button" class="btn primary compact" (click)="createReturnFromFeedback(feedback)">
                 {{ feedback.customerReturnOrderId ? ('Xem ' + feedback.customerReturnOrderCode) : 'Tạo phiếu trả' }}
               </button>
@@ -658,61 +654,88 @@
 <div class="ob-modal-backdrop" *ngIf="showFeedbackModal()" (click)="closeFeedback()">
   <div class="ob-modal ob-feedback-modal" (click)="$event.stopPropagation()">
     <div class="ob-modal-head">
-      <div>
-        <h3>Ghi nhận phản hồi khách hàng</h3>
-        <p class="ob-muted sm" *ngIf="detail() as order">{{ order.soCode }} · {{ order.customerName }}</p>
+      <div class="ob-feedback-heading">
+        <span class="ob-feedback-heading-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+            <path d="M8 9h8M8 13h5" />
+          </svg>
+        </span>
+        <div>
+          <h3>Ghi nhận phản hồi khách hàng</h3>
+          <p class="ob-muted sm" *ngIf="detail() as order">{{ order.soCode }} · {{ order.customerName }}</p>
+        </div>
       </div>
-      <button class="ob-x" type="button" (click)="closeFeedback()" aria-label="Đóng">×</button>
+      <button class="ob-x ob-feedback-close" type="button" (click)="closeFeedback()" aria-label="Đóng">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
     </div>
     <div class="ob-modal-body ob-feedback-form" *ngIf="detail() as order">
-      <label class="ob-field">
-        <span>Dòng hàng *</span>
-        <select [ngModel]="feedbackForm().outboundOrderItemId" (ngModelChange)="setFeedbackItem($event)">
-          <option *ngFor="let item of order.items" [ngValue]="item.id">
-            {{ item.productVariantName }} · {{ item.sku || 'Không SKU' }}
-          </option>
-        </select>
-      </label>
-      <label class="ob-field">
-        <span>Bao hàng cụ thể <small class="ob-muted">(không bắt buộc)</small></span>
-        <select [ngModel]="feedbackForm().paddyLotBagAllocationId"
-          (ngModelChange)="setFeedbackField('paddyLotBagAllocationId', $event)">
-          <option [ngValue]="null">— Không gắn bao cụ thể —</option>
-          <option *ngFor="let bag of feedbackBagOptions()" [ngValue]="bag.bagAllocationId">
-            Bao #{{ bag.bagNo }} · {{ bag.lotCode || ('Lô #' + bag.lotId) }} · {{ fmtKg(bag.pickedWeightKg) }}
-          </option>
-        </select>
-      </label>
-      <div class="ob-feedback-form-grid">
-        <label class="ob-field">
-          <span>Loại phản hồi *</span>
-          <select [ngModel]="feedbackForm().feedbackType"
-            (ngModelChange)="setFeedbackField('feedbackType', $event)">
-            <option *ngFor="let type of feedbackTypes" [value]="type">{{ type }}</option>
-          </select>
-        </label>
-        <label class="ob-field">
-          <span>Mức độ</span>
-          <select [ngModel]="feedbackForm().severity"
-            (ngModelChange)="setFeedbackField('severity', $event)">
-            <option value="LOW">LOW</option>
-            <option value="MEDIUM">MEDIUM</option>
-            <option value="HIGH">HIGH</option>
-            <option value="CRITICAL">CRITICAL</option>
-          </select>
-        </label>
+      <div class="ob-feedback-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" />
+        </svg>
+        <span>Ghi nhận vấn đề sau giao hàng để hỗ trợ truy vết. Bao cụ thể là thông tin tùy chọn.</span>
       </div>
-      <label class="ob-field">
-        <span>Nội dung phản hồi *</span>
+
+      <div class="ob-feedback-form-grid">
+        <div class="ob-field">
+          <span>Loại phản hồi <b>*</b></span>
+          <app-filter-select class="ob-feedback-select"
+            [clearable]="false"
+            placeholder="Chọn loại phản hồi"
+            [options]="feedbackTypeOptions"
+            [value]="feedbackForm().feedbackType"
+            (valueChange)="setFeedbackType($event)">
+          </app-filter-select>
+        </div>
+
+        <div class="ob-field">
+          <span>Dòng hàng <b *ngIf="feedbackItemRequired()">*</b></span>
+          <app-filter-select class="ob-feedback-select"
+            [clearable]="!feedbackItemRequired()"
+            [searchable]="feedbackItemOptions().length > 5"
+            allLabel="Phản hồi chung"
+            placeholder="Chọn dòng hàng"
+            searchPlaceholder="Tìm sản phẩm hoặc SKU..."
+            [options]="feedbackItemOptions()"
+            [value]="feedbackForm().outboundOrderItemId"
+            (valueChange)="setFeedbackItem($event)">
+          </app-filter-select>
+          <small *ngIf="!feedbackItemRequired()">Có thể để phản hồi chung cho toàn phiếu.</small>
+        </div>
+      </div>
+
+      <div class="ob-field" *ngIf="feedbackForm().outboundOrderItemId != null">
+        <span>Bao hàng cụ thể <em>Không bắt buộc</em></span>
+        <app-filter-select class="ob-feedback-select"
+          [searchable]="feedbackBagSelectOptions().length > 5"
+          allLabel="Không gắn bao cụ thể"
+          placeholder="Chọn bao hàng"
+          searchPlaceholder="Tìm số bao hoặc mã lô..."
+          [options]="feedbackBagSelectOptions()"
+          [value]="feedbackForm().paddyLotBagAllocationId"
+          (valueChange)="setFeedbackField('paddyLotBagAllocationId', $event)">
+        </app-filter-select>
+        <small *ngIf="!feedbackBagSelectOptions().length">Dòng hàng này không có bao vật lý phù hợp.</small>
+      </div>
+
+      <label class="ob-field ob-feedback-description">
+        <span>Nội dung phản hồi <b>*</b></span>
         <textarea rows="4" maxlength="1000" [ngModel]="feedbackForm().description"
           (ngModelChange)="setFeedbackField('description', $event)"
           placeholder="Mô tả vấn đề khách hàng phản ánh..."></textarea>
+        <small class="ob-feedback-counter">{{ feedbackForm().description.length }}/1000</small>
       </label>
     </div>
     <div class="ob-modal-actions">
-      <button type="button" class="btn ghost" (click)="closeFeedback()" [disabled]="savingFeedback()">Đóng</button>
+      <button type="button" class="btn ghost" (click)="closeFeedback()" [disabled]="savingFeedback()">Hủy</button>
       <button type="button" class="btn primary" (click)="createFeedback()"
-        [disabled]="savingFeedback() || !feedbackForm().description.trim()">Ghi nhận phản hồi</button>
+        [disabled]="savingFeedback() || !canSubmitFeedback()">
+        {{ savingFeedback() ? 'Đang ghi nhận...' : 'Ghi nhận phản hồi' }}
+      </button>
     </div>
   </div>
 </div>
