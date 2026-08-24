@@ -235,6 +235,9 @@ export class PaddyLotComponent implements OnDestroy {
     },
   );
   readonly traceability = computed(() => this.traceabilityQuery.data() || null);
+  readonly mixedPhysicalBags = computed(() =>
+    (this.traceability()?.physicalBags || []).filter((bag) => bag.isMixedLot),
+  );
   readonly traceLot = computed<TraceabilityLotDto | null>(() => {
     const trace = this.traceability();
     if (!trace) return null;
