@@ -534,52 +534,6 @@
           </div>
         </div>
         }
-        @if (
-        current.statusCode === status.INSPECTED ||
-        current.statusCode === status.CONFIRMED
-        ) {
-        <div class="finance-preview">
-          <div class="finance-title">
-            <div>
-              <strong>Tác động tài chính</strong>
-              <span>Backend ưu tiên khấu trừ công nợ phải thu.</span>
-            </div>
-            @if (loadingImpact()) {
-            <small>Đang tính...</small>
-            }
-          </div>
-          @if (impact(); as financial) {
-          <div class="finance-grid">
-            <div>
-              <span>Tổng ghi có</span><strong>{{
-                fmtCurrency(financial.approvedCreditAmount)
-                }}</strong>
-            </div>
-            <div>
-              <span>Công nợ hiện tại</span><strong>{{
-                fmtCurrency(financial.currentReceivableBalance)
-                }}</strong>
-            </div>
-            <div>
-              <span>Khấu trừ công nợ</span><strong class="good">{{
-                fmtCurrency(financial.debtReductionAmount)
-                }}</strong>
-            </div>
-            <div>
-              <span>Còn phải hoàn khách</span><strong class="damaged">{{
-                fmtCurrency(financial.refundPendingAmount)
-                }}</strong>
-            </div>
-          </div>
-          @if (financial.refundPendingAmount > 0) {
-          <p class="refund-note">
-            Khoản còn lại được ghi nhận là công nợ phải trả/chờ hoàn;
-            hệ thống chưa tự chi tiền mặt.
-          </p>
-          }
-          }
-        </div>
-        }
         <footer class="panel-actions">
           @if (canCancel(current.statusCode)) {
           <button type="button" class="danger-btn" [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
@@ -616,7 +570,7 @@
           </button>
           } @else if (current.statusCode === status.CONFIRMED && current.refundPendingAmount > 0) {
           <button type="button" class="primary-btn" [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
-            [disabled]="actionLoading()" (click)="registerRefund()">Ghi nhận hoàn tiền</button>
+            [disabled]="actionLoading()" (click)="openRefundModal()">Ghi nhận hoàn tiền</button>
           }
         </footer>
       </article>
@@ -625,6 +579,90 @@
     </aside>
   </div>
 </section>
+
+@if (showRefundModal()) {
+@if (detail(); as current) {
+<div class="modal-backdrop refund-modal-backdrop" (mousedown)="closeRefundModal()"
+  (keydown.escape)="closeRefundModal()">
+  <section class="modal-card refund-modal-card" role="dialog" aria-modal="true"
+    aria-labelledby="refund-modal-title" (mousedown)="$event.stopPropagation()">
+    <header class="modal-header refund-modal-header">
+      <div>
+        <span class="refund-modal-eyebrow">Hoàn tiền khách hàng</span>
+        <h2 id="refund-modal-title">Ghi nhận hoàn tiền</h2>
+        <p>Kiểm tra số tiền trước khi xác nhận giao dịch.</p>
+      </div>
+      <button type="button" aria-label="Đóng" [disabled]="actionLoading()" (click)="closeRefundModal()">
+        ×
+      </button>
+    </header>
+
+    <div class="modal-body refund-modal-body">
+      <div class="refund-customer-row">
+        <div>
+          <span>Khách hàng</span>
+          <strong>{{ current.customerName || "—" }}</strong>
+        </div>
+        <span class="refund-return-code">{{ current.returnCode }}</span>
+      </div>
+
+      <div class="refund-summary">
+        <div class="refund-metric">
+          <span>Tổng phải hoàn</span>
+          <strong>{{ fmtCurrency((current.refundedAmount || 0) + current.refundPendingAmount) }}</strong>
+        </div>
+        <div class="refund-metric">
+          <span>Đã hoàn</span>
+          <strong>{{ fmtCurrency(current.refundedAmount || 0) }}</strong>
+        </div>
+        <div class="refund-metric refund-metric-pending">
+          <span>Còn phải hoàn</span>
+          <strong>{{ fmtCurrency(current.refundPendingAmount) }}</strong>
+        </div>
+      </div>
+
+      <div class="refund-form">
+        <div class="refund-field-heading">
+          <label for="refundAmount">Số tiền hoàn lần này <span>*</span></label>
+          <button type="button" (click)="fillRefundAmount()">Hoàn toàn bộ</button>
+        </div>
+        <div class="refund-amount-wrap">
+          <input id="refundAmount" type="number" min="1" [max]="current.refundPendingAmount" step="1"
+            inputmode="numeric" autocomplete="off" autofocus placeholder="Nhập số tiền"
+            [class.invalid]="refundAmountError()" [ngModel]="refundAmount()"
+            (ngModelChange)="updateRefundAmount($event)" [attr.aria-invalid]="!!refundAmountError()"
+            aria-describedby="refund-amount-hint refund-amount-error" />
+          <span>₫</span>
+        </div>
+        <small id="refund-amount-hint" class="refund-field-hint">
+          Tối đa {{ fmtCurrency(current.refundPendingAmount) }}
+        </small>
+        @if (refundAmountError()) {
+        <small id="refund-amount-error" class="refund-field-error">{{ refundAmountError() }}</small>
+        }
+
+        <label class="refund-note-label" for="refundNote">
+          Ghi chú <span>(không bắt buộc)</span>
+        </label>
+        <textarea id="refundNote" maxlength="300" rows="3" placeholder="Nhập nội dung ghi chú..."
+          [ngModel]="refundNote()" (ngModelChange)="refundNote.set($event)"></textarea>
+        <small class="refund-note-count">{{ refundNote().length }}/300</small>
+      </div>
+    </div>
+
+    <footer class="modal-footer refund-modal-footer">
+      <button type="button" class="secondary-btn" [disabled]="actionLoading()" (click)="closeRefundModal()">
+        Đóng
+      </button>
+      <button type="button" class="primary-btn" [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
+        [disabled]="actionLoading()" (click)="submitRefund()">
+        {{ actionLoading() ? "Đang xử lý..." : "Xác nhận hoàn tiền" }}
+      </button>
+    </footer>
+  </section>
+</div>
+}
+}
 
 @if (showCreateModal()) {
 <div class="modal-backdrop" (mousedown)="closeCreate()">

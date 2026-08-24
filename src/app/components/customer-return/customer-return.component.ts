@@ -164,6 +164,10 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly dateTo = signal("");
   readonly selectedId = signal<number | null>(null);
   readonly showCreateModal = signal(false);
+  readonly showRefundModal = signal(false);
+  readonly refundAmount = signal<number | null>(null);
+  readonly refundNote = signal("");
+  readonly refundAmountError = signal("");
   readonly saving = signal(false);
   readonly actionLoading = signal(false);
   readonly loadingSource = signal(false);
@@ -1272,34 +1276,66 @@ export class CustomerReturnComponent implements OnDestroy {
     this.receiveOpen.set(false);
   }
 
-  async registerRefund(): Promise<void> {
+  openRefundModal(): void {
     const current = this.detail();
     if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.CONFIRMED || current.refundPendingAmount <= 0) return;
-    const refundedAmount = current.refundedAmount ?? 0;
-    const totalRefundAmount = refundedAmount + current.refundPendingAmount;
-    const customerName = this.escapeHtml(current.customerName || "—");
-    const returnCode = this.escapeHtml(current.returnCode);
-    const result = await Swal.fire({
-      title: "Ghi nhận hoàn tiền",
-      html: `<div style="text-align:left;display:grid;gap:8px;margin:0 1.25rem 1rem"><div><strong>Khách hàng:</strong> ${customerName}</div><div><strong>Phiếu trả:</strong> ${returnCode}</div><div><strong>Tổng phải hoàn:</strong> ${this.fmtCurrency(totalRefundAmount)}</div><div><strong>Đã hoàn:</strong> ${this.fmtCurrency(refundedAmount)}</div><div><strong>Còn phải hoàn:</strong> ${this.fmtCurrency(current.refundPendingAmount)}</div></div><label for="refund-amount" style="display:block;text-align:left;margin:0 2rem 4px">Số tiền hoàn lần này</label><input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" autocomplete="off" placeholder="Tối đa ${this.fmtCurrency(current.refundPendingAmount)}"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
-      showCancelButton: true,
-      confirmButtonText: "Xác nhận hoàn tiền",
-      cancelButtonText: "Đóng",
-      preConfirm: () => {
-        const amount = Number((document.getElementById("refund-amount") as HTMLInputElement)?.value);
-        const note = (document.getElementById("refund-note") as HTMLTextAreaElement)?.value.trim();
-        if (!(amount > 0) || amount > current.refundPendingAmount) {
-          Swal.showValidationMessage("Nhập số tiền hoàn hợp lệ.");
-          return false;
-        }
-        return { amount, note: note || null };
-      },
-    });
-    if (result.isConfirmed && result.value) {
-      await this.runAction(
-        () => this.service.registerRefund(current.id, result.value),
-        "Đã ghi nhận giao dịch hoàn tiền.",
+    this.refundAmount.set(null);
+    this.refundNote.set("");
+    this.refundAmountError.set("");
+    this.showRefundModal.set(true);
+  }
+
+  closeRefundModal(): void {
+    if (this.actionLoading()) return;
+    this.showRefundModal.set(false);
+  }
+
+  updateRefundAmount(value: string | number | null): void {
+    this.refundAmount.set(value === null || value === "" ? null : Number(value));
+    this.refundAmountError.set("");
+  }
+
+  fillRefundAmount(): void {
+    const pendingAmount = this.detail()?.refundPendingAmount;
+    if (!pendingAmount || pendingAmount <= 0) return;
+    this.refundAmount.set(pendingAmount);
+    this.refundAmountError.set("");
+  }
+
+  async submitRefund(): Promise<void> {
+    const current = this.detail();
+    if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.CONFIRMED) return;
+
+    const amount = Number(this.refundAmount());
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.refundAmountError.set("Vui lòng nhập số tiền hoàn lớn hơn 0.");
+      return;
+    }
+    if (amount > current.refundPendingAmount) {
+      this.refundAmountError.set(
+        `Số tiền hoàn không được vượt quá ${this.fmtCurrency(current.refundPendingAmount)}.`,
       );
+      return;
+    }
+
+    this.actionLoading.set(true);
+    try {
+      const response = await lastValueFrom(this.service.registerRefund(current.id, {
+        amount,
+        note: this.refundNote().trim() || null,
+      }));
+      this.ensureSucceeded(response);
+      this.showRefundModal.set(false);
+      await this.refresh();
+      await this.message(
+        "Thành công",
+        response.message || "Đã ghi nhận giao dịch hoàn tiền.",
+        "success",
+      );
+    } catch (error) {
+      await this.alertError(error);
+    } finally {
+      this.actionLoading.set(false);
     }
   }
 
@@ -1521,16 +1557,6 @@ export class CustomerReturnComponent implements OnDestroy {
 
   fmtCurrency(value: number | null | undefined): string {
     return `${this.fmtNumber(value, 0)}₫`;
-  }
-
-  private escapeHtml(value: string): string {
-    return value.replace(/[&<>'"]/g, (character) => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "'": "&#39;",
-      '"': "&quot;",
-    })[character]!);
   }
 
   fmtDate(value: string | null | undefined, includeTime = false): string {
