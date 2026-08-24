@@ -55,6 +55,7 @@ export interface CustomerReturnRow {
   debtReductionAmount: number;
   refundedAmount: number;
   refundPendingAmount: number;
+  refundStatus?: "PENDING" | "PARTIALLY_REFUNDED" | "REFUNDED" | string | null;
   approvedDate?: string | null;
   approvedByName?: string | null;
   confirmedAt?: string | null;

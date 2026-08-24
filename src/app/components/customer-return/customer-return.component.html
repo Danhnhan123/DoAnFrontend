@@ -5,7 +5,7 @@
       <h1>Xử lý hàng khách trả lại</h1>
       <p>
         Kiểm tra chất lượng, quyết định nhập lại kho/cách ly/không nhập lại và
-        duyệt điều chỉnh tồn theo từng lô hàng trả.
+        duyệt điều chỉnh tồn theo từng SKU hàng trả.
       </p>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
@@ -278,7 +278,7 @@
           Phiếu đã duyệt. Kho cần ghi nhận số lượng thực nhận trước khi kiểm định.
         </p>
         } @else if (current.statusCode === status.RECEIVED && !inspectionOpen()) {
-        <p class="info-banner">Hàng đã được tiếp nhận, sẵn sàng kiểm định từng lô.</p>
+        <p class="info-banner">Hàng đã được tiếp nhận, sẵn sàng kiểm định theo SKU.</p>
         } @else if (current.statusCode === status.INSPECTED) {
         <p class="info-banner success-banner">
           Đã kiểm định. Kiểm tra quyết định xử lý trước khi xác nhận tồn.
@@ -299,20 +299,24 @@
           <h2>Ghi nhận hàng thực nhận</h2>
         </div>
         <div class="inspection-form">
-          @for (item of detail()?.items || []; track item.id) {
-          @for (allocation of item.allocations; track allocation.id) {
+          @for (group of receiveSkuGroups(); track group.key) {
           <section class="inspection-line">
             <header>
-              <div><strong>{{ item.productVariantName || item.sku }}</strong><small>{{ allocation.paddyLotCode
-                  }}</small></div><span>Duyệt trả {{ fmtWeight(allocation.quantityReturned) }}</span>
+              <div>
+                <strong>{{ group.productName }}</strong>
+                <small>{{ group.sku }}</small>
+              </div>
+              <span>Duyệt trả {{ fmtWeight(group.approvedQuantity) }}</span>
             </header>
             <label class="field">Số lượng thực nhận (kg)
-              <input type="number" min="0" [max]="allocation.quantityReturned" step="0.001"
-                [ngModel]="receiveQuantities()[allocation.id]"
-                (ngModelChange)="updateReceived(allocation.id, $event)" />
+              <input type="number" min="0" [max]="group.approvedQuantity" step="0.001"
+                [ngModel]="group.receivedQuantity"
+                (ngModelChange)="updateReceived(group.key, $event)" />
             </label>
+            @if (group.allocations.length > 1) {
+            <small class="allocation-summary">Từ {{ group.allocations.length }} phân bổ xuất gốc</small>
+            }
           </section>
-          }
           }
         </div>
         <footer class="panel-actions">
@@ -325,14 +329,14 @@
       } @else if (inspectionOpen()) {
       <article class="panel decision-panel">
         <div class="panel-heading">
-          <h2>Quyết định xử lý theo lô</h2>
+          <h2>Quyết định xử lý theo SKU</h2>
         </div>
         <div class="inspection-form">
-          @for (line of inspectionLines(); track line.allocationId) {
+          @for (line of inspectionLines(); track line.key) {
           <section class="inspection-line">
             <header>
               <div>
-                <strong>{{ line.productName }}</strong><small>{{ line.lotCode }}</small>
+                <strong>{{ line.productName }}</strong><small>{{ line.sku }}</small>
               </div>
               <span>{{ fmtWeight(line.quantityReturned) }}</span>
             </header>
@@ -340,14 +344,14 @@
               <label>Nhập lại kho<input type="number" min="0" step="0.001" [ngModel]="line.quantityGood"
                   (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityGood',
                           $event
                         )
                       " /></label>
               <label>Cách ly<input type="number" min="0" step="0.001" [ngModel]="line.quantityDamaged" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityDamaged',
                           $event
                         )
@@ -355,7 +359,7 @@
               <label>Không nhập lại<input type="number" min="0" step="0.001" [ngModel]="line.quantityRejected"
                   (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityRejected',
                           $event
                         )
@@ -366,7 +370,7 @@
                 <input type="number" min="0" [max]="line.quantityGood + line.quantityDamaged" step="0.001"
                   [ngModel]="line.creditQuantity" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'creditQuantity',
                           $event
                         )
@@ -392,26 +396,26 @@
                 <label>Phân loại
                   <app-filter-select [options]="bagConditionOptions" [value]="bag.condition"
                     [clearable]="false"
-                    (valueChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
+                    (valueChange)="updateInspectionBagCondition(line.key, bagIndex, $event)">
                   </app-filter-select>
                 </label>
                 <label>Khối lượng (kg)
                   <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
-                    (ngModelChange)="updateInspectionBag(line.allocationId, bagIndex, $event)" />
+                    (ngModelChange)="updateInspectionBag(line.key, bagIndex, $event)" />
                 </label>
                 <button type="button" class="bag-remove"
                   [attr.aria-label]="'Xóa bao ' + (bagIndex + 1)"
-                  (click)="removeInspectionBag(line.allocationId, bagIndex)">Xóa</button>
+                  (click)="removeInspectionBag(line.key, bagIndex)">Xóa</button>
               </div>
               }
               <div class="bag-actions">
                 @if (line.quantityGood > 0) {
                 <button type="button" class="bag-add bag-add--good"
-                  (click)="addInspectionBag(line.allocationId, 'GOOD')">+ Bao đạt</button>
+                  (click)="addInspectionBag(line.key, 'GOOD')">+ Bao đạt</button>
                 }
                 @if (line.quantityDamaged > 0) {
                 <button type="button" class="bag-add bag-add--damaged"
-                  (click)="addInspectionBag(line.allocationId, 'DAMAGED')">+ Bao cách ly</button>
+                  (click)="addInspectionBag(line.key, 'DAMAGED')">+ Bao cách ly</button>
                 }
               </div>
             </div>
@@ -422,7 +426,7 @@
               <app-filter-select class="location-override-select"
                 [options]="restockLocationOptions(line)" [value]="line.restockLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có vị trí phù hợp"
-                (valueChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
+                (valueChange)="updateInspection(line.key, 'restockLocationId', $event)">
               </app-filter-select>
               @if (restockLocationOptions(line).length === 0) {
               <small class="location-empty">Không có cột trống hoặc cột cùng SKU đủ sức chứa.</small>
@@ -435,7 +439,7 @@
               <app-filter-select class="location-override-select"
                 [options]="quarantineLocationOptions(line)" [value]="line.quarantineLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có khu cách ly"
-                (valueChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
+                (valueChange)="updateInspection(line.key, 'quarantineLocationId', $event)">
               </app-filter-select>
               @if (quarantineLocationOptions(line).length === 0) {
               <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
@@ -448,7 +452,7 @@
               <app-filter-select class="location-override-select"
                 [options]="rejectedLocationOptions(line)" [value]="line.rejectedLocationId"
                 [searchable]="true" [clearable]="false" placeholder="Không có vị trí tập kết"
-                (valueChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
+                (valueChange)="updateInspection(line.key, 'rejectedLocationId', $event)">
               </app-filter-select>
               @if (rejectedLocationOptions(line).length === 0) {
               <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
@@ -456,7 +460,7 @@
             </div>
             <label class="field">Lý do trả lại khách
               <input type="text" [ngModel]="line.rejectionReason"
-                (ngModelChange)="updateInspection(line.allocationId, 'rejectionReason', $event)"
+                (ngModelChange)="updateInspection(line.key, 'rejectionReason', $event)"
                 placeholder="Không đủ điều kiện nhận lại..." />
             </label>
             }
@@ -464,7 +468,7 @@
             <label class="field">Lý do hàng lỗi/không nhập lại
               <input type="text" [ngModel]="line.damageReason" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'damageReason',
                           $event
                         )
@@ -508,6 +512,28 @@
             <span>Không nhập lại</span><strong>{{ fmtWeight(current.totalQuantityRejected) }}</strong>
           </div>
         </div>
+        @if (current.statusCode === status.CONFIRMED) {
+        <div class="return-process-status">
+          <div>
+            <span>Trạng thái xử lý hàng</span>
+            <strong class="good">Đã xác nhận điều chỉnh tồn</strong>
+          </div>
+          <div>
+            <span>Hoàn tiền</span>
+            @if (current.refundStatus === 'REFUNDED' || current.refundPendingAmount <= 0) {
+            <strong class="good">Đã hoàn tiền</strong>
+            } @else if (current.refundedAmount > 0) {
+            <strong>
+              Đã hoàn {{ fmtCurrency(current.refundedAmount) }} /
+              {{ fmtCurrency(current.refundedAmount + current.refundPendingAmount) }}
+            </strong>
+            <small>Còn {{ fmtCurrency(current.refundPendingAmount) }}</small>
+            } @else {
+            <strong class="damaged">Chờ hoàn {{ fmtCurrency(current.refundPendingAmount) }}</strong>
+            }
+          </div>
+        </div>
+        }
         @if (
         current.statusCode === status.INSPECTED ||
         current.statusCode === status.CONFIRMED
@@ -655,13 +681,16 @@
         <div class="detail-loading"><span></span><span></span></div>
         } @else if (!form().lines.length) {
         <div class="empty-lines">
-          Chọn đơn xuất gốc để nhập số lượng trả theo từng lô đã giao.
+          Chọn đơn xuất gốc để nhập tổng số lượng trả theo SKU.
         </div>
         } @else {
-        @for (line of form().lines; track line.key) {
+        @for (line of returnFormSkuGroups(); track line.key) {
         <div class="return-line">
           <div>
-            <strong>{{ line.productName }}</strong><small>{{ line.sku }} · {{ line.lotCode }}</small>
+            <strong>{{ line.productName }}</strong><small>{{ line.sku }}</small>
+            @if (line.allocationCount > 1) {
+            <small>Từ {{ line.allocationCount }} phân bổ xuất gốc</small>
+            }
           </div>
           <span>Tối đa {{ fmtWeight(line.maxQuantity) }}</span>
           <label>Số lượng trả (kg)

@@ -55,6 +55,16 @@ interface ReturnFormLine {
   quantityReturned: number;
 }
 
+interface ReturnFormSkuGroup {
+  key: string;
+  productVariantId: number;
+  productName: string;
+  sku: string;
+  maxQuantity: number;
+  quantityReturned: number;
+  allocationCount: number;
+}
+
 interface ReturnFormState {
   customerFeedbackId: number | null;
   outboundOrderId: number | null;
@@ -65,14 +75,37 @@ interface ReturnFormState {
   lines: ReturnFormLine[];
 }
 
-interface InspectionLine {
+interface ReceiveSkuGroup {
+  key: string;
+  itemId: number;
+  productVariantId: number;
+  productName: string;
+  sku: string;
+  approvedQuantity: number;
+  receivedQuantity: number;
+  allocations: Array<{
+    itemId: number;
+    allocationId: number;
+    approvedQuantity: number;
+  }>;
+}
+
+interface InspectionAllocationMember {
   itemId: number;
   allocationId: number;
   originalLocationId: number | null;
+  quantityReceived: number;
+  unitCreditPrice: number;
+}
+
+interface InspectionSkuGroup {
+  key: string;
+  itemId: number;
+  originalLocationId: number | null;
   productVariantId: number;
   productName: string;
+  sku: string;
   standardBagWeightKg: number;
-  lotCode: string;
   quantityReturned: number;
   quantityGood: number;
   quantityDamaged: number;
@@ -85,6 +118,15 @@ interface InspectionLine {
   damageReason: string;
   rejectionReason: string;
   note: string;
+  bags: Array<{ weightKg: number; condition: "GOOD" | "DAMAGED" }>;
+  allocations: InspectionAllocationMember[];
+}
+
+interface AllocatedInspectionMember extends InspectionAllocationMember {
+  quantityGood: number;
+  quantityDamaged: number;
+  quantityRejected: number;
+  creditQuantity: number;
   bags: Array<{ weightKg: number; condition: "GOOD" | "DAMAGED" }>;
 }
 
@@ -127,9 +169,30 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly loadingSource = signal(false);
   readonly inspectionOpen = signal(false);
   readonly receiveOpen = signal(false);
-  readonly receiveQuantities = signal<Record<number, number>>({});
-  readonly inspectionLines = signal<InspectionLine[]>([]);
+  readonly receiveSkuGroups = signal<ReceiveSkuGroup[]>([]);
+  readonly inspectionLines = signal<InspectionSkuGroup[]>([]);
   readonly form = signal<ReturnFormState>(this.emptyForm());
+  readonly returnSkuQuantities = signal<Record<string, number>>({});
+  readonly returnFormSkuGroups = computed<ReturnFormSkuGroup[]>(() => {
+    const quantities = this.returnSkuQuantities();
+    const groups = new Map<string, ReturnFormSkuGroup>();
+    this.form().lines.forEach(line => {
+      const key = this.returnFormGroupKey(line);
+      const group = groups.get(key) || {
+        key,
+        productVariantId: line.productVariantId,
+        productName: line.productName,
+        sku: line.sku,
+        maxQuantity: 0,
+        quantityReturned: quantities[key] ?? 0,
+        allocationCount: 0,
+      };
+      group.maxQuantity += Number(line.maxQuantity || 0);
+      group.allocationCount += 1;
+      groups.set(key, group);
+    });
+    return [...groups.values()];
+  });
 
   private searchTimer?: ReturnType<typeof setTimeout>;
 
@@ -150,7 +213,7 @@ export class CustomerReturnComponent implements OnDestroy {
     { key: "ALL", label: "Tất cả" },
     { key: "PENDING_APPROVAL", label: "Chờ duyệt" },
     { key: "RECEIVED", label: "Chờ kiểm định" },
-    { key: "CONFIRMED", label: "Đã hoàn tất" },
+    { key: "CONFIRMED", label: "Đã xác nhận tồn" },
   ];
 
   private readonly customersQuery = injectQuery(() => ({
@@ -268,8 +331,11 @@ export class CustomerReturnComponent implements OnDestroy {
   readonly loadingImpact = computed(() => this.impactQuery.isPending());
   readonly inspectionCreditAmount = computed(() =>
     this.inspectionLines().reduce(
-      (total, line) =>
-        total + Number(line.creditQuantity) * Number(line.unitCreditPrice),
+      (total, line) => total + this.allocateInspectionGroup(line).reduce(
+        (groupTotal, allocation) =>
+          groupTotal + allocation.creditQuantity * allocation.unitCreditPrice,
+        0,
+      ),
       0,
     ),
   );
@@ -406,6 +472,7 @@ export class CustomerReturnComponent implements OnDestroy {
 
   openCreate(): void {
     this.form.set(this.emptyForm());
+    this.returnSkuQuantities.set({});
     this.showCreateModal.set(true);
   }
 
@@ -417,6 +484,7 @@ export class CustomerReturnComponent implements OnDestroy {
   async setSourceOutbound(value: string | number | null): Promise<void> {
     const id = value ? Number(value) : null;
     if (!id) {
+      this.returnSkuQuantities.set({});
       this.form.update((form) => ({
         ...form,
         outboundOrderId: null,
@@ -456,6 +524,7 @@ export class CustomerReturnComponent implements OnDestroy {
         warehouseId: detail.warehouseId,
         lines,
       });
+      this.returnSkuQuantities.set({});
     } catch (error) {
       await this.alertError(error);
     } finally {
@@ -480,24 +549,53 @@ export class CustomerReturnComponent implements OnDestroy {
   }
 
   updateReturnQuantity(key: string, value: string | number): void {
-    const quantity = Number(value) || 0;
-    this.form.update((form) => ({
-      ...form,
-      lines: form.lines.map((line) =>
-        line.key === key ? { ...line, quantityReturned: quantity } : line,
-      ),
+    this.returnSkuQuantities.update(quantities => ({
+      ...quantities,
+      [key]: Number(value) || 0,
     }));
+  }
+
+  private returnFormGroupKey(line: ReturnFormLine): string {
+    return line.productVariantId > 0
+      ? `variant-${line.productVariantId}`
+      : `item-${line.outboundOrderItemId}`;
+  }
+
+  private distributeReturnFormQuantities(lines: ReturnFormLine[]): ReturnFormLine[] {
+    const remainingByGroup = { ...this.returnSkuQuantities() };
+    return lines.map(line => {
+      const key = this.returnFormGroupKey(line);
+      const quantityReturned = this.takeQuantity(
+        line.maxQuantity,
+        remainingByGroup[key] ?? 0,
+      );
+      remainingByGroup[key] = Number(remainingByGroup[key] || 0) - quantityReturned;
+      return { ...line, quantityReturned };
+    });
   }
 
   async submitCreate(): Promise<void> {
     const form = this.form();
-    const selectedLines = form.lines.filter(
+    const selectedLines = this.distributeReturnFormQuantities(form.lines).filter(
       (line) => line.quantityReturned > 0,
     );
     if (!form.outboundOrderId || !form.customerId || !form.warehouseId) {
       await this.message(
         "Thiếu thông tin",
         "Vui lòng chọn đơn xuất gốc hợp lệ.",
+        "warning",
+      );
+      return;
+    }
+    const invalidGroup = this.returnFormSkuGroups().find(group =>
+      !Number.isFinite(group.quantityReturned) ||
+      group.quantityReturned < 0 ||
+      group.quantityReturned > group.maxQuantity,
+    );
+    if (invalidGroup) {
+      await this.message(
+        "Số lượng không hợp lệ",
+        `${invalidGroup.productName} chỉ có thể trả tối đa ${this.fmtWeight(invalidGroup.maxQuantity)}.`,
         "warning",
       );
       return;
@@ -612,100 +710,148 @@ export class CustomerReturnComponent implements OnDestroy {
       return;
 
     const editingInspection = detail.statusCode === CUSTOMER_RETURN_STATUS.INSPECTED;
+    const groups = new Map<string, InspectionSkuGroup>();
 
-    this.inspectionLines.set(
-      detail.items.flatMap((item) =>
-        item.allocations.map((allocation) => {
-          const productVariantId = Number(item.productVariantId || allocation.productVariantId);
-          const line: InspectionLine = {
-            itemId: item.id,
-            allocationId: allocation.id,
-            originalLocationId: allocation.originalLocationId ?? null,
-            productVariantId,
-            productName: item.productVariantName || item.sku || 'Sản phẩm',
-            standardBagWeightKg: Number(item.standardBagWeightKg || 0),
-            lotCode: allocation.paddyLotCode,
-            quantityReturned: allocation.quantityReceived,
-            quantityGood: editingInspection ? allocation.quantityGood : allocation.quantityReceived,
-            quantityDamaged: editingInspection ? allocation.quantityDamaged : 0,
-            quantityRejected: editingInspection ? allocation.quantityRejected : 0,
-            creditQuantity: allocation.creditQuantity || 0,
-            unitCreditPrice: allocation.unitCreditPrice || 0,
-            restockLocationId: null,
-            quarantineLocationId: editingInspection ? (allocation.quarantineLocationId ?? null) : null,
-            rejectedLocationId: editingInspection ? (allocation.rejectedLocationId ?? null) : null,
-            damageReason: editingInspection ? (item.damageReason ?? '') : '',
-            rejectionReason: editingInspection ? (allocation.rejectionReason ?? '') : '',
-            note: editingInspection ? (allocation.note ?? '') : '',
-            bags: editingInspection && allocation.bags?.length
-              ? allocation.bags.map(bag => ({ ...bag }))
-              : allocation.quantityReceived > 0
-                ? [
-                  {
-                    weightKg: allocation.quantityReceived,
-                    condition: 'GOOD' as const,
-                  },
-                ]
-                : [],
-          };
-          const restockOptions = this.restockLocationOptions(line);
-          const quarantineOptions = this.quarantineLocationOptions(line);
-          const rejectedOptions = this.rejectedLocationOptions(line);
-          const savedRestockId = editingInspection ? allocation.restockLocationId : null;
-          const savedQuarantineId = editingInspection ? allocation.quarantineLocationId : null;
-          const savedRejectedId = editingInspection ? allocation.rejectedLocationId : null;
-          return {
-            ...line,
-            restockLocationId: restockOptions.some(option => option.id === savedRestockId)
-              ? savedRestockId
-              : (restockOptions[0]?.id ?? null),
-            quarantineLocationId: quarantineOptions.some(option => option.id === savedQuarantineId)
-              ? savedQuarantineId
-              : (quarantineOptions[0]?.id ?? null),
-            rejectedLocationId: rejectedOptions.some(option => option.id === savedRejectedId)
-              ? savedRejectedId
-              : (rejectedOptions[0]?.id ?? null),
-          };
-        }),
-      ),
-    );
+    detail.items.forEach(item => item.allocations.forEach(allocation => {
+      const productVariantId = Number(item.productVariantId || allocation.productVariantId);
+      const key = productVariantId > 0 ? `variant-${productVariantId}` : `item-${item.id}`;
+      const current = groups.get(key) || {
+        key,
+        itemId: item.id,
+        originalLocationId: null,
+        productVariantId,
+        productName: item.productVariantName || item.sku || "Sản phẩm",
+        sku: item.sku || allocation.sku || "",
+        standardBagWeightKg: Number(item.standardBagWeightKg || 0),
+        quantityReturned: 0,
+        quantityGood: 0,
+        quantityDamaged: 0,
+        quantityRejected: 0,
+        creditQuantity: 0,
+        unitCreditPrice: Number(allocation.unitCreditPrice || 0),
+        restockLocationId: null,
+        quarantineLocationId: null,
+        rejectedLocationId: null,
+        damageReason: "",
+        rejectionReason: "",
+        note: "",
+        bags: [],
+        allocations: [],
+      };
+
+      current.quantityReturned += Number(allocation.quantityReceived || 0);
+      current.quantityGood += editingInspection
+        ? Number(allocation.quantityGood || 0)
+        : Number(allocation.quantityReceived || 0);
+      current.quantityDamaged += editingInspection ? Number(allocation.quantityDamaged || 0) : 0;
+      current.quantityRejected += editingInspection ? Number(allocation.quantityRejected || 0) : 0;
+      current.creditQuantity += editingInspection ? Number(allocation.creditQuantity || 0) : 0;
+      current.allocations.push({
+        itemId: item.id,
+        allocationId: allocation.id,
+        originalLocationId: allocation.originalLocationId ?? null,
+        quantityReceived: Number(allocation.quantityReceived || 0),
+        unitCreditPrice: Number(allocation.unitCreditPrice || 0),
+      });
+
+      if (editingInspection) {
+        current.restockLocationId ??= allocation.restockLocationId ?? null;
+        current.quarantineLocationId ??= allocation.quarantineLocationId ?? null;
+        current.rejectedLocationId ??= allocation.rejectedLocationId ?? null;
+        current.damageReason = this.appendUniqueText(current.damageReason, item.damageReason);
+        current.rejectionReason = this.appendUniqueText(current.rejectionReason, allocation.rejectionReason);
+        current.note = this.appendUniqueText(current.note, allocation.note);
+        if (allocation.bags?.length) {
+          current.bags.push(...allocation.bags.map(bag => ({ ...bag })));
+        }
+      }
+      groups.set(key, current);
+    }));
+
+    const inspectionGroups = [...groups.values()].map(group => {
+      const originalLocationIds = group.allocations.map(member => member.originalLocationId);
+      group.originalLocationId = originalLocationIds.length > 0 &&
+        originalLocationIds[0] != null &&
+        originalLocationIds.every(id => id === originalLocationIds[0])
+        ? originalLocationIds[0]
+        : null;
+      if (!editingInspection) {
+        group.bags = this.defaultInspectionBags(
+          group.quantityReturned,
+          group.standardBagWeightKg,
+          "GOOD",
+        );
+      } else if (!group.bags.length) {
+        group.bags = [
+          ...this.defaultInspectionBags(
+            group.quantityGood,
+            group.standardBagWeightKg,
+            "GOOD",
+          ),
+          ...this.defaultInspectionBags(
+            group.quantityDamaged,
+            group.standardBagWeightKg,
+            "DAMAGED",
+          ),
+        ];
+      }
+
+      group.restockLocationId = this.initialLocationId(
+        group.quantityGood,
+        group.restockLocationId,
+        this.restockLocationOptions(group),
+      );
+      group.quarantineLocationId = this.initialLocationId(
+        group.quantityDamaged,
+        group.quarantineLocationId,
+        this.quarantineLocationOptions(group),
+      );
+      group.rejectedLocationId = this.initialLocationId(
+        group.quantityRejected,
+        group.rejectedLocationId,
+        this.rejectedLocationOptions(group),
+      );
+      return group;
+    });
+
+    this.inspectionLines.set(inspectionGroups);
     this.inspectionOpen.set(true);
   }
 
 
-  addInspectionBag(allocationId: number, condition: "GOOD" | "DAMAGED"): void {
-    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+  addInspectionBag(groupKey: string, condition: "GOOD" | "DAMAGED"): void {
+    this.inspectionLines.update(lines => lines.map(line => line.key === groupKey
       ? { ...line, bags: [...line.bags, { weightKg: 0, condition }] }
       : line));
   }
 
-  updateInspectionBag(allocationId: number, index: number, weightKg: number): void {
-    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+  updateInspectionBag(groupKey: string, index: number, weightKg: number): void {
+    this.inspectionLines.update(lines => lines.map(line => line.key === groupKey
       ? { ...line, bags: line.bags.map((bag, i) => i === index ? { ...bag, weightKg: Number(weightKg) } : bag) }
       : line));
   }
 
-  updateInspectionBagCondition(allocationId: number, index: number, condition: "GOOD" | "DAMAGED"): void {
-    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+  updateInspectionBagCondition(groupKey: string, index: number, condition: "GOOD" | "DAMAGED"): void {
+    this.inspectionLines.update(lines => lines.map(line => line.key === groupKey
       ? { ...line, bags: line.bags.map((bag, i) => i === index ? { ...bag, condition } : bag) }
       : line));
   }
 
-  removeInspectionBag(allocationId: number, index: number): void {
-    this.inspectionLines.update(lines => lines.map(line => line.allocationId === allocationId
+  removeInspectionBag(groupKey: string, index: number): void {
+    this.inspectionLines.update(lines => lines.map(line => line.key === groupKey
       ? { ...line, bags: line.bags.filter((_, i) => i !== index) }
       : line));
   }
 
   updateInspection(
-    allocationId: number,
-    field: keyof InspectionLine,
+    groupKey: string,
+    field: keyof InspectionSkuGroup,
     value: string | number,
   ): void {
     this.inspectionLines.update((lines) =>
       lines.map((line) => {
-        if (line.allocationId !== allocationId) return line;
-        const numericFields: (keyof InspectionLine)[] = [
+        if (line.key !== groupKey) return line;
+        const numericFields: (keyof InspectionSkuGroup)[] = [
           "quantityGood",
           "quantityDamaged",
           "quantityRejected",
@@ -721,7 +867,7 @@ export class CustomerReturnComponent implements OnDestroy {
               : 0
             : Number(value)
           : value;
-        const nextLine = { ...line, [field]: nextValue } as InspectionLine;
+        const nextLine = { ...line, [field]: nextValue } as InspectionSkuGroup;
         if (field === "quantityGood") {
           if (nextLine.quantityGood <= 0) {
             nextLine.restockLocationId = null;
@@ -759,6 +905,7 @@ export class CustomerReturnComponent implements OnDestroy {
       const classified =
         line.quantityGood + line.quantityDamaged + line.quantityRejected;
       if (
+        !Number.isFinite(classified) ||
         line.quantityGood < 0 ||
         line.quantityDamaged < 0 ||
         line.quantityRejected < 0 ||
@@ -767,7 +914,7 @@ export class CustomerReturnComponent implements OnDestroy {
       ) {
         await this.message(
           "Số lượng chưa khớp",
-          `Tổng phân loại của lô ${line.lotCode} phải bằng ${this.fmtWeight(line.quantityReturned)}.`,
+          `Tổng phân loại của ${line.productName} phải bằng ${this.fmtWeight(line.quantityReturned)}.`,
           "warning",
         );
         return;
@@ -775,7 +922,7 @@ export class CustomerReturnComponent implements OnDestroy {
       if (line.creditQuantity > line.quantityGood + line.quantityDamaged) {
         await this.message(
           "Số lượng hoàn tiền không hợp lệ",
-          `Lô ${line.lotCode} chỉ được hoàn tối đa ${this.fmtWeight(line.quantityGood + line.quantityDamaged)} theo lượng nhận lại.`,
+          `${line.productName} chỉ được hoàn tối đa ${this.fmtWeight(line.quantityGood + line.quantityDamaged)} theo lượng nhận lại.`,
           "warning",
         );
         return;
@@ -792,7 +939,7 @@ export class CustomerReturnComponent implements OnDestroy {
       if (line.bags.some(x => !Number.isFinite(x.weightKg) || x.weightKg <= 0)
         || Math.abs(goodBagKg - line.quantityGood) > 0.001
         || Math.abs(damagedBagKg - line.quantityDamaged) > 0.001) {
-        await this.message("Cân bao chưa khớp", `Tổng cân bao đạt/hỏng của lô ${line.lotCode} phải khớp số kg phân loại.`, "warning");
+        await this.message("Cân bao chưa khớp", `Tổng cân bao đạt/hỏng của ${line.productName} phải khớp số kg phân loại.`, "warning");
         return;
       }
       if (line.quantityGood > 0 && !line.restockLocationId) {
@@ -815,7 +962,7 @@ export class CustomerReturnComponent implements OnDestroy {
       if (line.quantityDamaged > 0 && !line.quarantineLocationId) {
         await this.message(
           "Thiếu vị trí",
-          `Chọn vị trí cách ly cho lô ${line.lotCode}.`,
+          `Chọn vị trí cách ly cho ${line.productName}.`,
           "warning",
         );
         return;
@@ -836,7 +983,7 @@ export class CustomerReturnComponent implements OnDestroy {
       ) {
         await this.message(
           "Thiếu lý do",
-          `Nhập lý do xử lý lô ${line.lotCode}.`,
+          `Nhập lý do xử lý ${line.productName}.`,
           "warning",
         );
         return;
@@ -844,7 +991,7 @@ export class CustomerReturnComponent implements OnDestroy {
       if (line.quantityRejected > 0 && (!line.rejectedLocationId || !line.rejectionReason.trim())) {
         await this.message(
           "Thiếu thông tin hàng trả lại",
-          `Chọn vị trí và nhập lý do trả lại khách cho lô ${line.lotCode}.`,
+          `Chọn vị trí và nhập lý do trả lại khách cho ${line.productName}.`,
           "warning",
         );
         return;
@@ -862,41 +1009,44 @@ export class CustomerReturnComponent implements OnDestroy {
     }
 
     const items = new Map<number, InspectCustomerReturnItemPayload>();
-    lines.forEach((line) => {
-      const current = items.get(line.itemId) || {
-        customerReturnOrderItemId: line.itemId,
+    lines.forEach(line => this.allocateInspectionGroup(line).forEach(allocation => {
+      const current = items.get(allocation.itemId) || {
+        customerReturnOrderItemId: allocation.itemId,
         qualityStatus: "GOOD",
         damageReason: null,
         allocations: [],
       };
-      if (
-        line.quantityRejected > 0 &&
-        line.quantityGood === 0 &&
-        line.quantityDamaged === 0
-      ) {
-        current.qualityStatus = "EXPIRED";
-      } else if (line.quantityDamaged > 0 || line.quantityRejected > 0) {
-        current.qualityStatus = "DAMAGED";
-      }
-      if (line.damageReason.trim()) {
-        current.damageReason = [current.damageReason, line.damageReason.trim()]
-          .filter(Boolean)
-          .join("; ");
-      }
+      current.damageReason = this.appendUniqueText(
+        current.damageReason || "",
+        line.damageReason,
+      ) || null;
       current.allocations.push({
-        returnAllocationId: line.allocationId,
-        quantityGood: line.quantityGood,
-        quantityDamaged: line.quantityDamaged,
-        quantityRejected: line.quantityRejected,
-        creditQuantity: line.creditQuantity,
-        restockLocationId: line.restockLocationId,
-        quarantineLocationId: line.quarantineLocationId,
-        rejectedLocationId: line.rejectedLocationId,
-        rejectionReason: line.rejectionReason.trim() || null,
+        returnAllocationId: allocation.allocationId,
+        quantityGood: allocation.quantityGood,
+        quantityDamaged: allocation.quantityDamaged,
+        quantityRejected: allocation.quantityRejected,
+        creditQuantity: allocation.creditQuantity,
+        restockLocationId: allocation.quantityGood > 0 ? line.restockLocationId : null,
+        quarantineLocationId: allocation.quantityDamaged > 0 ? line.quarantineLocationId : null,
+        rejectedLocationId: allocation.quantityRejected > 0 ? line.rejectedLocationId : null,
+        rejectionReason: allocation.quantityRejected > 0
+          ? line.rejectionReason.trim() || null
+          : null,
         note: line.note.trim() || null,
-        bags: line.bags.map(x => ({ weightKg: Number(x.weightKg), condition: x.condition })),
+        bags: allocation.bags,
       });
-      items.set(line.itemId, current);
+      items.set(allocation.itemId, current);
+    }));
+
+    items.forEach(item => {
+      const quantityGood = item.allocations.reduce((sum, allocation) => sum + allocation.quantityGood, 0);
+      const quantityDamaged = item.allocations.reduce((sum, allocation) => sum + allocation.quantityDamaged, 0);
+      const quantityRejected = item.allocations.reduce((sum, allocation) => sum + allocation.quantityRejected, 0);
+      item.qualityStatus = quantityRejected > 0 && quantityGood === 0 && quantityDamaged === 0
+        ? "EXPIRED"
+        : quantityDamaged > 0 || quantityRejected > 0
+          ? "DAMAGED"
+          : "GOOD";
     });
 
     const payload: InspectCustomerReturnPayload = {
@@ -909,6 +1059,113 @@ export class CustomerReturnComponent implements OnDestroy {
     );
     this.inspectionOpen.set(false);
     this.receiveOpen.set(false);
+  }
+
+  private allocateInspectionGroup(group: InspectionSkuGroup): AllocatedInspectionMember[] {
+    let remainingGood = Number(group.quantityGood || 0);
+    let remainingDamaged = Number(group.quantityDamaged || 0);
+    let remainingRejected = Number(group.quantityRejected || 0);
+    let remainingCredit = Number(group.creditQuantity || 0);
+
+    const allocations = group.allocations.map(member => {
+      let capacity = Number(member.quantityReceived || 0);
+      const quantityGood = this.takeQuantity(capacity, remainingGood);
+      capacity -= quantityGood;
+      remainingGood -= quantityGood;
+      const quantityDamaged = this.takeQuantity(capacity, remainingDamaged);
+      capacity -= quantityDamaged;
+      remainingDamaged -= quantityDamaged;
+      const quantityRejected = this.takeQuantity(capacity, remainingRejected);
+      remainingRejected -= quantityRejected;
+      return {
+        ...member,
+        quantityGood,
+        quantityDamaged,
+        quantityRejected,
+        creditQuantity: 0,
+        bags: [],
+      };
+    });
+
+    allocations.forEach(allocation => {
+      allocation.creditQuantity = this.takeQuantity(
+        allocation.quantityGood + allocation.quantityDamaged,
+        remainingCredit,
+      );
+      remainingCredit -= allocation.creditQuantity;
+    });
+    this.allocateBagsToMembers(group.bags, "GOOD", allocations);
+    this.allocateBagsToMembers(group.bags, "DAMAGED", allocations);
+    return allocations;
+  }
+
+  private allocateBagsToMembers(
+    bags: InspectionSkuGroup["bags"],
+    condition: "GOOD" | "DAMAGED",
+    allocations: AllocatedInspectionMember[],
+  ): void {
+    const assigned = allocations.map(allocation => ({
+      allocation,
+      remaining: condition === "GOOD"
+        ? allocation.quantityGood
+        : allocation.quantityDamaged,
+    }));
+    let allocationIndex = 0;
+
+    bags.filter(bag => bag.condition === condition).forEach(bag => {
+      let remainingBagWeight = Number(bag.weightKg || 0);
+      while (remainingBagWeight > 0.0005 && allocationIndex < assigned.length) {
+        const target = assigned[allocationIndex];
+        if (target.remaining <= 0.0005) {
+          allocationIndex += 1;
+          continue;
+        }
+        const weightKg = this.takeQuantity(target.remaining, remainingBagWeight);
+        target.allocation.bags.push({ weightKg, condition });
+        target.remaining -= weightKg;
+        remainingBagWeight -= weightKg;
+      }
+    });
+  }
+
+  private takeQuantity(capacity: number, requested: number): number {
+    return Math.round(Math.min(Math.max(capacity, 0), Math.max(requested, 0)) * 1000) / 1000;
+  }
+
+  private defaultInspectionBags(
+    quantity: number,
+    standardBagWeightKg: number,
+    condition: "GOOD" | "DAMAGED",
+  ): InspectionSkuGroup["bags"] {
+    const bags: InspectionSkuGroup["bags"] = [];
+    let remaining = Number(quantity || 0);
+    const maxBagWeight = Number(standardBagWeightKg || 0) > 0
+      ? Number(standardBagWeightKg)
+      : remaining;
+    while (remaining > 0.0005) {
+      const weightKg = this.takeQuantity(maxBagWeight, remaining);
+      bags.push({ weightKg, condition });
+      remaining -= weightKg;
+    }
+    return bags;
+  }
+
+  private initialLocationId(
+    quantity: number,
+    savedId: number | null,
+    options: FilterSelectOption[],
+  ): number | null {
+    if (quantity <= 0) return null;
+    return options.some(option => option.id === savedId)
+      ? savedId
+      : Number(options[0]?.id) || null;
+  }
+
+  private appendUniqueText(current: string, next: string | null | undefined): string {
+    const value = next?.trim();
+    if (!value) return current;
+    const parts = current.split("; ").filter(Boolean);
+    return parts.includes(value) ? current : [...parts, value].join("; ");
   }
 
   async submitForApproval(): Promise<void> {
@@ -944,38 +1201,71 @@ export class CustomerReturnComponent implements OnDestroy {
   beginReceive(): void {
     const current = this.detail();
     if (!current || current.statusCode !== CUSTOMER_RETURN_STATUS.APPROVED) return;
-    this.receiveQuantities.set(Object.fromEntries(
-      current.items.flatMap(item => item.allocations.map(allocation => [allocation.id, allocation.quantityReturned])),
-    ));
+    const groups = new Map<string, ReceiveSkuGroup>();
+    current.items.forEach(item => item.allocations.forEach(allocation => {
+      const productVariantId = Number(item.productVariantId || allocation.productVariantId);
+      const key = productVariantId > 0 ? `variant-${productVariantId}` : `item-${item.id}`;
+      const group = groups.get(key) || {
+        key,
+        itemId: item.id,
+        productVariantId,
+        productName: item.productVariantName || item.sku || "Sản phẩm",
+        sku: item.sku || allocation.sku || "",
+        approvedQuantity: 0,
+        receivedQuantity: 0,
+        allocations: [],
+      };
+      const approvedQuantity = Number(allocation.quantityReturned || 0);
+      group.approvedQuantity += approvedQuantity;
+      group.receivedQuantity += approvedQuantity;
+      group.allocations.push({
+        itemId: item.id,
+        allocationId: allocation.id,
+        approvedQuantity,
+      });
+      groups.set(key, group);
+    }));
+    this.receiveSkuGroups.set([...groups.values()]);
     this.receiveOpen.set(true);
   }
 
-  updateReceived(allocationId: number, value: string | number): void {
-    this.receiveQuantities.update(values => ({ ...values, [allocationId]: Number(value) || 0 }));
+  updateReceived(groupKey: string, value: string | number): void {
+    this.receiveSkuGroups.update(groups => groups.map(group => group.key === groupKey
+      ? { ...group, receivedQuantity: Number(value) || 0 }
+      : group));
   }
 
   async submitReceive(): Promise<void> {
     const current = this.detail();
     if (!current) return;
-    const allocations = current.items.flatMap(item => item.allocations);
-    for (const allocation of allocations) {
-      const received = this.receiveQuantities()[allocation.id] ?? 0;
-      if (received < 0 || received > allocation.quantityReturned) {
+    const groups = this.receiveSkuGroups();
+    for (const group of groups) {
+      if (!Number.isFinite(group.receivedQuantity) ||
+        group.receivedQuantity < 0 ||
+        group.receivedQuantity > group.approvedQuantity) {
         await this.message(
           "Số lượng thực nhận không hợp lệ",
-          `${allocation.paddyLotCode}: thực nhận phải từ 0 đến ${this.fmtWeight(allocation.quantityReturned)}.`,
+          `Số lượng thực nhận của ${group.productName} phải từ 0 đến ${this.fmtWeight(group.approvedQuantity)}.`,
           "warning",
         );
         return;
       }
     }
+    const allocations = groups.flatMap(group => {
+      let remaining = group.receivedQuantity;
+      return group.allocations.map(allocation => {
+        const quantityReceived = this.takeQuantity(allocation.approvedQuantity, remaining);
+        remaining -= quantityReceived;
+        return {
+          returnAllocationId: allocation.allocationId,
+          quantityReceived,
+        };
+      });
+    });
     await this.runAction(
       () => this.service.receive({
         id: current.id,
-        allocations: allocations.map(allocation => ({
-          returnAllocationId: allocation.id,
-          quantityReceived: this.receiveQuantities()[allocation.id] ?? 0,
-        })),
+        allocations,
       }),
       "Đã ghi nhận hàng trả thực nhận.",
     );
@@ -991,7 +1281,7 @@ export class CustomerReturnComponent implements OnDestroy {
     const returnCode = this.escapeHtml(current.returnCode);
     const result = await Swal.fire({
       title: "Ghi nhận hoàn tiền",
-      html: `<div style="text-align:left;display:grid;gap:8px;margin:0 1.25rem 1rem"><div><strong>Khách hàng:</strong> ${customerName}</div><div><strong>Phiếu trả:</strong> ${returnCode}</div><div><strong>Tổng phải hoàn:</strong> ${this.fmtCurrency(totalRefundAmount)}</div><div><strong>Đã hoàn:</strong> ${this.fmtCurrency(refundedAmount)}</div><div><strong>Còn phải hoàn:</strong> ${this.fmtCurrency(current.refundPendingAmount)}</div></div><label for="refund-amount" style="display:block;text-align:left;margin:0 2rem 4px">Số tiền hoàn lần này</label><input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" value="${current.refundPendingAmount}" placeholder="Số tiền hoàn lần này"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
+      html: `<div style="text-align:left;display:grid;gap:8px;margin:0 1.25rem 1rem"><div><strong>Khách hàng:</strong> ${customerName}</div><div><strong>Phiếu trả:</strong> ${returnCode}</div><div><strong>Tổng phải hoàn:</strong> ${this.fmtCurrency(totalRefundAmount)}</div><div><strong>Đã hoàn:</strong> ${this.fmtCurrency(refundedAmount)}</div><div><strong>Còn phải hoàn:</strong> ${this.fmtCurrency(current.refundPendingAmount)}</div></div><label for="refund-amount" style="display:block;text-align:left;margin:0 2rem 4px">Số tiền hoàn lần này</label><input id="refund-amount" class="swal2-input" type="number" min="1" max="${current.refundPendingAmount}" autocomplete="off" placeholder="Tối đa ${this.fmtCurrency(current.refundPendingAmount)}"><textarea id="refund-note" class="swal2-textarea" maxlength="300" placeholder="Ghi chú (không bắt buộc)"></textarea>`,
       showCancelButton: true,
       confirmButtonText: "Xác nhận hoàn tiền",
       cancelButtonText: "Đóng",
@@ -1086,7 +1376,7 @@ export class CustomerReturnComponent implements OnDestroy {
     return warehouse ? `${warehouse.code} · ${warehouse.name}` : "";
   }
 
-  restockLocationOptions(line: InspectionLine): FilterSelectOption[] {
+  restockLocationOptions(line: InspectionSkuGroup): FilterSelectOption[] {
     return this.restockLocations()
       .filter(location =>
         this.isRestockLocationCompatible(location, line.productVariantId) &&
@@ -1103,7 +1393,7 @@ export class CustomerReturnComponent implements OnDestroy {
         const sku = location.currentProductVariantSku?.trim();
         const detail = isEmpty
           ? kind
-          : `${kind} · ${sku || "Cùng SKU"} · ${this.fmtWeight(occupancy)}`;
+          : `${kind} · ${sku || "Cùng SKU"}`;
         return {
           option: { id: location.id, name: `${this.locationLabel(location)} — ${detail}` },
           priority,
@@ -1114,14 +1404,14 @@ export class CustomerReturnComponent implements OnDestroy {
       .map(entry => entry.option);
   }
 
-  quarantineLocationOptions(line: InspectionLine): FilterSelectOption[] {
+  quarantineLocationOptions(line: InspectionSkuGroup): FilterSelectOption[] {
     return this.quarantineReturnLocationOptions(
       line.productVariantId,
       line.quantityDamaged,
     );
   }
 
-  rejectedLocationOptions(line: InspectionLine): FilterSelectOption[] {
+  rejectedLocationOptions(line: InspectionSkuGroup): FilterSelectOption[] {
     return this.quarantineReturnLocationOptions(
       line.productVariantId,
       line.quantityRejected,
@@ -1155,7 +1445,7 @@ export class CustomerReturnComponent implements OnDestroy {
         const sku = location.currentProductVariantSku?.trim();
         const detail = isEmpty
           ? kind
-          : `${kind}${sku ? ` · ${sku}` : ""} · ${this.fmtWeight(occupancy)}`;
+          : `${kind}${sku ? ` · ${sku}` : ""}`;
         return {
           id: location.id,
           name: `${this.locationLabel(location)} — ${detail}`,
@@ -1212,7 +1502,7 @@ export class CustomerReturnComponent implements OnDestroy {
       APPROVED: "Đã duyệt - chờ nhận hàng",
       RECEIVED: "Đã nhận - chờ kiểm định",
       INSPECTED: "Chờ xác nhận tồn",
-      CONFIRMED: "Đã hoàn tất",
+      CONFIRMED: "Đã xác nhận điều chỉnh tồn",
       REJECTED: "Đã từ chối",
       CANCELLED: "Đã hủy",
     };
