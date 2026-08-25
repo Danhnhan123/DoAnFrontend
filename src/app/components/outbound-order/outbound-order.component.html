@@ -813,11 +813,6 @@
         Cần đủ allocation và xác nhận lấy đủ trước khi đóng gói. Hãy kiểm tra lại nút lấy hàng hoặc chọn bao thay thế nếu đang thiếu.
       </div>
       <label class="ob-field">
-        <span>Mã QR đóng gói <small class="ob-muted">(không bắt buộc)</small></span>
-        <input type="text" [ngModel]="packingQr()" (ngModelChange)="packingQr.set($event)"
-          placeholder="Quét QR để xác minh nhanh hoặc để trống" />
-      </label>
-      <label class="ob-field">
         <span>Khối lượng cân thực tế (kg)</span>
         <input type="number" [ngModel]="packingActualKg()" readonly />
       </label>

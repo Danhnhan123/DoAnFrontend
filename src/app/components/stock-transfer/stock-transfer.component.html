@@ -415,7 +415,7 @@
                           <small>{{ lineSelectedBags(line) }} bao chọn · {{ lineQuarantineBags(line) }} cách ly · {{ lineDisposeBags(line) }} bỏ</small>
                         </div>
                       } @else {
-                        <input class="form-control compact number-input" type="number" min="0.001" step="0.001" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
+                        <input appNonNegativeDecimal class="form-control compact number-input" type="number" min="0.001" step="0.001" inputmode="decimal" [max]="lineAvailable(line) || null" [ngModel]="line.weightKg" (ngModelChange)="updateLine(index, 'weightKg', $event)" />
                         @if (lineAvailable(line) > 0) {
                           <small>Khả dụng: {{ formatWeight(lineAvailable(line)) }}</small>
                         }
@@ -462,10 +462,10 @@
                                     </select>
                                   </td>
                                   <td>
-                                    <input class="form-control compact number-input" type="number" min="0" step="0.1" [ngModel]="bag.moisturePercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'moisturePercent', $event)" [disabled]="!bag.selected" />
+                                    <input appNonNegativeDecimal class="form-control compact number-input" type="number" min="0" step="0.1" inputmode="decimal" [ngModel]="bag.moisturePercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'moisturePercent', $event)" [disabled]="!bag.selected" />
                                   </td>
                                   <td>
-                                    <input class="form-control compact number-input" type="number" min="0" step="0.1" [ngModel]="bag.impurityPercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'impurityPercent', $event)" [disabled]="!bag.selected" />
+                                    <input appNonNegativeDecimal class="form-control compact number-input" type="number" min="0" step="0.1" inputmode="decimal" [ngModel]="bag.impurityPercent" (ngModelChange)="setBagNumber(index, bag.bagId, 'impurityPercent', $event)" [disabled]="!bag.selected" />
                                   </td>
                                   <td>
                                     <input class="form-control compact" type="text" placeholder="Nguyên/Rách/Ẩm" [ngModel]="bag.packagingStatus" (ngModelChange)="setBagText(index, bag.bagId, 'packagingStatus', $event)" [disabled]="!bag.selected" />
