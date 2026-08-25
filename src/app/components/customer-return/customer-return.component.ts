@@ -33,6 +33,7 @@ import { CustomerReturnService } from "../../services/customer-return.service";
 import { CustomerReturnOrderStatusService } from "../../services/customer-return-order-status.service";
 import { CustomerService } from "../../services/customer.service";
 import { LocationService } from "../../services/location.service";
+import { PermissionService } from "../../services/permission.service";
 import { WarehouseService } from "../../services/warehouse.service";
 import {
   FilterSelectComponent,
@@ -148,6 +149,7 @@ export class CustomerReturnComponent implements OnDestroy {
   private readonly warehouseService = inject(WarehouseService);
   private readonly locationService = inject(LocationService);
   private readonly statusService = inject(CustomerReturnOrderStatusService);
+  private readonly permission = inject(PermissionService);
   private readonly queryClient = injectQueryClient();
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -206,7 +208,11 @@ export class CustomerReturnComponent implements OnDestroy {
     const outboundId = Number(params.get("outboundId"));
     const feedbackId = Number(params.get("feedbackId"));
     if (returnOrderId > 0) this.selectedId.set(returnOrderId);
-    if (outboundId > 0 && feedbackId > 0) {
+    if (
+      outboundId > 0 &&
+      feedbackId > 0 &&
+      this.permission.canCreate("CUSTOMER_RETURNS")
+    ) {
       this.form.update(form => ({ ...form, customerFeedbackId: feedbackId, returnReason: params.get("reason") || "" }));
       this.showCreateModal.set(true);
       void this.setSourceOutbound(String(outboundId));
@@ -475,6 +481,7 @@ export class CustomerReturnComponent implements OnDestroy {
   }
 
   openCreate(): void {
+    if (!this.permission.canCreate("CUSTOMER_RETURNS")) return;
     this.form.set(this.emptyForm());
     this.returnSkuQuantities.set({});
     this.showCreateModal.set(true);

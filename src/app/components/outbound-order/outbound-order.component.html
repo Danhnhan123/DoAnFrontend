@@ -369,7 +369,9 @@
             </div>
             <div class="ob-feedback-actions">
               <button type="button" class="btn ghost compact" (click)="traceFeedback(feedback)">Truy vết lô</button>
-              <button type="button" class="btn primary compact" (click)="createReturnFromFeedback(feedback)">
+              <button type="button" class="btn primary compact"
+                [appHasPerm]="feedback.customerReturnOrderId ? 'CUSTOMER_RETURNS:READ' : 'CUSTOMER_RETURNS:CREATE'"
+                (click)="createReturnFromFeedback(feedback)">
                 {{ feedback.customerReturnOrderId ? ('Xem ' + feedback.customerReturnOrderCode) : 'Tạo phiếu trả' }}
               </button>
             </div>
