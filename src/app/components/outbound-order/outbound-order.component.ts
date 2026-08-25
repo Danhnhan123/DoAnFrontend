@@ -247,7 +247,6 @@ export class OutboundOrderComponent implements OnDestroy {
 
   // Modal đóng gói (confirm-packing)
   readonly showPackingModal = signal(false);
-  readonly packingQr = signal('');
   readonly packingActualKg = signal<number | null>(null);
 
   // Phản hồi khách hàng và truy vết lô ngay trong chi tiết phiếu xuất.
@@ -1507,7 +1506,6 @@ export class OutboundOrderComponent implements OnDestroy {
     if (!this.canPack(order)) return;
     this.showPickModal.set(false);
     this.pickForm.set([]);
-    this.packingQr.set('');
     this.packingActualKg.set(this.pickedKg() || this.plannedKg());
     this.showPackingModal.set(true);
   }
@@ -1523,12 +1521,10 @@ export class OutboundOrderComponent implements OnDestroy {
       this.alert('Cần đủ allocation và xác nhận lấy đủ trước khi đóng gói.', false);
       return;
     }
-    const qr = this.packingQr().trim();
     this.actionMutation.mutate({
       id: order.id,
       action: 'PACKING',
       payload: {
-        qrCode: qr || null,
         actualWeightKg: this.packingActualKg(),
       },
     });

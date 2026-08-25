@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HasPermissionDirective } from '../../directives/has-permission.directive';
+import { NonNegativeDecimalDirective } from '../../directives/non-negative-decimal.directive';
 import { Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -86,7 +87,13 @@ interface TransferFormState {
 @Component({
   selector: 'app-stock-transfer',
   standalone: true,
-  imports: [CommonModule, FormsModule, FilterSelectComponent, HasPermissionDirective],
+  imports: [
+    CommonModule,
+    FormsModule,
+    FilterSelectComponent,
+    HasPermissionDirective,
+    NonNegativeDecimalDirective,
+  ],
   templateUrl: './stock-transfer.component.html',
   styleUrl: './stock-transfer.component.css',
 })
@@ -824,11 +831,11 @@ export class StockTransferComponent implements OnDestroy {
     lineIndex: number,
     bagId: number,
     field: 'moisturePercent' | 'impurityPercent',
-    rawValue: string
+    rawValue: string | number | null
   ): void {
-    const parsed = rawValue === '' ? null : Number(rawValue);
+    const parsed = rawValue == null || rawValue === '' ? null : Number(rawValue);
     this.patchBag(lineIndex, bagId, {
-      [field]: parsed != null && !Number.isNaN(parsed) ? parsed : null,
+      [field]: parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : null,
     } as Partial<BagFormLine>);
   }
 
