@@ -36,8 +36,8 @@
   <section class="data-card">
     <nav class="tabs" aria-label="Các màn hình công nợ">
       <button type="button" [class.active]="activeTab() === 'OVERVIEW'" (click)="selectTab('OVERVIEW')">Tổng quan</button>
-      <button type="button" [class.active]="activeTab() === 'PAYABLE'" (click)="selectTab('PAYABLE')">Phải trả nông dân</button>
-      <button type="button" [class.active]="activeTab() === 'RECEIVABLE'" (click)="selectTab('RECEIVABLE')">Phải thu khách hàng</button>
+      <button type="button" [class.active]="activeTab() === 'PAYABLE'" (click)="selectTab('PAYABLE')">Phải trả</button>
+      <button type="button" [class.active]="activeTab() === 'RECEIVABLE'" (click)="selectTab('RECEIVABLE')">Phải thu</button>
       <button type="button" [class.active]="activeTab() === 'HISTORY'" (click)="selectTab('HISTORY')">Lịch sử giao dịch</button>
       <button type="button" [class.active]="activeTab() === 'OVERDUE'" (click)="selectTab('OVERDUE')">Cảnh báo quá hạn</button>
       <button type="button" [class.active]="activeTab() === 'REPORT'" (click)="selectTab('REPORT')">Báo cáo hai chiều</button>

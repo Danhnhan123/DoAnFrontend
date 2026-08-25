@@ -728,6 +728,8 @@ export class MillingOrderComponent {
   }
 
   setCreateField(field: keyof CreateOrderForm, value: unknown): void {
+    if (field === 'expectedYield' && this.createForm().id) return;
+
     const numericFields: Array<keyof CreateOrderForm> = [
       'salesOrderId',
       'warehouseId',
@@ -829,6 +831,8 @@ export class MillingOrderComponent {
 
   applyRecommendedYield(): void {
     const form = this.createForm();
+    if (form.id) return;
+
     const moisture = form.moisturePercent;
     const candidates = this.yieldConfigs()
       .filter(
@@ -1598,11 +1602,17 @@ export class MillingOrderComponent {
   }
 
   targetRice(row: MillingOrderRow): number {
+    const storedTargetRiceKg = Number(row.targetRiceKg);
+    if (Number.isFinite(storedTargetRiceKg) && storedTargetRiceKg > 0) {
+      return storedTargetRiceKg;
+    }
+
     const plannedPaddyKg = Number(row.computedPaddyKg) || 0;
     const stampedYield = Number(row.yieldRateUsed) || 0;
-    return plannedPaddyKg > 0 && stampedYield > 0
+    const targetRiceKg = plannedPaddyKg > 0 && stampedYield > 0
       ? plannedPaddyKg * stampedYield
-      : Number(row.targetRiceKg ?? row.totalRiceOutputKg) || 0;
+      : Number(row.totalRiceOutputKg) || 0;
+    return Math.round(targetRiceKg * 1000) / 1000;
   }
 
   statusCode(row: MillingOrderRow): MillingOrderStatusCode {

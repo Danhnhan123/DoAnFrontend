@@ -5,7 +5,7 @@
       <h1>Xử lý hàng khách trả lại</h1>
       <p>
         Kiểm tra chất lượng, quyết định nhập lại kho/cách ly/không nhập lại và
-        duyệt điều chỉnh tồn theo từng lô hàng trả.
+        duyệt điều chỉnh tồn theo từng SKU hàng trả.
       </p>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
@@ -53,18 +53,21 @@
       <input type="search" placeholder="Tìm mã phiếu, khách hàng, đơn gốc..." [ngModel]="searchInput()"
         (ngModelChange)="onSearch($event)" />
     </label>
-    <select aria-label="Lọc khách hàng" [ngModel]="customerFilter()" (ngModelChange)="setCustomerFilter($event)">
-      <option value="">Tất cả khách hàng</option>
-      @for (customer of customers(); track customer.id) {
-      <option [value]="customer.id">{{ customer.name }}</option>
-      }
-    </select>
-    <select aria-label="Lọc kho" [ngModel]="warehouseFilter()" (ngModelChange)="setWarehouseFilter($event)">
-      <option value="">Tất cả kho</option>
-      @for (warehouse of warehouses(); track warehouse.id) {
-      <option [value]="warehouse.id">{{ warehouse.name }}</option>
-      }
-    </select>
+    <app-filter-select
+      [options]="customerFilterOptions()"
+      [value]="customerFilter()"
+      (valueChange)="setCustomerFilter($event)"
+      allLabel="Tất cả khách hàng"
+      placeholder="Tất cả khách hàng"
+      [searchable]="true"
+    ></app-filter-select>
+    <app-filter-select
+      [options]="warehouseFilterOptions()"
+      [value]="warehouseFilter()"
+      (valueChange)="setWarehouseFilter($event)"
+      allLabel="Tất cả kho"
+      placeholder="Tất cả kho"
+    ></app-filter-select>
     <label class="date-field">
       <span>Từ ngày</span>
       <input type="date" [ngModel]="dateFrom()" (ngModelChange)="setDateFrom($event)" />
@@ -275,7 +278,7 @@
           Phiếu đã duyệt. Kho cần ghi nhận số lượng thực nhận trước khi kiểm định.
         </p>
         } @else if (current.statusCode === status.RECEIVED && !inspectionOpen()) {
-        <p class="info-banner">Hàng đã được tiếp nhận, sẵn sàng kiểm định từng lô.</p>
+        <p class="info-banner">Hàng đã được tiếp nhận, sẵn sàng kiểm định theo SKU.</p>
         } @else if (current.statusCode === status.INSPECTED) {
         <p class="info-banner success-banner">
           Đã kiểm định. Kiểm tra quyết định xử lý trước khi xác nhận tồn.
@@ -296,20 +299,24 @@
           <h2>Ghi nhận hàng thực nhận</h2>
         </div>
         <div class="inspection-form">
-          @for (item of detail()?.items || []; track item.id) {
-          @for (allocation of item.allocations; track allocation.id) {
+          @for (group of receiveSkuGroups(); track group.key) {
           <section class="inspection-line">
             <header>
-              <div><strong>{{ item.productVariantName || item.sku }}</strong><small>{{ allocation.paddyLotCode
-                  }}</small></div><span>Duyệt trả {{ fmtWeight(allocation.quantityReturned) }}</span>
+              <div>
+                <strong>{{ group.productName }}</strong>
+                <small>{{ group.sku }}</small>
+              </div>
+              <span>Duyệt trả {{ fmtWeight(group.approvedQuantity) }}</span>
             </header>
             <label class="field">Số lượng thực nhận (kg)
-              <input type="number" min="0" [max]="allocation.quantityReturned" step="0.001"
-                [ngModel]="receiveQuantities()[allocation.id]"
-                (ngModelChange)="updateReceived(allocation.id, $event)" />
+              <input type="number" min="0" [max]="group.approvedQuantity" step="0.001"
+                [ngModel]="group.receivedQuantity"
+                (ngModelChange)="updateReceived(group.key, $event)" />
             </label>
+            @if (group.allocations.length > 1) {
+            <small class="allocation-summary">Từ {{ group.allocations.length }} phân bổ xuất gốc</small>
+            }
           </section>
-          }
           }
         </div>
         <footer class="panel-actions">
@@ -322,14 +329,14 @@
       } @else if (inspectionOpen()) {
       <article class="panel decision-panel">
         <div class="panel-heading">
-          <h2>Quyết định xử lý theo lô</h2>
+          <h2>Quyết định xử lý theo SKU</h2>
         </div>
         <div class="inspection-form">
-          @for (line of inspectionLines(); track line.allocationId) {
+          @for (line of inspectionLines(); track line.key) {
           <section class="inspection-line">
             <header>
               <div>
-                <strong>{{ line.productName }}</strong><small>{{ line.lotCode }}</small>
+                <strong>{{ line.productName }}</strong><small>{{ line.sku }}</small>
               </div>
               <span>{{ fmtWeight(line.quantityReturned) }}</span>
             </header>
@@ -337,14 +344,14 @@
               <label>Nhập lại kho<input type="number" min="0" step="0.001" [ngModel]="line.quantityGood"
                   (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityGood',
                           $event
                         )
                       " /></label>
               <label>Cách ly<input type="number" min="0" step="0.001" [ngModel]="line.quantityDamaged" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityDamaged',
                           $event
                         )
@@ -352,7 +359,7 @@
               <label>Không nhập lại<input type="number" min="0" step="0.001" [ngModel]="line.quantityRejected"
                   (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'quantityRejected',
                           $event
                         )
@@ -363,7 +370,7 @@
                 <input type="number" min="0" [max]="line.quantityGood + line.quantityDamaged" step="0.001"
                   [ngModel]="line.creditQuantity" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'creditQuantity',
                           $event
                         )
@@ -379,101 +386,81 @@
               </div>
             </div>
             @if (line.quantityGood > 0 || line.quantityDamaged > 0) {
-            <div class="field">
-              <span>Cân từng bao nhận lại</span>
+            <div class="bag-editor">
+              <div class="bag-editor-heading">
+                <span>Cân từng bao nhận lại</span>
+                <small>{{ line.bags.length }} bao</small>
+              </div>
               @for (bag of line.bags; track $index; let bagIndex = $index) {
-              <div class="quantity-grid">
+              <div class="bag-row">
                 <label>Phân loại
-                  <select [ngModel]="bag.condition"
-                    (ngModelChange)="updateInspectionBagCondition(line.allocationId, bagIndex, $event)">
-                    <option value="GOOD">Bao đạt</option>
-                    <option value="DAMAGED">Bao cách ly</option>
-                  </select>
+                  <app-filter-select [options]="bagConditionOptions" [value]="bag.condition"
+                    [clearable]="false"
+                    (valueChange)="updateInspectionBagCondition(line.key, bagIndex, $event)">
+                  </app-filter-select>
                 </label>
-                <label>Khối lượng
+                <label>Khối lượng (kg)
                   <input type="number" min="0.001" step="0.001" [ngModel]="bag.weightKg"
-                    (ngModelChange)="updateInspectionBag(line.allocationId, bagIndex, $event)" />
+                    (ngModelChange)="updateInspectionBag(line.key, bagIndex, $event)" />
                 </label>
-                <button type="button" class="btn btn-outline-danger"
-                  (click)="removeInspectionBag(line.allocationId, bagIndex)">Xóa bao</button>
+                <button type="button" class="bag-remove"
+                  [attr.aria-label]="'Xóa bao ' + (bagIndex + 1)"
+                  (click)="removeInspectionBag(line.key, bagIndex)">Xóa</button>
               </div>
               }
-              <div class="actions">
+              <div class="bag-actions">
                 @if (line.quantityGood > 0) {
-                <button type="button" class="btn btn-outline-primary"
-                  (click)="addInspectionBag(line.allocationId, 'GOOD')">+ Bao đạt</button>
+                <button type="button" class="bag-add bag-add--good"
+                  (click)="addInspectionBag(line.key, 'GOOD')">+ Bao đạt</button>
                 }
                 @if (line.quantityDamaged > 0) {
-                <button type="button" class="btn btn-outline-warning"
-                  (click)="addInspectionBag(line.allocationId, 'DAMAGED')">+ Bao cách ly</button>
+                <button type="button" class="bag-add bag-add--damaged"
+                  (click)="addInspectionBag(line.key, 'DAMAGED')">+ Bao cách ly</button>
                 }
               </div>
             </div>
             }
             @if (line.quantityGood > 0) {
             <div class="field location-auto-field">
-              <span class="location-field-label">📦 Vị trí nhập lại</span>
-              @if (line.restockLocationId) {
-              <div class="location-chip">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationSelectionLabelById(line.restockLocationId) || 'Vị trí đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí phù hợp</div>
+              <span class="location-field-label">Vị trí nhập lại</span>
+              <app-filter-select class="location-override-select"
+                [options]="restockLocationOptions(line)" [value]="line.restockLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có vị trí phù hợp"
+                (valueChange)="updateInspection(line.key, 'restockLocationId', $event)">
+              </app-filter-select>
+              @if (restockLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có cột trống hoặc cột cùng SKU đủ sức chứa.</small>
               }
-              <select class="location-override-select" [ngModel]="line.restockLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'restockLocationId', $event)">
-                <option value="">— Đổi vị trí khác —</option>
-                @for (location of restockLocations(); track location.id) {
-                <option [value]="location.id" [disabled]="!isRestockLocationCompatible(location, line.productVariantId)">
-                  {{ locationSelectionLabel(location) }}{{ isRestockLocationCompatible(location, line.productVariantId) ? '' : ' — Không phù hợp SKU' }}
-                </option>
-                }
-              </select>
             </div>
             }
             @if (line.quantityDamaged > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">🔒 Vị trí cách ly</span>
-              @if (line.quarantineLocationId) {
-              <div class="location-chip location-chip--quarantine">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationLabelById(line.quarantineLocationId) || 'Khu cách ly đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có khu cách ly</div>
+              <app-filter-select class="location-override-select"
+                [options]="quarantineLocationOptions(line)" [value]="line.quarantineLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có khu cách ly"
+                (valueChange)="updateInspection(line.key, 'quarantineLocationId', $event)">
+              </app-filter-select>
+              @if (quarantineLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
               }
-              <select class="location-override-select" [ngModel]="line.quarantineLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'quarantineLocationId', $event)">
-                <option value="">— Đổi khu cách ly khác —</option>
-                @for (location of quarantineLocations(); track location.id) {
-                <option [value]="location.id">{{ locationLabel(location) }}</option>
-                }
-              </select>
             </div>
             }
             @if (line.quantityRejected > 0) {
             <div class="field location-auto-field">
               <span class="location-field-label">↩ Tập kết hàng trả lại khách</span>
-              @if (line.rejectedLocationId) {
-              <div class="location-chip location-chip--quarantine">
-                <span class="location-chip-icon">✔</span>
-                <strong>{{ locationLabelById(line.rejectedLocationId) || 'Vị trí đã chọn' }}</strong>
-              </div>
-              } @else {
-              <div class="location-chip location-chip--warn">⚠ Chưa có vị trí tập kết</div>
+              <app-filter-select class="location-override-select"
+                [options]="rejectedLocationOptions(line)" [value]="line.rejectedLocationId"
+                [searchable]="true" [clearable]="false" placeholder="Không có vị trí tập kết"
+                (valueChange)="updateInspection(line.key, 'rejectedLocationId', $event)">
+              </app-filter-select>
+              @if (rejectedLocationOptions(line).length === 0) {
+              <small class="location-empty">Không có vị trí cách ly phù hợp hoặc đủ sức chứa.</small>
               }
-              <select class="location-override-select" [ngModel]="line.rejectedLocationId"
-                (ngModelChange)="updateInspection(line.allocationId, 'rejectedLocationId', $event)">
-                <option value="">— Đổi vị trí khác —</option>
-                @for (location of quarantineLocations(); track location.id) {
-                <option [value]="location.id">{{ locationLabel(location) }}</option>
-                }
-              </select>
             </div>
             <label class="field">Lý do trả lại khách
               <input type="text" [ngModel]="line.rejectionReason"
-                (ngModelChange)="updateInspection(line.allocationId, 'rejectionReason', $event)"
+                (ngModelChange)="updateInspection(line.key, 'rejectionReason', $event)"
                 placeholder="Không đủ điều kiện nhận lại..." />
             </label>
             }
@@ -481,7 +468,7 @@
             <label class="field">Lý do hàng lỗi/không nhập lại
               <input type="text" [ngModel]="line.damageReason" (ngModelChange)="
                         updateInspection(
-                          line.allocationId,
+                          line.key,
                           'damageReason',
                           $event
                         )
@@ -525,50 +512,26 @@
             <span>Không nhập lại</span><strong>{{ fmtWeight(current.totalQuantityRejected) }}</strong>
           </div>
         </div>
-        @if (
-        current.statusCode === status.INSPECTED ||
-        current.statusCode === status.CONFIRMED
-        ) {
-        <div class="finance-preview">
-          <div class="finance-title">
-            <div>
-              <strong>Tác động tài chính</strong>
-              <span>Backend ưu tiên khấu trừ công nợ phải thu.</span>
-            </div>
-            @if (loadingImpact()) {
-            <small>Đang tính...</small>
+        @if (current.statusCode === status.CONFIRMED) {
+        <div class="return-process-status">
+          <div>
+            <span>Trạng thái xử lý hàng</span>
+            <strong class="good">Đã xác nhận điều chỉnh tồn</strong>
+          </div>
+          <div>
+            <span>Hoàn tiền</span>
+            @if (current.refundStatus === 'REFUNDED' || current.refundPendingAmount <= 0) {
+            <strong class="good">Đã hoàn tiền</strong>
+            } @else if (current.refundedAmount > 0) {
+            <strong>
+              Đã hoàn {{ fmtCurrency(current.refundedAmount) }} /
+              {{ fmtCurrency(current.refundedAmount + current.refundPendingAmount) }}
+            </strong>
+            <small>Còn {{ fmtCurrency(current.refundPendingAmount) }}</small>
+            } @else {
+            <strong class="damaged">Chờ hoàn {{ fmtCurrency(current.refundPendingAmount) }}</strong>
             }
           </div>
-          @if (impact(); as financial) {
-          <div class="finance-grid">
-            <div>
-              <span>Tổng ghi có</span><strong>{{
-                fmtCurrency(financial.approvedCreditAmount)
-                }}</strong>
-            </div>
-            <div>
-              <span>Công nợ hiện tại</span><strong>{{
-                fmtCurrency(financial.currentReceivableBalance)
-                }}</strong>
-            </div>
-            <div>
-              <span>Khấu trừ công nợ</span><strong class="good">{{
-                fmtCurrency(financial.debtReductionAmount)
-                }}</strong>
-            </div>
-            <div>
-              <span>Còn phải hoàn khách</span><strong class="damaged">{{
-                fmtCurrency(financial.refundPendingAmount)
-                }}</strong>
-            </div>
-          </div>
-          @if (financial.refundPendingAmount > 0) {
-          <p class="refund-note">
-            Khoản còn lại được ghi nhận là công nợ phải trả/chờ hoàn;
-            hệ thống chưa tự chi tiền mặt.
-          </p>
-          }
-          }
         </div>
         }
         <footer class="panel-actions">
@@ -607,7 +570,7 @@
           </button>
           } @else if (current.statusCode === status.CONFIRMED && current.refundPendingAmount > 0) {
           <button type="button" class="primary-btn" [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
-            [disabled]="actionLoading()" (click)="registerRefund()">Ghi nhận hoàn tiền</button>
+            [disabled]="actionLoading()" (click)="openRefundModal()">Ghi nhận hoàn tiền</button>
           }
         </footer>
       </article>
@@ -616,6 +579,90 @@
     </aside>
   </div>
 </section>
+
+@if (showRefundModal()) {
+@if (detail(); as current) {
+<div class="modal-backdrop refund-modal-backdrop" (mousedown)="closeRefundModal()"
+  (keydown.escape)="closeRefundModal()">
+  <section class="modal-card refund-modal-card" role="dialog" aria-modal="true"
+    aria-labelledby="refund-modal-title" (mousedown)="$event.stopPropagation()">
+    <header class="modal-header refund-modal-header">
+      <div>
+        <span class="refund-modal-eyebrow">Hoàn tiền khách hàng</span>
+        <h2 id="refund-modal-title">Ghi nhận hoàn tiền</h2>
+        <p>Kiểm tra số tiền trước khi xác nhận giao dịch.</p>
+      </div>
+      <button type="button" aria-label="Đóng" [disabled]="actionLoading()" (click)="closeRefundModal()">
+        ×
+      </button>
+    </header>
+
+    <div class="modal-body refund-modal-body">
+      <div class="refund-customer-row">
+        <div>
+          <span>Khách hàng</span>
+          <strong>{{ current.customerName || "—" }}</strong>
+        </div>
+        <span class="refund-return-code">{{ current.returnCode }}</span>
+      </div>
+
+      <div class="refund-summary">
+        <div class="refund-metric">
+          <span>Tổng phải hoàn</span>
+          <strong>{{ fmtCurrency((current.refundedAmount || 0) + current.refundPendingAmount) }}</strong>
+        </div>
+        <div class="refund-metric">
+          <span>Đã hoàn</span>
+          <strong>{{ fmtCurrency(current.refundedAmount || 0) }}</strong>
+        </div>
+        <div class="refund-metric refund-metric-pending">
+          <span>Còn phải hoàn</span>
+          <strong>{{ fmtCurrency(current.refundPendingAmount) }}</strong>
+        </div>
+      </div>
+
+      <div class="refund-form">
+        <div class="refund-field-heading">
+          <label for="refundAmount">Số tiền hoàn lần này <span>*</span></label>
+          <button type="button" (click)="fillRefundAmount()">Hoàn toàn bộ</button>
+        </div>
+        <div class="refund-amount-wrap">
+          <input id="refundAmount" type="number" min="1" [max]="current.refundPendingAmount" step="1"
+            inputmode="numeric" autocomplete="off" autofocus placeholder="Nhập số tiền"
+            [class.invalid]="refundAmountError()" [ngModel]="refundAmount()"
+            (ngModelChange)="updateRefundAmount($event)" [attr.aria-invalid]="!!refundAmountError()"
+            aria-describedby="refund-amount-hint refund-amount-error" />
+          <span>₫</span>
+        </div>
+        <small id="refund-amount-hint" class="refund-field-hint">
+          Tối đa {{ fmtCurrency(current.refundPendingAmount) }}
+        </small>
+        @if (refundAmountError()) {
+        <small id="refund-amount-error" class="refund-field-error">{{ refundAmountError() }}</small>
+        }
+
+        <label class="refund-note-label" for="refundNote">
+          Ghi chú <span>(không bắt buộc)</span>
+        </label>
+        <textarea id="refundNote" maxlength="300" rows="3" placeholder="Nhập nội dung ghi chú..."
+          [ngModel]="refundNote()" (ngModelChange)="refundNote.set($event)"></textarea>
+        <small class="refund-note-count">{{ refundNote().length }}/300</small>
+      </div>
+    </div>
+
+    <footer class="modal-footer refund-modal-footer">
+      <button type="button" class="secondary-btn" [disabled]="actionLoading()" (click)="closeRefundModal()">
+        Đóng
+      </button>
+      <button type="button" class="primary-btn" [appHasPerm]="'CUSTOMER_RETURNS:APPROVE'"
+        [disabled]="actionLoading()" (click)="submitRefund()">
+        {{ actionLoading() ? "Đang xử lý..." : "Xác nhận hoàn tiền" }}
+      </button>
+    </footer>
+  </section>
+</div>
+}
+}
 
 @if (showCreateModal()) {
 <div class="modal-backdrop" (mousedown)="closeCreate()">
@@ -632,35 +679,26 @@
     </header>
     <div class="modal-body">
       <label class="field">Đơn xuất gốc *
-        <select [ngModel]="form().outboundOrderId" [disabled]="loadingSource()"
-          (ngModelChange)="setSourceOutbound($event)">
-          <option value="">Chọn đơn xuất đã giao</option>
-          @for (outbound of outbounds(); track outbound.outboundOrderId) {
-          <option [value]="outbound.outboundOrderId">
-            {{ outbound.outboundOrderCode }} · {{ outbound.salesOrderCode }} ·
-            {{ outbound.customerName }} · còn {{ fmtWeight(outbound.returnableQuantity) }}
-          </option>
-          }
-        </select>
+        <app-filter-select
+          [options]="sourceOutboundOptions()"
+          [value]="form().outboundOrderId"
+          [disabled]="loadingSource()"
+          [searchable]="true"
+          allLabel="Chọn đơn xuất đã giao"
+          placeholder="Chọn đơn xuất đã giao"
+          (valueChange)="setSourceOutbound($event)"
+        ></app-filter-select>
       </label>
       <div class="form-grid">
         <label class="field">Khách hàng *
-          <select [ngModel]="form().customerId" disabled>
-            <option value="">Chọn khách hàng</option>
-            @for (customer of customers(); track customer.id) {
-            <option [value]="customer.id">
-              {{ customer.code }} · {{ customer.name }}
-            </option>
-            }
-          </select>
+          <input class="readonly-field" type="text"
+            [value]="customerLabelById(form().customerId)"
+            placeholder="Tự động theo đơn xuất" readonly />
         </label>
         <label class="field">Kho tiếp nhận *
-          <select [ngModel]="form().warehouseId" disabled>
-            <option value="">Chọn kho</option>
-            @for (warehouse of warehouses(); track warehouse.id) {
-            <option [value]="warehouse.id">{{ warehouse.name }}</option>
-            }
-          </select>
+          <input class="readonly-field" type="text"
+            [value]="warehouseLabelById(form().warehouseId)"
+            placeholder="Tự động theo đơn xuất" readonly />
         </label>
         <label class="field">Lý do trả *
           <input type="text" maxlength="500" [ngModel]="form().returnReason"
@@ -681,13 +719,16 @@
         <div class="detail-loading"><span></span><span></span></div>
         } @else if (!form().lines.length) {
         <div class="empty-lines">
-          Chọn đơn xuất gốc để nhập số lượng trả theo từng lô đã giao.
+          Chọn đơn xuất gốc để nhập tổng số lượng trả theo SKU.
         </div>
         } @else {
-        @for (line of form().lines; track line.key) {
+        @for (line of returnFormSkuGroups(); track line.key) {
         <div class="return-line">
           <div>
-            <strong>{{ line.productName }}</strong><small>{{ line.sku }} · {{ line.lotCode }}</small>
+            <strong>{{ line.productName }}</strong><small>{{ line.sku }}</small>
+            @if (line.allocationCount > 1) {
+            <small>Từ {{ line.allocationCount }} phân bổ xuất gốc</small>
+            }
           </div>
           <span>Tối đa {{ fmtWeight(line.maxQuantity) }}</span>
           <label>Số lượng trả (kg)

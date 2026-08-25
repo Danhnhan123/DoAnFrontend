@@ -359,23 +359,6 @@ td small {
   background: color-mix(in srgb, var(--status-color) 13%, white);
 }
 
-.quality-label {
-  width: fit-content;
-  font-weight: 650;
-}
-
-.quality-passed {
-  color: #158047 !important;
-}
-
-.quality-failed {
-  color: #d33d3d !important;
-}
-
-.quality-pending {
-  color: #9a6b13 !important;
-}
-
 .location-cell {
   max-width: 190px;
   line-height: 1.35;

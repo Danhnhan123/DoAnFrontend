@@ -125,9 +125,12 @@ export class QualityInspectionComponent {
   // Chế độ KIỂM TRA LẠI lô đang cách ly (khác luồng kiểm định lần đầu).
   recheckMode = signal(false);
   editItem = signal<QualityInspectionRow | null>(null);
+  forceViewOnly = signal(false);
   isEdit = computed(() => !!this.editItem());
   perm = inject(PermissionService);
-  viewOnly = computed(() => this.isEdit() && !this.perm.canUpdate('QUALITY_INSPECTIONS'));
+  viewOnly = computed(
+    () => this.forceViewOnly() || (this.isEdit() && !this.perm.canUpdate('QUALITY_INSPECTIONS'))
+  );
   bagReadOnly = computed(
     () => !!this.bagProgress()?.isCompleted || !this.perm.canUpdate('QUALITY_INSPECTIONS')
   );
@@ -738,15 +741,9 @@ export class QualityInspectionComponent {
     }
   }
 
-  openCreate(): void {
-    this.recheckMode.set(false);
-    this.editItem.set(null);
-    this.form.set(this.blankForm());
-    this.showModal.set(true);
-  }
-
   /** Mở modal KIỂM TRA LẠI cho lô đang cách ly (nguồn lô = danh sách QUARANTINE). */
   openRecheck(): void {
+    this.forceViewOnly.set(false);
     this.recheckMode.set(true);
     this.editItem.set(null);
     this.form.set(this.blankForm());
@@ -757,18 +754,15 @@ export class QualityInspectionComponent {
     const row = this.selectedRow();
     if (!row) return;
 
-    // New sessions are edited exclusively through bag autosave + Complete.
-    // The aggregate Create/Update form remains available for legacy records.
+    this.forceViewOnly.set(false);
+
+    // Phiếu theo quy trình mới luôn mở workspace QC từng bao.
     if (row.inspectionType) {
       await this.openBagInspection(row);
       return;
     }
 
-    if (row.displayRole === 'splitPassed') {
-      this.showAlert('Đây là phần lô đã đạt sơ bộ sau khi tách. Hãy chọn dòng lô -Q để kiểm tra lại phần đang cách ly.');
-      return;
-    }
-
+    // Phần cách ly ảo của một phiếu tách mở đúng flow tái kiểm tương ứng.
     if (row.displayRole === 'splitQuarantine') {
       this.recheckMode.set(true);
       this.editItem.set(null);
@@ -783,48 +777,12 @@ export class QualityInspectionComponent {
       return;
     }
 
-    // A split inspection is immutable audit history. Editing it from the UI means
-    // rechecking the quarantine child (-Q1/-Q2...), not changing the parent result.
-    if (this.wasSplit(row)) {
-      let quarantineLot = this.findQuarantineChild(row);
-      if (!quarantineLot) {
-        await this.quarantinedLotsQuery.refetch();
-        quarantineLot = this.findQuarantineChild(row);
-      }
-      if (!quarantineLot) {
-        this.showAlert(
-          `Không tìm thấy lô cách ly được tách từ ${row.lotCode ?? 'phiếu này'}. Vui lòng làm mới dữ liệu và thử lại.`,
-          false
-        );
-        return;
-      }
-
-      this.recheckMode.set(true);
-      this.editItem.set(null);
-      this.form.set({
-        ...this.rowToForm(row),
-        paddyLotId: quarantineLot.id,
-        passedInspection: false,
-        affectedWeightKg: null,
-        affectedBagIds: [],
-        inspectedAt: this.toLocalInput(new Date().toISOString()),
-      });
-      this.showModal.set(true);
-      return;
-    }
-
+    // Phiếu legacy và phần đạt sau tách chỉ được xem chi tiết nguồn, không chỉnh sửa.
+    this.forceViewOnly.set(true);
     this.recheckMode.set(false);
     this.editItem.set(row);
     this.form.set(this.rowToForm(row));
     this.showModal.set(true);
-  }
-
-  private findQuarantineChild(row: QualityInspectionRow): PaddyLotRow | undefined {
-    const parentCode = row.lotCode?.trim().toUpperCase();
-    return this.quarantinedLots().find((lot) =>
-      lot.parentLotId === row.paddyLotId ||
-      (!!parentCode && lot.lotCode.toUpperCase().startsWith(`${parentCode}-Q`))
-    );
   }
 
   /** Tìm lô con của một lần tách trong toàn bộ lịch sử, kể cả khi -Q đã đạt và rời khu cách ly. */
@@ -846,6 +804,7 @@ export class QualityInspectionComponent {
     this.showModal.set(false);
     this.editItem.set(null);
     this.recheckMode.set(false);
+    this.forceViewOnly.set(false);
   }
   setField(field: keyof QcForm, value: any): void {
     this.form.update((x) => ({

@@ -143,6 +143,13 @@ const ITEM_REQUIRED_FEEDBACK_TYPES = new Set([
   'PACKAGING',
 ]);
 
+export function calculateExpectedReceivable(
+  grossSaleValue: number,
+  depositAmount: number | null | undefined,
+): number {
+  return Math.max(0, grossSaleValue - (depositAmount ?? 0));
+}
+
 /** Bước pipeline (chỉ hiển thị) — khớp thiết kế Figma "Xuất kho / Giao hàng". */
 const PIPELINE_STEPS = [
   'Đơn bán',
@@ -2097,7 +2104,8 @@ export class OutboundOrderComponent implements OnDestroy {
   /**
    * Tính giá trị phải thu dự kiến của phiếu xuất theo GIÁ BÁN (không dùng giá
    * vốn). Lấy đơn giá bán từ đơn bán (LineAmount / QuantityOrdered) rồi nhân
-   * số lượng đã lấy của từng dòng. Trả -1 nếu không xác định được.
+   * số lượng đã lấy của từng dòng, sau đó trừ tiền cọc của đơn bán. Trả -1 nếu
+   * không xác định được.
    */
   private async computeExpectedReceivable(
     order: OutboundOrderDetail,
@@ -2118,15 +2126,15 @@ export class OutboundOrderComponent implements OnDestroy {
             : Number(it.unitSalePrice || 0);
         unitByItem.set(it.id, unit);
       }
-      let total = 0;
+      let grossSaleValue = 0;
       for (const item of order.items) {
         const unit =
           item.salesOrderItemId != null
             ? unitByItem.get(item.salesOrderItemId) ?? 0
             : 0;
-        total += Number(item.quantityPicked || 0) * unit;
+        grossSaleValue += Number(item.quantityPicked || 0) * unit;
       }
-      return total;
+      return calculateExpectedReceivable(grossSaleValue, so.depositAmount);
     } catch {
       return -1;
     }

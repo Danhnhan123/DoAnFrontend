@@ -50,6 +50,7 @@ export interface LocationDetailDto extends LocationRow {
   currentProductVariantId?: number | null;
   currentProductVariantName?: string | null;
   currentProductVariantSku?: string | null;
+  isSingleTypeColumn?: boolean;
   allowedCategoryId?: number | null;
   allowedCategoryName?: string | null;
   priority: number;

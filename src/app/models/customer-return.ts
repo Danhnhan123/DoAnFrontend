@@ -53,7 +53,9 @@ export interface CustomerReturnRow {
   warehouseName: string;
   approvedCreditAmount: number;
   debtReductionAmount: number;
+  refundedAmount: number;
   refundPendingAmount: number;
+  refundStatus?: "PENDING" | "PARTIALLY_REFUNDED" | "REFUNDED" | string | null;
   approvedDate?: string | null;
   approvedByName?: string | null;
   confirmedAt?: string | null;
@@ -249,7 +251,6 @@ export interface ReceiveCustomerReturnPayload {
 
 export interface RegisterCustomerReturnRefundPayload {
   amount: number;
-  paymentReference: string;
   note?: string | null;
 }
 
