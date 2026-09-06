@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   ProductVariantDetailDto,
@@ -14,9 +14,7 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class ProductVariantService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class ProductVariantService extends ApiService {
 
   /**
    * Lấy danh sách biến thể sản phẩm theo dạng DataTables.
@@ -25,8 +23,8 @@ export class ProductVariantService {
   getPagedAdvanced(
     body: ProductVariantPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-variant/paged-advanced`,
+    return this.apiPost<any>(
+      '/product-variant/paged-advanced',
       body
     );
   }
@@ -37,33 +35,19 @@ export class ProductVariantService {
    * Response dạng PagingData, không phải DataTables.
    */
   search(params: ProductVariantSearchParams): Observable<ApiResponse<any>> {
-    let httpParams = new HttpParams()
-      .set('pageIndex', params.pageIndex)
-      .set('pageSize', params.pageSize);
+    const httpParams = {
+      pageIndex: params.pageIndex,
+      pageSize: params.pageSize,
+      keyword: params.keyword || undefined,
+      orderBy: params.orderBy || undefined,
+      sortType: params.sortType || undefined,
+      productId: params.productId ?? undefined,
+      isActive: params.isActive ?? undefined,
+    };
 
-    if (params.keyword) {
-      httpParams = httpParams.set('keyword', params.keyword);
-    }
-
-    if (params.orderBy) {
-      httpParams = httpParams.set('orderBy', params.orderBy);
-    }
-
-    if (params.sortType) {
-      httpParams = httpParams.set('sortType', params.sortType);
-    }
-
-    if (params.productId !== null && params.productId !== undefined) {
-      httpParams = httpParams.set('productId', params.productId);
-    }
-
-    if (params.isActive !== null && params.isActive !== undefined) {
-      httpParams = httpParams.set('isActive', params.isActive);
-    }
-
-    return this.http.get<ApiResponse<any>>(
-      `${this.base}/product-variant/search`,
-      { params: httpParams }
+    return this.apiGet<any>(
+      '/product-variant/search',
+      httpParams
     );
   }
 
@@ -72,8 +56,8 @@ export class ProductVariantService {
    * Dùng khi mở modal sửa.
    */
   getById(id: number): Observable<ApiResponse<ProductVariantDetailDto>> {
-    return this.http.get<ApiResponse<ProductVariantDetailDto>>(
-      `${this.base}/product-variant/${id}`
+    return this.apiGet<ProductVariantDetailDto>(
+      `/product-variant/${id}`
     );
   }
 
@@ -81,8 +65,8 @@ export class ProductVariantService {
    * Tạo mới biến thể sản phẩm.
    */
   create(payload: CreateProductVariantDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-variant`,
+    return this.apiPost<any>(
+      '/product-variant',
       payload
     );
   }
@@ -91,8 +75,8 @@ export class ProductVariantService {
    * Cập nhật biến thể sản phẩm.
    */
   update(payload: UpdateProductVariantDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/product-variant`,
+    return this.apiPut<any>(
+      '/product-variant',
       payload
     );
   }
@@ -101,8 +85,8 @@ export class ProductVariantService {
    * Xóa mềm biến thể.
    */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/product-variant/${id}`
+    return this.apiDelete<any>(
+      `/product-variant/${id}`
     );
   }
 
@@ -111,8 +95,8 @@ export class ProductVariantService {
    * Dùng cho nút bật/tắt trạng thái ở màn danh sách thay vì gọi update toàn bộ.
    */
   activate(id: number): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-variant/${id}/activate`,
+    return this.apiPost<any>(
+      `/product-variant/${id}/activate`,
       {}
     );
   }
@@ -121,8 +105,8 @@ export class ProductVariantService {
    * Vô hiệu hóa biến thể (IsActive = false) qua endpoint chuyên dụng.
    */
   deactivate(id: number): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-variant/${id}/deactivate`,
+    return this.apiPost<any>(
+      `/product-variant/${id}/deactivate`,
       {}
     );
   }
@@ -131,8 +115,8 @@ export class ProductVariantService {
    * Lấy danh sách sản phẩm gốc để chọn productId.
    */
   getProducts(): Observable<ApiResponse<ProductOption[]>> {
-    return this.http.get<ApiResponse<ProductOption[]>>(
-      `${this.base}/product`
+    return this.apiGet<ProductOption[]>(
+      '/product'
     );
   }
 
@@ -142,17 +126,17 @@ export class ProductVariantService {
    * để role có quyền quản lý biến thể nhưng không có quyền xem menu Đơn vị tính vẫn lấy được dropdown.
    */
   getUnitOfMeasureOptions(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/unit-of-measures`);
+    return this.apiGet<any>('/unit-of-measures');
   }
 
   /** Danh sách giống lúa cho dropdown trong form (GetAll dùng chung). */
   getRiceVarietyOptions(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/rice-varieties`);
+    return this.apiGet<any>('/rice-varieties');
   }
 
   /** Danh sách thuộc tính sản phẩm cho editor thuộc tính biến thể (GetAll dùng chung). */
   getProductAttributeOptions(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/product-attribute`);
+    return this.apiGet<any>('/product-attribute');
   }
 
    /**
@@ -179,83 +163,21 @@ export class ProductVariantService {
     colMap: Record<string, number>;
     filterProductId: number | null;
   }): ProductVariantPagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? 7;
+    const columns = ['id', 'name', 'productName', 'unitOfMeasureName', 'sku', 'salePrice', 'isActive', 'createdDate'];
 
-    return {
-      draw: params.page,
-      columns: [
-        {
-          data: 'id',
-          name: 'id',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'name',
-          name: 'name',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'productName',
-          name: 'productName',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'unitOfMeasureName',
-          name: 'unitOfMeasureName',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'sku',
-          name: 'sku',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'salePrice',
-          name: 'salePrice',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'isActive',
-          name: 'isActive',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'createdDate',
-          name: 'createdDate',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-      ],
-      order: [
-        {
-          column: colIndex,
-          dir: params.sortDir,
-          name: params.sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
       },
-      productId: params.filterProductId,
-    };
+      columns,
+      {},
+      {
+        productId: params.filterProductId,
+      }
+    ) as ProductVariantPagedAdvancedRequest;
   }
 }

@@ -1,8 +1,7 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
+import { HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse,
   CreateCustomerDto,
@@ -19,60 +18,56 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class SalesOrderService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class SalesOrderService extends ApiService {
 
   getPaged(
     request: SalesOrderPagedRequest
   ): Observable<ApiResponse<SalesOrderPage>> {
-    return this.http.post<ApiResponse<SalesOrderPage>>(
-      `${this.base}/sales-orders/paged`,
+    return this.apiPost<SalesOrderPage>(
+      '/sales-orders/paged',
       request
     );
   }
 
   getById(id: number): Observable<ApiResponse<SalesOrderDetail>> {
-    return this.http.get<ApiResponse<SalesOrderDetail>>(
-      `${this.base}/sales-orders/${id}`
+    return this.apiGet<SalesOrderDetail>(
+      `/sales-orders/${id}`
     );
   }
 
   create(
     payload: CreateSalesOrderPayload
   ): Observable<ApiResponse<{ id: number; soCode: string; totalAmount: number }>> {
-    return this.http.post<
-      ApiResponse<{ id: number; soCode: string; totalAmount: number }>
-    >(`${this.base}/sales-orders`, payload);
+    return this.apiPost<{ id: number; soCode: string; totalAmount: number }>('/sales-orders', payload);
   }
 
   update(
     id: number,
     payload: UpdateSalesOrderPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/sales-orders/${id}`,
+    return this.apiPut<any>(
+      `/sales-orders/${id}`,
       payload
     );
   }
 
   confirm(id: number): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/sales-orders/${id}/confirm`,
+    return this.apiPost<any>(
+      `/sales-orders/${id}/confirm`,
       {}
     );
   }
 
   reserve(id: number): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/sales-orders/${id}/reserve`,
+    return this.apiPost<any>(
+      `/sales-orders/${id}/reserve`,
       {}
     );
   }
 
   cancel(id: number, reason?: string | null): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/sales-orders/${id}/cancel`,
+    return this.apiPost<any>(
+      `/sales-orders/${id}/cancel`,
       { reason: reason?.trim() || null }
     );
   }
@@ -81,8 +76,8 @@ export class SalesOrderService {
     id: number,
     payload: CreateOutboundPayload
   ): Observable<ApiResponse<{ outboundOrderId: number }>> {
-    return this.http.post<ApiResponse<{ outboundOrderId: number }>>(
-      `${this.base}/sales-orders/${id}/create-outbound`,
+    return this.apiPost<{ outboundOrderId: number }>(
+      `/sales-orders/${id}/create-outbound`,
       payload
     );
   }
@@ -90,57 +85,51 @@ export class SalesOrderService {
   getMillingOrders(
     salesOrderId: number
   ): Observable<ApiResponse<MillingOrderDetailDto[]>> {
-    return this.http.get<ApiResponse<MillingOrderDetailDto[]>>(
-      `${this.base}/milling-orders/by-sales-order/${salesOrderId}`
+    return this.apiGet<MillingOrderDetailDto[]>(
+      `/milling-orders/by-sales-order/${salesOrderId}`
     );
   }
 
   getCustomers(): Observable<ApiResponse<CustomerSalesOption[]>> {
-    return this.http.get<ApiResponse<CustomerSalesOption[]>>(
-      `${this.base}/customers`
+    return this.apiGet<CustomerSalesOption[]>(
+      '/customers'
     );
   }
 
   createCustomer(
     payload: CreateCustomerDto
   ): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(
-      `${this.base}/customers`,
-      payload
-    );
+    return this.apiPost<number>('/customers', payload);
   }
 
   getWarehouses(): Observable<ApiResponse<WarehouseSalesOption[]>> {
-    return this.http.get<ApiResponse<WarehouseSalesOption[]>>(
-      `${this.base}/warehouse`
+    return this.apiGet<WarehouseSalesOption[]>(
+      '/warehouse'
     );
   }
 
-getProductVariants(
-  keyword = ''
-): Observable<
-  ApiResponse<{
-    dataSource: ProductVariantSalesOption[];
-    total: number;
-    totalFiltered: number;
-  }>
-> {
-  let params = new HttpParams()
-    .set('pageIndex', 1)
-    .set('pageSize', 1000)
-    .set('isActive', true);
-
-  if (keyword.trim()) {
-    params = params.set('keyword', keyword.trim());
-  }
-
-  return this.http.get<
+  getProductVariants(
+    keyword = ''
+  ): Observable<
     ApiResponse<{
       dataSource: ProductVariantSalesOption[];
       total: number;
       totalFiltered: number;
     }>
-  >(`${this.base}/product-variant/search`, { params });
-}
-}
+  > {
+    let params = new HttpParams()
+      .set('pageIndex', 1)
+      .set('pageSize', 1000)
+      .set('isActive', true);
 
+    if (keyword.trim()) {
+      params = params.set('keyword', keyword.trim());
+    }
+
+    return this.apiGet<{
+        dataSource: ProductVariantSalesOption[];
+        total: number;
+        totalFiltered: number;
+      }>('/product-variant/search', { params });
+  }
+}

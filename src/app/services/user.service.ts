@@ -1,17 +1,13 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
 import {
   ApiResponse,
-  UserAdvancedRow,
   UserDetailDto,
   CreateUserDto,
   UpdateUserDto,
   UserAdvancedDto,
   UserStatusDetailDto,
   DataItem,
-  DTParameters,
   UserProfileDto,
   UpdateUserProfileDto,
   ChangePasswordDto,
@@ -22,50 +18,42 @@ import {
   UserImportRow,
 } from '../models';
 import { buildDateRange } from '../utils/date.utils';
-
-/** Hàm tiện ích: Chuyển chuỗi YYYY-MM-DD sang DD/MM/YYYY */
-
-/** Hàm tiện ích: Xây dựng chuỗi khoảng ngày cho DataTables */
+import { buildDataTablesRequest } from '../utils/datatable.util';
+import { ApiService } from './api.service';
 
 @Injectable({ providedIn: 'root' })
-export class UserService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class UserService extends ApiService {
 
   /** Lấy danh sách user dạng phân trang nâng cao (DataTables) */
   getPagedAdvanced(body: UserAdvancedDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/user/paged-advanced`,
-      body
-    );
+    return this.apiPost<any>('/user/paged-advanced', body);
   }
 
-  /** Lấy chi tiết user theo ID */
   /**
    * Lấy toàn bộ user (kèm vai trò) cho dropdown dùng chung — endpoint GetAll chỉ [Authorize].
    * Dùng ở các màn cần chọn user (vd Kiểm định chất lượng) mà role không có quyền READ menu User.
    */
   getAll(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/user`);
+    return this.apiGet<any>('/user');
   }
 
   getById(id: number): Observable<ApiResponse<UserDetailDto>> {
-    return this.http.get<ApiResponse<UserDetailDto>>(`${this.base}/user/${id}`);
+    return this.apiGet<UserDetailDto>(`/user/${id}`);
   }
 
   /** Tạo user mới */
   create(payload: CreateUserDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user`, payload);
+    return this.apiPost<any>('/user', payload);
   }
 
   /** Cập nhật user */
   update(payload: UpdateUserDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/user`, payload);
+    return this.apiPut<any>('/user', payload);
   }
 
   /** Tạo hàng loạt user (toàn bộ hoặc không) */
   createList(payload: CreateUserDto[]): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user/create-list`, payload);
+    return this.apiPost<any>('/user/create-list', payload);
   }
 
   /** Tải file mẫu import (xlsx | csv) dạng Blob */
@@ -88,57 +76,48 @@ export class UserService {
 
   /** Xóa user theo ID */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(`${this.base}/user/${id}`);
+    return this.apiDelete<any>(`/user/${id}`);
   }
 
   /** Lấy danh sách trạng thái user */
   getUserStatuses(): Observable<ApiResponse<UserStatusDetailDto[]>> {
-    return this.http.get<ApiResponse<UserStatusDetailDto[]>>(
-      `${this.base}/user-status`
-    );
+    return this.apiGet<UserStatusDetailDto[]>('/user-status');
   }
 
   /** Lấy danh sách vai trò */
   getRoles(): Observable<ApiResponse<DataItem[]>> {
-    return this.http.get<ApiResponse<DataItem[]>>(`${this.base}/role`);
+    return this.apiGet<DataItem[]>('/role');
   }
 
   /** Thống kê người dùng trên toàn bộ hệ thống (tổng, đang hoạt động, theo vai trò). */
   getUserStatistics(): Observable<ApiResponse<UserStatistics>> {
-    return this.http.get<ApiResponse<UserStatistics>>(
-      `${this.base}/user/statistics`
-    );
+    return this.apiGet<UserStatistics>('/user/statistics');
   }
 
   /** Lấy hồ sơ tài khoản của chính user đang đăng nhập */
   getMyProfile(): Observable<ApiResponse<UserProfileDto>> {
-    return this.http.get<ApiResponse<UserProfileDto>>(`${this.base}/user/me`);
+    return this.apiGet<UserProfileDto>('/user/me');
   }
 
   /** Cập nhật hồ sơ cá nhân của chính mình */
   updateMyProfile(
     payload: UpdateUserProfileDto
   ): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/user/me`, payload);
+    return this.apiPut<any>('/user/me', payload);
   }
 
   /** Đổi mật khẩu của chính mình */
   changeMyPassword(
     payload: ChangePasswordDto
   ): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/user/me/change-password`,
-      payload
-    );
+    return this.apiPut<any>('/user/me/change-password', payload);
   }
 
   // ===================== FILE MANAGER (chọn ảnh avatar) =====================
 
   /** Lấy cây thư mục (dùng chung của trình quản lý file). */
   getFolders(): Observable<ApiResponse<FolderNode[]>> {
-    return this.http.get<ApiResponse<FolderNode[]>>(
-      `${this.base}/file-manager/folders`
-    );
+    return this.apiGet<FolderNode[]>('/file-manager/folders');
   }
 
   /** Tạo thư mục mới. Trả về id của thư mục vừa tạo. */
@@ -146,22 +125,22 @@ export class UserService {
     folderName: string,
     parentId: number | null
   ): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(
-      `${this.base}/file-manager/folders`,
-      { folderName, parentId: parentId ?? 0 }
-    );
+    return this.apiPost<number>('/file-manager/folders', {
+      folderName,
+      parentId: parentId ?? 0,
+    });
   }
 
   /**
    * Lấy ảnh trong 1 thư mục (có phân trang, chỉ ảnh, lọc theo người sở hữu ở backend).
-   */
+   * */
   getFolderImages(
     folderId: number,
     pageIndex = 1,
     pageSize = 24
   ): Observable<ApiResponse<FileManagerPaging<FileUploadItem>>> {
-    return this.http.post<ApiResponse<FileManagerPaging<FileUploadItem>>>(
-      `${this.base}/file-manager/folders/${folderId}/paged`,
+    return this.apiPost<FileManagerPaging<FileUploadItem>>(
+      `/file-manager/folders/${folderId}/paged`,
       {
         pageIndex,
         pageSize,
@@ -201,74 +180,40 @@ export class UserService {
     filterDateFrom: string;
     filterDateTo: string;
   }): UserAdvancedDto {
-    const colIndex = params.colMap[params.sortField] ?? 5;
+    const columns = [
+      'id',
+      'firstName',
+      'email',
+      'phoneNumber',
+      'userStatusName',
+      'createdDate',
+      'id',
+    ];
+
     const dateRange = buildDateRange(
       params.filterDateFrom,
       params.filterDateTo
     );
 
-    return {
-      draw: params.page,
-      columns: [
-        {
-          data: 'id',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'firstName',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'email',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'phoneNumber',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'userStatusName',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: '', regex: false, fixed: [] },
-        },
-        {
-          data: 'createdDate',
-          name: '',
-          searchable: true,
-          orderable: true,
-          search: { value: dateRange, regex: false, fixed: [] },
-        },
-        {
-          data: 'id',
-          name: '',
-          searchable: false,
-          orderable: false,
-          search: { value: '', regex: false, fixed: [] },
-        },
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: '' }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search, regex: false, fixed: [] },
-      fullname: params.filterFullname,
-      email: params.filterEmail,
-      phoneNumber: params.filterPhone,
-      userStatusIds: params.filterStatusIds,
-      roleIds: params.filterRoleIds,
-    };
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      {
+        createdDate: dateRange,
+      },
+      {
+        fullname: params.filterFullname,
+        email: params.filterEmail,
+        phoneNumber: params.filterPhone,
+        userStatusIds: params.filterStatusIds,
+        roleIds: params.filterRoleIds,
+      }
+    );
   }
 }

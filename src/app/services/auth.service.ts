@@ -1,9 +1,8 @@
 import { Injectable, signal, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap, catchError, throwError, of, map } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse, LoginRequest, LoginResponse,
   LoginResponseAdminUserInfo, AuthProfile, MenuAggregate
@@ -14,8 +13,7 @@ const TOKEN_KEY = 'admin_access_token';
 const REFRESH_TOKEN_KEY = 'admin_refresh_token';
 
 @Injectable({ providedIn: 'root' })
-export class AuthService {
-  private readonly base = environment.baseUrl;
+export class AuthService extends ApiService {
   private readonly platformId = inject(PLATFORM_ID);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
@@ -26,7 +24,9 @@ export class AuthService {
   currentUser = signal<LoginResponseAdminUserInfo | null>(null);
   isLoggedIn = signal<boolean>(!!this.getToken());
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private router: Router) {
+    super();
+  }
 
   // ---- Local storage chỉ cho TOKEN (an toàn hơn: không lưu profile/quyền) ----
   private storageGet(key: string): string | null {
@@ -40,7 +40,7 @@ export class AuthService {
   }
 
   login(body: LoginRequest): Observable<ApiResponse<LoginResponse>> {
-    return this.http.post<ApiResponse<LoginResponse>>(`${this.base}/auth/admin/login`, body).pipe(
+    return this.apiPost<LoginResponse>('/auth/admin/login', body).pipe(
       tap(res => {
         if (res.isSucceeded && res.resources) {
           this.saveSession(res.resources);
@@ -58,7 +58,7 @@ export class AuthService {
    */
   loadSession(): Observable<boolean> {
     if (!this.getToken()) return of(false);
-    return this.http.get<ApiResponse<LoginResponseAdminUserInfo>>(`${this.base}/auth/me/session`).pipe(
+    return this.apiGet<LoginResponseAdminUserInfo>('/auth/me/session').pipe(
       map(res => {
         if (res.isSucceeded && res.resources) {
           this.currentUser.set(res.resources);
@@ -79,8 +79,7 @@ export class AuthService {
   private registerCurrentDevice(refreshToken: string): void {
     try {
       const info = getDeviceInfo();
-      this.http
-        .post(`${this.base}/user-device/register`, {
+      this.apiPost<any>('/user-device/register', {
           deviceId: info.deviceId,
           deviceName: info.deviceName,
           platform: info.platform,
@@ -96,10 +95,9 @@ export class AuthService {
   logout(): Observable<any> {
     const refreshToken = this.getRefreshToken();
     // Xoá đăng ký thiết bị hiện tại (thu hồi phiên + không hiển thị lại trong danh sách thiết bị).
-    this.http
-      .post(`${this.base}/user-device/logout`, { deviceId: getOrCreateDeviceId() })
+    this.apiPost<any>('/user-device/logout', { deviceId: getOrCreateDeviceId() })
       .subscribe({ next: () => {}, error: () => {} });
-    return this.http.post(`${this.base}/auth/logout`, { refreshToken }).pipe(
+    return this.apiPost<any>('/auth/logout', { refreshToken }).pipe(
       tap(() => this.clearSession()),
       catchError(err => {
         this.clearSession();
@@ -109,8 +107,8 @@ export class AuthService {
   }
 
   refreshToken(): Observable<ApiResponse<{ accessToken: string; refreshToken: string }>> {
-    return this.http.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
-      `${this.base}/auth/refresh-token`,
+    return this.apiPost<{ accessToken: string; refreshToken: string }>(
+      '/auth/refresh-token',
       { refreshToken: this.getRefreshToken() }
     ).pipe(
       tap(res => {
@@ -123,12 +121,12 @@ export class AuthService {
   }
 
   getProfile(): Observable<ApiResponse<AuthProfile>> {
-    return this.http.get<ApiResponse<AuthProfile>>(`${this.base}/auth/me`);
+    return this.apiGet<AuthProfile>('/auth/me');
   }
 
   /** Quên mật khẩu (admin): hệ thống sinh mật khẩu mới và gửi qua email. */
   forgotPassword(email: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/auth/forgot-password`, { email });
+    return this.apiPost<any>('/auth/forgot-password', { email });
   }
 
   /** Người dùng đang đăng nhập có bị buộc đổi mật khẩu hay không. */

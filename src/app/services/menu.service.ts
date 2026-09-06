@@ -1,7 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse,
   MenuAggregate,
@@ -12,14 +11,12 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class MenuService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class MenuService extends ApiService {
   private sidebarMenuCache: MenuAggregate[] | null = null;
 
   /** Lấy tất cả menus (dạng phẳng, API trả về) */
   getAll(): Observable<ApiResponse<MenuAggregate[]>> {
-    return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/menu`);
+    return this.apiGet<MenuAggregate[]>('/menu');
   }
 
   getCachedSidebarMenus(): MenuAggregate[] | null {
@@ -32,7 +29,7 @@ export class MenuService {
 
   /** Lấy chi tiết menu theo ID */
   getById(id: number): Observable<ApiResponse<MenuDetailDto>> {
-    return this.http.get<ApiResponse<MenuDetailDto>>(`${this.base}/menu/${id}`);
+    return this.apiGet<MenuDetailDto>(`/menu/${id}`);
   }
 
   /**
@@ -41,22 +38,22 @@ export class MenuService {
    * vai trò, chỉ cần refetch là sidebar tự cập nhật, không cần đăng nhập lại.
    */
   getMyMenus(): Observable<ApiResponse<MenuAggregate[]>> {
-    return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/auth/me/menus`);
+    return this.apiGet<MenuAggregate[]>('/auth/me/menus');
   }
 
   /** Tạo menu mới */
   create(payload: CreateMenuDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/menu`, payload);
+    return this.apiPost<any>('/menu', payload);
   }
 
   /** Cập nhật menu */
   update(payload: UpdateMenuDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/menu`, payload);
+    return this.apiPut<any>('/menu', payload);
   }
 
   /** Xóa menu theo ID */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(`${this.base}/menu/${id}`);
+    return this.apiDelete<any>(`/menu/${id}`);
   }
 
   /** Xây dựng cấu trúc cây menu từ mảng phẳng */

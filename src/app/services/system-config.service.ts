@@ -1,7 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse,
   SearchQuery,
@@ -24,47 +23,45 @@ export interface UpdateSystemConfigDto extends CreateSystemConfigDto {
 }
 
 @Injectable({ providedIn: 'root' })
-export class SystemConfigService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class SystemConfigService extends ApiService {
 
   /** Lấy danh sách config phân trang */
   getPaged(
     query: SearchQuery
   ): Observable<ApiResponse<PagingData<SystemConfigDetailDto>>> {
-    return this.http.post<ApiResponse<PagingData<SystemConfigDetailDto>>>(
-      `${this.base}/system-config/paged`,
+    return this.apiPost<PagingData<SystemConfigDetailDto>>(
+      '/system-config/paged',
       query
     );
   }
 
   /** Lấy tất cả config (không phân trang - fallback) */
   getAll(): Observable<ApiResponse<SystemConfigDetailDto[]>> {
-    return this.http.get<ApiResponse<SystemConfigDetailDto[]>>(
-      `${this.base}/system-config`
+    return this.apiGet<SystemConfigDetailDto[]>(
+      '/system-config'
     );
   }
 
   /** Tạo config mới */
   create(payload: CreateSystemConfigDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/system-config`,
+    return this.apiPost<any>(
+      '/system-config',
       payload
     );
   }
 
   /** Cập nhật config */
   update(payload: UpdateSystemConfigDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/system-config`,
+    return this.apiPut<any>(
+      '/system-config',
       payload
     );
   }
 
   /** Xóa config theo ID */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/system-config/${id}`
+    return this.apiDelete<any>(
+      `/system-config/${id}`
     );
   }
 }

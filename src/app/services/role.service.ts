@@ -1,7 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse,
   RoleListDto,
@@ -30,13 +29,11 @@ export function flattenMenus(menus: MenuAggregate[]): FlatMenu[] {
 }
 
 @Injectable({ providedIn: 'root' })
-export class RoleService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class RoleService extends ApiService {
 
   /** Lấy danh sách vai trò phân trang */
   getPagedRoles(query: SearchQuery): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/role/paged`, {
+    return this.apiPost<any>('/role/paged', {
       pageIndex: query.pageIndex,
       pageSize: query.pageSize,
       keyword: query.keyword,
@@ -47,17 +44,17 @@ export class RoleService {
 
   /** Tạo vai trò mới */
   create(payload: CreateRoleDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/role`, payload);
+    return this.apiPost<any>('/role', payload);
   }
 
   /** Cập nhật vai trò */
   update(payload: UpdateRoleDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/role`, payload);
+    return this.apiPut<any>('/role', payload);
   }
 
   /** Xóa vai trò theo ID */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(`${this.base}/role/${id}`);
+    return this.apiDelete<any>(`/role/${id}`);
   }
 
   /** Lấy toàn bộ danh sách menu (cấu trúc phẳng hoặc cây) */
@@ -66,29 +63,29 @@ export class RoleService {
    * Dùng ở các màn cần danh sách vai trò (vd Kiểm định) mà role không có quyền READ menu Vai trò.
    */
   getAll(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/role`);
+    return this.apiGet<any>('/role');
   }
 
   getAllMenus(): Observable<ApiResponse<MenuAggregate[]>> {
-    return this.http.get<ApiResponse<MenuAggregate[]>>(`${this.base}/menu`);
+    return this.apiGet<MenuAggregate[]>('/menu');
   }
 
   /** Lấy toàn bộ danh sách actions */
   getAllActions(): Observable<ApiResponse<ActionDto[]>> {
-    return this.http.get<ApiResponse<ActionDto[]>>(`${this.base}/action`);
+    return this.apiGet<ActionDto[]>('/action');
   }
 
   /** Lấy cấu hình quyền hạn của tất cả menu */
   getMenuPermissions(): Observable<ApiResponse<MenuPermissionDto[]>> {
-    return this.http.get<ApiResponse<MenuPermissionDto[]>>(
-      `${this.base}/menu/permissons`
+    return this.apiGet<MenuPermissionDto[]>(
+      `/menu/permissons`
     );
   }
 
   /** Lấy danh sách quyền hạn của một vai trò cụ thể */
   getRolePermissions(roleId: number): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(
-      `${this.base}/role/${roleId}/permissons`
+    return this.apiGet<any>(
+      `/role/${roleId}/permissons`
     );
   }
 }

@@ -1,8 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   CreateStockTransferPayload,
@@ -18,27 +17,26 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class StockTransferService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.baseUrl}/stock-transfers`;
+export class StockTransferService extends ApiService {
+  private readonly reportBase = '/stock-transfers';
 
   getPagedAdvanced(
     body: StockTransferPagedRequest
   ): Observable<ApiResponse<DTResponse<StockTransferRow>>> {
-    return this.http.post<ApiResponse<DTResponse<StockTransferRow>>>(
-      `${this.base}/paged-advanced`,
+    return this.apiPost<DTResponse<StockTransferRow>>(
+      `${this.reportBase}/paged-advanced`,
       body
     );
   }
 
   getSummary(): Observable<ApiResponse<StockTransferSummary>> {
-    return this.http.get<ApiResponse<StockTransferSummary>>(
-      `${this.base}/summary`
+    return this.apiGet<StockTransferSummary>(
+      `${this.reportBase}/summary`
     );
   }
 
   getById(id: number): Observable<ApiResponse<StockTransferDetail>> {
-    return this.http.get<ApiResponse<StockTransferDetail>>(`${this.base}/${id}`);
+    return this.apiGet<StockTransferDetail>(`${this.reportBase}/${id}`);
   }
 
   getSourceBags(
@@ -46,15 +44,15 @@ export class StockTransferService {
     fromLocationId: number,
     productVariantId?: number | null
   ): Observable<ApiResponse<SourceColumnBag[]>> {
-    let params = new HttpParams()
-      .set('fromWarehouseId', String(fromWarehouseId))
-      .set('fromLocationId', String(fromLocationId));
-    if (productVariantId != null) {
-      params = params.set('productVariantId', String(productVariantId));
-    }
-    return this.http.get<ApiResponse<SourceColumnBag[]>>(
-      `${this.base}/source-bags`,
-      { params }
+    return this.apiGet<SourceColumnBag[]>(
+      `${this.reportBase}/source-bags`,
+      {
+        params: {
+          fromWarehouseId: String(fromWarehouseId),
+          fromLocationId: String(fromLocationId),
+          productVariantId: productVariantId ? String(productVariantId) : undefined,
+        },
+      }
     );
   }
 
@@ -63,13 +61,15 @@ export class StockTransferService {
     productVariantId: number,
     weightKg = 0
   ): Observable<ApiResponse<LocationSuggestion[]>> {
-    const params = new HttpParams()
-      .set('toWarehouseId', String(toWarehouseId))
-      .set('productVariantId', String(productVariantId))
-      .set('weightKg', String(weightKg || 0));
-    return this.http.get<ApiResponse<LocationSuggestion[]>>(
-      `${this.base}/destination-suggestions`,
-      { params }
+    return this.apiGet<LocationSuggestion[]>(
+      `${this.reportBase}/destination-suggestions`,
+      {
+        params: {
+          toWarehouseId: String(toWarehouseId),
+          productVariantId: String(productVariantId),
+          weightKg: String(weightKg || 0),
+        },
+      }
     );
   }
 
@@ -78,42 +78,44 @@ export class StockTransferService {
     productVariantId: number,
     weightKg = 0
   ): Observable<ApiResponse<LocationSuggestion[]>> {
-    const params = new HttpParams()
-      .set('fromWarehouseId', String(fromWarehouseId))
-      .set('productVariantId', String(productVariantId))
-      .set('weightKg', String(weightKg || 0));
-    return this.http.get<ApiResponse<LocationSuggestion[]>>(
-      `${this.base}/quarantine-suggestions`,
-      { params }
+    return this.apiGet<LocationSuggestion[]>(
+      `${this.reportBase}/quarantine-suggestions`,
+      {
+        params: {
+          fromWarehouseId: String(fromWarehouseId),
+          productVariantId: String(productVariantId),
+          weightKg: String(weightKg || 0),
+        },
+      }
     );
   }
 
   create(
     payload: CreateStockTransferPayload
   ): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(this.base, payload);
+    return this.apiPost<number>(this.reportBase, payload);
   }
 
   update(
     id: number,
     payload: UpdateStockTransferPayload
   ): Observable<ApiResponse<number>> {
-    return this.http.put<ApiResponse<number>>(`${this.base}/${id}`, payload);
+    return this.apiPut<number>(`${this.reportBase}/${id}`, payload);
   }
 
   dispatch(id: number): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/${id}/dispatch`,
+    return this.apiPut<any>(
+      `${this.reportBase}/${id}/dispatch`,
       {}
     );
   }
 
   receive(id: number): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/${id}/receive`, {});
+    return this.apiPut<any>(`${this.reportBase}/${id}/receive`, {});
   }
 
   cancel(id: number, reason?: string): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/${id}/cancel`, {
+    return this.apiPut<any>(`${this.reportBase}/${id}/cancel`, {
       reason: reason?.trim() || null,
     });
   }
@@ -142,54 +144,23 @@ export class StockTransferService {
       'createdDate',
       'id',
     ];
-    const sortField = params.sortField || 'createdDate';
-    const sortIndex = Math.max(0, columns.indexOf(sortField));
-    const column = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: columns.map((name) => {
-        if (name === 'statusCode') return column(name, params.statusCode || '');
-        if (name === 'fromWarehouseId') {
-          return column(
-            name,
-            params.fromWarehouseId ? String(params.fromWarehouseId) : ''
-          );
-        }
-        if (name === 'toWarehouseId') {
-          return column(
-            name,
-            params.toWarehouseId ? String(params.toWarehouseId) : ''
-          );
-        }
-        if (name === 'transferDate') {
-          return column(
-            name,
-            buildDateRange(params.dateFrom || '', params.dateTo || '')
-          );
-        }
-        return column(name);
-      }),
-      order: [
-        {
-          column: sortIndex,
-          dir: params.sortDir || 'desc',
-          name: sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columnFilters = {
+      statusCode: params.statusCode || '',
+      fromWarehouseId: params.fromWarehouseId ? String(params.fromWarehouseId) : '',
+      toWarehouseId: params.toWarehouseId ? String(params.toWarehouseId) : '',
+      transferDate: buildDateRange(params.dateFrom || '', params.dateTo || ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField || 'createdDate',
+        sortDir: params.sortDir || 'desc',
+      },
+      columns,
+      columnFilters
+    ) as StockTransferPagedRequest;
   }
 }

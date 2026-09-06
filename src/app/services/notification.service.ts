@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   NotificationDetailDto,
@@ -14,48 +14,46 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class NotificationService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class NotificationService extends ApiService {
 
   /** Danh sách thông báo (màn quản trị: isAdmin = true để xem tất cả). */
   getPagedAdvanced(
     body: NotificationPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/notification/paged-advanced`,
+    return this.apiPost<any>(
+      '/notification/paged-advanced',
       body
     );
   }
 
   getById(id: number): Observable<ApiResponse<NotificationDetailDto>> {
-    return this.http.get<ApiResponse<NotificationDetailDto>>(
-      `${this.base}/notification/${id}`
+    return this.apiGet<NotificationDetailDto>(
+      `/notification/${id}`
     );
   }
 
   create(payload: CreateNotificationDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/notification`, payload);
+    return this.apiPost<any>('/notification', payload);
   }
 
   update(payload: UpdateNotificationDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/notification`, payload);
+    return this.apiPut<any>('/notification', payload);
   }
 
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(`${this.base}/notification/${id}`);
+    return this.apiDelete<any>(`/notification/${id}`);
   }
 
   /** Danh mục thông báo (cho dropdown chọn danh mục + lọc). */
   getCategories(): Observable<ApiResponse<NotificationCategoryDetailDto[]>> {
-    return this.http.get<ApiResponse<NotificationCategoryDetailDto[]>>(
-      `${this.base}/notification-category`
+    return this.apiGet<NotificationCategoryDetailDto[]>(
+      '/notification-category'
     );
   }
 
   /** Danh sách người dùng (cho chọn người nhận). */
   getUsers(): Observable<ApiResponse<UserOption[]>> {
-    return this.http.get<ApiResponse<UserOption[]>>(`${this.base}/user`);
+    return this.apiGet<UserOption[]>('/user');
   }
 
   buildPagedBody(params: {
@@ -69,34 +67,26 @@ export class NotificationService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): NotificationPagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('title'),
-        col('content'),
-        col('direction'),
-        col('notificationCategoryName'),
-        col('createdDate', dateSearch),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
-      isAdmin: true,
-      userId: 0,
-      notificationCategoryIds: params.filterCategoryIds ?? [],
+    const columns = ['id', 'title', 'content', 'direction', 'notificationCategoryName', 'createdDate'];
+    const columnFilters = {
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters,
+      {
+        isAdmin: true,
+        userId: 0,
+        notificationCategoryIds: params.filterCategoryIds ?? [],
+      }
+    ) as NotificationPagedAdvancedRequest;
   }
 }

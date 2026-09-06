@@ -1,8 +1,6 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   AllocateOutboundPayload,
   AllocationCandidateRow,
@@ -26,34 +24,32 @@ import {
  * (complete/fail-delivery) và hủy phiếu (cancel).
  */
 @Injectable({ providedIn: 'root' })
-export class OutboundOrderService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class OutboundOrderService extends ApiService {
 
   getPaged(
     request: OutboundOrderPagedRequest
   ): Observable<ApiResponse<OutboundOrderPage>> {
-    return this.http.post<ApiResponse<OutboundOrderPage>>(
-      `${this.base}/outbound-orders/paged`,
+    return this.apiPost<OutboundOrderPage>(
+      '/outbound-orders/paged',
       request
     );
   }
 
   getById(id: number): Observable<ApiResponse<OutboundOrderDetail>> {
-    return this.http.get<ApiResponse<OutboundOrderDetail>>(
-      `${this.base}/outbound-orders/${id}`
+    return this.apiGet<OutboundOrderDetail>(
+      `/outbound-orders/${id}`
     );
   }
 
   getAllocationCandidates(id: number): Observable<ApiResponse<AllocationCandidateRow[]>> {
-    return this.http.get<ApiResponse<AllocationCandidateRow[]>>(
-      `${this.base}/outbound-orders/${id}/allocation-candidates`
+    return this.apiGet<AllocationCandidateRow[]>(
+      `/outbound-orders/${id}/allocation-candidates`
     );
   }
 
   getBagAllocations(id: number): Observable<ApiResponse<OutboundBagAllocation[]>> {
-    return this.http.get<ApiResponse<OutboundBagAllocation[]>>(
-      `${this.base}/outbound-orders/${id}/bag-allocations`
+    return this.apiGet<OutboundBagAllocation[]>(
+      `/outbound-orders/${id}/bag-allocations`
     );
   }
 
@@ -61,15 +57,15 @@ export class OutboundOrderService {
     id: number,
     payload: AllocateOutboundPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/allocate`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/allocate`,
       payload
     );
   }
 
   pick(id: number, payload: PickOutboundPayload): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/pick`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/pick`,
       payload
     );
   }
@@ -79,8 +75,8 @@ export class OutboundOrderService {
     bagAllocationId: number,
     reason: string
   ): Observable<ApiResponse<OutboundQualityHoldResult>> {
-    return this.http.post<ApiResponse<OutboundQualityHoldResult>>(
-      `${this.base}/outbound-orders/${orderId}/bag-allocations/${bagAllocationId}/quality-hold`,
+    return this.apiPost<OutboundQualityHoldResult>(
+      `/outbound-orders/${orderId}/bag-allocations/${bagAllocationId}/quality-hold`,
       { reason: reason.trim() }
     );
   }
@@ -89,8 +85,8 @@ export class OutboundOrderService {
     id: number,
     payload: ConfirmPackingPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/confirm-packing`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/confirm-packing`,
       payload
     );
   }
@@ -99,8 +95,8 @@ export class OutboundOrderService {
     id: number,
     payload: ConfirmDispatchPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/confirm-dispatch`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/confirm-dispatch`,
       payload
     );
   }
@@ -109,8 +105,8 @@ export class OutboundOrderService {
     id: number,
     payload: CompleteDeliveryPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/complete-delivery`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/complete-delivery`,
       payload
     );
   }
@@ -119,8 +115,8 @@ export class OutboundOrderService {
     id: number,
     payload: FailDeliveryPayload
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/fail-delivery`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/fail-delivery`,
       payload
     );
   }
@@ -130,15 +126,15 @@ export class OutboundOrderService {
    * buộc nhập nằm ở UI (popup xác nhận không cho bỏ trống).
    */
   cancel(id: number, reason: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/cancel`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/cancel`,
       { reason: reason.trim() }
     );
   }
 
   forceUnlock(id: number, reason: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/outbound-orders/${id}/force-unlock`,
+    return this.apiPost<any>(
+      `/outbound-orders/${id}/force-unlock`,
       { reason: reason.trim() }
     );
   }
