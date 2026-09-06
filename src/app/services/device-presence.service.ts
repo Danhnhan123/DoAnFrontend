@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import * as signalR from '@microsoft/signalr';
 import { Subject } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { getOrCreateDeviceId } from '../utils/device.util';
 
@@ -13,7 +13,7 @@ import { getOrCreateDeviceId } from '../utils/device.util';
  * (offline do server tự phát hiện khi kết nối bị ngắt — tắt màn hình/đóng tab.)
  */
 @Injectable({ providedIn: 'root' })
-export class DevicePresenceService {
+export class DevicePresenceService extends ApiService {
   private auth = inject(AuthService);
 
   private connection?: signalR.HubConnection;
@@ -32,7 +32,7 @@ export class DevicePresenceService {
     this.started = true;
 
     const hubUrl =
-      environment.baseUrl.replace(/\/api\/v\d+\/?$/, '') +
+      this.base.replace(/\/api\/v\d+\/?$/, '') +
       '/hubs/device-presence?deviceId=' +
       encodeURIComponent(getOrCreateDeviceId());
 

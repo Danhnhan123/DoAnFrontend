@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
+import { ApiService } from './api.service';
 
 /** Đọc một lần từ cân BLE. UUID được cấu hình theo model cân trong localStorage. */
 @Injectable({ providedIn: 'root' })
-export class BluetoothScaleService {
+export class BluetoothScaleService extends ApiService {
   async readWeightKg(): Promise<number> {
     const bluetooth = (navigator as any).bluetooth;
     if (!bluetooth) throw new Error('Trình duyệt này không hỗ trợ Web Bluetooth.');

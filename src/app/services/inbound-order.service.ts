@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import { ApiResponse } from '../models';
 import {
   InboundOrderDetailDto,
@@ -13,21 +13,20 @@ import {
   SelectInboundPutawayDto,
 } from '../models/inbound-order';
 import { buildDateRange } from '../utils/date.utils';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 
 /**
  * Dịch vụ phiếu nhập kho và Store-in/Put-away.
  */
 @Injectable({ providedIn: 'root' })
-export class InboundOrderService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class InboundOrderService extends ApiService {
 
   /** Danh sách phiếu nhập dạng DataTables (phân trang/tìm/lọc/sắp xếp). */
   getPagedAdvanced(
     body: InboundOrderPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/inbound-orders/paged-advanced`,
+    return this.apiPost<any>(
+      '/inbound-orders/paged-advanced',
       body
     );
   }
@@ -37,37 +36,37 @@ export class InboundOrderService {
    * Gộp 1 request (thay cho list + N getById) — backend đã hydrate sẵn item.
    */
   getPutawayPending(): Observable<ApiResponse<InboundOrderDetailDto[]>> {
-    return this.http.get<ApiResponse<InboundOrderDetailDto[]>>(
-      `${this.base}/inbound-orders/putaway-pending`
+    return this.apiGet<InboundOrderDetailDto[]>(
+      '/inbound-orders/putaway-pending'
     );
   }
 
   /** Chi tiết phiếu nhập (header + dòng hàng + chứng từ). */
   getById(id: number): Observable<ApiResponse<InboundOrderDetailDto>> {
-    return this.http.get<ApiResponse<InboundOrderDetailDto>>(
-      `${this.base}/inbound-orders/${id}`
+    return this.apiGet<InboundOrderDetailDto>(
+      `/inbound-orders/${id}`
     );
   }
 
   submit(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
-      `${this.base}/inbound-orders/${id}/submit`,
+    return this.apiPost<unknown>(
+      `/inbound-orders/${id}/submit`,
       {}
     );
   }
 
   /** Phê duyệt phiếu nhập (Submitted -> Approved). */
   approve(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
-      `${this.base}/inbound-orders/${id}/approve`,
+    return this.apiPost<unknown>(
+      `/inbound-orders/${id}/approve`,
       {}
     );
   }
 
   /** Từ chối phiếu nhập (Submitted -> Rejected) kèm lý do. */
   reject(id: number, reason: string): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
-      `${this.base}/inbound-orders/${id}/reject`,
+    return this.apiPost<unknown>(
+      `/inbound-orders/${id}/reject`,
       JSON.stringify(reason.trim()),
       { headers: new HttpHeaders({ 'Content-Type': 'application/json' }) }
     );
@@ -75,8 +74,8 @@ export class InboundOrderService {
 
   /** Hủy phiếu nhập. */
   cancel(id: number): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(
-      `${this.base}/inbound-orders/${id}/cancel`,
+    return this.apiPost<unknown>(
+      `/inbound-orders/${id}/cancel`,
       {}
     );
   }
@@ -85,8 +84,8 @@ export class InboundOrderService {
     orderId: number,
     inboundOrderItemId: number
   ): Observable<ApiResponse<InboundOrderItemDto>> {
-    return this.http.post<ApiResponse<InboundOrderItemDto>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/start`,
+    return this.apiPost<InboundOrderItemDto>(
+      `/inbound-orders/${orderId}/receipts/start`,
       { inboundOrderItemId }
     );
   }
@@ -97,8 +96,8 @@ export class InboundOrderService {
     quantityReceived: number,
     note?: string
   ): Observable<ApiResponse<InboundOrderItemDto>> {
-    return this.http.post<ApiResponse<InboundOrderItemDto>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/record-quantity`,
+    return this.apiPost<InboundOrderItemDto>(
+      `/inbound-orders/${orderId}/receipts/${receiptId}/record-quantity`,
       { quantityReceived, note: note?.trim() || null }
     );
   }
@@ -107,14 +106,14 @@ export class InboundOrderService {
     orderId: number,
     receiptId: number
   ): Observable<ApiResponse<PutawaySuggestionDto[]>> {
-    return this.http.get<ApiResponse<PutawaySuggestionDto[]>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/putaway-suggestions`
+    return this.apiGet<PutawaySuggestionDto[]>(
+      `/inbound-orders/${orderId}/receipts/${receiptId}/putaway-suggestions`
     );
   }
 
   getBagPutawayPlan(orderId: number, receiptId: number): Observable<ApiResponse<BagPutawayPlanDto>> {
-    return this.http.get<ApiResponse<BagPutawayPlanDto>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/bag-putaway-plan`
+    return this.apiGet<BagPutawayPlanDto>(
+      `/inbound-orders/${orderId}/receipts/${receiptId}/bag-putaway-plan`
     );
   }
 
@@ -123,8 +122,8 @@ export class InboundOrderService {
     receiptId: number,
     payload: SelectInboundPutawayDto
   ): Observable<ApiResponse<InboundOrderItemDto>> {
-    return this.http.post<ApiResponse<InboundOrderItemDto>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/select-putaway`,
+    return this.apiPost<InboundOrderItemDto>(
+      `/inbound-orders/${orderId}/receipts/${receiptId}/select-putaway`,
       payload
     );
   }
@@ -135,8 +134,8 @@ export class InboundOrderService {
     operationKey: string,
     columns?: BagPutawayColumnRequestDto[]
   ): Observable<ApiResponse<InboundOrderItemDto>> {
-    return this.http.post<ApiResponse<InboundOrderItemDto>>(
-      `${this.base}/inbound-orders/${orderId}/receipts/${receiptId}/confirm`,
+    return this.apiPost<InboundOrderItemDto>(
+      `/inbound-orders/${orderId}/receipts/${receiptId}/confirm`,
       { operationKey, columns: columns?.length ? columns : null }
     );
   }
@@ -157,38 +156,25 @@ export class InboundOrderService {
     expectedFrom?: string | null;
     expectedTo?: string | null;
   }): InboundOrderPagedAdvancedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['createdDate'];
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    const statusValue = params.filterStatus?.trim() || '';
-    const expectedRange = buildDateRange(
-      params.expectedFrom ?? '',
-      params.expectedTo ?? ''
-    );
-
-    return {
-      draw: params.page,
-      columns: [
-        col('poCode'),
-        col('supplierName'),
-        col('warehouseName'),
-        col('inboundOrderStatusName', statusValue),
-        col('expectedDate', expectedRange),
-        col('totalAssetValue'),
-        col('createdDate'),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['poCode', 'supplierName', 'warehouseName', 'inboundOrderStatusName', 'expectedDate', 'totalAssetValue', 'createdDate'];
+    const columnFilters = {
+      inboundOrderStatusName: params.filterStatus?.trim() || '',
+      expectedDate: buildDateRange(
+        params.expectedFrom ?? '',
+        params.expectedTo ?? ''
+      ),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as InboundOrderPagedAdvancedRequest;
   }
 }

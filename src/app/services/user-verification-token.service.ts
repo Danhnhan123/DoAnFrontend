@@ -1,22 +1,20 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import { ApiResponse, DTParameters } from '../models';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 
 /**
  * Màn quản lý mã xác thực người dùng. Backend chỉ cung cấp API READ
  * (POST /user-verification-token/paged-advanced) nên service chỉ có đọc danh sách.
  */
 @Injectable({ providedIn: 'root' })
-export class UserVerificationTokenService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class UserVerificationTokenService extends ApiService {
 
   /** Danh sách mã xác thực dạng DataTables (phân trang/tìm/sắp xếp). */
   getPagedAdvanced(body: DTParameters): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/user-verification-token/paged-advanced`,
+    return this.apiPost<any>(
+      '/user-verification-token/paged-advanced',
       body
     );
   }
@@ -30,32 +28,18 @@ export class UserVerificationTokenService {
     sortDir: 'asc' | 'desc';
     colMap: Record<string, number>;
   }): DTParameters {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const col = (data: string) => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value: '', regex: false, fixed: [] as any[] },
-    });
+    const columns = ['id', 'code', 'purpose', 'userName', 'expirationDate', 'createdDate'];
 
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('code'),
-        col('purpose'),
-        col('userName'),
-        col('expirationDate'),
-        col('createdDate'),
-      ],
-      order: [
-        { column: colIndex, dir: params.sortDir, name: params.sortField },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
-    };
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns
+    ) as DTParameters;
   }
 
   /** Nhãn tiếng Việt cho mục đích mã xác thực. */

@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   ProductCategoryDetailDto,
@@ -12,55 +12,51 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class ProductCategoryService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class ProductCategoryService extends ApiService {
 
   /** Danh sách danh mục sản phẩm dạng DataTables (phân trang/tìm/lọc/sắp xếp). */
   getPagedAdvanced(
     body: ProductCategoryPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-category/paged-advanced`,
+    return this.apiPost<any>(
+      '/product-category/paged-advanced',
       body
     );
   }
 
   /** Lấy toàn bộ danh mục (dùng cho dropdown chọn danh mục cha). */
   getAll(): Observable<ApiResponse<ProductCategoryDetailDto[]>> {
-    return this.http.get<ApiResponse<ProductCategoryDetailDto[]>>(
-      `${this.base}/product-category`
+    return this.apiGet<ProductCategoryDetailDto[]>(
+      '/product-category'
     );
   }
 
   /** Chi tiết một danh mục theo id. */
   getById(id: number): Observable<ApiResponse<ProductCategoryDetailDto>> {
-    return this.http.get<ApiResponse<ProductCategoryDetailDto>>(
-      `${this.base}/product-category/${id}`
+    return this.apiGet<ProductCategoryDetailDto>(
+      `/product-category/${id}`
     );
   }
 
   /** Tạo mới danh mục sản phẩm. */
   create(payload: CreateProductCategoryDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-category`,
+    return this.apiPost<any>(
+      `/product-category`,
       payload
     );
   }
 
   /** Cập nhật danh mục sản phẩm. */
   update(payload: UpdateProductCategoryDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/product-category`,
+    return this.apiPut<any>(
+      `/product-category`,
       payload
     );
   }
 
   /** Xóa mềm danh mục sản phẩm. */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/product-category/${id}`
-    );
+    return this.apiDelete<any>(`/product-category/${id}`);
   }
 
   /**
@@ -99,39 +95,23 @@ export class ProductCategoryService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): ProductCategoryPagedAdvancedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['createdDate'];
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    const parentValue =
-      params.filterParentId != null ? String(params.filterParentId) : '';
-    const dateSearch = buildDateRange(
-      params.dateFrom ?? '',
-      params.dateTo ?? ''
-    );
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('name', params.filterName?.trim() || ''),
-        col('description'),
-        col('parentName', parentValue),
-        col('productCount'),
-        col('sortOrder'),
-        col('createdDate', dateSearch),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['id', 'name', 'description', 'parentName', 'productCount', 'sortOrder', 'createdDate'];
+    const columnFilters = {
+      name: params.filterName?.trim() || '',
+      parentName: params.filterParentId != null ? String(params.filterParentId) : '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as ProductCategoryPagedAdvancedRequest;
   }
 }

@@ -1,8 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   CreateStockTakePayload,
@@ -18,55 +17,58 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class StockTakeService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.baseUrl}/stocktakes`;
+export class StockTakeService extends ApiService {
+  private readonly reportBase = '/stocktakes';
 
   getPagedAdvanced(body: StockTakePagedRequest): Observable<ApiResponse<DTResponse<StockTakeRow>>> {
-    return this.http.post<ApiResponse<DTResponse<StockTakeRow>>>(`${this.base}/paged-advanced`, body);
+    return this.apiPost<DTResponse<StockTakeRow>>(`${this.reportBase}/paged-advanced`, body);
   }
 
   getSummary(): Observable<ApiResponse<StockTakeSummary>> {
-    return this.http.get<ApiResponse<StockTakeSummary>>(`${this.base}/summary`);
+    return this.apiGet<StockTakeSummary>(`${this.reportBase}/summary`);
   }
 
   getThresholds(): Observable<ApiResponse<StockTakeThresholds>> {
-    return this.http.get<ApiResponse<StockTakeThresholds>>(`${this.base}/thresholds`);
+    return this.apiGet<StockTakeThresholds>(`${this.reportBase}/thresholds`);
   }
 
   getById(id: number): Observable<ApiResponse<StockTakeDetail>> {
-    return this.http.get<ApiResponse<StockTakeDetail>>(`${this.base}/${id}`);
+    return this.apiGet<StockTakeDetail>(`${this.reportBase}/${id}`);
   }
 
   create(payload: CreateStockTakePayload): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(this.base, payload);
+    return this.apiPost<number>(this.reportBase, payload);
   }
 
   saveCounts(id: number, payload: SaveStockTakeCountsPayload): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/counts`, payload);
+    return this.apiPut<unknown>(`${this.reportBase}/${id}/counts`, payload);
   }
 
   submit(id: number, note?: string | null): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/submit`, { note: note?.trim() || null });
+    return this.apiPut<unknown>(`${this.reportBase}/${id}/submit`, { note: note?.trim() || null });
   }
 
   approve(id: number, approveNote?: string | null): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/approve`, { approveNote: approveNote?.trim() || null });
+    return this.apiPut<unknown>(`${this.reportBase}/${id}/approve`, { approveNote: approveNote?.trim() || null });
   }
 
   reject(id: number, reason: string): Observable<ApiResponse<unknown>> {
-    return this.http.put<ApiResponse<unknown>>(`${this.base}/${id}/reject`, { reason: reason.trim() });
+    return this.apiPut<unknown>(`${this.reportBase}/${id}/reject`, { reason: reason.trim() });
   }
 
   /** Cột đang có bao — nguồn dropdown chọn cột cần kiểm kê. */
   getScopeOptions(warehouseId: number, quarantineOnly?: boolean | null): Observable<ApiResponse<StockTakeScopeOptions>> {
-    const query = quarantineOnly == null ? '' : `&quarantineOnly=${quarantineOnly}`;
-    return this.http.get<ApiResponse<StockTakeScopeOptions>>(`${this.base}/scope-options?warehouseId=${warehouseId}${query}`);
+    return this.apiGet<StockTakeScopeOptions>(`${this.reportBase}/scope-options`, {
+      params: {
+        warehouseId,
+        quarantineOnly: quarantineOnly ?? undefined,
+      },
+    });
   }
 
   /** Gợi ý ô cách ly / cột thường cho một bao (vẫn chọn lại được). */
   getBagTargetSuggestions(id: number, bagId: number): Observable<ApiResponse<StockTakeBagTargetSuggestion[]>> {
-    return this.http.get<ApiResponse<StockTakeBagTargetSuggestion[]>>(`${this.base}/${id}/bags/${bagId}/target-suggestions`);
+    return this.apiGet<StockTakeBagTargetSuggestion[]>(`${this.reportBase}/${id}/bags/${bagId}/target-suggestions`);
   }
 
   buildPagedBody(params: {
@@ -76,30 +78,22 @@ export class StockTakeService {
     statusId?: number | null;
     warehouseId?: number | null;
   }): StockTakePagedRequest {
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-    return {
-      draw: params.page,
-      columns: [
-        col('sTCode'),
-        col('warehouseId', params.warehouseId ? String(params.warehouseId) : ''),
-        col('scopeDisplay'),
-        col('itemCount'),
-        col('varianceLineCount'),
-        col('netVarianceKg'),
-        col('stockTakeStatusId', params.statusId ? String(params.statusId) : ''),
-        col('createdDate'),
-        col('id'),
-      ],
-      order: [{ column: 8, dir: 'desc', name: 'id' }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['sTCode', 'warehouseId', 'scopeDisplay', 'itemCount', 'varianceLineCount', 'netVarianceKg', 'stockTakeStatusId', 'createdDate', 'id'];
+    const columnFilters = {
+      warehouseId: params.warehouseId ? String(params.warehouseId) : '',
+      stockTakeStatusId: params.statusId ? String(params.statusId) : '',
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: 'id',
+        sortDir: 'desc',
+      },
+      columns,
+      columnFilters
+    ) as StockTakePagedRequest;
   }
 }

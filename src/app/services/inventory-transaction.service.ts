@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   DTResponse,
@@ -14,16 +14,14 @@ import {
  * trên màn Giám sát tồn kho. Chỉ đọc (audit trail nhập/xuất/giữ/cách ly...).
  */
 @Injectable({ providedIn: 'root' })
-export class InventoryTransactionService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class InventoryTransactionService extends ApiService {
 
   /** Danh sách giao dịch tồn kho (DataTables, mới nhất trước). */
   getPagedAdvanced(
     body: InventoryTransactionAdvancedRequest
   ): Observable<ApiResponse<DTResponse<InventoryTransactionRow>>> {
-    return this.http.post<ApiResponse<DTResponse<InventoryTransactionRow>>>(
-      `${this.base}/inventory-transactions/advanced`,
+    return this.apiPost<DTResponse<InventoryTransactionRow>>(
+      '/inventory-transactions/advanced',
       body
     );
   }
@@ -38,23 +36,23 @@ export class InventoryTransactionService {
     warehouseId?: number | null;
     productVariantId?: number | null;
   }): InventoryTransactionAdvancedRequest {
-    const col = (data: string) => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value: '', regex: false, fixed: [] as any[] },
-    });
+    const length = params.length ?? 20;
+    const start = params.start ?? 0;
 
-    return {
-      draw: 1,
-      columns: [col('createdDate')],
-      order: [{ column: 0, dir: 'desc', name: 'createdDate' }],
-      start: params.start ?? 0,
-      length: params.length ?? 20,
-      search: { value: '', regex: false, fixed: [] },
-      warehouseId: params.warehouseId ?? null,
-      productVariantId: params.productVariantId ?? null,
-    };
+    return buildDataTablesRequest(
+      {
+        page: Math.floor(start / length) + 1,
+        pageSize: length,
+        search: '',
+        sortField: 'createdDate',
+        sortDir: 'desc',
+      },
+      ['createdDate'],
+      {},
+      {
+        warehouseId: params.warehouseId ?? null,
+        productVariantId: params.productVariantId ?? null,
+      }
+    ) as InventoryTransactionAdvancedRequest;
   }
 }

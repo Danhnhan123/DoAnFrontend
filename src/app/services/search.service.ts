@@ -1,7 +1,6 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import { ApiResponse, GlobalSearchGroup } from '../models';
 
 /**
@@ -9,20 +8,19 @@ import { ApiResponse, GlobalSearchGroup } from '../models';
  * Gọi GET /search?keyword=&limit= — trả về các nhóm kết quả theo loại đối tượng.
  */
 @Injectable({ providedIn: 'root' })
-export class SearchService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class SearchService extends ApiService {
 
   globalSearch(
     keyword: string,
     limit = 5
   ): Observable<ApiResponse<GlobalSearchGroup[]>> {
-    const params = new HttpParams()
-      .set('keyword', keyword)
-      .set('limit', String(limit));
-    return this.http.get<ApiResponse<GlobalSearchGroup[]>>(
-      `${this.base}/search`,
-      { params }
+    const params = {
+      keyword,
+      limit: String(limit),
+    };
+    return this.apiGet<GlobalSearchGroup[]>(
+      '/search',
+      params
     );
   }
 }

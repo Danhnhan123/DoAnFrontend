@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   LocationDetailDto,
@@ -12,61 +12,59 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class LocationService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class LocationService extends ApiService {
 
   /** Danh sách vị trí lưu trữ dạng DataTables (phân trang/tìm/lọc/sắp xếp). */
   getPagedAdvanced(
     body: LocationPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/location/paged-advanced`,
+    return this.apiPost<any>(
+      '/location/paged-advanced',
       body
     );
   }
 
   /** Toàn bộ vị trí (dùng tính số khu vực/sức chứa cho thẻ kho + nạp popup sửa). */
   getAll(): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.base}/location`);
+    return this.apiGet<any>('/location');
   }
 
   /** Chi tiết một vị trí theo id. */
   getById(id: number): Observable<ApiResponse<LocationDetailDto>> {
-    return this.http.get<ApiResponse<LocationDetailDto>>(
-      `${this.base}/location/${id}`
+    return this.apiGet<LocationDetailDto>(
+      `/location/${id}`
     );
   }
 
   /** Tạo mới vị trí. */
   create(payload: CreateLocationDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/location`, payload);
+    return this.apiPost<any>('/location', payload);
   }
 
   /** Tạo mới nhiều vị trí cùng lúc (dùng khi lưu kho kèm danh sách vị trí). */
   createList(payloads: CreateLocationDto[]): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/location/list`,
+    return this.apiPost<any>(
+      '/location/list',
       payloads
     );
   }
 
   /** Cập nhật nhiều vị trí cùng lúc. */
   updateList(payloads: UpdateLocationDto[]): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/location/list`,
+    return this.apiPut<any>(
+      '/location/list',
       payloads
     );
   }
 
   /** Cập nhật vị trí. */
   update(payload: UpdateLocationDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(`${this.base}/location`, payload);
+    return this.apiPut<any>('/location', payload);
   }
 
   /** Xóa mềm vị trí. */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(`${this.base}/location/${id}`);
+    return this.apiDelete<any>(`/location/${id}`);
   }
 
   /**
@@ -89,50 +87,25 @@ export class LocationService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): LocationPagedAdvancedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['createdDate'];
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    const activeValue =
-      params.filterIsActive != null ? String(params.filterIsActive) : '';
-    const warehouseValue =
-      params.filterWarehouseId != null ? String(params.filterWarehouseId) : '';
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('warehouseId', warehouseValue),
-        col('zoneName', params.filterZoneName?.trim() || ''),
-        col('shelfRow'),
-        col('shelfLevel'),
-        col('slotCode', params.filterSlotCode?.trim() || ''),
-        col('maxCapacity'),
-        col('isActive', activeValue),
-        col('createdDate', dateSearch),
-      ],
-      order: [
-        {
-          column: colIndex,
-          dir: params.sortDir,
-          name: params.sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columns = ['id', 'warehouseId', 'zoneName', 'shelfRow', 'shelfLevel', 'slotCode', 'maxCapacity', 'isActive', 'createdDate'];
+    const columnFilters = {
+      warehouseId: params.filterWarehouseId != null ? String(params.filterWarehouseId) : '',
+      zoneName: params.filterZoneName?.trim() || '',
+      slotCode: params.filterSlotCode?.trim() || '',
+      isActive: params.filterIsActive != null ? String(params.filterIsActive) : '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as LocationPagedAdvancedRequest;
   }
 }

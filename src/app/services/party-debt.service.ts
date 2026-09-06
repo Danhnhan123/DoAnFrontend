@@ -1,8 +1,7 @@
-import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   DebtDocumentPage,
@@ -17,30 +16,28 @@ import {
 import { DTParameters } from '../models/search';
 
 @Injectable({ providedIn: 'root' })
-export class PartyDebtService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class PartyDebtService extends ApiService {
 
   getPaged(
     request: PartyDebtPagedRequest
   ): Observable<ApiResponse<PartyDebtPage>> {
-    return this.http.post<ApiResponse<PartyDebtPage>>(
-      `${this.base}/party-debts/paged-advanced`,
+    return this.apiPost<PartyDebtPage>(
+      '/party-debts/paged-advanced',
       request
     );
   }
 
   getSummary(): Observable<ApiResponse<PartyDebtSummary>> {
-    return this.http.get<ApiResponse<PartyDebtSummary>>(
-      `${this.base}/party-debts/summary`
+    return this.apiGet<PartyDebtSummary>(
+      '/party-debts/summary'
     );
   }
 
   getDocuments(
     request: DebtDocumentPagedRequest
   ): Observable<ApiResponse<DebtDocumentPage>> {
-    return this.http.post<ApiResponse<DebtDocumentPage>>(
-      `${this.base}/party-debts/documents/paged`,
+    return this.apiPost<DebtDocumentPage>(
+      '/party-debts/documents/paged',
       request
     );
   }
@@ -48,8 +45,8 @@ export class PartyDebtService {
   getAllTransactions(
     request: DebtTransactionPagedRequest
   ): Observable<ApiResponse<DebtTransactionPage>> {
-    return this.http.post<ApiResponse<DebtTransactionPage>>(
-      `${this.base}/party-debts/transactions/paged-advanced`,
+    return this.apiPost<DebtTransactionPage>(
+      '/party-debts/transactions/paged-advanced',
       request
     );
   }
@@ -58,8 +55,8 @@ export class PartyDebtService {
     partyDebtId: number,
     request: DTParameters
   ): Observable<ApiResponse<DebtTransactionPage>> {
-    return this.http.post<ApiResponse<DebtTransactionPage>>(
-      `${this.base}/party-debts/${partyDebtId}/transactions/paged`,
+    return this.apiPost<DebtTransactionPage>(
+      `/party-debts/${partyDebtId}/transactions/paged`,
       request
     );
   }
@@ -67,8 +64,8 @@ export class PartyDebtService {
   recordPayment(
     request: RecordDebtPaymentRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/party-debts/payment`,
+    return this.apiPost<any>(
+      '/party-debts/payment',
       request
     );
   }
@@ -80,44 +77,41 @@ export class PartyDebtService {
     direction: 'PAYABLE' | 'RECEIVABLE',
     overdueOnly: boolean
   ): PartyDebtPagedRequest {
-    const columns = [
-      this.column('partyCode', true),
-      this.column('partyName', true),
-      this.column('currentBalance', true),
-      this.column('overdueAmount', true),
-      this.column('creditLimit', true),
-      this.column('lastModifiedDate', true),
-    ];
+    const columns = ['partyCode', 'partyName', 'currentBalance', 'overdueAmount', 'creditLimit', 'lastModifiedDate'];
 
-    return {
-      draw: page,
+    return buildDataTablesRequest(
+      {
+        page,
+        pageSize,
+        search: keyword,
+        sortField: 'overdueAmount',
+        sortDir: 'desc',
+      },
       columns,
-      order: [{ column: 3, dir: 'desc', name: '' }],
-      start: (page - 1) * pageSize,
-      length: pageSize,
-      search: { value: keyword.trim(), regex: false, fixed: [] },
-      direction,
-      overdueOnly,
-    };
+      {},
+      {
+        direction,
+        overdueOnly,
+      }
+    ) as PartyDebtPagedRequest;
   }
 
   buildTransactionRequest(
     page: number,
     pageSize: number
   ): DTParameters {
-    return {
-      draw: page,
-      columns: [
-        this.column('transactionDate', true),
-        this.column('transactionType', true),
-        this.column('amount', true),
-        this.column('balanceAfter', true),
-      ],
-      order: [{ column: 0, dir: 'desc', name: '' }],
-      start: (page - 1) * pageSize,
-      length: pageSize,
-      search: { value: '', regex: false, fixed: [] },
-    };
+    const columns = ['transactionDate', 'transactionType', 'amount', 'balanceAfter'];
+
+    return buildDataTablesRequest(
+      {
+        page,
+        pageSize,
+        search: '',
+        sortField: 'transactionDate',
+        sortDir: 'desc',
+      },
+      columns
+    ) as DTParameters;
   }
 
   buildDocumentRequest(
@@ -127,30 +121,27 @@ export class PartyDebtService {
     direction?: 'PAYABLE' | 'RECEIVABLE' | null,
     overdueOnly = false
   ): DebtDocumentPagedRequest {
-    return {
-      draw: page,
-      columns: [
-        this.column('partyName', true), // 0
-        this.column('documentCode', true), // 1
-        this.column('totalAmount', true), // 2
-        this.column('paidAmount', true), // 3
-        this.column('outstandingAmount', true), // 4
-        this.column('dueDate', true), // 5
-        this.column('status', true), // 6
-        this.column('transactionDate', true), // 7 — ngày phát sinh
-      ],
-      // Mặc định: sắp theo ngày phát sinh mới nhất lên đầu (transactionDate desc).
-      // Riêng tab "Quá hạn": ưu tiên hạn thanh toán gần nhất (dueDate asc) lên đầu.
-      order: overdueOnly
-        ? [{ column: 5, dir: 'asc', name: '' }]
-        : [{ column: 7, dir: 'desc', name: '' }],
-      start: (page - 1) * pageSize,
-      length: pageSize,
-      search: { value: keyword.trim(), regex: false, fixed: [] },
-      direction,
-      overdueOnly,
-      status: null,
-    };
+    const columns = ['partyName', 'documentCode', 'totalAmount', 'paidAmount', 'outstandingAmount', 'dueDate', 'status', 'transactionDate'];
+
+    const sortField = overdueOnly ? 'dueDate' : 'transactionDate';
+    const sortDir = overdueOnly ? 'asc' : 'desc';
+
+    return buildDataTablesRequest(
+      {
+        page,
+        pageSize,
+        search: keyword,
+        sortField,
+        sortDir,
+      },
+      columns,
+      {},
+      {
+        direction,
+        overdueOnly,
+        status: null,
+      }
+    ) as DebtDocumentPagedRequest;
   }
 
   buildAllTransactionRequest(
@@ -158,23 +149,24 @@ export class PartyDebtService {
     pageSize: number,
     keyword: string
   ): DebtTransactionPagedRequest {
-    return {
-      ...this.buildTransactionRequest(page, pageSize),
-      search: { value: keyword.trim(), regex: false, fixed: [] },
-      direction: null,
-      transactionType: null,
-      dateFrom: null,
-      dateTo: null,
-    };
-  }
+    const columns = ['transactionDate', 'transactionType', 'amount', 'balanceAfter'];
 
-  private column(data: string, orderable: boolean) {
-    return {
-      data,
-      name: '',
-      searchable: true,
-      orderable,
-      search: { value: '', regex: false, fixed: [] },
-    };
+    return buildDataTablesRequest(
+      {
+        page,
+        pageSize,
+        search: keyword,
+        sortField: 'transactionDate',
+        sortDir: 'desc',
+      },
+      columns,
+      {},
+      {
+        direction: null,
+        transactionType: null,
+        dateFrom: null,
+        dateTo: null,
+      }
+    ) as DebtTransactionPagedRequest;
   }
 }

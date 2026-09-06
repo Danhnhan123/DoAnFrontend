@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   NotificationTypeDetailDto,
@@ -12,43 +12,39 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class NotificationTypeService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class NotificationTypeService extends ApiService {
 
   getPagedAdvanced(
     body: NotificationTypePagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/notification-type/paged-advanced`,
+    return this.apiPost<any>(
+      '/notification-type/paged-advanced',
       body
     );
   }
 
   getById(id: number): Observable<ApiResponse<NotificationTypeDetailDto>> {
-    return this.http.get<ApiResponse<NotificationTypeDetailDto>>(
-      `${this.base}/notification-type/${id}`
+    return this.apiGet<NotificationTypeDetailDto>(
+      `/notification-type/${id}`
     );
   }
 
   create(payload: CreateNotificationTypeDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/notification-type`,
+    return this.apiPost<any>(
+      `/notification-type`,
       payload
     );
   }
 
   update(payload: UpdateNotificationTypeDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/notification-type`,
+    return this.apiPut<any>(
+      `/notification-type`,
       payload
     );
   }
 
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/notification-type/${id}`
-    );
+    return this.apiDelete<any>(`/notification-type/${id}`);
   }
 
   buildPagedBody(params: {
@@ -63,29 +59,23 @@ export class NotificationTypeService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): NotificationTypePagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('name', params.filterName?.trim() || ''),
-        col('description', params.filterDescription?.trim() || ''),
-        col('createdDate', dateSearch),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['id', 'name', 'description', 'createdDate'];
+    const columnFilters = {
+      name: params.filterName?.trim() || '',
+      description: params.filterDescription?.trim() || '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as NotificationTypePagedAdvancedRequest;
   }
 }

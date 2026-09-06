@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   IotDeviceDetailDto,
@@ -14,9 +14,7 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class IotDeviceService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class IotDeviceService extends ApiService {
 
   /**
    * Lấy danh sách thiết bị IoT theo dạng DataTables (phân trang, tìm kiếm, sắp xếp, lọc).
@@ -24,8 +22,8 @@ export class IotDeviceService {
   getPagedAdvanced(
     body: IotDevicePagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/iot-devices/paged-advanced`,
+    return this.apiPost<any>(
+      '/iot-devices/paged-advanced',
       body
     );
   }
@@ -34,8 +32,8 @@ export class IotDeviceService {
    * Lấy chi tiết một thiết bị theo id (dùng khi mở modal sửa).
    */
   getById(id: number): Observable<ApiResponse<IotDeviceDetailDto>> {
-    return this.http.get<ApiResponse<IotDeviceDetailDto>>(
-      `${this.base}/iot-devices/${id}`
+    return this.apiGet<IotDeviceDetailDto>(
+      `/iot-devices/${id}`
     );
   }
 
@@ -45,8 +43,8 @@ export class IotDeviceService {
   create(
     payload: CreateIotDeviceDto
   ): Observable<ApiResponse<CreateIotDeviceResultDto>> {
-    return this.http.post<ApiResponse<CreateIotDeviceResultDto>>(
-      `${this.base}/iot-devices`,
+    return this.apiPost<CreateIotDeviceResultDto>(
+      '/iot-devices',
       payload
     );
   }
@@ -55,8 +53,8 @@ export class IotDeviceService {
    * Cập nhật thiết bị IoT.
    */
   update(payload: UpdateIotDeviceDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/iot-devices`,
+    return this.apiPut<any>(
+      '/iot-devices',
       payload
     );
   }
@@ -80,8 +78,8 @@ export class IotDeviceService {
   regenerateApiKey(
     id: number
   ): Observable<ApiResponse<IotDeviceApiKeyDto>> {
-    return this.http.post<ApiResponse<IotDeviceApiKeyDto>>(
-      `${this.base}/iot-devices/${id}/regenerate-api-key`,
+    return this.apiPost<IotDeviceApiKeyDto>(
+      `/iot-devices/${id}/regenerate-api-key`,
       {}
     );
   }
@@ -90,8 +88,8 @@ export class IotDeviceService {
    * Xóa mềm thiết bị.
    */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/iot-devices/${id}`
+    return this.apiDelete<any>(
+      `/iot-devices/${id}`
     );
   }
 
@@ -99,8 +97,8 @@ export class IotDeviceService {
    * Lấy danh sách kho để chọn khi tạo/sửa và lọc.
    */
   getWarehouses(): Observable<ApiResponse<WarehouseOption[]>> {
-    return this.http.get<ApiResponse<WarehouseOption[]>>(
-      `${this.base}/warehouse`
+    return this.apiGet<WarehouseOption[]>(
+      '/warehouse'
     );
   }
 
@@ -122,52 +120,24 @@ export class IotDeviceService {
     filterIsOnline: boolean | null;
     filterIsActive: boolean | null;
   }): IotDevicePagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    const warehouseValue =
-      params.filterWarehouseId != null ? String(params.filterWarehouseId) : '';
-    const onlineValue =
-      params.filterIsOnline != null ? String(params.filterIsOnline) : '';
-    const activeValue =
-      params.filterIsActive != null ? String(params.filterIsActive) : '';
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('deviceCode'),
-        col('deviceName'),
-        col('deviceType', params.filterDeviceType?.trim() || ''),
-        col('warehouseId', warehouseValue),
-        col('warehouseName'),
-        col('location'),
-        col('isOnline', onlineValue),
-        col('isActive', activeValue),
-        col('lastHeartbeat'),
-        col('createdDate'),
-      ],
-      order: [
-        {
-          column: colIndex,
-          dir: params.sortDir,
-          name: params.sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columns = ['id', 'deviceCode', 'deviceName', 'deviceType', 'warehouseId', 'warehouseName', 'location', 'isOnline', 'isActive', 'lastHeartbeat', 'createdDate'];
+    const columnFilters = {
+      deviceType: params.filterDeviceType?.trim() || '',
+      warehouseId: params.filterWarehouseId != null ? String(params.filterWarehouseId) : '',
+      isOnline: params.filterIsOnline != null ? String(params.filterIsOnline) : '',
+      isActive: params.filterIsActive != null ? String(params.filterIsActive) : '',
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as IotDevicePagedAdvancedRequest;
   }
 }

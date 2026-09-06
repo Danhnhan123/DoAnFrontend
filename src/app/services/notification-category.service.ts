@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   NotificationCategoryDetailDto,
@@ -12,43 +12,39 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class NotificationCategoryService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class NotificationCategoryService extends ApiService {
 
   getPagedAdvanced(
     body: NotificationCategoryPagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/notification-category/paged-advanced`,
+    return this.apiPost<any>(
+      '/notification-category/paged-advanced',
       body
     );
   }
 
   getById(id: number): Observable<ApiResponse<NotificationCategoryDetailDto>> {
-    return this.http.get<ApiResponse<NotificationCategoryDetailDto>>(
-      `${this.base}/notification-category/${id}`
+    return this.apiGet<NotificationCategoryDetailDto>(
+      `/notification-category/${id}`
     );
   }
 
   create(payload: CreateNotificationCategoryDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/notification-category`,
+    return this.apiPost<any>(
+      `/notification-category`,
       payload
     );
   }
 
   update(payload: UpdateNotificationCategoryDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/notification-category`,
+    return this.apiPut<any>(
+      `/notification-category`,
       payload
     );
   }
 
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/notification-category/${id}`
-    );
+    return this.apiDelete<any>(`/notification-category/${id}`);
   }
 
   buildPagedBody(params: {
@@ -63,30 +59,23 @@ export class NotificationCategoryService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): NotificationCategoryPagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('name', params.filterName?.trim() || ''),
-        col('description', params.filterDescription?.trim() || ''),
-        col('color'),
-        col('createdDate', dateSearch),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['id', 'name', 'description', 'color', 'createdDate'];
+    const columnFilters = {
+      name: params.filterName?.trim() || '',
+      description: params.filterDescription?.trim() || '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as NotificationCategoryPagedAdvancedRequest;
   }
 }

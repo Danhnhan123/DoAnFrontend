@@ -1,4 +1,5 @@
 import { Injectable, computed, inject } from '@angular/core';
+import { ApiService } from './api.service';
 import { AuthService } from './auth.service';
 import { MenuAggregate } from '../models';
 import { ACTION, ACTION_BY_NAME } from '../constants/permission.constants';
@@ -14,7 +15,7 @@ import { ACTION, ACTION_BY_NAME } from '../constants/permission.constants';
  * Lưu ý bảo mật: đây chỉ là lớp UX (ẩn nút/route). Backend đã chặn thật bằng CustomAuthorize.
  */
 @Injectable({ providedIn: 'root' })
-export class PermissionService {
+export class PermissionService extends ApiService {
   private readonly auth = inject(AuthService);
 
   /** Map Code menu (chữ HOA) -> menuId, gộp từ cây menus (mọi cấp). */

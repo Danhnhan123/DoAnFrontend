@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import {
   ApiResponse,
   ReportFilterOptions,
@@ -12,9 +12,8 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class ReportService {
-  private readonly http = inject(HttpClient);
-  private readonly base = `${environment.baseUrl}/reports`;
+export class ReportService extends ApiService {
+  private readonly reportBase = '/reports';
 
   private readonly endpoints: Record<Exclude<ReportTab, 'overview'>, string> = {
     stock: 'inventory-by-lot',
@@ -28,15 +27,15 @@ export class ReportService {
   };
 
   getFilterOptions(): Observable<ApiResponse<ReportFilterOptions>> {
-    return this.http.get<ApiResponse<ReportFilterOptions>>(
-      `${this.base}/filter-options`
+    return this.apiGet<ReportFilterOptions>(
+      `${this.reportBase}/filter-options`
     );
   }
 
   getOverview(
     query: ReportQueryParams
   ): Observable<ApiResponse<ReportOverview>> {
-    return this.http.get<ApiResponse<ReportOverview>>(`${this.base}/overview`, {
+    return this.apiGet<ReportOverview>(`${this.reportBase}/overview`, {
       params: this.buildParams(query),
     });
   }
@@ -45,8 +44,8 @@ export class ReportService {
     type: Exclude<ReportTab, 'overview'>,
     query: ReportQueryParams
   ): Observable<ApiResponse<ReportPage>> {
-    return this.http.get<ApiResponse<ReportPage>>(
-      `${this.base}/${this.endpoints[type]}`,
+    return this.apiGet<ReportPage>(
+      `${this.reportBase}/${this.endpoints[type]}`,
       { params: this.buildParams(query) }
     );
   }
@@ -56,7 +55,7 @@ export class ReportService {
     format: 'xlsx' | 'csv',
     query: ReportQueryParams
   ): Observable<Blob> {
-    return this.http.get(`${this.base}/${type}/export`, {
+    return this.http.get(`${this.base}${this.reportBase}/${type}/export`, {
       params: this.buildParams(query).set('format', format),
       responseType: 'blob',
     });

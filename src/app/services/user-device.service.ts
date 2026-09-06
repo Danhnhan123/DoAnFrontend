@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   MyDevice,
@@ -10,15 +10,13 @@ import {
 } from '../models';
 
 @Injectable({ providedIn: 'root' })
-export class UserDeviceService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class UserDeviceService extends ApiService {
 
   // ── Màn quản lý thiết bị (admin) ─────────────────────────────────
   /** Danh sách thiết bị dạng DataTables (phân trang/tìm/sắp xếp). Chỉ READ. */
   getPagedAdvanced(body: DTParameters): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/user-device/paged-advanced`,
+    return this.apiPost<any>(
+      '/user-device/paged-advanced',
       body
     );
   }
@@ -32,58 +30,42 @@ export class UserDeviceService {
     sortDir: 'asc' | 'desc';
     colMap: Record<string, number>;
   }): DTParameters {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const col = (data: string) => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value: '', regex: false, fixed: [] as any[] },
-    });
+    const columns = ['id', 'deviceName', 'platform', 'osVersion', 'appVersion', 'userAgent', 'userName', 'createdDate'];
 
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('deviceName'),
-        col('platform'),
-        col('osVersion'),
-        col('appVersion'),
-        col('userAgent'),
-        col('userName'),
-        col('createdDate'),
-      ],
-      order: [
-        { column: colIndex, dir: params.sortDir, name: params.sortField },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
-    };
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns
+    ) as DTParameters;
   }
 
   /** Đăng ký/cập nhật thiết bị hiện tại (gọi sau khi login). */
   registerDevice(payload: RegisterDeviceRequest): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user-device/register`, payload);
+    return this.apiPost<any>('/user-device/register', payload);
   }
 
   /** Danh sách thiết bị đã đăng ký của người dùng. */
   getMyDevices(): Observable<ApiResponse<MyDevice[]>> {
-    return this.http.get<ApiResponse<MyDevice[]>>(`${this.base}/user-device/my-devices`);
+    return this.apiGet<MyDevice[]>('/user-device/my-devices');
   }
 
   /** Đăng xuất khỏi một thiết bị cụ thể (theo DeviceId). */
   logoutDevice(deviceId: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user-device/logout`, { deviceId });
+    return this.apiPost<any>('/user-device/logout', { deviceId });
   }
 
   /** Đăng xuất một thiết bị theo Id bản ghi (dùng cho thiết bị không có DeviceId). */
   logoutDeviceById(id: number): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user-device/logout-by-id`, { id });
+    return this.apiPost<any>('/user-device/logout-by-id', { id });
   }
 
   /** Đăng xuất khỏi tất cả thiết bị khác (giữ thiết bị hiện tại). */
   logoutOtherDevices(deviceId: string): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(`${this.base}/user-device/logout-others`, { deviceId });
+    return this.apiPost<any>('/user-device/logout-others', { deviceId });
   }
 }

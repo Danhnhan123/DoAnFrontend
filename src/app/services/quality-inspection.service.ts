@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   DTResponse,
@@ -22,29 +22,27 @@ import { buildDateRange } from '../utils/date.utils';
  * GET all, POST paged-advanced, GET {id}, GET by-lot/{paddyLotId}, POST, PUT, DELETE.
  */
 @Injectable({ providedIn: 'root' })
-export class QualityInspectionService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class QualityInspectionService extends ApiService {
 
   /** Bảng phiếu kiểm định (DataTables: phân trang / tìm / lọc / sắp xếp). */
   getPagedAdvanced(
     body: QualityInspectionPagedRequest
   ): Observable<ApiResponse<DTResponse<QualityInspectionRow>>> {
-    return this.http.post<ApiResponse<DTResponse<QualityInspectionRow>>>(
-      `${this.base}/quality-inspections/paged-advanced`,
+    return this.apiPost<DTResponse<QualityInspectionRow>>(
+      '/quality-inspections/paged-advanced',
       body
     );
   }
 
   getAll(): Observable<ApiResponse<QualityInspectionRow[]>> {
-    return this.http.get<ApiResponse<QualityInspectionRow[]>>(
-      `${this.base}/quality-inspections`
+    return this.apiGet<QualityInspectionRow[]>(
+      '/quality-inspections'
     );
   }
 
   getById(id: number): Observable<ApiResponse<QualityInspectionDetailDto>> {
-    return this.http.get<ApiResponse<QualityInspectionDetailDto>>(
-      `${this.base}/quality-inspections/${id}`
+    return this.apiGet<QualityInspectionDetailDto>(
+      `/quality-inspections/${id}`
     );
   }
 
@@ -52,14 +50,14 @@ export class QualityInspectionService {
   getByLot(
     paddyLotId: number
   ): Observable<ApiResponse<QualityInspectionRow[]>> {
-    return this.http.get<ApiResponse<QualityInspectionRow[]>>(
-      `${this.base}/quality-inspections/by-lot/${paddyLotId}`
+    return this.apiGet<QualityInspectionRow[]>(
+      `/quality-inspections/by-lot/${paddyLotId}`
     );
   }
 
   create(payload: CreateQualityInspectionDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/quality-inspections`,
+    return this.apiPost<any>(
+      `/quality-inspections`,
       payload
     );
   }
@@ -69,31 +67,29 @@ export class QualityInspectionService {
    * khỏi ô cách ly và sinh phiếu nhập kho để xếp lại vào ô thường (màn Store-in).
    */
   recheck(payload: CreateQualityInspectionDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/quality-inspections/recheck`,
+    return this.apiPost<any>(
+      `/quality-inspections/recheck`,
       payload
     );
   }
 
   update(payload: UpdateQualityInspectionDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/quality-inspections`,
+    return this.apiPut<any>(
+      `/quality-inspections`,
       payload
     );
   }
 
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/quality-inspections/${id}`
-    );
+    return this.apiDelete<any>(`/quality-inspections/${id}`);
   }
 
   /** Lấy toàn bộ bao và tiến độ của một phiên kiểm tra cấp bao. */
   getBagProgress(
     inspectionId: number
   ): Observable<ApiResponse<QualityInspectionBagProgressDto>> {
-    return this.http.get<ApiResponse<QualityInspectionBagProgressDto>>(
-      `${this.base}/quality-inspections/${inspectionId}/bags`
+    return this.apiGet<QualityInspectionBagProgressDto>(
+      `/quality-inspections/${inspectionId}/bags`
     );
   }
 
@@ -103,8 +99,8 @@ export class QualityInspectionService {
     bagId: number,
     payload: SaveBagInspectionResultDto
   ): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/quality-inspections/${inspectionId}/bags/${bagId}`,
+    return this.apiPut<any>(
+      `/quality-inspections/${inspectionId}/bags/${bagId}`,
       payload
     );
   }
@@ -114,15 +110,15 @@ export class QualityInspectionService {
     inspectionId: number,
     payload: CompleteInspectionDto
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/quality-inspections/${inspectionId}/complete`,
+    return this.apiPost<any>(
+      `/quality-inspections/${inspectionId}/complete`,
       payload
     );
   }
 
   getMoistureConfig(): Observable<ApiResponse<MoistureConfigDto>> {
-    return this.http.get<ApiResponse<MoistureConfigDto>>(
-      `${this.base}/quality-inspections/config`
+    return this.apiGet<MoistureConfigDto>(
+      `/quality-inspections/config`
     );
   }
 
@@ -138,40 +134,22 @@ export class QualityInspectionService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): QualityInspectionPagedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['inspectedAt'] ?? 0;
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    const passedValue =
-      params.filterPassed != null ? String(params.filterPassed) : '';
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    return {
-      draw: params.page,
-      columns: [
-        col('lotCode'),
-        col('inspectorName'),
-        col('inspectedAt', dateSearch),
-        col('moisturePercent'),
-        col('impurityPercent'),
-        col('moldLevel'),
-        col('pestLevel'),
-        col('packagingStatus'),
-        col('passedInspection', passedValue),
-        col('handling'),
-        col('id'),
-      ],
-      order: [{ column: colIndex, dir: params.sortDir, name: params.sortField }],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: { value: params.search.trim(), regex: false, fixed: [] },
+    const columns = ['lotCode', 'inspectorName', 'inspectedAt', 'moisturePercent', 'impurityPercent', 'moldLevel', 'pestLevel', 'packagingStatus', 'passedInspection', 'handling', 'id'];
+    const columnFilters = {
+      passedInspection: params.filterPassed != null ? String(params.filterPassed) : '',
+      inspectedAt: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as QualityInspectionPagedRequest;
   }
 }

@@ -1,10 +1,11 @@
 import { Injectable, signal, effect, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
+import { ApiService } from './api.service';
 
 export type Theme = 'light' | 'dark';
 
 @Injectable({ providedIn: 'root' })
-export class ThemeService {
+export class ThemeService extends ApiService {
   private readonly STORAGE_KEY = 'admin_theme';
   private platformId = inject(PLATFORM_ID); // Inject ID môi trường
 
@@ -12,6 +13,7 @@ export class ThemeService {
   theme = signal<Theme>('light');
 
   constructor() {
+    super();
     // 1. Kiểm tra môi trường để load theme ban đầu từ localStorage
     if (isPlatformBrowser(this.platformId)) {
       const savedTheme = localStorage.getItem(this.STORAGE_KEY) as Theme;

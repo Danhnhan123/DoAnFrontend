@@ -1,7 +1,7 @@
-import { Injectable, inject } from "@angular/core";
-import { HttpClient } from "@angular/common/http";
+import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
-import { environment } from "../../environments/environment";
+import { ApiService } from "./api.service";
+import { buildDataTablesRequest } from "../utils/datatable.util";
 import {
   ApiResponse,
   ConfirmPaddyStoreInResult,
@@ -26,21 +26,19 @@ import {
 } from "../models";
 
 @Injectable({ providedIn: "root" })
-export class PaddyPurchaseService {
-  private readonly http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class PaddyPurchaseService extends ApiService {
 
   // ───────────────────────── LỊCH THU MUA ─────────────────────────
 
   getSchedules(): Observable<ApiResponse<PaddyPurchaseScheduleRow[]>> {
-    return this.http.get<ApiResponse<PaddyPurchaseScheduleRow[]>>(
-      `${this.base}/paddy-purchase-schedules`,
+    return this.apiGet<PaddyPurchaseScheduleRow[]>(
+      `/paddy-purchase-schedules`,
     );
   }
 
   getSchedulesPaged(body: DTParameters): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/paddy-purchase-schedules/paged-advanced`,
+    return this.apiPost<any>(
+      `/paddy-purchase-schedules/paged-advanced`,
       body,
     );
   }
@@ -48,16 +46,16 @@ export class PaddyPurchaseService {
   getScheduleById(
     id: number,
   ): Observable<ApiResponse<PaddyPurchaseScheduleRow>> {
-    return this.http.get<ApiResponse<PaddyPurchaseScheduleRow>>(
-      `${this.base}/paddy-purchase-schedules/${id}`,
+    return this.apiGet<PaddyPurchaseScheduleRow>(
+      `/paddy-purchase-schedules/${id}`,
     );
   }
 
   createSchedule(
     payload: CreatePaddyPurchaseScheduleDto,
   ): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(
-      `${this.base}/paddy-purchase-schedules`,
+    return this.apiPost<number>(
+      `/paddy-purchase-schedules`,
       payload,
     );
   }
@@ -65,8 +63,8 @@ export class PaddyPurchaseService {
   updateSchedule(
     payload: UpdatePaddyPurchaseScheduleDto,
   ): Observable<ApiResponse<number>> {
-    return this.http.put<ApiResponse<number>>(
-      `${this.base}/paddy-purchase-schedules`,
+    return this.apiPut<number>(
+      `/paddy-purchase-schedules`,
       payload,
     );
   }
@@ -83,37 +81,37 @@ export class PaddyPurchaseService {
   }
 
   deleteSchedule(id: number): Observable<ApiResponse<boolean>> {
-    return this.http.delete<ApiResponse<boolean>>(
-      `${this.base}/paddy-purchase-schedules/${id}`,
+    return this.apiDelete<boolean>(
+      `/paddy-purchase-schedules/${id}`,
     );
   }
 
   // ───────────────────────── PHIẾU MUA LÚA ────────────────────────
 
   getReceipts(): Observable<ApiResponse<PaddyPurchaseReceiptRow[]>> {
-    return this.http.get<ApiResponse<PaddyPurchaseReceiptRow[]>>(
-      `${this.base}/paddy-purchase-receipts`,
+    return this.apiGet<PaddyPurchaseReceiptRow[]>(
+      `/paddy-purchase-receipts`,
     );
   }
 
   getReceiptsPaged(body: DTParameters): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/paddy-purchase-receipts/paged-advanced`,
+    return this.apiPost<any>(
+      `/paddy-purchase-receipts/paged-advanced`,
       body,
     );
   }
 
   getReceiptById(id: number): Observable<ApiResponse<PaddyPurchaseReceiptRow>> {
-    return this.http.get<ApiResponse<PaddyPurchaseReceiptRow>>(
-      `${this.base}/paddy-purchase-receipts/${id}`,
+    return this.apiGet<PaddyPurchaseReceiptRow>(
+      `/paddy-purchase-receipts/${id}`,
     );
   }
 
   createReceipt(
     payload: CreatePaddyPurchaseReceiptDto,
   ): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(
-      `${this.base}/paddy-purchase-receipts`,
+    return this.apiPost<number>(
+      `/paddy-purchase-receipts`,
       payload,
     );
   }
@@ -121,8 +119,8 @@ export class PaddyPurchaseService {
   updateReceipt(
     payload: UpdatePaddyPurchaseReceiptDto,
   ): Observable<ApiResponse<number>> {
-    return this.http.put<ApiResponse<number>>(
-      `${this.base}/paddy-purchase-receipts`,
+    return this.apiPut<number>(
+      `/paddy-purchase-receipts`,
       payload,
     );
   }
@@ -131,9 +129,8 @@ export class PaddyPurchaseService {
     id: number,
     payload?: ConfirmPaddyPurchaseReceiptPayload,
   ): Observable<ApiResponse<ConfirmPaddyPurchaseReceiptResult>> {
-    // Phát sinh nợ → gửi { dueDate }; không nợ → body rỗng {}.
-    return this.http.post<ApiResponse<ConfirmPaddyPurchaseReceiptResult>>(
-      `${this.base}/paddy-purchase-receipts/${id}/confirm`,
+    return this.apiPost<ConfirmPaddyPurchaseReceiptResult>(
+      `/paddy-purchase-receipts/${id}/confirm`,
       payload ?? {},
     );
   }
@@ -141,8 +138,8 @@ export class PaddyPurchaseService {
   getPutawaySuggestions(
     payload: GetPutawaySuggestionsRequest,
   ): Observable<ApiResponse<PutawaySuggestionsResponse>> {
-    return this.http.post<ApiResponse<PutawaySuggestionsResponse>>(
-      `${this.base}/putaway/suggestions`,
+    return this.apiPost<PutawaySuggestionsResponse>(
+      `/putaway/suggestions`,
       payload,
     );
   }
@@ -151,46 +148,46 @@ export class PaddyPurchaseService {
     receiptId: number,
     payload: ConfirmStoreInRequest,
   ): Observable<ApiResponse<ConfirmPaddyStoreInResult>> {
-    return this.http.post<ApiResponse<ConfirmPaddyStoreInResult>>(
-      `${this.base}/store-in/PADDY_PURCHASE/${receiptId}/confirm`,
+    return this.apiPost<ConfirmPaddyStoreInResult>(
+      `/store-in/PADDY_PURCHASE/${receiptId}/confirm`,
       payload,
     );
   }
 
   deleteReceipt(id: number): Observable<ApiResponse<boolean>> {
-    return this.http.delete<ApiResponse<boolean>>(
-      `${this.base}/paddy-purchase-receipts/${id}`,
+    return this.apiDelete<boolean>(
+      `/paddy-purchase-receipts/${id}`,
     );
   }
 
   // ───────────────────────── LOOKUP CHO FORM ──────────────────────
 
   getFarmers(): Observable<ApiResponse<FarmerDetailDto[]>> {
-    return this.http.get<ApiResponse<FarmerDetailDto[]>>(
-      `${this.base}/farmers`,
+    return this.apiGet<FarmerDetailDto[]>(
+      `/farmers`,
     );
   }
 
   createFarmer(payload: CreateFarmerDto): Observable<ApiResponse<number>> {
-    return this.http.post<ApiResponse<number>>(`${this.base}/farmers`, payload);
+    return this.apiPost<number>(`/farmers`, payload);
   }
 
   getRiceVarieties(): Observable<ApiResponse<RiceVarietyDetailDto[]>> {
-    return this.http.get<ApiResponse<RiceVarietyDetailDto[]>>(
-      `${this.base}/rice-varieties`,
+    return this.apiGet<RiceVarietyDetailDto[]>(
+      `/rice-varieties`,
     );
   }
 
   /** Danh sách biến thể sản phẩm lúa để chọn trên phiếu (FE lọc theo giống lúa). */
   getProductVariants(): Observable<ApiResponse<PaddyVariantOption[]>> {
-    return this.http.get<ApiResponse<PaddyVariantOption[]>>(
-      `${this.base}/paddy-purchase-receipts/product-variants`,
+    return this.apiGet<PaddyVariantOption[]>(
+      `/paddy-purchase-receipts/product-variants`,
     );
   }
 
   getWarehouses(): Observable<ApiResponse<WarehouseDetailDto[]>> {
-    return this.http.get<ApiResponse<WarehouseDetailDto[]>>(
-      `${this.base}/warehouse`,
+    return this.apiGet<WarehouseDetailDto[]>(
+      `/warehouse`,
     );
   }
 
@@ -206,40 +203,24 @@ export class PaddyPurchaseService {
     statusId?: number | null;
     dateRange?: string;
   }): DTParameters {
-    const columns = [
-      this.column("scheduleCode"),
-      this.column("farmerId", params.farmerId ? String(params.farmerId) : ""),
-      this.column("riceVarietyId"),
-      this.column("estimatedQtyKg"),
-      this.column("scheduleDate", params.dateRange || ""),
-      this.column("statusId", params.statusId ? String(params.statusId) : ""),
-      this.column("createdDate"),
-    ];
-
-    const sortField = params.sortField || "scheduleDate";
-    const sortIndex = Math.max(
-      0,
-      columns.findIndex((x) => x.data === sortField),
-    );
-
-    return {
-      draw: params.page,
-      columns,
-      order: [
-        {
-          column: sortIndex,
-          dir: params.sortDir || "desc",
-          name: sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columns = ['scheduleCode', 'farmerId', 'riceVarietyId', 'estimatedQtyH', 'scheduleDate', 'statusId', 'createdDate'];
+    const columnFilters = {
+      farmerId: params.farmerId ? String(params.farmerId) : "",
+      scheduleDate: params.dateRange || "",
+      statusId: params.statusId ? String(params.statusId) : "",
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField || "scheduleDate",
+        sortDir: params.sortDir || "desc",
+      },
+      columns,
+      columnFilters
+    ) as DTParameters;
   }
 
   buildReceiptPagedBody(params: {
@@ -252,57 +233,23 @@ export class PaddyPurchaseService {
     warehouseId?: number | null;
     dateRange?: string;
   }): DTParameters {
-    const columns = [
-      this.column("receiptCode"),
-      this.column("farmerId", params.farmerId ? String(params.farmerId) : ""),
-      this.column("riceVarietyId"),
-      this.column("actualWeightKg"),
-      this.column("agreedPrice"),
-      this.column("totalAmount"),
-      this.column("qualityJson"),
-      this.column("paidAmount"),
-      this.column("debtAmount"),
-      this.column("receiptDate", params.dateRange || ""),
-      this.column(
-        "warehouseId",
-        params.warehouseId ? String(params.warehouseId) : "",
-      ),
-      this.column("createdDate"),
-    ];
+    const columns = ['receiptCode', 'farmerId', 'riceVarietyId', 'actualWeightKg', 'agreedPrice', 'totalAmount', 'qualityJson', 'paidAmount', 'debtAmount', 'receiptDate', 'warehouseId', 'createdDate'];
+    const columnFilters = {
+      farmerId: params.farmerId ? String(params.farmerId) : "",
+      receiptDate: params.dateRange || "",
+      warehouseId: params.warehouseId ? String(params.warehouseId) : "",
+    };
 
-    const sortField = params.sortField || "receiptDate";
-    const sortIndex = Math.max(
-      0,
-      columns.findIndex((x) => x.data === sortField),
-    );
-
-    return {
-      draw: params.page,
-      columns,
-      order: [
-        {
-          column: sortIndex,
-          dir: params.sortDir || "desc",
-          name: sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField || "receiptDate",
+        sortDir: params.sortDir || "desc",
       },
-    };
-  }
-
-  private column(data: string, value = "") {
-    return {
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    };
+      columns,
+      columnFilters
+    ) as DTParameters;
   }
 }

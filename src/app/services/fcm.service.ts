@@ -10,6 +10,7 @@ import {
   MessagePayload,
 } from 'firebase/messaging';
 import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
 import { UserDeviceService } from './user-device.service';
 import { getDeviceInfo } from '../utils/device.util';
 
@@ -19,7 +20,7 @@ import { getDeviceInfo } from '../utils/device.util';
  * Thông báo khi app ở nền do public/firebase-messaging-sw.js xử lý.
  */
 @Injectable({ providedIn: 'root' })
-export class FcmService {
+export class FcmService extends ApiService {
   private userDeviceService = inject(UserDeviceService);
 
   private messaging?: Messaging;

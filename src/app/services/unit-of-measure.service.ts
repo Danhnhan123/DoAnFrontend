@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   UnitOfMeasureDetailDto,
@@ -12,48 +12,44 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class UnitOfMeasureService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class UnitOfMeasureService extends ApiService {
 
   /** Danh sách đơn vị tính dạng DataTables (phân trang/tìm/sắp xếp). */
   getPagedAdvanced(
     body: UnitOfMeasurePagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/unit-of-measures/paged-advanced`,
+    return this.apiPost<any>(
+      '/unit-of-measures/paged-advanced',
       body
     );
   }
 
   /** Chi tiết một đơn vị tính theo id. */
   getById(id: number): Observable<ApiResponse<UnitOfMeasureDetailDto>> {
-    return this.http.get<ApiResponse<UnitOfMeasureDetailDto>>(
-      `${this.base}/unit-of-measures/${id}`
+    return this.apiGet<UnitOfMeasureDetailDto>(
+      `/unit-of-measures/${id}`
     );
   }
 
   /** Tạo mới đơn vị tính. */
   create(payload: CreateUnitOfMeasureDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/unit-of-measures`,
+    return this.apiPost<any>(
+      `/unit-of-measures`,
       payload
     );
   }
 
   /** Cập nhật đơn vị tính. */
   update(payload: UpdateUnitOfMeasureDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/unit-of-measures`,
+    return this.apiPut<any>(
+      `/unit-of-measures`,
       payload
     );
   }
 
   /** Xóa mềm đơn vị tính. */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/unit-of-measures/${id}`
-    );
+    return this.apiDelete<any>(`/unit-of-measures/${id}`);
   }
 
   /**
@@ -72,39 +68,23 @@ export class UnitOfMeasureService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): UnitOfMeasurePagedAdvancedRequest {
-    const colIndex = params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('name', params.filterName?.trim() || ''),
-        col('symbol', params.filterSymbol?.trim() || ''),
-        col('createdDate', dateSearch),
-      ],
-      order: [
-        {
-          column: colIndex,
-          dir: params.sortDir,
-          name: params.sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columns = ['id', 'name', 'symbol', 'createdDate'];
+    const columnFilters = {
+      name: params.filterName?.trim() || '',
+      symbol: params.filterSymbol?.trim() || '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as UnitOfMeasurePagedAdvancedRequest;
   }
 }

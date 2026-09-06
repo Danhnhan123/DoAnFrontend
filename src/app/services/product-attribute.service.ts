@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { ApiService } from './api.service';
+import { buildDataTablesRequest } from '../utils/datatable.util';
 import {
   ApiResponse,
   ProductAttributeDetailDto,
@@ -12,48 +12,44 @@ import {
 import { buildDateRange } from '../utils/date.utils';
 
 @Injectable({ providedIn: 'root' })
-export class ProductAttributeService {
-  private http = inject(HttpClient);
-  private readonly base = environment.baseUrl;
+export class ProductAttributeService extends ApiService {
 
   /** Danh sách thuộc tính sản phẩm dạng DataTables (phân trang/tìm/sắp xếp). */
   getPagedAdvanced(
     body: ProductAttributePagedAdvancedRequest
   ): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-attribute/paged-advanced`,
+    return this.apiPost<any>(
+      '/product-attribute/paged-advanced',
       body
     );
   }
 
   /** Chi tiết một thuộc tính sản phẩm theo id. */
   getById(id: number): Observable<ApiResponse<ProductAttributeDetailDto>> {
-    return this.http.get<ApiResponse<ProductAttributeDetailDto>>(
-      `${this.base}/product-attribute/${id}`
+    return this.apiGet<ProductAttributeDetailDto>(
+      `/product-attribute/${id}`
     );
   }
 
   /** Tạo mới thuộc tính sản phẩm. */
   create(payload: CreateProductAttributeDto): Observable<ApiResponse<any>> {
-    return this.http.post<ApiResponse<any>>(
-      `${this.base}/product-attribute`,
+    return this.apiPost<any>(
+      `/product-attribute`,
       payload
     );
   }
 
   /** Cập nhật thuộc tính sản phẩm. */
   update(payload: UpdateProductAttributeDto): Observable<ApiResponse<any>> {
-    return this.http.put<ApiResponse<any>>(
-      `${this.base}/product-attribute`,
+    return this.apiPut<any>(
+      `/product-attribute`,
       payload
     );
   }
 
   /** Xóa mềm thuộc tính sản phẩm. */
   delete(id: number): Observable<ApiResponse<any>> {
-    return this.http.delete<ApiResponse<any>>(
-      `${this.base}/product-attribute/${id}`
-    );
+    return this.apiDelete<any>(`/product-attribute/${id}`);
   }
 
   /**
@@ -72,40 +68,23 @@ export class ProductAttributeService {
     dateFrom?: string | null;
     dateTo?: string | null;
   }): ProductAttributePagedAdvancedRequest {
-    const colIndex =
-      params.colMap[params.sortField] ?? params.colMap['createdDate'];
-    const dateSearch = buildDateRange(params.dateFrom ?? '', params.dateTo ?? '');
-
-    const col = (data: string, value = '') => ({
-      data,
-      name: data,
-      searchable: true,
-      orderable: true,
-      search: { value, regex: false, fixed: [] as any[] },
-    });
-
-    return {
-      draw: params.page,
-      columns: [
-        col('id'),
-        col('name', params.filterName?.trim() || ''),
-        col('description', params.filterDescription?.trim() || ''),
-        col('createdDate', dateSearch),
-      ],
-      order: [
-        {
-          column: colIndex,
-          dir: params.sortDir,
-          name: params.sortField,
-        },
-      ],
-      start: (params.page - 1) * params.pageSize,
-      length: params.pageSize,
-      search: {
-        value: params.search.trim(),
-        regex: false,
-        fixed: [],
-      },
+    const columns = ['id', 'name', 'description', 'createdDate'];
+    const columnFilters = {
+      name: params.filterName?.trim() || '',
+      description: params.filterDescription?.trim() || '',
+      createdDate: buildDateRange(params.dateFrom ?? '', params.dateTo ?? ''),
     };
+
+    return buildDataTablesRequest(
+      {
+        page: params.page,
+        pageSize: params.pageSize,
+        search: params.search,
+        sortField: params.sortField,
+        sortDir: params.sortDir,
+      },
+      columns,
+      columnFilters
+    ) as ProductAttributePagedAdvancedRequest;
   }
 }
